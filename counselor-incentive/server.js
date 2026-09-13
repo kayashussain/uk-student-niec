@@ -45,6 +45,33 @@ function sendJSON(res, status, obj) {
   send(res, status, JSON.stringify(obj), { 'Content-Type': 'application/json; charset=utf-8' });
 }
 
+// Shared-password protection — only active when both env vars are set (so local dev,
+// where they're unset, is unaffected). On a host, set APP_USERNAME/APP_PASSWORD as
+// environment variables for this app.
+const AUTH_USER = process.env.APP_USERNAME;
+const AUTH_PASS = process.env.APP_PASSWORD;
+
+function checkAuth(req) {
+  if (!AUTH_USER || !AUTH_PASS) return true; // auth disabled (e.g. local dev)
+  const header = req.headers.authorization || '';
+  const [scheme, encoded] = header.split(' ');
+  if (scheme !== 'Basic' || !encoded) return false;
+  const decoded = Buffer.from(encoded, 'base64').toString('utf8');
+  const sep = decoded.indexOf(':');
+  if (sep === -1) return false;
+  return decoded.slice(0, sep) === AUTH_USER && decoded.slice(sep + 1) === AUTH_PASS;
+}
+
+function requireAuth(req, res) {
+  if (checkAuth(req)) return true;
+  res.writeHead(401, {
+    'WWW-Authenticate': 'Basic realm="UK Student NIEC", charset="UTF-8"',
+    'Content-Type': 'text/plain',
+  });
+  res.end('Authentication required.');
+  return false;
+}
+
 function serveStatic(req, res) {
   let filePath = req.url === '/' ? '/index.html' : req.url;
   filePath = path.join(ROOT, decodeURIComponent(filePath.split('?')[0]));
@@ -187,6 +214,7 @@ async function getGbpToNprRate() {
 }
 
 const server = http.createServer(async (req, res) => {
+  if (!requireAuth(req, res)) return;
   const urlPath = req.url.split('?')[0];
 
   try {
