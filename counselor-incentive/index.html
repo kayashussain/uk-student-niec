@@ -60,7 +60,7 @@
     padding: 10px 16px; margin: -20px -20px 16px; background: var(--panel); border-bottom: 1px solid var(--border);
   }
   .brand { display: flex; align-items: center; gap: 10px; }
-  .brand h1 { font-size: 16px; margin: 0; }
+  .brand h1 { font-size: 16px; margin: 0; text-transform: uppercase; letter-spacing: 0.02em; }
 
   .toolbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
   input.search {
@@ -363,11 +363,6 @@ function render(){
   const students = currentStudents();
   rowsEl.innerHTML = '';
   emptyStateEl.hidden = students.length > 0;
-  if (!students.length) {
-    emptyStateEl.innerHTML = state.intakes.length
-      ? `<b>No visa-issued students yet</b> for "${esc(state.activeIntake || '')}". As soon as a student's Application Status is set to <b>Visa Issued</b> in Student Details, they'll show up here automatically.`
-      : '';
-  }
 
   students.forEach((s, i) => {
     const c = state.commissions[s.id] || {};
