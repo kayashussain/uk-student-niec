@@ -70,7 +70,7 @@ body { display: flex; flex-direction: column; height: 100vh; }
 
 .brand { display: flex; align-items: center; gap: 10px; }
 .brand-mark { font-size: 22px; }
-.brand h1 { font-size: 16px; margin: 0; color: var(--focus); text-transform: uppercase; letter-spacing: 0.02em; }
+.brand h1 { font-size: 16px; margin: 0; color: var(--text); text-transform: uppercase; letter-spacing: 0.02em; }
 .subtitle { font-size: 11px; color: var(--text-dim); }
 
 .toolbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
@@ -273,7 +273,7 @@ td[contenteditable="true"]:focus {
 }
 
 td.num { text-align: right; font-variant-numeric: tabular-nums; }
-td.calculated { background: var(--accent-dim) !important; cursor: default; color: var(--text); }
+td.calculated { background: var(--focus-dim) !important; cursor: default; color: var(--text); }
 td.date { font-variant-numeric: tabular-nums; color: var(--text-dim); padding: 3px 6px; }
 
 .date-input {
