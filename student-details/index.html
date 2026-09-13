@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>UK Student NIEC</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark">📋</span>
+      <div>
+        <h1>UK Student NIEC</h1>
+      </div>
+    </div>
+    <div class="toolbar">
+      <input id="search" type="search" placeholder="Search students, universities, status…" />
+      <button id="undoBtn" class="btn" title="Undo (Ctrl+Z)" disabled>↶ Undo</button>
+      <button id="redoBtn" class="btn" title="Redo (Ctrl+Y)" disabled>↷ Redo</button>
+      <button id="addRow" class="btn">+ Row</button>
+      <button id="delRow" class="btn btn-danger">Delete rows</button>
+      <button id="exportCsv" class="btn">Export CSV</button>
+      <span id="status" class="save-status">All changes saved</span>
+    </div>
+  </header>
+
+  <div class="status-summary" id="statusSummary"></div>
+
+  <div class="table-wrap">
+    <table id="sheet">
+      <thead>
+        <tr id="headerRow"></tr>
+      </thead>
+      <tbody id="body"></tbody>
+    </table>
+  </div>
+
+  <div class="sheet-tabs" id="sheetTabs">
+    <button id="addSheet" class="sheet-add-btn" title="Add sheet">+</button>
+    <div class="sheet-tabs-list" id="sheetTabsList"></div>
+  </div>
+
+  <footer class="footbar">
+    <span id="rowCount"></span>
+  </footer>
+
+<script src="app.js"></script>
+</body>
+</html>
