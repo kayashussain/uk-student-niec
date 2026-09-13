@@ -117,17 +117,12 @@ body { display: flex; flex-direction: column; height: 100vh; }
   border-radius: 8px;
   background: var(--bg);
   border: 1px solid var(--border);
-  border-left: 3px solid currentColor;
+  border-left: 3px solid var(--accent);
   color: var(--text);
   min-width: 84px;
   flex: 0 0 auto;
 }
-.stat-card.total { border-left-color: var(--accent); }
-.stat-card.total .stat-value { color: var(--accent); }
-.stat-card.conversion { border-left-color: var(--green-fg); background: var(--green-bg); margin-left: 4px; }
-.stat-card.conversion .stat-value { color: var(--green-fg); }
-.stat-card.conversion .stat-label { color: var(--green-fg); opacity: 0.75; }
-.stat-card .stat-value { font-size: 18px; font-weight: 700; line-height: 1.1; }
+.stat-card .stat-value { font-size: 18px; font-weight: 700; line-height: 1.1; color: var(--accent); }
 .stat-card .stat-label {
   font-size: 10px;
   color: var(--text-dim);

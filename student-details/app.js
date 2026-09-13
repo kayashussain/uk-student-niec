@@ -799,7 +799,7 @@
     statusSummaryEl.innerHTML = '';
 
     const totalCard = document.createElement('div');
-    totalCard.className = 'stat-card total';
+    totalCard.className = 'stat-card';
     totalCard.innerHTML = `<span class="stat-value">${indices.length}</span><span class="stat-label">Total Students</span>`;
     statusSummaryEl.appendChild(totalCard);
 
@@ -808,7 +808,7 @@
       const count = indices.reduce((acc, i) => acc + (rows[i]['APPLICATION STATUS'] === status ? 1 : 0), 0);
       if (status === 'Visa Issued') visaIssuedCount = count;
       const card = document.createElement('div');
-      card.className = 'stat-card ' + badgeClass(status);
+      card.className = 'stat-card';
       card.innerHTML = `<span class="stat-value">${count}</span><span class="stat-label">${status}</span>`;
       statusSummaryEl.appendChild(card);
     });
@@ -818,7 +818,7 @@
 
     const conversionRate = indices.length ? (visaIssuedCount / indices.length) * 100 : 0;
     const conversionCard = document.createElement('div');
-    conversionCard.className = 'stat-card conversion';
+    conversionCard.className = 'stat-card';
     conversionCard.title = `${visaIssuedCount} Visa Issued out of ${indices.length} total students`;
     conversionCard.innerHTML = `<span class="stat-value">${conversionRate.toFixed(1)}%</span><span class="stat-label">Conversion Rate</span>`;
     statusSummaryEl.appendChild(conversionCard);
