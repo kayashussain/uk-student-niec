@@ -14,7 +14,7 @@
   const SELECT_COLS = {
     'APPLICATION STATUS': [
       'Inquiry', 'Application Stage', 'Mock Stage', 'Payment Stage',
-      'CAS Stage', 'CAS Issued', 'Visa Lodge', 'Visa Issued', 'Defer', 'Withdrawn',
+      'CAS Stage', 'CAS Issued', 'Visa Lodge', 'Visa Issued', 'Visa Rejected', 'Defer', 'Withdrawn',
     ],
   };
   const SUMMARY_STATUSES = ['Payment Stage', 'CAS Issued', 'Visa Issued'];
