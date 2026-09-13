@@ -245,8 +245,8 @@ th.col-idx, td.col-idx {
   z-index: 2;
   background: var(--header-bg);
   text-align: center;
-  min-width: 34px;
-  max-width: 34px;
+  min-width: 40px;
+  max-width: 40px;
 }
 td.col-idx { background: var(--panel); color: var(--text-dim); font-variant-numeric: tabular-nums; }
 tbody tr:nth-child(even) td.col-idx { background: var(--row-alt); }

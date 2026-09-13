@@ -470,7 +470,7 @@
     headerRow.innerHTML = '';
     const idxTh = document.createElement('th');
     idxTh.className = 'col-idx';
-    idxTh.textContent = '#';
+    idxTh.textContent = 'S.N';
     headerRow.appendChild(idxTh);
     columns.forEach((col) => {
       const th = document.createElement('th');
