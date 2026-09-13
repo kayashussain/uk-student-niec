@@ -7,6 +7,7 @@
   --text-dim: #6b7280;
   --accent: #fc6e1f;
   --accent-dim: #fff0e5;
+  --focus: #2563eb;
   --header-bg: #f1f3f6;
   --row-alt: #fafbfc;
   --row-hover: #fff7f0;
@@ -28,6 +29,7 @@
     --text-dim: #9aa2ad;
     --accent: #ff8a47;
     --accent-dim: #3a2415;
+    --focus: #5b8def;
     --header-bg: #1f242c;
     --row-alt: #191d24;
     --row-hover: #2c2015;
@@ -66,7 +68,7 @@ body { display: flex; flex-direction: column; height: 100vh; }
 
 .brand { display: flex; align-items: center; gap: 10px; }
 .brand-mark { font-size: 22px; }
-.brand h1 { font-size: 16px; margin: 0; color: var(--accent); text-transform: uppercase; letter-spacing: 0.02em; }
+.brand h1 { font-size: 16px; margin: 0; color: var(--focus); text-transform: uppercase; letter-spacing: 0.02em; }
 .subtitle { font-size: 11px; color: var(--text-dim); }
 
 .toolbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
@@ -261,7 +263,7 @@ tbody tr:hover td { background: var(--row-hover); }
 tbody tr.selected td { background: var(--accent-dim); }
 
 td[contenteditable="true"]:focus {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--focus);
   outline-offset: -2px;
   z-index: 1;
   position: relative;
@@ -284,7 +286,7 @@ td.date { font-variant-numeric: tabular-nums; color: var(--text-dim); padding: 3
   color-scheme: light dark;
 }
 .date-input:focus {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--focus);
   outline-offset: -2px;
   background: var(--panel);
 }
@@ -352,7 +354,7 @@ tr.defer-warning-row td { background: var(--red-bg) !important; }
   opacity: 0.9;
 }
 .status-select:hover, .status-select:focus { opacity: 1; }
-.status-select:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+.status-select:focus { outline: 2px solid var(--focus); outline-offset: 1px; }
 
 .sheet-tabs {
   display: flex;
