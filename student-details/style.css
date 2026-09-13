@@ -9,6 +9,7 @@
   --accent-dim: #fff0e5;
   --focus: #2563eb;
   --focus-dim: #eaf1ff;
+  --focus-strong: #d3e2ff;
   --header-bg: #f1f3f6;
   --row-alt: #fafbfc;
   --row-hover: #eef4ff;
@@ -32,6 +33,7 @@
     --accent-dim: #3a2415;
     --focus: #5b8def;
     --focus-dim: #1c2a44;
+    --focus-strong: #26406b;
     --header-bg: #1f242c;
     --row-alt: #191d24;
     --row-hover: #212a3a;
@@ -263,6 +265,18 @@ td {
 tbody tr:nth-child(even) td { background: var(--row-alt); }
 tbody tr:hover td { background: var(--row-hover); }
 tbody tr.selected td { background: var(--focus-dim); }
+
+/* Whole rows picked from their S.N: Delete clears these rows, so they look clearly different from the
+   light tint a row gets when you only click one of its cells. */
+tbody tr.row-picked td { background: var(--focus-strong); }
+tbody tr.row-picked td.col-idx { background: var(--focus); color: #fff; font-weight: 600; }
+td.col-idx { cursor: pointer; user-select: none; }
+
+/* The cell cursor that the arrow keys move. scroll-margin keeps it clear of the sticky header and S.N column. */
+#body td { scroll-margin: 40px 0 0 44px; }
+#body td:focus { outline: none; }
+#body td.active-cell { outline: 2px solid var(--focus); outline-offset: -2px; position: relative; z-index: 1; }
+#body td.editing { background: var(--panel) !important; cursor: text; }
 
 td[contenteditable="true"]:focus {
   outline: 2px solid var(--focus);

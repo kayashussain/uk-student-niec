@@ -50,6 +50,14 @@
   let columnFilters = {}; // col -> Set of allowed values (absent = no filter); per-sheet, reset on switch
   let openFilterMenu = null;
 
+  // Google Sheets-style cell cursor. activeCell is where the arrow keys move from; editing is set only
+  // while a text cell is being typed into. rowSelectMode means rows were picked from their S.N (row
+  // number), so Delete clears those whole rows instead of just the one cell.
+  let activeCell = null; // { rowIdx, col }
+  let editing = null;    // { td, rowIdx, col, original, typed }
+  let rowSelectMode = false;
+  let skipRefocus = false;
+
   // Undo/redo: whole-workbook snapshots (like Google Sheets, one step = one committed
   // action — a cell edit, a row add/delete, a sheet rename, etc.), not per-keystroke.
   let undoStack = [];
@@ -100,9 +108,15 @@
   }
 
   function applySnapshot(snap) {
+    // Keep the cell cursor on the same student after Ctrl+Z (row positions can shift, ids don't).
+    const keep = activeCell && rows[activeCell.rowIdx] ? { id: rows[activeCell.rowIdx]._id, col: activeCell.col } : null;
     sheets = snap.sheets;
     activeSheetId = snap.activeSheetId;
     syncActiveSheet();
+    if (keep) {
+      const idx = rows.findIndex((r) => r._id === keep.id);
+      if (idx !== -1 && columns.includes(keep.col)) activeCell = { rowIdx: idx, col: keep.col };
+    }
     renderSheetTabs();
     renderHeader();
     renderBody();
@@ -229,6 +243,7 @@
     }
     if (moved) {
       selectedRows = new Set(); // indices shifted; drop any stale selection
+      activeCell = null;
       markDirty();
     }
   }
@@ -252,6 +267,9 @@
     columns = sheet.columns;
     rows = sheet.rows;
     selectedRows = new Set();
+    activeCell = null;
+    editing = null;
+    rowSelectMode = false;
     sortCol = null;
     sortDir = 1;
     columnFilters = {};
@@ -630,34 +648,29 @@
 
   function renderBody() {
     autoMoveDeferredRows();
+    // Rebuilding the table drops focus. Put it back on the cell cursor afterwards, but only if focus
+    // was in the table (or nowhere): a search-box keystroke also re-renders and must keep the box.
+    const ae = document.activeElement;
+    const hadGridFocus = !ae || ae === document.body || body.contains(ae);
     body.innerHTML = '';
     const indices = getFilteredSortedIndices();
     indices.forEach((rowIdx, displayIdx) => {
       const tr = document.createElement('tr');
       tr.dataset.rowIdx = rowIdx;
       if (selectedRows.has(rowIdx)) tr.classList.add('selected');
-      tr.addEventListener('click', (e) => {
-        if (e.target.classList.contains('col-idx')) return; // handled by idxTd's own listener
-        if (e.ctrlKey || e.metaKey) {
-          e.preventDefault();
-          toggleRowSelection(rowIdx);
-          return;
-        }
-        if (e.target.tagName !== 'TD') return;
-        selectOnlyRow(rowIdx);
-      });
+      if (rowSelectMode && selectedRows.has(rowIdx)) tr.classList.add('row-picked');
 
+      // Clicks on rows and cells are handled once, on the table body (see the grid section below).
       const idxTd = document.createElement('td');
       idxTd.className = 'col-idx';
       idxTd.textContent = displayIdx + 1;
-      idxTd.addEventListener('click', (e) => {
-        if (e.ctrlKey || e.metaKey) { toggleRowSelection(rowIdx); return; }
-        selectOnlyRow(rowIdx);
-      });
+      idxTd.title = 'Select this row (Ctrl+Click for more). Delete clears it.';
       tr.appendChild(idxTd);
 
-      columns.forEach((col) => {
+      columns.forEach((col, colIndex) => {
         const td = document.createElement('td');
+        td.dataset.colIndex = colIndex;
+        td.tabIndex = -1;
         const val = rows[rowIdx][col] || '';
         if (CALC_COLS[col]) {
           const computed = CALC_COLS[col](rows[rowIdx]);
@@ -705,16 +718,6 @@
           span.className = 'badge ' + badgeClass(val);
           span.textContent = val;
           td.appendChild(span);
-          td.contentEditable = 'true';
-          td.addEventListener('focus', () => { td.textContent = val; });
-          td.addEventListener('blur', () => {
-            const newVal = td.textContent.trim();
-            if (newVal === (rows[rowIdx][col] || '')) return;
-            pushUndo();
-            rows[rowIdx][col] = newVal;
-            markDirty();
-            renderRowCell(td, rowIdx, col);
-          });
         } else if (DATE_COLS.has(col)) {
           td.classList.add('date');
           const input = document.createElement('input');
@@ -735,20 +738,10 @@
           if (col === 'LANGUAGE TEST DATE') applyLanguageTestFlag(td, input.value);
         } else {
           td.textContent = val;
-          td.contentEditable = 'true';
           if (NUM_COLS.has(col)) td.classList.add('num');
-          td.addEventListener('blur', () => {
-            const newVal = td.textContent.trim();
-            if (newVal === (rows[rowIdx][col] || '')) return;
-            pushUndo();
-            rows[rowIdx][col] = newVal;
-            markDirty();
-            if (CALC_TRIGGER_COLS.has(col)) renderBody();
-          });
         }
-        td.addEventListener('keydown', (e) => {
-          if (e.key === 'Enter') { e.preventDefault(); td.blur(); }
-        });
+        // Added last: the calculated-cell branch above replaces className wholesale.
+        if (activeCell && activeCell.rowIdx === rowIdx && activeCell.col === col) td.classList.add('active-cell');
         tr.appendChild(td);
       });
       body.appendChild(tr);
@@ -756,25 +749,32 @@
     rowCountEl.textContent = `${indices.length} of ${rows.length} rows`
       + (selectedRows.size ? ` · ${selectedRows.size} selected` : '');
     renderStatusSummary();
+    if (hadGridFocus && !editing && !skipRefocus) focusActiveCell({ scroll: false });
   }
 
   function applySelectionClasses() {
     document.querySelectorAll('#body tr').forEach((r) => {
-      r.classList.toggle('selected', selectedRows.has(Number(r.dataset.rowIdx)));
+      const picked = selectedRows.has(Number(r.dataset.rowIdx));
+      r.classList.toggle('selected', picked);
+      r.classList.toggle('row-picked', rowSelectMode && picked);
     });
     const indices = getFilteredSortedIndices();
     rowCountEl.textContent = `${indices.length} of ${rows.length} rows`
       + (selectedRows.size ? ` · ${selectedRows.size} selected` : '');
   }
 
+  // Ctrl+Click picks several whole rows, so Delete then clears all of them.
   function toggleRowSelection(rowIdx) {
+    rowSelectMode = true;
     if (selectedRows.has(rowIdx)) selectedRows.delete(rowIdx);
     else selectedRows.add(rowIdx);
     applySelectionClasses();
   }
 
-  function selectOnlyRow(rowIdx) {
+  // rowMode: the row itself was chosen (its S.N, or Shift+Space), not just one of its cells.
+  function selectOnlyRow(rowIdx, { rowMode = false } = {}) {
     selectedRows = new Set([rowIdx]);
+    rowSelectMode = rowMode;
     applySelectionClasses();
   }
 
@@ -785,6 +785,140 @@
     span.className = 'badge ' + badgeClass(val);
     span.textContent = val;
     td.appendChild(span);
+  }
+
+  // ---------------------------------------------------------------------------------------------
+  // Keyboard grid, like Google Sheets: click selects a cell, arrow keys/Tab move, typing replaces the
+  // cell, Enter/F2/double-click edits it, Escape cancels, Delete clears the cell, or the whole rows
+  // when rows were picked from their S.N.
+  // ---------------------------------------------------------------------------------------------
+
+  function cellTd(rowIdx, col) {
+    const ci = columns.indexOf(col);
+    if (ci === -1) return null;
+    return body.querySelector(`tr[data-row-idx="${rowIdx}"] > td[data-col-index="${ci}"]`);
+  }
+
+  function isTextCell(col) {
+    return !CALC_COLS[col] && !SELECT_COLS[col] && !DATE_COLS.has(col);
+  }
+
+  function focusActiveCell({ scroll = true } = {}) {
+    if (!activeCell) return;
+    const td = cellTd(activeCell.rowIdx, activeCell.col);
+    if (!td) return;
+    td.focus({ preventScroll: true });
+    if (scroll) td.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  }
+
+  // focus: false when the click landed on a dropdown or date box, which needs the focus to open.
+  function setActiveCell(rowIdx, col, { focus = true, scroll = true } = {}) {
+    activeCell = { rowIdx, col };
+    body.querySelectorAll('td.active-cell').forEach((el) => el.classList.remove('active-cell'));
+    const td = cellTd(rowIdx, col);
+    if (td) td.classList.add('active-cell');
+    if (focus) focusActiveCell({ scroll });
+  }
+
+  // Moves through rows in the order they're shown (after search, filters and sorting).
+  function moveActiveCell(dRow, dCol) {
+    const indices = getFilteredSortedIndices();
+    if (!indices.length || !columns.length) return;
+    let pos = activeCell ? indices.indexOf(activeCell.rowIdx) : -1;
+    let ci = activeCell ? columns.indexOf(activeCell.col) : -1;
+    if (pos === -1 || ci === -1) {
+      pos = 0; // the cursor's row was hidden by a search or filter: start from the top
+      ci = Math.max(ci, 0);
+    } else {
+      pos = Math.max(0, Math.min(indices.length - 1, pos + dRow));
+      ci = Math.max(0, Math.min(columns.length - 1, ci + dCol));
+    }
+    selectOnlyRow(indices[pos]);
+    setActiveCell(indices[pos], columns[ci]);
+  }
+
+  // replaceWith: the first character typed (typing over a cell replaces it, like Sheets).
+  function startEdit({ replaceWith = null } = {}) {
+    if (!activeCell || editing) return;
+    const { rowIdx, col } = activeCell;
+    const td = cellTd(rowIdx, col);
+    if (!td || !rows[rowIdx] || CALC_COLS[col]) return;
+    if (!isTextCell(col)) {
+      const control = td.querySelector('select, input');
+      if (!control) return;
+      control.focus();
+      if (control.showPicker) { try { control.showPicker(); } catch (err) { /* some browsers need a click */ } }
+      return;
+    }
+    const original = rows[rowIdx][col] || '';
+    editing = { td, rowIdx, col, original, typed: replaceWith !== null };
+    td.contentEditable = 'true';
+    td.classList.add('editing');
+    td.textContent = replaceWith !== null ? replaceWith : original;
+    td.focus({ preventScroll: true });
+    const range = document.createRange();
+    range.selectNodeContents(td);
+    range.collapse(false);
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+  }
+
+  function commitEdit({ move = null, refocus = true } = {}) {
+    if (!editing) return;
+    const { td, rowIdx, col, original } = editing;
+    editing = null;
+    td.removeAttribute('contenteditable');
+    td.classList.remove('editing');
+    const newVal = td.textContent.trim();
+    if (rows[rowIdx] && newVal !== original) {
+      pushUndo();
+      rows[rowIdx][col] = newVal;
+      markDirty();
+      skipRefocus = true; // the caller decides where focus goes next
+      renderBody(); // recalculates the fee columns and redraws status badges
+      skipRefocus = false;
+    } else if (BADGE_COLS.has(col) && original) {
+      renderRowCell(td, rowIdx, col);
+    } else {
+      td.textContent = original;
+    }
+    if (move) moveActiveCell(move[0], move[1]);
+    else if (refocus) focusActiveCell({ scroll: false });
+  }
+
+  function cancelEdit() {
+    if (!editing) return;
+    const { td, rowIdx, col, original } = editing;
+    editing = null;
+    td.removeAttribute('contenteditable');
+    td.classList.remove('editing');
+    if (BADGE_COLS.has(col) && original) renderRowCell(td, rowIdx, col);
+    else td.textContent = original;
+    focusActiveCell({ scroll: false });
+  }
+
+  // Delete on one cell. Calculated fee cells can't be cleared: they're worked out from the others.
+  function clearActiveCell() {
+    if (!activeCell) return;
+    const { rowIdx, col } = activeCell;
+    if (!rows[rowIdx] || CALC_COLS[col] || !(rows[rowIdx][col] || '')) return;
+    pushUndo();
+    rows[rowIdx][col] = '';
+    markDirty();
+    renderBody();
+  }
+
+  // Delete with whole rows picked: empties every cell in them, like Google Sheets. The rows themselves
+  // stay (the "Delete rows" button removes rows), and Ctrl+Z brings everything back.
+  function clearSelectedRows() {
+    const targets = [...selectedRows].filter((i) => rows[i]);
+    const fields = columns.filter((c) => !CALC_COLS[c]);
+    if (!targets.some((i) => fields.some((c) => rows[i][c]))) return;
+    pushUndo();
+    targets.forEach((i) => fields.forEach((c) => { rows[i][c] = ''; }));
+    markDirty();
+    renderBody();
   }
 
   function renderStatusSummary() {
@@ -869,9 +1003,12 @@
     columns.forEach((c) => (blank[c] = ''));
     rows.push(blank);
     selectedRows = new Set([rows.length - 1]);
+    rowSelectMode = false;
     markDirty();
     renderBody();
     document.querySelector('.table-wrap').scrollTop = 1e9;
+    // Ready to type straight into the new row.
+    setActiveCell(rows.length - 1, columns.find(isTextCell) || columns[0], { scroll: false });
   }
 
   function describeRow(row) {
@@ -891,6 +1028,8 @@
     pushUndo();
     indicesToDelete.forEach((i) => rows.splice(i, 1));
     selectedRows = new Set();
+    rowSelectMode = false;
+    activeCell = null;
     markDirty();
     renderBody();
   }
@@ -955,9 +1094,101 @@
     if (key !== 'z' && key !== 'y') return;
     const active = document.activeElement;
     if (active === searchEl || (active && active.classList && active.classList.contains('sheet-tab-input'))) return;
+    if (editing) return; // inside a cell being typed in, Ctrl+Z undoes the typing, like Sheets
     e.preventDefault();
     if (key === 'y' || (key === 'z' && e.shiftKey)) redo();
     else undo();
+  });
+
+  // Mouse: one listener on the table body. It works from row/column positions rather than the clicked
+  // element, because finishing an edit can redraw the table in the middle of the click.
+  body.addEventListener('mousedown', (e) => {
+    if (e.button !== 0) return;
+    const td = e.target.closest('td');
+    if (!td || !body.contains(td)) return;
+    if (editing && editing.td === td) return; // clicking inside the cell being typed in moves the caret
+    const rowIdx = Number(td.parentElement.dataset.rowIdx);
+    const onControl = Boolean(e.target.closest('select, input'));
+    if (editing) commitEdit({ refocus: false });
+
+    if (td.classList.contains('col-idx')) {
+      e.preventDefault();
+      if (e.ctrlKey || e.metaKey) toggleRowSelection(rowIdx);
+      else selectOnlyRow(rowIdx, { rowMode: true });
+      setActiveCell(rowIdx, columns[0], { scroll: false });
+      return;
+    }
+    const col = columns[Number(td.dataset.colIndex)];
+    if (col === undefined) return;
+    if (e.ctrlKey || e.metaKey) {
+      e.preventDefault();
+      toggleRowSelection(rowIdx);
+      setActiveCell(rowIdx, col, { scroll: false });
+      return;
+    }
+    if (!onControl) e.preventDefault(); // select the cell; don't drop a text caret into it
+    selectOnlyRow(rowIdx);
+    setActiveCell(rowIdx, col, { focus: !onControl, scroll: false });
+  });
+
+  body.addEventListener('dblclick', (e) => {
+    const td = e.target.closest('td');
+    if (!td || !body.contains(td) || td.classList.contains('col-idx') || e.target.closest('select, input')) return;
+    const rowIdx = Number(td.parentElement.dataset.rowIdx);
+    const col = columns[Number(td.dataset.colIndex)];
+    if (col === undefined || !isTextCell(col)) return;
+    if (!activeCell || activeCell.rowIdx !== rowIdx || activeCell.col !== col) setActiveCell(rowIdx, col, { scroll: false });
+    startEdit();
+  });
+
+  // Clicking anywhere outside the cell being typed in (search box, a button, another tab) saves it.
+  body.addEventListener('focusout', (e) => {
+    if (editing && e.target === editing.td) commitEdit({ refocus: false });
+  });
+
+  const ARROWS = { ArrowUp: [-1, 0], ArrowDown: [1, 0], ArrowLeft: [0, -1], ArrowRight: [0, 1] };
+
+  document.addEventListener('keydown', (e) => {
+    if (!activeCell || openFilterMenu || openSheetMenu || e.defaultPrevented) return;
+    const ae = document.activeElement;
+    if (!(ae === document.body || body.contains(ae))) return; // search box, rename box, buttons: not ours
+
+    if (editing) {
+      if (e.key === 'Enter') { e.preventDefault(); commitEdit({ move: [e.shiftKey ? -1 : 1, 0] }); }
+      else if (e.key === 'Tab') { e.preventDefault(); commitEdit({ move: [0, e.shiftKey ? -1 : 1] }); }
+      else if (e.key === 'Escape') { e.preventDefault(); cancelEdit(); }
+      // Up/Down always leave the cell. Left/Right move the caret, except right after typing over a
+      // cell, where (as in Sheets) they move to the next cell.
+      else if (e.key === 'ArrowUp' || e.key === 'ArrowDown' || (editing.typed && ARROWS[e.key])) {
+        e.preventDefault();
+        commitEdit({ move: ARROWS[e.key] });
+      }
+      return; // letters, Backspace, caret keys and Ctrl+Z are ordinary typing
+    }
+
+    // A status dropdown or date box has the focus: Escape/Tab get back to the grid.
+    if (ae && ae.matches && ae.matches('select, input')) {
+      if (e.key === 'Escape' || (e.key === 'Enter' && ae.tagName === 'INPUT')) { e.preventDefault(); focusActiveCell({ scroll: false }); }
+      else if (e.key === 'Tab') { e.preventDefault(); moveActiveCell(0, e.shiftKey ? -1 : 1); }
+      else if (ae.tagName === 'SELECT' && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) { e.preventDefault(); moveActiveCell(...ARROWS[e.key]); }
+      return;
+    }
+
+    if (e.ctrlKey || e.metaKey || e.altKey) return; // shortcuts (Ctrl+Z, Ctrl+C, ...) aren't grid keys
+    if (ARROWS[e.key]) { e.preventDefault(); moveActiveCell(...ARROWS[e.key]); return; }
+    if (e.key === 'Tab') { e.preventDefault(); moveActiveCell(0, e.shiftKey ? -1 : 1); return; }
+    if (e.key === ' ' && e.shiftKey) { e.preventDefault(); selectOnlyRow(activeCell.rowIdx, { rowMode: true }); return; }
+    if (e.key === 'Delete' || e.key === 'Backspace') {
+      e.preventDefault();
+      if (rowSelectMode) clearSelectedRows();
+      else clearActiveCell();
+      return;
+    }
+    if (e.key === 'Enter' || e.key === 'F2') { e.preventDefault(); startEdit(); return; }
+    if (e.key === 'Escape' && rowSelectMode) { e.preventDefault(); selectOnlyRow(activeCell.rowIdx); return; }
+    if (!isTextCell(activeCell.col)) return;
+    if (e.key.length === 1) { e.preventDefault(); startEdit({ replaceWith: e.key }); return; }
+    if (e.isComposing || e.key === 'Process') startEdit({ replaceWith: '' }); // IME input (e.g. Nepali) types into it
   });
 
   window.addEventListener('beforeunload', (e) => {
