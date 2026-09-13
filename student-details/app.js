@@ -895,23 +895,44 @@
     renderBody();
   }
 
-  function csvEscape(v) {
-    v = String(v ?? '');
-    if (/[",\n]/.test(v)) return '"' + v.replace(/"/g, '""') + '"';
-    return v;
-  }
+  async function exportExcel() {
+    if (typeof ExcelJS === 'undefined') {
+      alert('The Excel export library failed to load (check your internet connection) — try again.');
+      return;
+    }
+    const sheetName = (getActiveSheet() || {}).name || 'Export';
+    const safeSheetName = sheetName.replace(/[\\/*?:[\]]/g, ' ').slice(0, 31) || 'Export';
 
-  function exportCsv() {
-    const lines = [columns.map(csvEscape).join(',')];
-    rows.forEach((r) => {
-      lines.push(columns.map((c) => csvEscape(r[c])).join(','));
+    const wb = new ExcelJS.Workbook();
+    wb.creator = 'UK Student NIEC';
+    wb.created = new Date();
+
+    const ws = wb.addWorksheet(safeSheetName, { views: [{ state: 'frozen', ySplit: 1 }] });
+    ws.columns = columns.map((c) => {
+      const maxLen = rows.reduce((m, r) => Math.max(m, String(r[c] || '').length), c.length);
+      return { header: c, width: Math.min(40, Math.max(10, maxLen + 2)) };
     });
-    const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+
+    const headerRow = ws.getRow(1);
+    headerRow.height = 28;
+    headerRow.eachCell((cell) => {
+      cell.font = { bold: true, size: 11, color: { argb: 'FFFFFFFF' } };
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFC6E1F' } };
+      cell.alignment = { vertical: 'middle', horizontal: 'left', wrapText: true };
+    });
+
+    rows.forEach((r) => {
+      const row = ws.addRow(columns.map((c) => r[c] || ''));
+      row.height = 20;
+      row.eachCell((cell) => { cell.alignment = { vertical: 'middle' }; });
+    });
+
+    const buf = await wb.xlsx.writeBuffer();
+    const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    const sheetName = (getActiveSheet() || {}).name || 'sheet';
-    a.download = `uk-student-niec-${sheetName.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}.csv`;
+    a.download = `uk-student-niec-${sheetName.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}.xlsx`;
     document.body.appendChild(a);
     a.click();
     a.remove();
@@ -920,7 +941,7 @@
 
   $('#addRow').addEventListener('click', addRow);
   $('#delRow').addEventListener('click', deleteRow);
-  $('#exportCsv').addEventListener('click', exportCsv);
+  $('#exportExcel').addEventListener('click', exportExcel);
   $('#addSheet').addEventListener('click', addSheet);
   if (undoBtn) undoBtn.addEventListener('click', undo);
   if (redoBtn) redoBtn.addEventListener('click', redo);
