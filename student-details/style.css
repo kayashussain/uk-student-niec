@@ -8,9 +8,10 @@
   --accent: #fc6e1f;
   --accent-dim: #fff0e5;
   --focus: #2563eb;
+  --focus-dim: #eaf1ff;
   --header-bg: #f1f3f6;
   --row-alt: #fafbfc;
-  --row-hover: #fff7f0;
+  --row-hover: #eef4ff;
   --danger: #dc2626;
   --green-bg: #e6f6ea; --green-fg: #1b7a3d;
   --blue-bg: #e8f0fe; --blue-fg: #1d4ed8;
@@ -30,9 +31,10 @@
     --accent: #ff8a47;
     --accent-dim: #3a2415;
     --focus: #5b8def;
+    --focus-dim: #1c2a44;
     --header-bg: #1f242c;
     --row-alt: #191d24;
-    --row-hover: #2c2015;
+    --row-hover: #212a3a;
     --danger: #f87171;
     --green-bg: #12301f; --green-fg: #6fd894;
     --blue-bg: #17233f; --blue-fg: #8ab4ff;
@@ -260,7 +262,7 @@ td {
 
 tbody tr:nth-child(even) td { background: var(--row-alt); }
 tbody tr:hover td { background: var(--row-hover); }
-tbody tr.selected td { background: var(--accent-dim); }
+tbody tr.selected td { background: var(--focus-dim); }
 
 td[contenteditable="true"]:focus {
   outline: 2px solid var(--focus);
