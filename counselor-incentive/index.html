@@ -229,6 +229,10 @@
 </div>
 
 <script>
+// This page may be mounted at a sub-path (e.g. /incentive) rather than a domain's root —
+// derive that prefix from the URL actually used to load it, so every API call still hits
+// this app and not whatever else is mounted at the true root.
+const BASE = location.pathname.replace(/\/+$/, '');
 const TDS_RATE = 0.15;
 const state = { intakes: [], byIntake: {}, commissions: {}, advances: {}, activeIntake: null, syncOk: true };
 const $ = (sel) => document.querySelector(sel);
@@ -300,9 +304,9 @@ function redo(){
 async function loadAll(){
   try{
     const [syncRes, commRes, advRes] = await Promise.all([
-      fetch('/api/sync').then(r => r.json()),
-      fetch('/api/commissions').then(r => r.json()),
-      fetch('/api/advances').then(r => r.json()),
+      fetch(BASE + '/api/sync').then(r => r.json()),
+      fetch(BASE + '/api/commissions').then(r => r.json()),
+      fetch(BASE + '/api/advances').then(r => r.json()),
     ]);
     state.intakes = syncRes.intakes || [];
     state.byIntake = syncRes.byIntake || {};
@@ -406,7 +410,7 @@ async function getExchangeRate(){
   const today = new Date().toISOString().slice(0, 10);
   if (exchangeRateCache && exchangeRateCache.date === today) return exchangeRateCache.rate;
   try {
-    const res = await fetch('/api/exchange-rate');
+    const res = await fetch(BASE + '/api/exchange-rate');
     const data = await res.json();
     if (data.ok) {
       exchangeRateCache = { rate: data.rate, date: today };
@@ -467,7 +471,7 @@ advanceInput.addEventListener('change', () => {
 async function saveCommission(id){
   const c = state.commissions[id] || {};
   try{
-    const res = await fetch('/api/commissions/' + encodeURIComponent(id), {
+    const res = await fetch(BASE + '/api/commissions/' + encodeURIComponent(id), {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(c),
@@ -486,7 +490,7 @@ function scheduleSaveAdvance(intake){
 async function saveAdvance(intake){
   const previousAdvance = num((state.advances[intake]||{}).previousAdvance);
   try{
-    const res = await fetch('/api/advances/' + encodeURIComponent(intake), {
+    const res = await fetch(BASE + '/api/advances/' + encodeURIComponent(intake), {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ previousAdvance }),

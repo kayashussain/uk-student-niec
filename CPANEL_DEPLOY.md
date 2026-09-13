@@ -59,7 +59,7 @@ Same screen, **Create Application** again:
 | Node.js version | same as above |
 | Application mode | Production |
 | Application root | `uk-student-niec/counselor-incentive` |
-| Application URL | `niec.duckdns.org` with path `/commission` |
+| Application URL | `niec.duckdns.org` with path `/commission` (any path works — just match it below) |
 | Application startup file | `server.js` |
 
 Environment variables for this one:
@@ -70,6 +70,12 @@ Environment variables for this one:
 | `STUDENT_DETAILS_DATA_DIR` | **exact same value** as in step 2 — this is how it finds the student data |
 | `APP_USERNAME` | same as step 2 |
 | `APP_PASSWORD` | same as step 2 |
+| `BASE_PATH` | **must exactly match the path above**, e.g. `/commission` (or `/incentive` if that's what you used) |
+
+`BASE_PATH` matters: this host doesn't strip the sub-path prefix before handing the
+request to the app, so the app needs to be told what its own mount path is (both server
+and client-side routing account for it — but only if this env var matches what you put
+in Application URL above).
 
 Save → **Run NPM Install** → **Restart**.
 

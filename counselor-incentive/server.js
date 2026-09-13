@@ -17,6 +17,11 @@ const path = require('path');
 
 const PORT = process.env.PORT || 5173;
 const ROOT = __dirname;
+// This app may be mounted at a sub-path (e.g. https://host/incentive) rather than a
+// domain's root — some hosts (this one included) pass the full original path through
+// without stripping that prefix, so we strip it ourselves. Set BASE_PATH to whatever
+// path was used in "Application URL" (e.g. "/incentive"); leave unset for a root mount.
+const BASE_PATH = (process.env.BASE_PATH || '').replace(/\/+$/, '');
 // These let a host's persistent disk (mounted anywhere) hold the data files instead of
 // the app folders themselves — unset locally, so local sibling-folder behavior is unchanged.
 const DATA_DIR = process.env.COUNSELOR_DATA_DIR || ROOT;
@@ -217,6 +222,9 @@ async function getGbpToNprRate() {
 }
 
 const server = http.createServer(async (req, res) => {
+  if (BASE_PATH && req.url.startsWith(BASE_PATH)) {
+    req.url = req.url.slice(BASE_PATH.length) || '/';
+  }
   if (!requireAuth(req, res)) return;
   const urlPath = req.url.split('?')[0];
 
