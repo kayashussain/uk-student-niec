@@ -290,6 +290,6 @@ const server = http.createServer(async (req, res) => {
 });
 
 server.listen(PORT, () => {
-  console.log(`Kayas Financials (Counselor Commission) running at http://localhost:${PORT}`);
+  console.log(`Incentive running at http://localhost:${PORT}`);
   console.log(`Reading student data from ${STUDENT_DETAILS_DATA}`);
 });
