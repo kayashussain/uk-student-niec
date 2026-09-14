@@ -18,6 +18,8 @@
     --accent-dim: #fff0e5;
     --focus: #2563eb;
     --focus-dim: #eaf1ff;
+    --focus-strong: #d3e2ff;
+    --range-tint: rgba(37, 99, 235, 0.14);
     --header-bg: #f1f3f6;
     --row-alt: #fafbfc;
     --row-hover: #eef4ff;
@@ -38,6 +40,8 @@
       --accent-dim: #3a2415;
       --focus: #5b8def;
       --focus-dim: #1c2a44;
+      --focus-strong: #26406b;
+      --range-tint: rgba(91, 141, 239, 0.24);
       --header-bg: #1f242c;
       --row-alt: #191d24;
       --row-hover: #212a3a;
@@ -48,6 +52,7 @@
     }
   }
   * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
   html, body { margin: 0; background: var(--bg); color: var(--text); }
   body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
@@ -97,6 +102,7 @@
     border-color: var(--border-strong); box-shadow: inset 0 -2px 0 var(--accent);
   }
   .tab .count { opacity: .7; margin-left: 3px; }
+  .tabs .none { color: var(--text-dim); font-size: 12px; }
 
   .table-card {
     background: var(--panel); border: 1px solid var(--border); border-radius: 8px;
@@ -110,21 +116,35 @@
     padding: 8px 10px; text-align: left; font-size: 11px; text-transform: uppercase;
     letter-spacing: .03em; color: var(--text-dim); white-space: nowrap;
   }
+  thead th.num { text-align: right; }
+  tbody td {
+    padding: 7px 10px; border-bottom: 1px solid var(--border); border-right: 1px solid var(--border);
+    white-space: nowrap; color: var(--text);
+  }
   tbody tr:nth-child(even) td { background: var(--row-alt); }
   tbody tr:hover td { background: var(--row-hover); }
-  tbody td {
-    padding: 0; border-bottom: 1px solid var(--border); border-right: 1px solid var(--border);
-    white-space: nowrap;
+  tbody tr.selected td { background: var(--focus-dim); }
+  tbody tr.row-picked td { background: var(--focus-strong); }
+
+  td.sn {
+    padding: 7px 8px; min-width: 40px; color: var(--text-dim); text-align: center;
+    font-variant-numeric: tabular-nums; cursor: pointer;
   }
-  tbody td.readonly { padding: 7px 10px; color: var(--text); }
-  tbody td.sn { padding: 7px 8px; color: var(--text-dim); text-align: center; font-variant-numeric: tabular-nums; }
-  tbody td input {
-    width: 100%; border: none; background: transparent; padding: 7px 10px; font-size: 13px;
-    color: var(--text); font-family: inherit;
+  tbody tr.row-picked td.sn { background: var(--focus); color: #fff; font-weight: 600; }
+  td.num { text-align: right; font-variant-numeric: tabular-nums; min-width: 110px; }
+  td.num.zero { color: var(--text-dim); }
+  .muted { color: var(--text-dim); }
+
+  /* Spreadsheet grid: the cell cursor, a multi-cell selection, and the cell being typed in. */
+  #rows { user-select: none; }
+  #rows td { scroll-margin: 40px; }
+  #rows td:focus { outline: none; }
+  #rows td.in-range { box-shadow: inset 0 0 0 9999px var(--range-tint); }
+  #rows td.active-cell { outline: 2px solid var(--focus); outline-offset: -2px; position: relative; }
+  #rows td.editing {
+    background: var(--panel) !important; cursor: text; user-select: text;
+    outline: 2px solid var(--focus); outline-offset: -2px; box-shadow: none;
   }
-  tbody td input:focus { outline: 2px solid var(--focus); outline-offset: -2px; background: var(--panel); }
-  td.num { text-align: right; }
-  td.num input { text-align: right; font-variant-numeric: tabular-nums; }
 
   .synced-badge {
     display: inline-block; font-size: 9px; font-weight: 700; letter-spacing: .03em;
@@ -133,7 +153,12 @@
   }
 
   .empty-state { padding: 40px 20px; text-align: center; color: var(--text-dim); font-size: 13px; }
-  .empty-state b { color: var(--text); }
+
+  .grid-footer {
+    display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+    padding: 6px 12px; border-top: 1px solid var(--border); font-size: 11px; color: var(--text-dim);
+  }
+  .grid-hint { color: var(--amber-fg); font-weight: 600; }
 
   .summary-title { font-size: 13px; font-weight: 700; margin: 0 0 10px; color: var(--text); }
   .summary-card { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
@@ -169,36 +194,25 @@
       <button class="btn" id="undoBtn" title="Undo (Ctrl+Z)" disabled>↶ Undo</button>
       <button class="btn" id="redoBtn" title="Redo (Ctrl+Y)" disabled>↷ Redo</button>
       <button class="btn" id="exportExcelBtn">Export Excel</button>
-      <span class="live"><span class="dot" id="liveDot"></span><span id="liveText">live</span></span>
+      <span class="live"><span class="dot" id="liveDot"></span><span id="liveText">connecting…</span></span>
     </div>
   </header>
 
-  <div id="banner"></div>
+  <div id="syncBanner"></div>
+  <div id="rateBanner"></div>
   <div class="tabs" id="tabs"></div>
 
   <div class="table-card">
     <div class="table-scroll">
       <table id="sheet">
-        <thead>
-          <tr>
-            <th>S.N</th>
-            <th>Student Name</th>
-            <th>Course Name</th>
-            <th>University Name</th>
-            <th>Student ID</th>
-            <th>Visa Issue Date</th>
-            <th>Enrollment Incentive</th>
-            <th>Enrollment Incentive from University</th>
-            <th>New Partnership Incentive</th>
-            <th>Direct Student Incentive</th>
-            <th>Flywire Fee Payment</th>
-            <th title="Auto-filled: 0.2% of Flywire Fee Payment (GBP), converted to NPR at today's rate. You can still edit it manually.">Flywire Incentive</th>
-            <th>Loan Incentive to Share</th>
-          </tr>
-        </thead>
+        <thead><tr id="headRow"></tr></thead>
         <tbody id="rows"></tbody>
       </table>
       <div class="empty-state" id="emptyState" hidden></div>
+    </div>
+    <div class="grid-footer">
+      <span id="gridStatus"></span>
+      <span class="grid-hint" id="gridHint"></span>
     </div>
   </div>
 
@@ -236,53 +250,149 @@
 // This page may be mounted at a sub-path (e.g. /incentive) rather than a domain's root —
 // derive that prefix from the URL actually used to load it, so every API call still hits
 // this app and not whatever else is mounted at the true root.
-const BASE = location.pathname.replace(/\/+$/, '');
+const BASE = location.pathname.replace(/\/index\.html$/, '').replace(/\/+$/, '');
 const TDS_RATE = 0.15;
+// Flywire Incentive = 0.2% of the Flywire Fee Payment (in GBP), converted to NPR at today's rate.
+const FLYWIRE_INCENTIVE_RATE = 0.002;
+const POLL_MS = 8000;
+
+// Student details are synced read-only from UK Student NIEC; the money columns are edited here.
+const COLUMNS = [
+  { key: 'name', label: 'Student Name', width: 24 },
+  { key: 'course', label: 'Course Name', width: 32 },
+  { key: 'university', label: 'University Name', width: 30 },
+  { key: 'studentId', label: 'Student ID', width: 14 },
+  { key: 'visaIssuedDate', label: 'Visa Issue Date', width: 15, synced: true },
+  { key: 'enrollmentCommission', label: 'Enrollment Incentive', width: 19, money: true },
+  { key: 'enrollmentCommissionUni', label: 'Enrollment Incentive from University', width: 28, money: true },
+  { key: 'newPartnershipCommission', label: 'New Partnership Incentive', width: 21, money: true },
+  { key: 'selfStudentCommission', label: 'Direct Student Incentive', width: 21, money: true },
+  { key: 'flywireFeePayment', label: 'Flywire Fee Payment', width: 19, money: true },
+  { key: 'flywireCommission', label: 'Flywire Incentive', width: 17, money: true,
+    title: "Auto-filled: 0.2% of Flywire Fee Payment (GBP), converted to NPR at today's rate. You can still edit it." },
+  { key: 'loanCommission', label: 'Loan Incentive to Share', width: 19, money: true },
+];
+const FIRST_KEY = COLUMNS[0].key;
+const LAST_KEY = COLUMNS[COLUMNS.length - 1].key;
+const INFO_HINT = 'Student details come from UK Student NIEC. Change them there.';
+
 const state = { intakes: [], byIntake: {}, commissions: {}, advances: {}, activeIntake: null, syncOk: true };
+let visible = []; // the students shown right now, in order (active intake + search)
+
 const $ = (sel) => document.querySelector(sel);
 const searchInput = $('#search');
 const tabsEl = $('#tabs');
+const headRow = $('#headRow');
 const rowsEl = $('#rows');
-const bannerEl = $('#banner');
+const syncBannerEl = $('#syncBanner');
+const rateBannerEl = $('#rateBanner');
 const emptyStateEl = $('#emptyState');
+const gridStatusEl = $('#gridStatus');
+const gridHintEl = $('#gridHint');
 const liveDot = $('#liveDot');
 const liveText = $('#liveText');
 const advanceInput = $('#advanceInput');
 const undoBtn = $('#undoBtn');
 const redoBtn = $('#redoBtn');
 
-function fmt(n){ return (Number(n)||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}); }
-function esc(s){ return String(s ?? '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
-function num(v){ const n = parseFloat(v); return isNaN(n) ? 0 : n; }
+function fmt(n) { return (Number(n) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+function esc(s) { return String(s ?? '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;'); }
+function num(v) { const n = parseFloat(v); return isNaN(n) ? 0 : n; }
+function round2(n) { return Math.round(n * 100) / 100; }
+function clamp(n, lo, hi) { return Math.max(lo, Math.min(hi, n)); }
+function colIndex(key) { return COLUMNS.findIndex((c) => c.key === key); }
+function isMoney(key) { const c = COLUMNS[colIndex(key)]; return Boolean(c && c.money); }
+function commissionValue(id, key) { return num((state.commissions[id] || {})[key]); }
 
-// Undo/redo over commission-field and previous-advance edits — everything editable
-// in this app. Each action is one committed change.
+// Reads a typed or pasted amount: "1,250.50", "£1250" and "Rs. 1250" all work. Blank means 0.
+// Returns null when it isn't a number at all.
+function parseMoney(text) {
+  const s = String(text ?? '').trim().replace(/,/g, '').replace(/^(rs\.?|npr|gbp|£|\$|€)\s*/i, '');
+  if (!s) return 0;
+  const n = Number(s);
+  return Number.isFinite(n) ? n : null;
+}
+
+// ---------------------------------------------------------------------------------------------
+// Saving. Edits are debounced per student (or per intake for the advance), only one request per
+// key is in flight at a time, and a key stays "pending" until the server has its latest value, so
+// the background refresh never overwrites something that hasn't been saved yet.
+// ---------------------------------------------------------------------------------------------
+const pendingCommissions = new Set();
+const pendingAdvances = new Set();
+
+function createSaver(pending, request) {
+  const timers = {};
+  const versions = {};
+  const inFlight = new Set();
+  const queued = new Set();
+
+  async function run(key) {
+    if (inFlight.has(key)) { queued.add(key); return; }
+    inFlight.add(key);
+    const version = versions[key];
+    try {
+      const res = await request(key);
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      if (versions[key] === version) pending.delete(key);
+    } catch (e) {
+      liveDot.classList.add('stale');
+      liveText.textContent = 'save failed — retrying…';
+      clearTimeout(timers[key]);
+      timers[key] = setTimeout(() => run(key), 3000);
+    } finally {
+      inFlight.delete(key);
+      if (queued.delete(key)) run(key);
+    }
+  }
+
+  return function schedule(key) {
+    pending.add(key);
+    versions[key] = (versions[key] || 0) + 1;
+    clearTimeout(timers[key]);
+    timers[key] = setTimeout(() => run(key), 300);
+  };
+}
+
+const scheduleSaveCommission = createSaver(pendingCommissions, (id) => fetch(BASE + '/api/commissions/' + encodeURIComponent(id), {
+  method: 'PUT',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify(state.commissions[id] || {}),
+}));
+
+const scheduleSaveAdvance = createSaver(pendingAdvances, (intake) => fetch(BASE + '/api/advances/' + encodeURIComponent(intake), {
+  method: 'PUT',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ previousAdvance: num((state.advances[intake] || {}).previousAdvance) }),
+}));
+
+// ---------------------------------------------------------------------------------------------
+// Undo/redo. Every change to the incentive cells is one 'commission-batch' step (a single cell edit,
+// a paste, or a Delete across many cells), so one Ctrl+Z reverts all of it together.
+// ---------------------------------------------------------------------------------------------
 let undoStack = [];
 let redoStack = [];
-function updateUndoRedoButtons(){
-  if (undoBtn) undoBtn.disabled = undoStack.length === 0;
-  if (redoBtn) redoBtn.disabled = redoStack.length === 0;
+
+function updateUndoRedoButtons() {
+  undoBtn.disabled = undoStack.length === 0;
+  redoBtn.disabled = redoStack.length === 0;
 }
-function pushUndo(action){
+
+function pushUndo(action) {
   undoStack.push(action);
   if (undoStack.length > 100) undoStack.shift();
   redoStack = [];
   updateUndoRedoButtons();
 }
-// `dir` is 'from' (undo) or 'to' (redo) — 'commission-batch' bundles several field
-// changes (e.g. Flywire Fee Payment + the Flywire Incentive it auto-computes) into one
-// undo step, so a single Ctrl+Z reverts both together.
-function applyAction(action, dir){
-  if (action.kind === 'commission') {
-    if (!state.commissions[action.id]) state.commissions[action.id] = {};
-    state.commissions[action.id][action.f] = action[dir];
-    scheduleSaveCommission(action.id);
-  } else if (action.kind === 'commission-batch') {
-    action.changes.forEach(ch => {
+
+// `dir` is 'from' (undo) or 'to' (redo).
+function applyAction(action, dir) {
+  if (action.kind === 'commission-batch') {
+    action.changes.forEach((ch) => {
       if (!state.commissions[ch.id]) state.commissions[ch.id] = {};
       state.commissions[ch.id][ch.f] = ch[dir];
     });
-    [...new Set(action.changes.map(ch => ch.id))].forEach(scheduleSaveCommission);
+    [...new Set(action.changes.map((ch) => ch.id))].forEach(scheduleSaveCommission);
   } else if (action.kind === 'advance') {
     if (!state.advances[action.intake]) state.advances[action.intake] = {};
     state.advances[action.intake].previousAdvance = action[dir];
@@ -290,14 +400,16 @@ function applyAction(action, dir){
   }
   render();
 }
-function undo(){
+
+function undo() {
   if (!undoStack.length) return;
   const action = undoStack.pop();
   redoStack.push(action);
   applyAction(action, 'from');
   updateUndoRedoButtons();
 }
-function redo(){
+
+function redo() {
   if (!redoStack.length) return;
   const action = redoStack.pop();
   undoStack.push(action);
@@ -305,107 +417,9 @@ function redo(){
   updateUndoRedoButtons();
 }
 
-async function loadAll(){
-  try{
-    const [syncRes, commRes, advRes] = await Promise.all([
-      fetch(BASE + '/api/sync').then(r => r.json()),
-      fetch(BASE + '/api/commissions').then(r => r.json()),
-      fetch(BASE + '/api/advances').then(r => r.json()),
-    ]);
-    state.intakes = syncRes.intakes || [];
-    state.byIntake = syncRes.byIntake || {};
-    state.commissions = commRes || {};
-    state.advances = advRes || {};
-    state.syncOk = syncRes.ok !== false;
-
-    if (!state.syncOk) {
-      bannerEl.innerHTML = `<div class="banner error">⚠ ${esc(syncRes.error || 'Could not read Student Details.')}</div>`;
-    } else {
-      bannerEl.innerHTML = '';
-    }
-    if (!state.activeIntake || !state.intakes.includes(state.activeIntake)) {
-      state.activeIntake = state.intakes[0] || null;
-    }
-    liveDot.classList.remove('stale');
-    liveText.textContent = 'synced ' + new Date().toLocaleTimeString();
-    render();
-  } catch (e) {
-    liveDot.classList.add('stale');
-    liveText.textContent = 'sync failed — retrying…';
-  }
-}
-
-function renderTabs(){
-  tabsEl.innerHTML = '';
-  state.intakes.forEach(intake => {
-    const count = (state.byIntake[intake] || []).length;
-    const btn = document.createElement('button');
-    btn.className = 'tab' + (intake === state.activeIntake ? ' active' : '');
-    btn.innerHTML = `${esc(intake)} <span class="count">(${count})</span>`;
-    btn.addEventListener('click', () => { state.activeIntake = intake; render(); });
-    tabsEl.appendChild(btn);
-  });
-  if (!state.intakes.length) {
-    tabsEl.innerHTML = '<span style="color:var(--text-dim);font-size:12px;">No intake sheets found yet in Student Details.</span>';
-  }
-}
-
-function currentStudents(){
-  const list = state.byIntake[state.activeIntake] || [];
-  const q = searchInput.value.trim().toLowerCase();
-  if (!q) return list;
-  return list.filter(s => (s.name+' '+s.university+' '+s.course+' '+s.studentId).toLowerCase().includes(q));
-}
-
-function render(){
-  renderTabs();
-  $('#summaryTitle').textContent = state.activeIntake ? `Payment Summary · ${state.activeIntake}` : 'Payment Summary';
-  const students = currentStudents();
-  rowsEl.innerHTML = '';
-  emptyStateEl.hidden = students.length > 0;
-
-  students.forEach((s, i) => {
-    const c = state.commissions[s.id] || {};
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td class="sn">${i+1}</td>
-      <td class="readonly">${esc(s.name) || '<span style="color:var(--text-dim)">—</span>'}</td>
-      <td class="readonly">${esc(s.course)}</td>
-      <td class="readonly">${esc(s.university)}</td>
-      <td class="readonly">${esc(s.studentId)}</td>
-      <td class="readonly">${esc(s.visaIssuedDate)}<span class="synced-badge">SYNCED</span></td>
-      <td class="num"><input data-id="${s.id}" data-f="enrollmentCommission" type="number" step="0.01" value="${c.enrollmentCommission || 0}"></td>
-      <td class="num"><input data-id="${s.id}" data-f="enrollmentCommissionUni" type="number" step="0.01" value="${c.enrollmentCommissionUni || 0}"></td>
-      <td class="num"><input data-id="${s.id}" data-f="newPartnershipCommission" type="number" step="0.01" value="${c.newPartnershipCommission || 0}"></td>
-      <td class="num"><input data-id="${s.id}" data-f="selfStudentCommission" type="number" step="0.01" value="${c.selfStudentCommission || 0}"></td>
-      <td class="num"><input data-id="${s.id}" data-f="flywireFeePayment" type="number" step="0.01" value="${c.flywireFeePayment || 0}"></td>
-      <td class="num"><input data-id="${s.id}" data-f="flywireCommission" type="number" step="0.01" value="${c.flywireCommission || 0}"></td>
-      <td class="num"><input data-id="${s.id}" data-f="loanCommission" type="number" step="0.01" value="${c.loanCommission || 0}"></td>
-    `;
-    rowsEl.appendChild(tr);
-  });
-
-  rowsEl.querySelectorAll('input').forEach(inp => {
-    inp.addEventListener('change', onEdit);
-  });
-
-  advanceInput.value = num((state.advances[state.activeIntake] || {}).previousAdvance);
-
-  recalc(students);
-}
-
-let saveTimers = {};
-function scheduleSaveCommission(id){
-  clearTimeout(saveTimers[id]);
-  saveTimers[id] = setTimeout(() => saveCommission(id), 300);
-}
-
-// Flywire Incentive = 0.2% of the Flywire Fee Payment (in GBP), converted to NPR at
-// today's rate. Cached client-side per calendar day too, on top of the server's own
-// daily cache, so repeated edits in one sitting don't refetch it each time.
-const FLYWIRE_INCENTIVE_RATE = 0.002;
+// Cached per calendar day on top of the server's own daily cache.
 let exchangeRateCache = null; // { rate, date }
-async function getExchangeRate(){
+async function getExchangeRate() {
   const today = new Date().toISOString().slice(0, 10);
   if (exchangeRateCache && exchangeRateCache.date === today) return exchangeRateCache.rate;
   try {
@@ -419,106 +433,184 @@ async function getExchangeRate(){
   return null;
 }
 
-async function onEdit(e){
-  const id = e.target.getAttribute('data-id');
-  const f = e.target.getAttribute('data-f');
-  const v = num(e.target.value);
-  const prev = num((state.commissions[id]||{})[f]);
-  if (v === prev) return;
+// The one way incentive values change: [{ id, key, to }]. A new Flywire Fee Payment also refills that
+// student's Flywire Incentive, unless the same change sets the incentive itself (e.g. a pasted row).
+async function applyChanges(changes) {
+  const real = changes.filter((ch) => commissionValue(ch.id, ch.key) !== ch.to);
+  const feeChanges = real.filter((ch) => ch.key === 'flywireFeePayment'
+    && !changes.some((o) => o.id === ch.id && o.key === 'flywireCommission'));
 
-  if (f === 'flywireFeePayment') {
-    const rate = await getExchangeRate();
-    const prevFlywireComm = num((state.commissions[id]||{}).flywireCommission);
-    if (rate == null) {
-      bannerEl.innerHTML = `<div class="banner error">⚠ Could not fetch today's GBP→NPR exchange rate — Flywire Incentive was left as-is. You can enter it manually, or try again.</div>`;
-    } else if (state.syncOk) {
-      bannerEl.innerHTML = '';
+  let rate = null;
+  if (feeChanges.some((ch) => ch.to !== 0)) {
+    rate = await getExchangeRate();
+    rateBannerEl.innerHTML = rate == null
+      ? '<div class="banner error">⚠ Could not fetch today\'s GBP→NPR exchange rate, so Flywire Incentive was left as it was. You can enter it by hand, or try again.</div>'
+      : '';
+  }
+  const all = [...real];
+  feeChanges.forEach((ch) => {
+    if (ch.to === 0) all.push({ id: ch.id, key: 'flywireCommission', to: 0 });
+    else if (rate != null) all.push({ id: ch.id, key: 'flywireCommission', to: round2(ch.to * FLYWIRE_INCENTIVE_RATE * rate) });
+  });
+
+  const batch = all
+    .map((ch) => ({ id: ch.id, f: ch.key, from: commissionValue(ch.id, ch.key), to: ch.to }))
+    .filter((ch) => ch.from !== ch.to);
+  if (!batch.length) { render(); return; }
+  pushUndo({ kind: 'commission-batch', changes: batch });
+  batch.forEach((ch) => {
+    if (!state.commissions[ch.id]) state.commissions[ch.id] = {};
+    state.commissions[ch.id][ch.f] = ch.to;
+  });
+  [...new Set(batch.map((ch) => ch.id))].forEach(scheduleSaveCommission);
+  render();
+}
+
+// ---------------------------------------------------------------------------------------------
+// Loading and rendering
+// ---------------------------------------------------------------------------------------------
+let lastSnapshot = '';
+
+async function loadAll() {
+  try {
+    const [syncRes, commRes, advRes] = await Promise.all(['/api/sync', '/api/commissions', '/api/advances'].map((p) =>
+      fetch(BASE + p, { cache: 'no-store' }).then((r) => {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.json();
+      })));
+    liveDot.classList.remove('stale');
+    liveText.textContent = 'synced ' + new Date().toLocaleTimeString();
+
+    const snapshot = JSON.stringify([syncRes, commRes, advRes]);
+    if (snapshot === lastSnapshot) return; // nothing changed: leave the table (and the selection) alone
+    lastSnapshot = snapshot;
+
+    const commissions = commRes || {};
+    pendingCommissions.forEach((id) => { if (state.commissions[id]) commissions[id] = state.commissions[id]; });
+    const advances = advRes || {};
+    pendingAdvances.forEach((intake) => { if (state.advances[intake]) advances[intake] = state.advances[intake]; });
+
+    state.intakes = syncRes.intakes || [];
+    state.byIntake = syncRes.byIntake || {};
+    state.commissions = commissions;
+    state.advances = advances;
+    state.syncOk = syncRes.ok !== false;
+    syncBannerEl.innerHTML = state.syncOk
+      ? ''
+      : `<div class="banner error">⚠ ${esc(syncRes.error || 'Could not read Student Details.')}</div>`;
+    if (!state.activeIntake || !state.intakes.includes(state.activeIntake)) {
+      state.activeIntake = state.intakes[0] || null;
     }
-    const newFlywireComm = rate == null ? prevFlywireComm : Math.round(v * FLYWIRE_INCENTIVE_RATE * rate * 100) / 100;
-    pushUndo({ kind: 'commission-batch', changes: [
-      { id, f: 'flywireFeePayment', from: prev, to: v },
-      { id, f: 'flywireCommission', from: prevFlywireComm, to: newFlywireComm },
-    ] });
-    if (!state.commissions[id]) state.commissions[id] = {};
-    state.commissions[id].flywireFeePayment = v;
-    state.commissions[id].flywireCommission = newFlywireComm;
     render();
-    scheduleSaveCommission(id);
+  } catch (e) {
+    liveDot.classList.add('stale');
+    liveText.textContent = 'sync failed — retrying…';
+  }
+}
+
+function switchIntake(intake) {
+  if (editing) commitEdit({ refocus: false });
+  state.activeIntake = intake;
+  activeCell = null;
+  selRanges = [];
+  rowSelectMode = false;
+  render();
+}
+
+function renderTabs() {
+  tabsEl.innerHTML = '';
+  if (!state.intakes.length) {
+    tabsEl.innerHTML = '<span class="none">No intake sheets found yet in Student Details.</span>';
     return;
   }
-
-  pushUndo({ kind: 'commission', id, f, from: prev, to: v });
-  if (!state.commissions[id]) state.commissions[id] = {};
-  state.commissions[id][f] = v;
-  recalc(currentStudents());
-  scheduleSaveCommission(id);
+  state.intakes.forEach((intake) => {
+    const count = (state.byIntake[intake] || []).length;
+    const btn = document.createElement('button');
+    btn.className = 'tab' + (intake === state.activeIntake ? ' active' : '');
+    btn.innerHTML = `${esc(intake)} <span class="count">(${count})</span>`;
+    btn.addEventListener('click', () => switchIntake(intake));
+    tabsEl.appendChild(btn);
+  });
 }
 
-advanceInput.addEventListener('change', () => {
-  const intake = state.activeIntake;
-  if (!intake) return;
-  const v = num(advanceInput.value);
-  const prev = num((state.advances[intake]||{}).previousAdvance);
-  if (v === prev) return;
-  pushUndo({ kind: 'advance', intake, from: prev, to: v });
-  if (!state.advances[intake]) state.advances[intake] = {};
-  state.advances[intake].previousAdvance = v;
-  recalc(currentStudents());
-  scheduleSaveAdvance(intake);
-});
+function renderHead() {
+  headRow.innerHTML = '<th>S.N</th>' + COLUMNS.map((c) =>
+    `<th${c.money ? ' class="num"' : ''}${c.title ? ` title="${esc(c.title)}"` : ''}>${esc(c.label)}</th>`).join('');
+}
 
-async function saveCommission(id){
-  const c = state.commissions[id] || {};
-  try{
-    const res = await fetch(BASE + '/api/commissions/' + encodeURIComponent(id), {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(c),
+function currentStudents() {
+  const list = state.byIntake[state.activeIntake] || [];
+  const q = searchInput.value.trim().toLowerCase();
+  if (!q) return list;
+  return list.filter((s) => (s.name + ' ' + s.university + ' ' + s.course + ' ' + s.studentId).toLowerCase().includes(q));
+}
+
+let renderPending = false;
+
+function render() {
+  // Rebuilding the table would throw away a cell that's being typed in: wait until it's finished.
+  if (editing) { renderPending = true; return; }
+  renderTabs();
+  $('#summaryTitle').textContent = state.activeIntake ? `Payment Summary · ${state.activeIntake}` : 'Payment Summary';
+
+  const ae = document.activeElement;
+  const hadGridFocus = !ae || ae === document.body || rowsEl.contains(ae);
+  visible = currentStudents();
+  emptyStateEl.hidden = visible.length > 0;
+
+  const frag = document.createDocumentFragment();
+  visible.forEach((s, i) => {
+    const tr = document.createElement('tr');
+    tr.dataset.id = s.id;
+    const sn = document.createElement('td');
+    sn.className = 'sn';
+    sn.textContent = i + 1;
+    sn.title = 'Select this row (drag or Shift+Click for more rows). Delete clears its incentives.';
+    tr.appendChild(sn);
+
+    COLUMNS.forEach((col, ci) => {
+      const td = document.createElement('td');
+      td.dataset.ci = ci;
+      td.tabIndex = -1;
+      if (col.money) {
+        const value = commissionValue(s.id, col.key);
+        td.className = 'num' + (value === 0 ? ' zero' : '');
+        td.textContent = fmt(value);
+      } else {
+        td.title = INFO_HINT;
+        if (s[col.key]) td.textContent = s[col.key];
+        else td.innerHTML = '<span class="muted">—</span>';
+        if (col.synced && s[col.key]) td.insertAdjacentHTML('beforeend', '<span class="synced-badge">SYNCED</span>');
+      }
+      tr.appendChild(td);
     });
-    state.commissions[id] = await res.json();
-  } catch(e) { /* will retry on next edit; sync poll will reconcile */ }
+    frag.appendChild(tr);
+  });
+  rowsEl.innerHTML = '';
+  rowsEl.appendChild(frag);
+
+  if (document.activeElement !== advanceInput) {
+    advanceInput.value = num((state.advances[state.activeIntake] || {}).previousAdvance);
+  }
+  recalc(visible);
+  applySelectionClasses();
+  if (hadGridFocus) focusActiveCell({ scroll: false });
 }
 
-// Keyed per-intake (not a single shared timer) so editing the advance on two different
-// intakes within the debounce window can't drop one of the saves.
-let advSaveTimers = {};
-function scheduleSaveAdvance(intake){
-  clearTimeout(advSaveTimers[intake]);
-  advSaveTimers[intake] = setTimeout(() => saveAdvance(intake), 300);
-}
-async function saveAdvance(intake){
-  const previousAdvance = num((state.advances[intake]||{}).previousAdvance);
-  try{
-    const res = await fetch(BASE + '/api/advances/' + encodeURIComponent(intake), {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ previousAdvance }),
-    });
-    state.advances[intake] = await res.json();
-  } catch(e) { /* will retry on next edit */ }
-}
-
-// Shared by the on-screen Payment Summary and the CSV export, so the two can't drift.
-function computeSummary(students){
-  const sum = f => students.reduce((a,s) => a + num((state.commissions[s.id]||{})[f]), 0);
-  const tEnrollment = sum('enrollmentCommission');
-  const tEnrollmentUni = sum('enrollmentCommissionUni');
-  const tNewPartner = sum('newPartnershipCommission');
-  const tSelfStudent = sum('selfStudentCommission');
-  const tFlyComm = sum('flywireCommission');
-  const tLoan = sum('loanCommission');
-
-  const totalCommissions = tEnrollment + tEnrollmentUni + tNewPartner + tSelfStudent + tFlyComm;
-  const loanPayable = tLoan;
+// Shared by the on-screen Payment Summary and the Excel export, so the two can't drift.
+function computeSummary(students) {
+  const sum = (key) => students.reduce((a, s) => a + commissionValue(s.id, key), 0);
+  const totalCommissions = sum('enrollmentCommission') + sum('enrollmentCommissionUni')
+    + sum('newPartnershipCommission') + sum('selfStudentCommission') + sum('flywireCommission');
+  const loanPayable = sum('loanCommission');
   const netCommissions = totalCommissions - loanPayable;
   const tds = netCommissions * TDS_RATE;
   const previousAdvance = num((state.advances[state.activeIntake] || {}).previousAdvance);
   const netPayable = netCommissions - tds - previousAdvance;
-
   return { totalCommissions, loanPayable, netCommissions, tds, previousAdvance, netPayable };
 }
 
-function recalc(students){
+function recalc(students) {
   const s = computeSummary(students);
   $('#sumTotalCommissions').textContent = fmt(s.totalCommissions);
   $('#sumLoanPayable').textContent = fmt(s.loanPayable);
@@ -527,48 +619,468 @@ function recalc(students){
   $('#sumNetPayable').textContent = fmt(s.netPayable);
 }
 
-if (undoBtn) undoBtn.addEventListener('click', undo);
-if (redoBtn) redoBtn.addEventListener('click', redo);
+advanceInput.addEventListener('change', () => {
+  const intake = state.activeIntake;
+  if (!intake) return;
+  const v = num(advanceInput.value);
+  const prev = num((state.advances[intake] || {}).previousAdvance);
+  if (v === prev) return;
+  pushUndo({ kind: 'advance', intake, from: prev, to: v });
+  if (!state.advances[intake]) state.advances[intake] = {};
+  state.advances[intake].previousAdvance = v;
+  recalc(visible);
+  scheduleSaveAdvance(intake);
+});
+
+// ---------------------------------------------------------------------------------------------
+// Spreadsheet grid, like Google Sheets and the UK Student NIEC tracker: click a cell, drag or
+// Shift+Click/Shift+Arrow for a range, Ctrl+Click to add cells, Ctrl+A for everything. Type or
+// Enter/F2/double-click to edit an incentive; Delete clears the selection; Ctrl+C/X/V copy, cut and
+// paste. Picking rows from their S.N and pressing Delete clears all of those students' incentives.
+// ---------------------------------------------------------------------------------------------
+let activeCell = null;  // { id, key }: where the arrow keys move from
+let selRanges = [];     // [{ anchor: { id, key }, focus: { id, key } }]
+let rowSelectMode = false;
+let dragMode = null;    // 'cells' | 'rows' while the mouse button is held
+let editing = null;     // { td, id, key, original, typed }
+
+function singleRange(id, key) { return { anchor: { id, key }, focus: { id, key } }; }
+function fullRowRange(id) { return { anchor: { id, key: FIRST_KEY }, focus: { id, key: LAST_KEY } }; }
+
+function cellTd(id, key) {
+  const tr = rowsEl.querySelector(`tr[data-id="${CSS.escape(id)}"]`);
+  return tr ? tr.querySelector(`td[data-ci="${colIndex(key)}"]`) : null;
+}
+
+// Each range as a rectangle of on-screen positions; a range whose end is hidden by the search is skipped.
+function rangeRects() {
+  const pos = new Map(visible.map((s, p) => [s.id, p]));
+  return selRanges.map(({ anchor, focus }) => {
+    const pa = pos.get(anchor.id);
+    const pf = pos.get(focus.id);
+    const ca = colIndex(anchor.key);
+    const cf = colIndex(focus.key);
+    if (pa === undefined || pf === undefined || ca < 0 || cf < 0) return null;
+    return { top: Math.min(pa, pf), bottom: Math.max(pa, pf), left: Math.min(ca, cf), right: Math.max(ca, cf) };
+  }).filter(Boolean);
+}
+
+function isMultiSelection(rects = rangeRects()) {
+  return rects.length > 1 || rects.some((r) => r.top !== r.bottom || r.left !== r.right);
+}
+
+function selectedCells() {
+  const seen = new Set();
+  const cells = [];
+  rangeRects().forEach((r) => {
+    for (let p = r.top; p <= r.bottom; p += 1) {
+      for (let c = r.left; c <= r.right; c += 1) {
+        const id = visible[p].id;
+        const key = COLUMNS[c].key;
+        if (seen.has(id + '|' + key)) continue;
+        seen.add(id + '|' + key);
+        cells.push({ id, key });
+      }
+    }
+  });
+  return cells;
+}
+
+// Redraws the cursor and selection highlight without rebuilding the table, and the footer summary.
+function applySelectionClasses() {
+  const rects = rangeRects();
+  const multi = isMultiSelection(rects);
+  const pos = new Map(visible.map((s, p) => [s.id, p]));
+  const pickedRows = new Set();
+  rects.forEach((r) => { for (let p = r.top; p <= r.bottom; p += 1) pickedRows.add(visible[p].id); });
+
+  rowsEl.querySelectorAll('tr').forEach((tr) => {
+    const id = tr.dataset.id;
+    const p = pos.get(id);
+    const picked = pickedRows.has(id);
+    tr.classList.toggle('selected', picked);
+    tr.classList.toggle('row-picked', rowSelectMode && picked);
+    const rowRects = multi ? rects.filter((r) => p >= r.top && p <= r.bottom) : [];
+    for (const td of tr.children) {
+      if (td.classList.contains('sn')) continue;
+      const c = Number(td.dataset.ci);
+      td.classList.toggle('in-range', rowRects.some((r) => c >= r.left && c <= r.right));
+      td.classList.toggle('active-cell', Boolean(activeCell) && activeCell.id === id && activeCell.key === COLUMNS[c].key);
+    }
+  });
+
+  let text = `${visible.length} student${visible.length === 1 ? '' : 's'}`;
+  if (multi) {
+    const cells = selectedCells();
+    text += ` · ${cells.length} cells selected`;
+    const money = cells.filter((c) => isMoney(c.key));
+    if (money.length) text += ` · Sum: ${fmt(money.reduce((sum, c) => sum + commissionValue(c.id, c.key), 0))}`;
+  }
+  gridStatusEl.textContent = text;
+}
+
+let hintTimer = null;
+function showHint(text) {
+  gridHintEl.textContent = text;
+  clearTimeout(hintTimer);
+  hintTimer = setTimeout(() => { gridHintEl.textContent = ''; }, 3500);
+}
+
+function focusActiveCell({ scroll = true } = {}) {
+  const td = activeCell && cellTd(activeCell.id, activeCell.key);
+  if (!td) return;
+  td.focus({ preventScroll: true });
+  if (scroll) td.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+}
+
+function selectCell(id, key, { scroll = true } = {}) {
+  rowSelectMode = false;
+  selRanges = [singleRange(id, key)];
+  activeCell = { id, key };
+  applySelectionClasses();
+  focusActiveCell({ scroll });
+}
+
+function moveActiveCell(dRow, dCol) {
+  if (!visible.length) return;
+  let p = activeCell ? visible.findIndex((s) => s.id === activeCell.id) : -1;
+  let c = activeCell ? colIndex(activeCell.key) : -1;
+  if (p === -1 || c === -1) {
+    p = 0; // the cursor's row was hidden by the search: start from the top
+    c = Math.max(c, 0);
+  } else {
+    p = clamp(p + dRow, 0, visible.length - 1);
+    c = clamp(c + dCol, 0, COLUMNS.length - 1);
+  }
+  selectCell(visible[p].id, COLUMNS[c].key);
+}
+
+// Shift+Arrow: grows/shrinks the latest range from its far end; the cell cursor stays put.
+function extendSelection(dRow, dCol) {
+  if (!activeCell) return;
+  if (!selRanges.length) selRanges = [singleRange(activeCell.id, activeCell.key)];
+  const last = selRanges[selRanges.length - 1];
+  let p = visible.findIndex((s) => s.id === last.focus.id);
+  let c = colIndex(last.focus.key);
+  if (p === -1 || c === -1) return;
+  p = clamp(p + dRow, 0, visible.length - 1);
+  c = rowSelectMode ? COLUMNS.length - 1 : clamp(c + dCol, 0, COLUMNS.length - 1);
+  last.focus = { id: visible[p].id, key: COLUMNS[c].key };
+  applySelectionClasses();
+  const td = cellTd(last.focus.id, last.focus.key);
+  if (td) td.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+}
+
+function selectAllCells() {
+  if (!visible.length) return;
+  rowSelectMode = false;
+  selRanges = [{ anchor: { id: visible[0].id, key: FIRST_KEY }, focus: { id: visible[visible.length - 1].id, key: LAST_KEY } }];
+  if (!activeCell || !visible.some((s) => s.id === activeCell.id)) activeCell = { id: visible[0].id, key: FIRST_KEY };
+  applySelectionClasses();
+  focusActiveCell({ scroll: false });
+}
+
+// replaceWith: the first character typed (typing over a cell replaces it, like Sheets).
+function startEdit({ replaceWith = null } = {}) {
+  if (!activeCell || editing) return;
+  const { id, key } = activeCell;
+  if (!isMoney(key)) { showHint(INFO_HINT); return; }
+  const td = cellTd(id, key);
+  if (!td) return;
+  const original = commissionValue(id, key);
+  editing = { td, id, key, original, typed: replaceWith !== null };
+  td.contentEditable = 'true';
+  td.classList.add('editing');
+  td.textContent = replaceWith !== null ? replaceWith : (original ? String(original) : '');
+  td.focus({ preventScroll: true });
+  const range = document.createRange();
+  range.selectNodeContents(td);
+  range.collapse(false);
+  const sel = window.getSelection();
+  sel.removeAllRanges();
+  sel.addRange(range);
+}
+
+function finishEditing() {
+  if (renderPending) { renderPending = false; render(); }
+}
+
+function commitEdit({ move = null, refocus = true } = {}) {
+  if (!editing) return;
+  const { td, id, key, original } = editing;
+  editing = null;
+  td.removeAttribute('contenteditable');
+  td.classList.remove('editing');
+  const value = parseMoney(td.textContent);
+  if (value === null) {
+    td.textContent = fmt(original);
+    showHint('Only numbers can go in incentive cells.');
+    finishEditing();
+  } else {
+    td.textContent = fmt(value);
+    if (value !== original) applyChanges([{ id, key, to: value }]);
+    else finishEditing();
+  }
+  if (move) moveActiveCell(move[0], move[1]);
+  else if (refocus) focusActiveCell({ scroll: false });
+}
+
+function cancelEdit() {
+  if (!editing) return;
+  const { td, original } = editing;
+  editing = null;
+  td.removeAttribute('contenteditable');
+  td.classList.remove('editing');
+  td.textContent = fmt(original);
+  finishEditing();
+  focusActiveCell({ scroll: false });
+}
+
+// Delete: sets every selected incentive cell to 0, as one undo step. Student details are skipped.
+function clearSelectedCells() {
+  const cells = selectedCells();
+  const changes = cells
+    .filter((c) => isMoney(c.key) && commissionValue(c.id, c.key) !== 0)
+    .map((c) => ({ id: c.id, key: c.key, to: 0 }));
+  if (changes.length) applyChanges(changes);
+  else if (cells.length && cells.every((c) => !isMoney(c.key))) showHint(INFO_HINT);
+}
+
+// Copy/paste as tab-separated text, so ranges move to and from Excel and Google Sheets.
+function selectionToTsv() {
+  const rects = rangeRects();
+  if (!rects.length) return null;
+  const r = rects[rects.length - 1]; // several separate ranges: copy the latest, as Sheets does
+  const lines = [];
+  for (let p = r.top; p <= r.bottom; p += 1) {
+    const s = visible[p];
+    const cells = [];
+    for (let c = r.left; c <= r.right; c += 1) {
+      const col = COLUMNS[c];
+      const value = col.money ? String(commissionValue(s.id, col.key)) : String(s[col.key] || '');
+      cells.push(value.replace(/[\t\r\n]+/g, ' '));
+    }
+    lines.push(cells.join('\t'));
+  }
+  return { tsv: lines.join('\n'), count: (r.bottom - r.top + 1) * (r.right - r.left + 1) };
+}
+
+// Pastes from the top-left of the selection. A single copied value fills the whole selection.
+function pasteIntoSelection(text) {
+  const data = text.replace(/\r\n?/g, '\n').replace(/\n$/, '').split('\n').map((line) => line.split('\t'));
+  const rects = rangeRects();
+  const r = rects[rects.length - 1];
+  if (!r) return;
+  const fill = data.length === 1 && data[0].length === 1;
+  const height = fill ? r.bottom - r.top + 1 : data.length;
+  const width = fill ? r.right - r.left + 1 : Math.max(...data.map((line) => line.length));
+
+  const changes = [];
+  let skippedText = false;
+  let touchedMoney = false;
+  for (let dr = 0; dr < height && r.top + dr < visible.length; dr += 1) {
+    for (let dc = 0; dc < width && r.left + dc < COLUMNS.length; dc += 1) {
+      const raw = fill ? data[0][0] : data[dr][dc];
+      const key = COLUMNS[r.left + dc].key;
+      if (raw === undefined || !isMoney(key)) continue;
+      touchedMoney = true;
+      const value = parseMoney(raw);
+      if (value === null) { skippedText = true; continue; }
+      changes.push({ id: visible[r.top + dr].id, key, to: value });
+    }
+  }
+
+  const bottom = Math.min(visible.length - 1, r.top + height - 1);
+  const right = Math.min(COLUMNS.length - 1, r.left + width - 1);
+  rowSelectMode = false;
+  activeCell = { id: visible[r.top].id, key: COLUMNS[r.left].key };
+  selRanges = [{ anchor: { ...activeCell }, focus: { id: visible[bottom].id, key: COLUMNS[right].key } }];
+  applySelectionClasses();
+
+  if (!touchedMoney) showHint(INFO_HINT);
+  else if (skippedText) showHint("Some pasted values weren't numbers, so they were skipped.");
+  if (changes.length) applyChanges(changes);
+}
+
+// Mouse: one listener on the table body, working from row ids and column positions.
+rowsEl.addEventListener('mousedown', (e) => {
+  if (e.button !== 0) return;
+  const td = e.target.closest('td');
+  if (!td || !rowsEl.contains(td)) return;
+  if (editing && editing.td === td) return; // clicking inside the cell being typed in moves the caret
+  const id = td.parentElement.dataset.id;
+  const isSn = td.classList.contains('sn');
+  const key = isSn ? FIRST_KEY : COLUMNS[Number(td.dataset.ci)].key;
+  const additive = e.ctrlKey || e.metaKey;
+  e.preventDefault(); // select the cell; don't drop a text caret into it
+  if (editing) commitEdit({ refocus: false });
+
+  if (isSn) {
+    if (e.shiftKey && rowSelectMode && selRanges.length) {
+      selRanges[selRanges.length - 1].focus = { id, key: LAST_KEY };
+    } else if (additive && rowSelectMode) {
+      const before = selRanges.length;
+      selRanges = selRanges.filter((r) => !(r.anchor.id === id && r.focus.id === id));
+      if (selRanges.length === before) selRanges.push(fullRowRange(id));
+      activeCell = { id, key: FIRST_KEY };
+    } else {
+      rowSelectMode = true;
+      selRanges = [fullRowRange(id)];
+      activeCell = { id, key: FIRST_KEY };
+    }
+    dragMode = 'rows';
+  } else {
+    if (e.shiftKey && activeCell && selRanges.length) {
+      selRanges[selRanges.length - 1].focus = { id, key };
+    } else if (additive) {
+      selRanges.push(singleRange(id, key));
+      activeCell = { id, key };
+    } else {
+      selRanges = [singleRange(id, key)];
+      activeCell = { id, key };
+    }
+    rowSelectMode = false;
+    dragMode = 'cells';
+  }
+  applySelectionClasses();
+  focusActiveCell({ scroll: false });
+});
+
+// Dragging with the button held stretches the latest range to the cell under the pointer.
+rowsEl.addEventListener('mouseover', (e) => {
+  if (!dragMode) return;
+  if (!(e.buttons & 1)) { dragMode = null; return; }
+  const td = e.target.closest('td');
+  if (!td || !rowsEl.contains(td) || !selRanges.length) return;
+  const id = td.parentElement.dataset.id;
+  const last = selRanges[selRanges.length - 1];
+  const key = dragMode === 'rows' || td.classList.contains('sn')
+    ? (dragMode === 'rows' ? LAST_KEY : last.focus.key)
+    : COLUMNS[Number(td.dataset.ci)].key;
+  if (last.focus.id === id && last.focus.key === key) return;
+  last.focus = { id, key };
+  applySelectionClasses();
+});
+
+document.addEventListener('mouseup', () => { dragMode = null; });
+
+rowsEl.addEventListener('dblclick', (e) => {
+  const td = e.target.closest('td');
+  if (!td || !rowsEl.contains(td) || td.classList.contains('sn')) return;
+  startEdit();
+});
+
+// Clicking anywhere outside the cell being typed in (search box, a button, a tab) saves it.
+rowsEl.addEventListener('focusout', (e) => {
+  if (editing && e.target === editing.td) commitEdit({ refocus: false });
+});
+
+// True when the grid (not the search box, the advance field, or a cell being typed in) has the keyboard.
+function gridHasFocus() {
+  if (editing || !activeCell) return false;
+  const ae = document.activeElement;
+  return ae === document.body || rowsEl.contains(ae);
+}
+
+document.addEventListener('copy', (e) => {
+  if (!gridHasFocus()) return;
+  const out = selectionToTsv();
+  if (!out) return;
+  e.preventDefault();
+  e.clipboardData.setData('text/plain', out.tsv);
+  showHint(out.count === 1 ? 'Copied 1 cell' : `Copied ${out.count} cells`);
+});
+
+document.addEventListener('cut', (e) => {
+  if (!gridHasFocus()) return;
+  const out = selectionToTsv();
+  if (!out) return;
+  e.preventDefault();
+  e.clipboardData.setData('text/plain', out.tsv);
+  clearSelectedCells();
+});
+
+document.addEventListener('paste', (e) => {
+  if (!gridHasFocus()) return;
+  const text = e.clipboardData && e.clipboardData.getData('text/plain');
+  if (!text) return;
+  e.preventDefault();
+  pasteIntoSelection(text);
+});
+
+const ARROWS = { ArrowUp: [-1, 0], ArrowDown: [1, 0], ArrowLeft: [0, -1], ArrowRight: [0, 1] };
+
+document.addEventListener('keydown', (e) => {
+  if (!activeCell || e.defaultPrevented) return;
+  const ae = document.activeElement;
+  if (!(ae === document.body || rowsEl.contains(ae))) return; // search box, advance field, buttons: not ours
+
+  if (editing) {
+    if (e.key === 'Enter') { e.preventDefault(); commitEdit({ move: [e.shiftKey ? -1 : 1, 0] }); }
+    else if (e.key === 'Tab') { e.preventDefault(); commitEdit({ move: [0, e.shiftKey ? -1 : 1] }); }
+    else if (e.key === 'Escape') { e.preventDefault(); cancelEdit(); }
+    // Up/Down always leave the cell. Left/Right move the caret, except right after typing over a cell.
+    else if (e.key === 'ArrowUp' || e.key === 'ArrowDown' || (editing.typed && ARROWS[e.key])) {
+      e.preventDefault();
+      commitEdit({ move: ARROWS[e.key] });
+    }
+    return;
+  }
+
+  if ((e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey && e.key.toLowerCase() === 'a') {
+    e.preventDefault();
+    selectAllCells();
+    return;
+  }
+  if (e.ctrlKey || e.metaKey || e.altKey) return; // other shortcuts (Ctrl+Z, Ctrl+C, ...) aren't grid keys
+  if (ARROWS[e.key] && e.shiftKey) { e.preventDefault(); extendSelection(...ARROWS[e.key]); return; }
+  if (ARROWS[e.key]) { e.preventDefault(); moveActiveCell(...ARROWS[e.key]); return; }
+  if (e.key === 'Tab') { e.preventDefault(); moveActiveCell(0, e.shiftKey ? -1 : 1); return; }
+  if (e.key === ' ' && e.shiftKey) {
+    e.preventDefault();
+    rowSelectMode = true;
+    selRanges = [fullRowRange(activeCell.id)];
+    applySelectionClasses();
+    return;
+  }
+  if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); clearSelectedCells(); return; }
+  if (e.key === 'Enter' || e.key === 'F2') { e.preventDefault(); startEdit(); return; }
+  if (e.key === 'Escape' && (rowSelectMode || isMultiSelection())) {
+    e.preventDefault();
+    selectCell(activeCell.id, activeCell.key, { scroll: false });
+    return;
+  }
+  if (e.key.length === 1) {
+    e.preventDefault();
+    if (isMoney(activeCell.key)) startEdit({ replaceWith: e.key });
+    else showHint(INFO_HINT);
+  }
+});
+
+undoBtn.addEventListener('click', undo);
+redoBtn.addEventListener('click', redo);
 searchInput.addEventListener('input', render);
 
-// Google Sheets-style undo/redo hotkeys. Skipped while typing in the search box or
-// the Previous Advance field so ordinary text-field undo still works there.
+// Google Sheets-style undo/redo hotkeys. Skipped while typing in the search box, the Previous Advance
+// field, or a cell, so ordinary text undo still works there.
 document.addEventListener('keydown', (e) => {
   if (!(e.ctrlKey || e.metaKey)) return;
   const key = e.key.toLowerCase();
   if (key !== 'z' && key !== 'y') return;
-  if (document.activeElement === searchInput || document.activeElement === advanceInput) return;
+  if (editing || document.activeElement === searchInput || document.activeElement === advanceInput) return;
   e.preventDefault();
   if (key === 'y' || (key === 'z' && e.shiftKey)) redo();
   else undo();
 });
 
-// Properly formatted spreadsheet (bold headers, sized columns, real row height) so
-// this can be forwarded straight to the company — plain CSV can't carry any of that,
-// it's just text.
-const EXCEL_COLUMNS = [
-  { header: 'S.N', width: 6 },
-  { header: 'Student Name', width: 24 },
-  { header: 'Course Name', width: 32 },
-  { header: 'University Name', width: 30 },
-  { header: 'Student ID', width: 14 },
-  { header: 'Visa Issue Date', width: 15 },
-  { header: 'Enrollment Incentive', width: 19, num: true },
-  { header: 'Enrollment Incentive from University', width: 28, num: true },
-  { header: 'New Partnership Incentive', width: 21, num: true },
-  { header: 'Direct Student Incentive', width: 21, num: true },
-  { header: 'Flywire Fee Payment', width: 19, num: true },
-  { header: 'Flywire Incentive', width: 17, num: true },
-  { header: 'Loan Incentive to Share', width: 19, num: true },
-];
-
+// ---------------------------------------------------------------------------------------------
+// Excel export: bold headers, sized columns and a payment summary block, ready to forward.
+// ---------------------------------------------------------------------------------------------
+const EXCEL_COLUMNS = [{ header: 'S.N', width: 6 }, ...COLUMNS.map((c) => ({ header: c.label, width: c.width, num: Boolean(c.money) }))];
 const THIN_BORDER = { style: 'thin', color: { argb: 'FFC7CCD4' } };
 const ALL_BORDERS = { top: THIN_BORDER, bottom: THIN_BORDER, left: THIN_BORDER, right: THIN_BORDER };
 
-// Summary rows are a small, self-contained bordered block (label merged across B:D,
-// value in the single narrow column E right beside it) — not spread across the full
-// 13-column width of the data table above, which is what made label and amount look
-// far apart.
+// Summary rows are a small bordered block (label merged across B:D, value in E right beside it).
 function addExcelSummaryRow(ws, label, value, opts = {}) {
   const rowNum = ws.lastRow.number + 1;
   const row = ws.getRow(rowNum);
@@ -578,7 +1090,7 @@ function addExcelSummaryRow(ws, label, value, opts = {}) {
   const valueCell = row.getCell(5); // E
   labelCell.value = label;
   valueCell.value = value;
-  const font = { bold: !!opts.bold, size: 11, color: opts.color ? { argb: opts.color } : undefined };
+  const font = { bold: Boolean(opts.bold), size: 11, color: opts.color ? { argb: opts.color } : undefined };
   labelCell.font = font;
   valueCell.font = font;
   labelCell.alignment = { vertical: 'middle', horizontal: 'left' };
@@ -587,11 +1099,15 @@ function addExcelSummaryRow(ws, label, value, opts = {}) {
   labelCell.border = ALL_BORDERS;
   valueCell.border = ALL_BORDERS;
   if (opts.fill) {
-    [labelCell, valueCell].forEach(c => { c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: opts.fill } }; });
+    [labelCell, valueCell].forEach((c) => { c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: opts.fill } }; });
   }
 }
 
 $('#exportExcelBtn').addEventListener('click', async () => {
+  if (typeof ExcelJS === 'undefined') {
+    alert('The Excel export library failed to load (check your internet connection). Try again.');
+    return;
+  }
   const students = currentStudents();
   const wb = new ExcelJS.Workbook();
   wb.creator = 'UK Student NIEC';
@@ -599,11 +1115,11 @@ $('#exportExcelBtn').addEventListener('click', async () => {
 
   const sheetName = (state.activeIntake || 'Export').replace(/[\\/*?:[\]]/g, ' ').slice(0, 31) || 'Export';
   const ws = wb.addWorksheet(sheetName, { views: [{ state: 'frozen', ySplit: 1 }] });
-  ws.columns = EXCEL_COLUMNS.map(c => ({ header: c.header, width: c.width }));
+  ws.columns = EXCEL_COLUMNS.map((c) => ({ header: c.header, width: c.width }));
 
   const headerRow = ws.getRow(1);
   headerRow.height = 30;
-  headerRow.eachCell(cell => {
+  headerRow.eachCell((cell) => {
     cell.font = { bold: true, size: 12, color: { argb: 'FFFFFFFF' } };
     cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF2563EB' } };
     cell.alignment = { vertical: 'middle', horizontal: 'left', wrapText: true };
@@ -611,12 +1127,7 @@ $('#exportExcelBtn').addEventListener('click', async () => {
   });
 
   students.forEach((s, i) => {
-    const c = state.commissions[s.id] || {};
-    const row = ws.addRow([
-      i + 1, s.name, s.course, s.university, s.studentId, s.visaIssuedDate,
-      num(c.enrollmentCommission), num(c.enrollmentCommissionUni), num(c.newPartnershipCommission),
-      num(c.selfStudentCommission), num(c.flywireFeePayment), num(c.flywireCommission), num(c.loanCommission),
-    ]);
+    const row = ws.addRow([i + 1, ...COLUMNS.map((c) => (c.money ? commissionValue(s.id, c.key) : s[c.key] || ''))]);
     row.height = 24;
     row.font = { size: 11 };
     EXCEL_COLUMNS.forEach((col, idx) => {
@@ -650,20 +1161,23 @@ $('#exportExcelBtn').addEventListener('click', async () => {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `commission-${(state.activeIntake||'export').replace(/[^a-z0-9]+/gi,'-').toLowerCase()}.xlsx`;
+  a.download = `commission-${(state.activeIntake || 'export').replace(/[^a-z0-9]+/gi, '-').toLowerCase()}.xlsx`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
 });
 
-// Poll for changes made over in Student Details. Skip a refresh while the user is
-// actively typing in a commission field so we don't yank focus out from under them.
+// Pick up changes made over in UK Student NIEC. Skipped while a cell or field is being typed in or a
+// range is being dragged, and only redraws when something actually changed.
 setInterval(() => {
+  if (editing || dragMode || document.hidden) return;
   if (document.activeElement && document.activeElement.tagName === 'INPUT') return;
   loadAll();
-}, 8000);
+}, POLL_MS);
 
+renderHead();
+updateUndoRedoButtons();
 loadAll();
 </script>
 </body>

@@ -1,6 +1,7 @@
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 
 const PORT = process.env.PORT || 4173;
 const ROOT = __dirname;
@@ -8,6 +9,8 @@ const ROOT = __dirname;
 // the app folder itself — unset locally, so local behavior is unchanged.
 const DATA_DIR = process.env.STUDENT_DETAILS_DATA_DIR || ROOT;
 const DATA_FILE = path.join(DATA_DIR, 'data.json');
+const BACKUP_FILE = path.join(DATA_DIR, 'data.backup.json');
+const MAX_BODY_BYTES = 20 * 1024 * 1024;
 fs.mkdirSync(DATA_DIR, { recursive: true });
 
 const DEFAULT_COLUMNS = [
@@ -21,14 +24,13 @@ const DEFAULT_COLUMNS = [
   'E-VISA', 'UK CONTACT NUMBER',
 ];
 
-const MIME = {
-  '.html': 'text/html; charset=utf-8',
-  '.js': 'text/javascript; charset=utf-8',
-  '.css': 'text/css; charset=utf-8',
-  '.json': 'application/json; charset=utf-8',
-  '.png': 'image/png',
-  '.svg': 'image/svg+xml',
-  '.ico': 'image/x-icon',
+// Only these files are served. data.json, its backups and this server's own code stay private.
+const PUBLIC_FILES = {
+  '/index.html': 'text/html; charset=utf-8',
+  '/app.js': 'text/javascript; charset=utf-8',
+  '/style.css': 'text/css; charset=utf-8',
+  '/favicon.png': 'image/png',
+  '/apple-touch-icon.png': 'image/png',
 };
 
 function send(res, status, body, headers = {}) {
@@ -36,11 +38,21 @@ function send(res, status, body, headers = {}) {
   res.end(body);
 }
 
+function sendJSON(res, status, obj) {
+  send(res, status, JSON.stringify(obj), { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
+}
+
 // Shared-password protection — only active when both env vars are set (so local dev,
 // where they're unset, is unaffected). On a host, set APP_USERNAME/APP_PASSWORD as
 // environment variables for this app.
 const AUTH_USER = process.env.APP_USERNAME;
 const AUTH_PASS = process.env.APP_PASSWORD;
+
+function safeEqual(a, b) {
+  const bufA = Buffer.from(String(a));
+  const bufB = Buffer.from(String(b));
+  return bufA.length === bufB.length && crypto.timingSafeEqual(bufA, bufB);
+}
 
 function checkAuth(req) {
   if (!AUTH_USER || !AUTH_PASS) return true; // auth disabled (e.g. local dev)
@@ -50,7 +62,7 @@ function checkAuth(req) {
   const decoded = Buffer.from(encoded, 'base64').toString('utf8');
   const sep = decoded.indexOf(':');
   if (sep === -1) return false;
-  return decoded.slice(0, sep) === AUTH_USER && decoded.slice(sep + 1) === AUTH_PASS;
+  return safeEqual(decoded.slice(0, sep), AUTH_USER) && safeEqual(decoded.slice(sep + 1), AUTH_PASS);
 }
 
 function requireAuth(req, res) {
@@ -64,35 +76,31 @@ function requireAuth(req, res) {
 }
 
 function serveStatic(req, res) {
-  let filePath = req.url === '/' ? '/index.html' : req.url;
-  filePath = path.join(ROOT, decodeURIComponent(filePath.split('?')[0]));
-  if (!filePath.startsWith(ROOT)) return send(res, 403, 'Forbidden');
-  fs.readFile(filePath, (err, data) => {
+  const urlPath = req.url.split('?')[0];
+  const name = urlPath === '/' ? '/index.html' : urlPath;
+  const type = PUBLIC_FILES[name];
+  if (!type) return send(res, 404, 'Not found');
+  fs.readFile(path.join(ROOT, name.slice(1)), (err, data) => {
     if (err) return send(res, 404, 'Not found');
-    const ext = path.extname(filePath);
-    send(res, 200, data, { 'Content-Type': MIME[ext] || 'application/octet-stream' });
+    // no-cache: the browser checks for a newer copy every time, so a deploy shows up on a normal reload.
+    send(res, 200, data, { 'Content-Type': type, 'Cache-Control': 'no-cache' });
   });
 }
 
-// Upgrades the legacy single-sheet {columns, rows} shape into {sheets, activeSheetId}.
-// Already-migrated files are returned unchanged.
-function migrateWorkbook(parsed) {
-  if (parsed && Array.isArray(parsed.sheets)) return ensureRowIds(parsed);
-  const columns = (parsed && parsed.columns) || [];
-  const rows = (parsed && parsed.rows) || [];
-  return ensureRowIds({
-    sheets: [{ id: 'sheet-1', name: 'Sheet1', columns, rows }],
-    activeSheetId: 'sheet-1',
-  });
+// Writes to a temporary file and renames it into place, so a crash mid-write, or the Incentive app
+// reading the file at that moment, never sees half a file.
+function writeFileAtomic(file, text) {
+  const tmp = file + '.tmp';
+  fs.writeFileSync(tmp, text);
+  fs.renameSync(tmp, file);
 }
 
 function makeRowId() {
   return 'row-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
 }
 
-// Every row needs a stable _id so other apps (e.g. Counselor Commission) can link to
-// a specific student across renames/edits. Assigns one to any row that lacks it —
-// a no-op for already-migrated data.
+// Every row needs a stable _id so other apps (e.g. Incentive) can link to a specific
+// student across renames/edits. Assigns one to any row that lacks it.
 function ensureRowIds(workbook) {
   (workbook.sheets || []).forEach((sheet) => {
     (sheet.rows || []).forEach((row) => {
@@ -102,65 +110,120 @@ function ensureRowIds(workbook) {
   return workbook;
 }
 
+// Upgrades the legacy single-sheet {columns, rows} shape into {sheets, activeSheetId}, and makes sure
+// there's a revision number. Already-migrated files come back unchanged.
+function migrateWorkbook(parsed) {
+  const workbook = parsed && Array.isArray(parsed.sheets)
+    ? parsed
+    : {
+      sheets: [{ id: 'sheet-1', name: 'Sheet1', columns: (parsed && parsed.columns) || [], rows: (parsed && parsed.rows) || [] }],
+      activeSheetId: 'sheet-1',
+    };
+  if (!Number.isInteger(workbook.revision)) workbook.revision = 0;
+  return ensureRowIds(workbook);
+}
+
+// Reads data.json, creating a blank workbook on a fresh disk. Throws if the file exists but can't be read.
+function readWorkbook() {
+  let text;
+  try {
+    text = fs.readFileSync(DATA_FILE, 'utf8');
+  } catch (e) {
+    if (e.code !== 'ENOENT') throw e;
+    const fresh = {
+      revision: 0,
+      sheets: [{ id: 'sheet-1', name: 'Sheet1', columns: DEFAULT_COLUMNS, rows: [] }],
+      activeSheetId: 'sheet-1',
+    };
+    writeFileAtomic(DATA_FILE, JSON.stringify(fresh, null, 2));
+    return fresh;
+  }
+  const workbook = migrateWorkbook(JSON.parse(text));
+  const json = JSON.stringify(workbook, null, 2);
+  // Persist the migration once so future reads/writes are already in the new shape.
+  if (json !== text) {
+    try { writeFileAtomic(DATA_FILE, json); } catch (e) { /* non-fatal */ }
+  }
+  return workbook;
+}
+
+function isValidWorkbook(parsed) {
+  return parsed
+    && Array.isArray(parsed.sheets)
+    && typeof parsed.activeSheetId === 'string'
+    && parsed.sheets.every((s) => s && typeof s.id === 'string' && Array.isArray(s.columns) && Array.isArray(s.rows));
+}
+
+// Every save says which revision it was based on. If the file has moved on since (another tab or device
+// saved first), the save is refused with 409 rather than silently overwriting that work.
+function handleSave(req, res) {
+  const chunks = [];
+  let size = 0;
+  let tooBig = false;
+  req.on('data', (chunk) => {
+    if (tooBig) return;
+    size += chunk.length;
+    if (size > MAX_BODY_BYTES) {
+      tooBig = true;
+      sendJSON(res, 413, { error: 'payload too large' });
+      return;
+    }
+    chunks.push(chunk);
+  });
+  req.on('end', () => {
+    if (tooBig) return;
+    let parsed;
+    try {
+      parsed = JSON.parse(Buffer.concat(chunks).toString('utf8'));
+    } catch (e) {
+      return sendJSON(res, 400, { error: 'invalid JSON' });
+    }
+    if (!isValidWorkbook(parsed)) return sendJSON(res, 400, { error: 'invalid payload' });
+    try {
+      let currentRevision;
+      try {
+        currentRevision = readWorkbook().revision;
+      } catch (e) {
+        // The file on disk is unreadable: let this save replace it.
+        currentRevision = Number.isInteger(parsed.baseRevision) ? parsed.baseRevision : 0;
+      }
+      if (parsed.baseRevision !== currentRevision) {
+        return sendJSON(res, 409, { error: 'conflict', revision: currentRevision });
+      }
+      const next = ensureRowIds({ revision: currentRevision + 1, sheets: parsed.sheets, activeSheetId: parsed.activeSheetId });
+      if (fs.existsSync(DATA_FILE)) fs.copyFileSync(DATA_FILE, BACKUP_FILE); // rolling backup of the previous version
+      writeFileAtomic(DATA_FILE, JSON.stringify(next, null, 2));
+      sendJSON(res, 200, { ok: true, revision: next.revision });
+    } catch (e) {
+      console.error('[save]', e);
+      sendJSON(res, 500, { error: 'save failed' });
+    }
+  });
+}
+
 const server = http.createServer((req, res) => {
-  if (!requireAuth(req, res)) return;
-  if (req.url.startsWith('/api/data')) {
-    if (req.method === 'GET') {
-      fs.readFile(DATA_FILE, (err, data) => {
-        if (err) {
-          if (err.code !== 'ENOENT') {
-            return send(res, 500, JSON.stringify({ error: 'read failed' }), { 'Content-Type': 'application/json' });
-          }
-          // Fresh disk (e.g. first boot on a new host) — seed a blank workbook instead of erroring.
-          const fresh = { sheets: [{ id: 'sheet-1', name: 'Sheet1', columns: DEFAULT_COLUMNS, rows: [] }], activeSheetId: 'sheet-1' };
-          const json = JSON.stringify(fresh, null, 2);
-          try { fs.writeFileSync(DATA_FILE, json); } catch (e) { /* non-fatal */ }
-          return send(res, 200, json, { 'Content-Type': 'application/json' });
-        }
+  try {
+    if (!requireAuth(req, res)) return;
+    const urlPath = req.url.split('?')[0];
+    if (urlPath === '/api/data' || urlPath === '/api/revision') {
+      if (req.method === 'GET') {
         let workbook;
         try {
-          workbook = migrateWorkbook(JSON.parse(data));
+          workbook = readWorkbook();
         } catch (e) {
-          return send(res, 500, JSON.stringify({ error: 'corrupt data file' }), { 'Content-Type': 'application/json' });
+          console.error('[read]', e);
+          return sendJSON(res, 500, { error: 'Could not read the data file' });
         }
-        const json = JSON.stringify(workbook, null, 2);
-        // Persist the migration once so future reads/writes are already in the new shape.
-        if (json !== data.toString('utf8')) {
-          try { fs.writeFileSync(DATA_FILE, json); } catch (e) { /* non-fatal */ }
-        }
-        send(res, 200, json, { 'Content-Type': 'application/json' });
-      });
-      return;
+        return sendJSON(res, 200, urlPath === '/api/revision' ? { revision: workbook.revision } : workbook);
+      }
+      if (req.method === 'POST' && urlPath === '/api/data') return handleSave(req, res);
+      return send(res, 405, 'Method not allowed');
     }
-    if (req.method === 'POST') {
-      let body = '';
-      req.on('data', (chunk) => (body += chunk));
-      req.on('end', () => {
-        try {
-          const parsed = JSON.parse(body);
-          if (!parsed || !Array.isArray(parsed.sheets) || typeof parsed.activeSheetId !== 'string') {
-            throw new Error('bad shape');
-          }
-          for (const sheet of parsed.sheets) {
-            if (!sheet || typeof sheet.id !== 'string' || !Array.isArray(sheet.columns) || !Array.isArray(sheet.rows)) {
-              throw new Error('bad sheet shape');
-            }
-          }
-          // keep a rolling backup before overwriting
-          if (fs.existsSync(DATA_FILE)) {
-            fs.copyFileSync(DATA_FILE, path.join(DATA_DIR, 'data.backup.json'));
-          }
-          fs.writeFileSync(DATA_FILE, JSON.stringify(parsed, null, 2));
-          send(res, 200, JSON.stringify({ ok: true }), { 'Content-Type': 'application/json' });
-        } catch (e) {
-          send(res, 400, JSON.stringify({ error: 'invalid payload' }), { 'Content-Type': 'application/json' });
-        }
-      });
-      return;
-    }
-    return send(res, 405, 'Method not allowed');
+    serveStatic(req, res);
+  } catch (e) {
+    console.error(e);
+    if (!res.headersSent) send(res, 500, 'Server error');
   }
-  serveStatic(req, res);
 });
 
 server.listen(PORT, () => {

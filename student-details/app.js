@@ -47,6 +47,13 @@
   let selectedRows = new Set();
   let dirty = false;
   let saveTimer = null;
+  // Saves carry the revision they were based on. If the file moved on in the meantime (another tab or
+  // device saved first), the server refuses with 409 instead of silently overwriting that work.
+  let revision = 0;
+  let saving = false;
+  let saveQueued = false;
+  let changeCount = 0;
+  let conflicted = false;
   let columnFilters = {}; // col -> Set of allowed values (absent = no filter); per-sheet, reset on switch
   let openFilterMenu = null;
 
@@ -80,6 +87,8 @@
   const statusSummaryEl = $('#statusSummary');
   const undoBtn = $('#undoBtn');
   const redoBtn = $('#redoBtn');
+  const conflictBanner = $('#conflictBanner');
+  const tableWrap = $('.table-wrap');
 
   function getActiveSheet() {
     return sheets.find((s) => s.id === activeSheetId);
@@ -257,10 +266,23 @@
   }
 
   async function loadData() {
-    const res = await fetch('/api/data');
-    const json = await res.json();
+    let json;
+    try {
+      const res = await fetch('/api/data', { cache: 'no-store' });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      json = await res.json();
+      if (!Array.isArray(json.sheets) || !json.sheets.length) throw new Error('no sheets');
+    } catch (e) {
+      statusEl.textContent = 'Could not load data — retrying…';
+      statusEl.className = 'save-status error';
+      setTimeout(loadData, 3000);
+      return;
+    }
     sheets = json.sheets;
-    activeSheetId = json.activeSheetId;
+    revision = json.revision || 0;
+    activeSheetId = sheets.some((s) => s.id === json.activeSheetId) ? json.activeSheetId : sheets[0].id;
+    statusEl.textContent = 'All changes saved';
+    statusEl.className = 'save-status';
     syncActiveSheet();
     renderSheetTabs();
     renderHeader();
@@ -352,11 +374,6 @@
     const sheet = sheets.find((s) => s.id === id);
     if (!sheet) return;
     const tsv = sheetToTsv(sheet);
-    const flashStatus = (text) => {
-      statusEl.textContent = text;
-      statusEl.className = 'save-status';
-      setTimeout(() => { if (!dirty) statusEl.textContent = 'All changes saved'; }, 2000);
-    };
     try {
       await navigator.clipboard.writeText(tsv);
       flashStatus(`Copied "${sheet.name}" to clipboard`);
@@ -1114,9 +1131,11 @@
 
   function markDirty() {
     dirty = true;
+    changeCount += 1;
+    renderStatusSummary();
+    if (conflicted) return;
     statusEl.textContent = 'Unsaved changes…';
     statusEl.className = 'save-status dirty';
-    renderStatusSummary();
     clearTimeout(saveTimer);
     saveTimer = setTimeout(saveData, 600);
   }
@@ -1125,30 +1144,123 @@
   // right away instead of waiting out the debounce, so a quick refresh can't lose it.
   function markDirtyAndSaveNow() {
     dirty = true;
+    changeCount += 1;
+    renderStatusSummary();
+    if (conflicted) return;
     statusEl.textContent = 'Unsaved changes…';
     statusEl.className = 'save-status dirty';
-    renderStatusSummary();
-    clearTimeout(saveTimer);
     saveData();
   }
 
+  // One save at a time, so an older copy of the workbook can never land after a newer one.
   async function saveData() {
     clearTimeout(saveTimer);
+    if (conflicted) return;
+    if (saving) { saveQueued = true; return; }
+    saving = true;
+    const savedChange = changeCount;
     try {
       const res = await fetch('/api/data', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sheets, activeSheetId }),
+        body: JSON.stringify({ sheets, activeSheetId, baseRevision: revision }),
       });
+      if (res.status === 409) { showConflict(); return; }
       if (!res.ok) throw new Error('save failed');
-      dirty = false;
-      statusEl.textContent = 'All changes saved';
-      statusEl.className = 'save-status';
+      revision = (await res.json()).revision;
+      if (changeCount === savedChange) {
+        dirty = false;
+        statusEl.textContent = 'All changes saved';
+        statusEl.className = 'save-status';
+      }
     } catch (e) {
       statusEl.textContent = 'Save failed — retrying…';
       statusEl.className = 'save-status error';
       saveTimer = setTimeout(saveData, 3000);
+    } finally {
+      saving = false;
+      if (saveQueued) { saveQueued = false; saveData(); }
     }
+  }
+
+  function showConflict() {
+    conflicted = true;
+    clearTimeout(saveTimer);
+    statusEl.textContent = 'Not saved';
+    statusEl.className = 'save-status error';
+    conflictBanner.hidden = false;
+  }
+
+  // Another tab or device saved: take its version, keeping this tab's sheet, search, filters, sort,
+  // cursor and scroll position. Undo history is dropped, since undoing now would overwrite their work.
+  function applyRemoteWorkbook(json) {
+    const rowId = (idx) => (rows[idx] ? rows[idx]._id : null);
+    const keep = {
+      sheetId: activeSheetId,
+      sortCol,
+      sortDir,
+      filters: columnFilters,
+      search: searchEl.value,
+      rowSelectMode,
+      active: activeCell ? { id: rowId(activeCell.rowIdx), col: activeCell.col } : null,
+      ranges: selRanges.map((r) => ({
+        anchor: { id: rowId(r.anchor.rowIdx), col: r.anchor.col },
+        focus: { id: rowId(r.focus.rowIdx), col: r.focus.col },
+      })),
+      scrollTop: tableWrap.scrollTop,
+      scrollLeft: tableWrap.scrollLeft,
+    };
+
+    sheets = json.sheets;
+    revision = json.revision || 0;
+    const sameSheet = sheets.some((s) => s.id === keep.sheetId);
+    activeSheetId = sameSheet ? keep.sheetId : sheets[0].id;
+    syncActiveSheet();
+
+    if (sameSheet) {
+      sortCol = columns.includes(keep.sortCol) ? keep.sortCol : null;
+      sortDir = keep.sortDir;
+      columnFilters = keep.filters;
+      searchEl.value = keep.search;
+      const toCell = (c) => {
+        const idx = rows.findIndex((r) => r._id === c.id);
+        return idx !== -1 && columns.includes(c.col) ? { rowIdx: idx, col: c.col } : null;
+      };
+      if (keep.active) activeCell = toCell(keep.active);
+      selRanges = keep.ranges
+        .map((r) => ({ anchor: toCell(r.anchor), focus: toCell(r.focus) }))
+        .filter((r) => r.anchor && r.focus);
+      rowSelectMode = keep.rowSelectMode && selRanges.length > 0;
+    }
+
+    undoStack = [];
+    redoStack = [];
+    updateUndoRedoButtons();
+    renderSheetTabs();
+    renderHeader();
+    renderBody();
+    if (sameSheet) {
+      tableWrap.scrollTop = keep.scrollTop;
+      tableWrap.scrollLeft = keep.scrollLeft;
+    }
+    flashStatus('Updated with the latest changes');
+  }
+
+  // Keeps an open tab current when someone else saves. Never runs over unsaved or in-progress work.
+  async function checkForRemoteChanges() {
+    const busy = () => dirty || saving || editing || conflicted || dragMode || openFilterMenu || openSheetMenu;
+    if (busy() || document.hidden) return;
+    try {
+      const res = await fetch('/api/revision', { cache: 'no-store' });
+      if (!res.ok) return;
+      const latest = (await res.json()).revision;
+      if (latest === revision) return;
+      const dataRes = await fetch('/api/data', { cache: 'no-store' });
+      if (!dataRes.ok) return;
+      const json = await dataRes.json();
+      if (busy() || !Array.isArray(json.sheets) || !json.sheets.length) return; // the user started something meanwhile
+      applyRemoteWorkbook(json);
+    } catch (e) { /* offline for a moment: try again next time */ }
   }
 
   function addRow() {
@@ -1435,17 +1547,25 @@
     if (e.isComposing || e.key === 'Process') startEdit({ replaceWith: '' }); // IME input (e.g. Nepali) types into it
   });
 
+  $('#reloadBtn').addEventListener('click', () => {
+    dirty = false; // skip the "leave site?" prompt: reloading to get the latest version is the point
+    location.reload();
+  });
+
   window.addEventListener('beforeunload', (e) => {
     if (!dirty) return;
     // A regular fetch can be cancelled mid-flight when the page unloads; sendBeacon
     // is designed to survive that, so use it to flush any pending debounced save.
-    try {
-      const blob = new Blob([JSON.stringify({ sheets, activeSheetId })], { type: 'application/json' });
-      navigator.sendBeacon('/api/data', blob);
-    } catch (err) { /* best effort */ }
+    if (!conflicted) {
+      try {
+        const blob = new Blob([JSON.stringify({ sheets, activeSheetId, baseRevision: revision })], { type: 'application/json' });
+        navigator.sendBeacon('/api/data', blob);
+      } catch (err) { /* best effort */ }
+    }
     e.preventDefault();
     e.returnValue = '';
   });
 
+  setInterval(checkForRemoteChanges, 10000);
   loadData();
 })();

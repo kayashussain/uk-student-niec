@@ -1,4 +1,4 @@
-// Counselor Commission — static file server + a small JSON API.
+// Incentive — static file server + a small JSON API.
 //
 // Source of truth for *who* to show is the sibling "student-details" app's data.json
 // (read directly off disk — same machine, no network hop needed). A student surfaces
@@ -14,6 +14,7 @@
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 
 const PORT = process.env.PORT || 5173;
 const ROOT = __dirname;
@@ -33,15 +34,13 @@ const COMMISSIONS_FILE = path.join(DATA_DIR, 'commissions.json');
 const ADVANCES_FILE = path.join(DATA_DIR, 'advances.json');
 const EXCHANGE_RATE_FILE = path.join(DATA_DIR, 'exchange-rate-cache.json');
 const EXCHANGE_RATE_URL = 'https://api.exchangerate-api.com/v4/latest/GBP';
+const MAX_BODY_BYTES = 1024 * 1024;
 
-const MIME = {
-  '.html': 'text/html; charset=utf-8',
-  '.js': 'text/javascript; charset=utf-8',
-  '.css': 'text/css; charset=utf-8',
-  '.json': 'application/json; charset=utf-8',
-  '.png': 'image/png',
-  '.svg': 'image/svg+xml',
-  '.ico': 'image/x-icon',
+// Only these files are served. The data files next to them and the server code stay private.
+const PUBLIC_FILES = {
+  '/index.html': 'text/html; charset=utf-8',
+  '/favicon.png': 'image/png',
+  '/apple-touch-icon.png': 'image/png',
 };
 
 function send(res, status, body, headers = {}) {
@@ -50,7 +49,7 @@ function send(res, status, body, headers = {}) {
 }
 
 function sendJSON(res, status, obj) {
-  send(res, status, JSON.stringify(obj), { 'Content-Type': 'application/json; charset=utf-8' });
+  send(res, status, JSON.stringify(obj), { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
 }
 
 // Shared-password protection — only active when both env vars are set (so local dev,
@@ -58,6 +57,12 @@ function sendJSON(res, status, obj) {
 // environment variables for this app.
 const AUTH_USER = process.env.APP_USERNAME;
 const AUTH_PASS = process.env.APP_PASSWORD;
+
+function safeEqual(a, b) {
+  const bufA = Buffer.from(String(a));
+  const bufB = Buffer.from(String(b));
+  return bufA.length === bufB.length && crypto.timingSafeEqual(bufA, bufB);
+}
 
 function checkAuth(req) {
   if (!AUTH_USER || !AUTH_PASS) return true; // auth disabled (e.g. local dev)
@@ -67,7 +72,7 @@ function checkAuth(req) {
   const decoded = Buffer.from(encoded, 'base64').toString('utf8');
   const sep = decoded.indexOf(':');
   if (sep === -1) return false;
-  return decoded.slice(0, sep) === AUTH_USER && decoded.slice(sep + 1) === AUTH_PASS;
+  return safeEqual(decoded.slice(0, sep), AUTH_USER) && safeEqual(decoded.slice(sep + 1), AUTH_PASS);
 }
 
 function requireAuth(req, res) {
@@ -81,50 +86,43 @@ function requireAuth(req, res) {
 }
 
 function serveStatic(req, res) {
-  let filePath = req.url === '/' ? '/index.html' : req.url;
-  filePath = path.join(ROOT, decodeURIComponent(filePath.split('?')[0]));
-  if (!filePath.startsWith(ROOT)) return send(res, 403, 'Forbidden');
-  fs.readFile(filePath, (err, data) => {
+  const urlPath = req.url.split('?')[0];
+  const name = urlPath === '/' ? '/index.html' : urlPath;
+  const type = PUBLIC_FILES[name];
+  if (!type) return send(res, 404, 'Not found');
+  fs.readFile(path.join(ROOT, name.slice(1)), (err, data) => {
     if (err) return send(res, 404, 'Not found');
-    const ext = path.extname(filePath);
-    send(res, 200, data, { 'Content-Type': MIME[ext] || 'application/octet-stream' });
+    // no-cache: the browser checks for a newer copy every time, so a deploy shows up on a normal reload.
+    send(res, 200, data, { 'Content-Type': type, 'Cache-Control': 'no-cache' });
   });
 }
 
-function readCommissions() {
+function readJSON(file, fallback) {
   try {
-    return JSON.parse(fs.readFileSync(COMMISSIONS_FILE, 'utf-8'));
+    return JSON.parse(fs.readFileSync(file, 'utf-8'));
   } catch (e) {
-    return {};
+    return fallback;
   }
 }
 
-function writeCommissions(data) {
-  if (fs.existsSync(COMMISSIONS_FILE)) {
-    try { fs.copyFileSync(COMMISSIONS_FILE, path.join(DATA_DIR, 'commissions.backup.json')); } catch (e) { /* non-fatal */ }
-  }
-  fs.writeFileSync(COMMISSIONS_FILE, JSON.stringify(data, null, 2));
+// Writes to a temporary file and renames it into place, so a crash mid-write never leaves half a file.
+function writeJSONAtomic(file, data) {
+  const tmp = file + '.tmp';
+  fs.writeFileSync(tmp, JSON.stringify(data, null, 2));
+  fs.renameSync(tmp, file);
 }
 
-function readAdvances() {
-  try {
-    return JSON.parse(fs.readFileSync(ADVANCES_FILE, 'utf-8'));
-  } catch (e) {
-    return {};
+// Keeps a rolling copy of the previous version next to the file before replacing it.
+function writeWithBackup(file, backupName, data) {
+  if (fs.existsSync(file)) {
+    try { fs.copyFileSync(file, path.join(DATA_DIR, backupName)); } catch (e) { /* non-fatal */ }
   }
+  writeJSONAtomic(file, data);
 }
 
-function writeAdvances(data) {
-  if (fs.existsSync(ADVANCES_FILE)) {
-    try { fs.copyFileSync(ADVANCES_FILE, path.join(DATA_DIR, 'advances.backup.json')); } catch (e) { /* non-fatal */ }
-  }
-  fs.writeFileSync(ADVANCES_FILE, JSON.stringify(data, null, 2));
-}
-
-// Student Details -> the fields Counselor Commission cares about. Everything else
-// (visa lodge dates, language test, tuition figures, etc.) stays over there — this
-// app only needs enough to identify the student and show read-only context alongside
-// the incentive fields.
+// Student Details -> the fields Incentive cares about. Everything else (visa lodge dates,
+// language test, tuition figures, etc.) stays over there — this app only needs enough to
+// identify the student and show read-only context alongside the incentive fields.
 function normalizeStudent(row, intake) {
   return {
     id: row._id,
@@ -140,8 +138,7 @@ function normalizeStudent(row, intake) {
 // Reads the Student Details workbook and reshapes it into { intakes, byIntake }, where
 // byIntake[sheetName] only ever contains students whose APPLICATION STATUS is exactly
 // "Visa Issued" right now. Every sheet becomes an intake tab here, even if it currently
-// has zero visa-issued students — the tab should exist and just look empty until one
-// shows up, mirroring the sheets over in Student Details 1:1.
+// has zero visa-issued students — mirroring the sheets over in Student Details 1:1.
 function readSync() {
   let raw;
   try {
@@ -153,7 +150,7 @@ function readSync() {
   try {
     workbook = JSON.parse(raw);
   } catch (e) {
-    return { ok: false, error: 'Student Details data file is not valid JSON right now (it may be mid-save) — try again.', intakes: [], byIntake: {} };
+    return { ok: false, error: 'Student Details data file is not valid JSON right now — try again.', intakes: [], byIntake: {} };
   }
   const sheets = Array.isArray(workbook.sheets) ? workbook.sheets : [];
   const intakes = sheets.map((s) => s.name);
@@ -169,10 +166,27 @@ function readSync() {
 
 function readBody(req) {
   return new Promise((resolve, reject) => {
-    let body = '';
-    req.on('data', (c) => { body += c; });
+    const chunks = [];
+    let size = 0;
+    req.on('data', (chunk) => {
+      size += chunk.length;
+      if (size > MAX_BODY_BYTES) {
+        const err = new Error('Payload too large');
+        err.statusCode = 413;
+        reject(err);
+        req.destroy();
+        return;
+      }
+      chunks.push(chunk);
+    });
     req.on('end', () => {
-      try { resolve(body ? JSON.parse(body) : {}); } catch (e) { reject(e); }
+      const body = Buffer.concat(chunks).toString('utf8');
+      try {
+        resolve(body ? JSON.parse(body) : {});
+      } catch (e) {
+        e.statusCode = 400;
+        reject(e);
+      }
     });
     req.on('error', reject);
   });
@@ -187,19 +201,11 @@ function todayISO() {
   return new Date().toISOString().slice(0, 10);
 }
 
-function readExchangeCache() {
-  try {
-    return JSON.parse(fs.readFileSync(EXCHANGE_RATE_FILE, 'utf-8'));
-  } catch (e) {
-    return null;
-  }
-}
-
 // GBP -> NPR, refetched at most once per day (cached to disk) so entering a Flywire
-// Fee Payment doesn't hit the external API on every keystroke.
+// Fee Payment doesn't hit the external API on every edit.
 async function getGbpToNprRate() {
   const today = todayISO();
-  const cache = readExchangeCache();
+  const cache = readJSON(EXCHANGE_RATE_FILE, null);
   if (cache && cache.date === today && typeof cache.rate === 'number') {
     return { ok: true, rate: cache.rate, date: cache.date, cached: true };
   }
@@ -210,7 +216,7 @@ async function getGbpToNprRate() {
     const rate = data && data.rates && data.rates.NPR;
     if (typeof rate !== 'number') throw new Error('NPR rate missing from exchange rate response');
     const record = { date: data.date || today, rate, fetchedAt: new Date().toISOString() };
-    fs.writeFileSync(EXCHANGE_RATE_FILE, JSON.stringify(record, null, 2));
+    writeJSONAtomic(EXCHANGE_RATE_FILE, record);
     return { ok: true, rate, date: record.date, cached: false };
   } catch (e) {
     // Fall back to a stale cached rate rather than failing outright, if we have one.
@@ -222,26 +228,26 @@ async function getGbpToNprRate() {
 }
 
 const server = http.createServer(async (req, res) => {
-  if (BASE_PATH && req.url.startsWith(BASE_PATH)) {
-    req.url = req.url.slice(BASE_PATH.length) || '/';
-  }
-  if (!requireAuth(req, res)) return;
-  const urlPath = req.url.split('?')[0];
-
   try {
+    if (BASE_PATH && req.url.startsWith(BASE_PATH)) {
+      req.url = req.url.slice(BASE_PATH.length) || '/';
+    }
+    if (!requireAuth(req, res)) return;
+    const urlPath = req.url.split('?')[0];
+
     if (urlPath === '/api/sync' && req.method === 'GET') {
       return sendJSON(res, 200, readSync());
     }
 
     if (urlPath === '/api/commissions' && req.method === 'GET') {
-      return sendJSON(res, 200, readCommissions());
+      return sendJSON(res, 200, readJSON(COMMISSIONS_FILE, {}));
     }
 
     const commMatch = urlPath.match(/^\/api\/commissions\/([^/]+)$/);
     if (commMatch && req.method === 'PUT') {
       const id = decodeURIComponent(commMatch[1]);
       const body = await readBody(req);
-      const all = readCommissions();
+      const all = readJSON(COMMISSIONS_FILE, {});
       const existing = all[id] || {};
       all[id] = {
         enrollmentCommission: num(body.enrollmentCommission, existing.enrollmentCommission),
@@ -253,24 +259,24 @@ const server = http.createServer(async (req, res) => {
         selfStudentCommission: num(body.selfStudentCommission, existing.selfStudentCommission),
         updatedAt: new Date().toISOString(),
       };
-      writeCommissions(all);
+      writeWithBackup(COMMISSIONS_FILE, 'commissions.backup.json', all);
       return sendJSON(res, 200, all[id]);
     }
 
     if (urlPath === '/api/advances' && req.method === 'GET') {
-      return sendJSON(res, 200, readAdvances());
+      return sendJSON(res, 200, readJSON(ADVANCES_FILE, {}));
     }
 
     const advMatch = urlPath.match(/^\/api\/advances\/([^/]+)$/);
     if (advMatch && req.method === 'PUT') {
       const intake = decodeURIComponent(advMatch[1]);
       const body = await readBody(req);
-      const all = readAdvances();
+      const all = readJSON(ADVANCES_FILE, {});
       all[intake] = {
         previousAdvance: num(body.previousAdvance, 0),
         updatedAt: new Date().toISOString(),
       };
-      writeAdvances(all);
+      writeWithBackup(ADVANCES_FILE, 'advances.backup.json', all);
       return sendJSON(res, 200, all[intake]);
     }
 
@@ -285,7 +291,9 @@ const server = http.createServer(async (req, res) => {
 
     serveStatic(req, res);
   } catch (e) {
-    sendJSON(res, 500, { error: e.message });
+    const status = e.statusCode || (e instanceof URIError ? 400 : 500);
+    if (status === 500) console.error(e);
+    if (!res.headersSent) sendJSON(res, status, { error: e.message });
   }
 });
 
