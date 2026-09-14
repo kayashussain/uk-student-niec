@@ -16,6 +16,9 @@
       'Inquiry', 'Application Stage', 'Mock Stage', 'Payment Stage',
       'CAS Stage', 'CAS Issued', 'Visa Lodge', 'Visa Issued', 'Visa Rejected', 'Defer', 'Withdrawn',
     ],
+    'PRE CAS INTERVIEW': ['Passed', 'Fail'],
+    'NOC': ['Submitted', 'Pending'],
+    'MEDICAL REPORT': ['Pending', 'Received'],
   };
   const SUMMARY_STATUSES = ['Payment Stage', 'CAS Issued', 'Visa Issued'];
   // Language test results (IELTS/PTE/etc.) are valid for 2 years. Flag as "expiring soon"
@@ -713,7 +716,9 @@
           blankOpt.value = '';
           blankOpt.textContent = '— Select —';
           select.appendChild(blankOpt);
-          SELECT_COLS[col].forEach((opt) => {
+          // A value that isn't one of the choices (e.g. imported from a spreadsheet) is still shown, not hidden.
+          const options = val && !SELECT_COLS[col].includes(val) ? [...SELECT_COLS[col], val] : SELECT_COLS[col];
+          options.forEach((opt) => {
             const o = document.createElement('option');
             o.value = opt;
             o.textContent = opt;
