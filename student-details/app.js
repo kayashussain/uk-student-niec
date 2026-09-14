@@ -97,6 +97,16 @@
     return sheets.find((s) => s.id === activeSheetId);
   }
 
+  // The most recently created sheet. Sheet ids start with their creation time (see makeSheetId); older
+  // ids without one (like "sheet-1") count as oldest, and ties go to the sheet further right.
+  function newestSheet(list) {
+    const createdAt = (sheet) => {
+      const m = /^sheet-([0-9a-z]{8})/.exec(sheet.id);
+      return m ? parseInt(m[1], 36) : 0;
+    };
+    return list.reduce((best, sheet) => (createdAt(sheet) >= createdAt(best) ? sheet : best), list[0]);
+  }
+
   function makeSheetId() {
     return 'sheet-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
   }
@@ -283,7 +293,7 @@
     }
     sheets = json.sheets;
     revision = json.revision || 0;
-    activeSheetId = sheets.some((s) => s.id === json.activeSheetId) ? json.activeSheetId : sheets[0].id;
+    activeSheetId = newestSheet(sheets).id; // a reload always opens the latest intake
     statusEl.textContent = 'All changes saved';
     statusEl.className = 'save-status';
     syncActiveSheet();
