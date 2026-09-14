@@ -95,6 +95,27 @@ function writeFileAtomic(file, text) {
   fs.renameSync(tmp, file);
 }
 
+// Once a day, before the first save of that day, copies the file into backups/<prefix>-YYYY-MM-DD.json
+// and keeps the latest 60. The rolling data.backup.json only holds the version before the last save,
+// so these are what you restore from if something went wrong earlier in the day or week.
+function snapshotDaily(file, prefix) {
+  try {
+    if (!fs.existsSync(file)) return;
+    const dir = path.join(DATA_DIR, 'backups');
+    const target = path.join(dir, `${prefix}-${new Date().toISOString().slice(0, 10)}.json`);
+    if (fs.existsSync(target)) return;
+    fs.mkdirSync(dir, { recursive: true });
+    fs.copyFileSync(file, target);
+    fs.readdirSync(dir)
+      .filter((f) => f.startsWith(prefix + '-') && f.endsWith('.json'))
+      .sort()
+      .slice(0, -60)
+      .forEach((f) => fs.unlinkSync(path.join(dir, f)));
+  } catch (e) {
+    console.error('[backup]', e.message); // never block a save over a backup problem
+  }
+}
+
 function makeRowId() {
   return 'row-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
 }
@@ -191,6 +212,7 @@ function handleSave(req, res) {
         return sendJSON(res, 409, { error: 'conflict', revision: currentRevision });
       }
       const next = ensureRowIds({ revision: currentRevision + 1, sheets: parsed.sheets, activeSheetId: parsed.activeSheetId });
+      snapshotDaily(DATA_FILE, 'data');
       if (fs.existsSync(DATA_FILE)) fs.copyFileSync(DATA_FILE, BACKUP_FILE); // rolling backup of the previous version
       writeFileAtomic(DATA_FILE, JSON.stringify(next, null, 2));
       sendJSON(res, 200, { ok: true, revision: next.revision });

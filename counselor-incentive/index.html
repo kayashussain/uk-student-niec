@@ -538,8 +538,14 @@ function renderHead() {
     `<th${c.money ? ' class="num"' : ''}${c.title ? ` title="${esc(c.title)}"` : ''}>${esc(c.label)}</th>`).join('');
 }
 
+// Every visa-issued student in the open intake. The Payment Summary and the Excel export always use
+// this full list, so typing in the search box never changes the totals.
+function intakeStudents() {
+  return state.byIntake[state.activeIntake] || [];
+}
+
 function currentStudents() {
-  const list = state.byIntake[state.activeIntake] || [];
+  const list = intakeStudents();
   const q = searchInput.value.trim().toLowerCase();
   if (!q) return list;
   return list.filter((s) => (s.name + ' ' + s.university + ' ' + s.course + ' ' + s.studentId).toLowerCase().includes(q));
@@ -592,7 +598,7 @@ function render() {
   if (document.activeElement !== advanceInput) {
     advanceInput.value = num((state.advances[state.activeIntake] || {}).previousAdvance);
   }
-  recalc(visible);
+  recalc(intakeStudents());
   applySelectionClasses();
   if (hadGridFocus) focusActiveCell({ scroll: false });
 }
@@ -604,7 +610,7 @@ function computeSummary(students) {
     + sum('newPartnershipCommission') + sum('selfStudentCommission') + sum('flywireCommission');
   const loanPayable = sum('loanCommission');
   const netCommissions = totalCommissions - loanPayable;
-  const tds = netCommissions * TDS_RATE;
+  const tds = Math.max(0, netCommissions) * TDS_RATE; // no TDS (and no negative TDS) when nothing is owed
   const previousAdvance = num((state.advances[state.activeIntake] || {}).previousAdvance);
   const netPayable = netCommissions - tds - previousAdvance;
   return { totalCommissions, loanPayable, netCommissions, tds, previousAdvance, netPayable };
@@ -628,7 +634,7 @@ advanceInput.addEventListener('change', () => {
   pushUndo({ kind: 'advance', intake, from: prev, to: v });
   if (!state.advances[intake]) state.advances[intake] = {};
   state.advances[intake].previousAdvance = v;
-  recalc(visible);
+  recalc(intakeStudents());
   scheduleSaveAdvance(intake);
 });
 
@@ -1108,7 +1114,7 @@ $('#exportExcelBtn').addEventListener('click', async () => {
     alert('The Excel export library failed to load (check your internet connection). Try again.');
     return;
   }
-  const students = currentStudents();
+  const students = intakeStudents();
   const wb = new ExcelJS.Workbook();
   wb.creator = 'UK Student NIEC';
   wb.created = new Date();

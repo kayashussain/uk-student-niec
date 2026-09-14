@@ -26,7 +26,11 @@
   const LANGUAGE_TEST_VALID_MONTHS = 24;
   const LANGUAGE_TEST_WARN_MONTHS = 21;
   const CALC_COLS = {
-    'FEE AFTER SCHOLARSHIP': (row) => parseNum(row['GROSS FEE']) - parseNum(row['SCHOLARSHIP']),
+    // Scholarship may be an amount ("3,000") or a share of the gross fee ("15%").
+    'FEE AFTER SCHOLARSHIP': (row) => {
+      const gross = parseNum(row['GROSS FEE']);
+      return gross - resolveDiscount(row['SCHOLARSHIP'], gross);
+    },
     'REMANING TUITION FEE': (row) => {
       const base = parseNum(row['FEE AFTER SCHOLARSHIP']);
       const earlyBird = resolveDiscount(row['EARLY BIRD DISCOUNT'], base);
@@ -36,11 +40,6 @@
       return base - earlyBird - additional - dep1 - dep2;
     },
   };
-  const CALC_TRIGGER_COLS = new Set([
-    'GROSS FEE', 'SCHOLARSHIP', 'EARLY BIRD DISCOUNT', 'ADDITIONAL DISCOUNT',
-    'TUITION FEE DEPOSIT(1st Installment)', 'TUITION FEE DEPOSIT(2nd Installment)',
-  ]);
-
   let sheets = [];
   let activeSheetId = null;
   let columns = []; // reference to the active sheet's columns array
@@ -186,7 +185,7 @@
   }
 
   // Resolves a discount entered either as a percentage ("5%") or a flat amount ("500")
-  // into a dollar amount against the given base.
+  // into an amount against the given base.
   function resolveDiscount(raw, base) {
     const s = String(raw || '').trim();
     if (!s) return 0;
@@ -411,6 +410,12 @@
     const sheet = sheets.find((s) => s.id === id);
     const trimmed = newName.trim();
     if (!sheet || !trimmed || trimmed === sheet.name) { renderSheetTabs(); return; }
+    if (sheets.some((s) => s.id !== id && s.name.trim().toLowerCase() === trimmed.toLowerCase())) {
+      // The Incentive page groups students (and each intake's Previous Advance) by sheet name.
+      alert(`There's already a sheet called "${trimmed}". Please pick a different name.`);
+      renderSheetTabs();
+      return;
+    }
     pushUndo();
     sheet.name = trimmed;
     markDirtyAndSaveNow();
@@ -676,10 +681,14 @@
     });
     if (sortCol) {
       const isNum = NUM_COLS.has(sortCol);
+      const isDate = DATE_COLS.has(sortCol);
+      // Dates compare as YYYY-MM-DD so "9/2/2026" sorts before "10/1/2026"; blanks go last either way.
+      const key = (v) => (isDate ? toISODate(v) || v : v);
       indices.sort((a, b) => {
-        const va = rows[a][sortCol] || '';
-        const vb = rows[b][sortCol] || '';
-        const cmp = isNum ? parseNum(va) - parseNum(vb) : va.localeCompare(vb);
+        const va = key(rows[a][sortCol] || '');
+        const vb = key(rows[b][sortCol] || '');
+        if (!va !== !vb) return va ? -1 : 1;
+        const cmp = isNum ? parseNum(va) - parseNum(vb) : va.localeCompare(vb, undefined, { numeric: true, sensitivity: 'base' });
         return cmp * sortDir;
       });
     }
@@ -718,7 +727,7 @@
           td.className = 'num calculated';
           td.title = col === 'REMANING TUITION FEE'
             ? 'Auto-calculated: Fee After Scholarship − Early Bird Discount − Additional Discount − 1st Installment − 2nd Installment'
-            : 'Auto-calculated: Gross Fee − Scholarship';
+            : 'Auto-calculated: Gross Fee − Scholarship (a % scholarship is taken of the Gross Fee)';
         } else if (SELECT_COLS[col]) {
           const select = document.createElement('select');
           select.className = 'status-select ' + badgeClass(val);
@@ -758,6 +767,11 @@
           span.className = 'badge ' + badgeClass(val);
           span.textContent = val;
           td.appendChild(span);
+        } else if (DATE_COLS.has(col) && val && !toISODate(val)) {
+          // Not a date (e.g. "IELTS WAIVER"): show the note instead of an empty date box hiding it.
+          td.textContent = val;
+          td.classList.add('date-note');
+          td.title = 'Not a date. Clear this cell (Delete) to pick a date instead.';
         } else if (DATE_COLS.has(col)) {
           td.classList.add('date');
           const input = document.createElement('input');

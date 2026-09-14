@@ -9,6 +9,8 @@ counselor-incentive/commissions.backup*.json
 counselor-incentive/advances.json
 counselor-incentive/advances.backup*.json
 counselor-incentive/exchange-rate-cache.json
+**/backups/
+*.tmp
 
 # Per-machine Claude Code session config, not part of the app.
 .claude/

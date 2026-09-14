@@ -112,8 +112,29 @@ function writeJSONAtomic(file, data) {
   fs.renameSync(tmp, file);
 }
 
-// Keeps a rolling copy of the previous version next to the file before replacing it.
+// Once a day, before the first save of that day, copies the file into backups/<prefix>-YYYY-MM-DD.json
+// and keeps the latest 60, so there's something to restore from beyond the last save.
+function snapshotDaily(file, prefix) {
+  try {
+    if (!fs.existsSync(file)) return;
+    const dir = path.join(DATA_DIR, 'backups');
+    const target = path.join(dir, `${prefix}-${new Date().toISOString().slice(0, 10)}.json`);
+    if (fs.existsSync(target)) return;
+    fs.mkdirSync(dir, { recursive: true });
+    fs.copyFileSync(file, target);
+    fs.readdirSync(dir)
+      .filter((f) => f.startsWith(prefix + '-') && f.endsWith('.json'))
+      .sort()
+      .slice(0, -60)
+      .forEach((f) => fs.unlinkSync(path.join(dir, f)));
+  } catch (e) {
+    console.error('[backup]', e.message); // never block a save over a backup problem
+  }
+}
+
+// Keeps a daily snapshot plus a rolling copy of the previous version before replacing the file.
 function writeWithBackup(file, backupName, data) {
+  snapshotDaily(file, path.basename(file, '.json'));
   if (fs.existsSync(file)) {
     try { fs.copyFileSync(file, path.join(DATA_DIR, backupName)); } catch (e) { /* non-fatal */ }
   }
