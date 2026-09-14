@@ -10,6 +10,7 @@
   --focus: #2563eb;
   --focus-dim: #eaf1ff;
   --focus-strong: #d3e2ff;
+  --range-tint: rgba(37, 99, 235, 0.14);
   --header-bg: #f1f3f6;
   --row-alt: #fafbfc;
   --row-hover: #eef4ff;
@@ -34,6 +35,7 @@
     --focus: #5b8def;
     --focus-dim: #1c2a44;
     --focus-strong: #26406b;
+    --range-tint: rgba(91, 141, 239, 0.24);
     --header-bg: #1f242c;
     --row-alt: #191d24;
     --row-hover: #212a3a;
@@ -276,6 +278,11 @@ td.col-idx { cursor: pointer; user-select: none; }
 #body td { scroll-margin: 40px 0 0 44px; }
 #body td:focus { outline: none; }
 #body td.active-cell { outline: 2px solid var(--focus); outline-offset: -2px; position: relative; z-index: 1; }
+/* Multi-cell selection. An inset shadow tints on top of any background, including the !important ones
+   on calculated and defer-warning cells. */
+#body td.in-range { box-shadow: inset 0 0 0 9999px var(--range-tint); }
+#body { user-select: none; }
+#body td.editing { user-select: text; }
 #body td.editing { background: var(--panel) !important; cursor: text; }
 
 td[contenteditable="true"]:focus {

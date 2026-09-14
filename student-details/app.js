@@ -58,6 +58,12 @@
   let rowSelectMode = false;
   let skipRefocus = false;
 
+  // Multi-cell selection, like Sheets: one or more rectangles, each running from where it started
+  // (anchor) to where it was dragged/extended to (focus). Ends are stored by row id index + column
+  // name, and turned into on-screen rectangles against the current search/filter/sort order.
+  let selRanges = []; // [{ anchor: { rowIdx, col }, focus: { rowIdx, col } }]
+  let dragMode = null; // 'cells' | 'rows' while the mouse button is held
+
   // Undo/redo: whole-workbook snapshots (like Google Sheets, one step = one committed
   // action — a cell edit, a row add/delete, a sheet rename, etc.), not per-keystroke.
   let undoStack = [];
@@ -117,6 +123,7 @@
       const idx = rows.findIndex((r) => r._id === keep.id);
       if (idx !== -1 && columns.includes(keep.col)) activeCell = { rowIdx: idx, col: keep.col };
     }
+    selRanges = activeCell ? [singleRange(activeCell.rowIdx, activeCell.col)] : [];
     renderSheetTabs();
     renderHeader();
     renderBody();
@@ -243,6 +250,7 @@
     }
     if (moved) {
       selectedRows = new Set(); // indices shifted; drop any stale selection
+      selRanges = [];
       activeCell = null;
       markDirty();
     }
@@ -267,6 +275,8 @@
     columns = sheet.columns;
     rows = sheet.rows;
     selectedRows = new Set();
+    selRanges = [];
+    dragMode = null;
     activeCell = null;
     editing = null;
     rowSelectMode = false;
@@ -657,14 +667,12 @@
     indices.forEach((rowIdx, displayIdx) => {
       const tr = document.createElement('tr');
       tr.dataset.rowIdx = rowIdx;
-      if (selectedRows.has(rowIdx)) tr.classList.add('selected');
-      if (rowSelectMode && selectedRows.has(rowIdx)) tr.classList.add('row-picked');
 
       // Clicks on rows and cells are handled once, on the table body (see the grid section below).
       const idxTd = document.createElement('td');
       idxTd.className = 'col-idx';
       idxTd.textContent = displayIdx + 1;
-      idxTd.title = 'Select this row (Ctrl+Click for more). Delete clears it.';
+      idxTd.title = 'Select this row (drag or Shift+Click for a range, Ctrl+Click for more). Delete clears it.';
       tr.appendChild(idxTd);
 
       columns.forEach((col, colIndex) => {
@@ -746,36 +754,128 @@
       });
       body.appendChild(tr);
     });
-    rowCountEl.textContent = `${indices.length} of ${rows.length} rows`
-      + (selectedRows.size ? ` · ${selectedRows.size} selected` : '');
+    applySelectionClasses(indices);
     renderStatusSummary();
     if (hadGridFocus && !editing && !skipRefocus) focusActiveCell({ scroll: false });
   }
 
-  function applySelectionClasses() {
-    document.querySelectorAll('#body tr').forEach((r) => {
-      const picked = selectedRows.has(Number(r.dataset.rowIdx));
-      r.classList.toggle('selected', picked);
-      r.classList.toggle('row-picked', rowSelectMode && picked);
+  function singleRange(rowIdx, col) {
+    return { anchor: { rowIdx, col }, focus: { rowIdx, col } };
+  }
+
+  function fullRowRange(fromRowIdx, toRowIdx = fromRowIdx) {
+    return {
+      anchor: { rowIdx: fromRowIdx, col: columns[0] },
+      focus: { rowIdx: toRowIdx, col: columns[columns.length - 1] },
+    };
+  }
+
+  // Each range as a rectangle of on-screen positions (top/bottom index into `indices`, left/right
+  // column index). A range whose end has been hidden by a search or filter is skipped.
+  function rangeRects(indices = getFilteredSortedIndices()) {
+    const pos = new Map(indices.map((rowIdx, p) => [rowIdx, p]));
+    return selRanges.map(({ anchor, focus }) => {
+      const pa = pos.get(anchor.rowIdx);
+      const pf = pos.get(focus.rowIdx);
+      const ca = columns.indexOf(anchor.col);
+      const cf = columns.indexOf(focus.col);
+      if (pa === undefined || pf === undefined || ca === -1 || cf === -1) return null;
+      return { top: Math.min(pa, pf), bottom: Math.max(pa, pf), left: Math.min(ca, cf), right: Math.max(ca, cf) };
+    }).filter(Boolean);
+  }
+
+  function selectedCells(indices = getFilteredSortedIndices()) {
+    const seen = new Set();
+    const cells = [];
+    rangeRects(indices).forEach((r) => {
+      for (let p = r.top; p <= r.bottom; p += 1) {
+        for (let c = r.left; c <= r.right; c += 1) {
+          const key = indices[p] + '|' + c;
+          if (seen.has(key)) continue;
+          seen.add(key);
+          cells.push({ rowIdx: indices[p], col: columns[c] });
+        }
+      }
     });
+    return cells;
+  }
+
+  // Redraws the selection highlight without rebuilding the table, and keeps `selectedRows` (used by
+  // "Delete rows") in step with it: every row the selection touches counts as selected.
+  function applySelectionClasses(indices = getFilteredSortedIndices()) {
+    const pos = new Map(indices.map((rowIdx, p) => [rowIdx, p]));
+    const rects = rangeRects(indices);
+    const multi = rects.length > 1 || rects.some((r) => r.top !== r.bottom || r.left !== r.right);
+    selectedRows = new Set();
+    rects.forEach((r) => { for (let p = r.top; p <= r.bottom; p += 1) selectedRows.add(indices[p]); });
+
+    body.querySelectorAll('tr').forEach((tr) => {
+      const rowIdx = Number(tr.dataset.rowIdx);
+      const p = pos.get(rowIdx);
+      const picked = selectedRows.has(rowIdx);
+      tr.classList.toggle('selected', picked);
+      tr.classList.toggle('row-picked', rowSelectMode && picked);
+      const rowRects = multi ? rects.filter((r) => p >= r.top && p <= r.bottom) : [];
+      for (const td of tr.children) {
+        if (td.classList.contains('col-idx')) continue;
+        const c = Number(td.dataset.colIndex);
+        td.classList.toggle('in-range', rowRects.some((r) => c >= r.left && c <= r.right));
+      }
+    });
+
+    let text = `${indices.length} of ${rows.length} rows`;
+    if (selectedRows.size) text += ` · ${selectedRows.size} selected`;
+    if (multi) {
+      const cells = selectedCells(indices);
+      text += ` · ${cells.length} cells`;
+      const numeric = cells.filter(({ rowIdx, col }) => NUM_COLS.has(col) && String(rows[rowIdx][col] || '').trim() !== '');
+      if (numeric.length) {
+        text += ` · Sum: ${formatNum(numeric.reduce((sum, { rowIdx, col }) => sum + parseNum(rows[rowIdx][col]), 0))}`;
+      }
+    }
+    rowCountEl.textContent = text;
+  }
+
+  function hasMultiSelection() {
+    const rects = rangeRects();
+    return rects.length > 1 || rects.some((r) => r.top !== r.bottom || r.left !== r.right);
+  }
+
+  // Collapse back to just the cell cursor.
+  function selectOnlyActiveCell() {
+    if (!activeCell) return;
+    rowSelectMode = false;
+    selRanges = [singleRange(activeCell.rowIdx, activeCell.col)];
+    applySelectionClasses();
+  }
+
+  // Shift+Arrow: grows/shrinks the latest range from its far end; the cell cursor stays put.
+  function extendSelection(dRow, dCol) {
+    if (!activeCell) return;
     const indices = getFilteredSortedIndices();
-    rowCountEl.textContent = `${indices.length} of ${rows.length} rows`
-      + (selectedRows.size ? ` · ${selectedRows.size} selected` : '');
+    if (!selRanges.length) selRanges = [singleRange(activeCell.rowIdx, activeCell.col)];
+    const last = selRanges[selRanges.length - 1];
+    let p = indices.indexOf(last.focus.rowIdx);
+    let c = columns.indexOf(last.focus.col);
+    if (p === -1 || c === -1) return;
+    p = Math.max(0, Math.min(indices.length - 1, p + dRow));
+    c = rowSelectMode ? columns.length - 1 : Math.max(0, Math.min(columns.length - 1, c + dCol));
+    last.focus = { rowIdx: indices[p], col: columns[c] };
+    applySelectionClasses(indices);
+    const td = cellTd(last.focus.rowIdx, last.focus.col);
+    if (td) td.scrollIntoView({ block: 'nearest', inline: 'nearest' });
   }
 
-  // Ctrl+Click picks several whole rows, so Delete then clears all of them.
-  function toggleRowSelection(rowIdx) {
-    rowSelectMode = true;
-    if (selectedRows.has(rowIdx)) selectedRows.delete(rowIdx);
-    else selectedRows.add(rowIdx);
-    applySelectionClasses();
-  }
-
-  // rowMode: the row itself was chosen (its S.N, or Shift+Space), not just one of its cells.
-  function selectOnlyRow(rowIdx, { rowMode = false } = {}) {
-    selectedRows = new Set([rowIdx]);
-    rowSelectMode = rowMode;
-    applySelectionClasses();
+  function selectAllCells() {
+    const indices = getFilteredSortedIndices();
+    if (!indices.length || !columns.length) return;
+    rowSelectMode = false;
+    selRanges = [{
+      anchor: { rowIdx: indices[0], col: columns[0] },
+      focus: { rowIdx: indices[indices.length - 1], col: columns[columns.length - 1] },
+    }];
+    if (!activeCell || !indices.includes(activeCell.rowIdx)) setActiveCell(indices[0], columns[0], { scroll: false });
+    applySelectionClasses(indices);
   }
 
   function renderRowCell(td, rowIdx, col) {
@@ -833,8 +933,10 @@
       pos = Math.max(0, Math.min(indices.length - 1, pos + dRow));
       ci = Math.max(0, Math.min(columns.length - 1, ci + dCol));
     }
-    selectOnlyRow(indices[pos]);
+    rowSelectMode = false;
+    selRanges = [singleRange(indices[pos], columns[ci])];
     setActiveCell(indices[pos], columns[ci]);
+    applySelectionClasses(indices);
   }
 
   // replaceWith: the first character typed (typing over a cell replaces it, like Sheets).
@@ -898,27 +1000,79 @@
     focusActiveCell({ scroll: false });
   }
 
-  // Delete on one cell. Calculated fee cells can't be cleared: they're worked out from the others.
-  function clearActiveCell() {
-    if (!activeCell) return;
-    const { rowIdx, col } = activeCell;
-    if (!rows[rowIdx] || CALC_COLS[col] || !(rows[rowIdx][col] || '')) return;
+  // Delete empties every selected cell (one cell, a dragged range, or whole rows picked from their S.N),
+  // as one undo step. The rows themselves stay: the "Delete rows" button removes rows. Calculated fee
+  // cells can't be cleared: they're worked out from the others.
+  function clearSelectedCells() {
+    const cells = selectedCells().filter(({ rowIdx, col }) => rows[rowIdx] && !CALC_COLS[col] && (rows[rowIdx][col] || ''));
+    if (!cells.length) return;
     pushUndo();
-    rows[rowIdx][col] = '';
+    cells.forEach(({ rowIdx, col }) => { rows[rowIdx][col] = ''; });
     markDirty();
     renderBody();
   }
 
-  // Delete with whole rows picked: empties every cell in them, like Google Sheets. The rows themselves
-  // stay (the "Delete rows" button removes rows), and Ctrl+Z brings everything back.
-  function clearSelectedRows() {
-    const targets = [...selectedRows].filter((i) => rows[i]);
-    const fields = columns.filter((c) => !CALC_COLS[c]);
-    if (!targets.some((i) => fields.some((c) => rows[i][c]))) return;
+  // Copy/paste as tab-separated text, so ranges move to and from Excel and Google Sheets.
+  function selectionToTsv() {
+    const indices = getFilteredSortedIndices();
+    const rects = rangeRects(indices);
+    if (!rects.length) return null;
+    const r = rects[rects.length - 1]; // several separate ranges: copy the latest, as Sheets does
+    const lines = [];
+    for (let p = r.top; p <= r.bottom; p += 1) {
+      const cells = [];
+      for (let c = r.left; c <= r.right; c += 1) {
+        cells.push(String(rows[indices[p]][columns[c]] || '').replace(/[\t\r\n]+/g, ' '));
+      }
+      lines.push(cells.join('\t'));
+    }
+    return { tsv: lines.join('\n'), count: (r.bottom - r.top + 1) * (r.right - r.left + 1) };
+  }
+
+  // Pastes from the top-left of the selection. A single copied value fills the whole selection.
+  function pasteIntoSelection(text) {
+    const data = text.replace(/\r\n?/g, '\n').replace(/\n$/, '').split('\n').map((line) => line.split('\t'));
+    const indices = getFilteredSortedIndices();
+    const rects = rangeRects(indices);
+    const r = rects[rects.length - 1];
+    if (!r) return;
+    const fill = data.length === 1 && data[0].length === 1;
+    const height = fill ? r.bottom - r.top + 1 : data.length;
+    const width = fill ? r.right - r.left + 1 : Math.max(...data.map((line) => line.length));
+
+    const changes = [];
+    for (let dr = 0; dr < height && r.top + dr < indices.length; dr += 1) {
+      for (let dc = 0; dc < width && r.left + dc < columns.length; dc += 1) {
+        const raw = fill ? data[0][0] : data[dr][dc];
+        const col = columns[r.left + dc];
+        if (raw === undefined || CALC_COLS[col]) continue;
+        let val = raw.trim();
+        if (DATE_COLS.has(col) && val) val = toISODate(val) || val;
+        if (SELECT_COLS[col] && val) {
+          const match = SELECT_COLS[col].find((opt) => opt.toLowerCase() === val.toLowerCase());
+          if (!match) continue; // not one of the dropdown's choices
+          val = match;
+        }
+        const rowIdx = indices[r.top + dr];
+        if ((rows[rowIdx][col] || '') !== val) changes.push({ rowIdx, col, val });
+      }
+    }
+    if (!changes.length) return;
     pushUndo();
-    targets.forEach((i) => fields.forEach((c) => { rows[i][c] = ''; }));
+    changes.forEach(({ rowIdx, col, val }) => { rows[rowIdx][col] = val; });
+    const bottom = Math.min(indices.length - 1, r.top + height - 1);
+    const right = Math.min(columns.length - 1, r.left + width - 1);
+    rowSelectMode = false;
+    activeCell = { rowIdx: indices[r.top], col: columns[r.left] };
+    selRanges = [{ anchor: { ...activeCell }, focus: { rowIdx: indices[bottom], col: columns[right] } }];
     markDirty();
     renderBody();
+  }
+
+  function flashStatus(text) {
+    statusEl.textContent = text;
+    statusEl.className = 'save-status';
+    setTimeout(() => { if (!dirty) statusEl.textContent = 'All changes saved'; }, 2000);
   }
 
   function renderStatusSummary() {
@@ -1002,13 +1156,14 @@
     const blank = { _id: makeRowId() };
     columns.forEach((c) => (blank[c] = ''));
     rows.push(blank);
-    selectedRows = new Set([rows.length - 1]);
+    const startCol = columns.find(isTextCell) || columns[0];
+    selRanges = [singleRange(rows.length - 1, startCol)];
     rowSelectMode = false;
     markDirty();
     renderBody();
     document.querySelector('.table-wrap').scrollTop = 1e9;
     // Ready to type straight into the new row.
-    setActiveCell(rows.length - 1, columns.find(isTextCell) || columns[0], { scroll: false });
+    setActiveCell(rows.length - 1, startCol, { scroll: false });
   }
 
   function describeRow(row) {
@@ -1028,6 +1183,7 @@
     pushUndo();
     indicesToDelete.forEach((i) => rows.splice(i, 1));
     selectedRows = new Set();
+    selRanges = [];
     rowSelectMode = false;
     activeCell = null;
     markDirty();
@@ -1110,25 +1266,106 @@
     const rowIdx = Number(td.parentElement.dataset.rowIdx);
     const onControl = Boolean(e.target.closest('select, input'));
     if (editing) commitEdit({ refocus: false });
+    const additive = e.ctrlKey || e.metaKey;
 
+    // S.N column: pick whole rows. Drag or Shift+Click for a run of rows, Ctrl+Click to add/remove one.
     if (td.classList.contains('col-idx')) {
       e.preventDefault();
-      if (e.ctrlKey || e.metaKey) toggleRowSelection(rowIdx);
-      else selectOnlyRow(rowIdx, { rowMode: true });
-      setActiveCell(rowIdx, columns[0], { scroll: false });
+      if (e.shiftKey && rowSelectMode && selRanges.length) {
+        selRanges[selRanges.length - 1].focus = { rowIdx, col: columns[columns.length - 1] };
+        focusActiveCell({ scroll: false });
+      } else if (additive && rowSelectMode) {
+        const before = selRanges.length;
+        selRanges = selRanges.filter((r) => !(r.anchor.rowIdx === rowIdx && r.focus.rowIdx === rowIdx));
+        if (selRanges.length === before) selRanges.push(fullRowRange(rowIdx));
+        setActiveCell(rowIdx, columns[0], { scroll: false });
+      } else {
+        rowSelectMode = true;
+        selRanges = [fullRowRange(rowIdx)];
+        setActiveCell(rowIdx, columns[0], { scroll: false });
+      }
+      dragMode = 'rows';
+      applySelectionClasses();
       return;
     }
+
     const col = columns[Number(td.dataset.colIndex)];
     if (col === undefined) return;
-    if (e.ctrlKey || e.metaKey) {
-      e.preventDefault();
-      toggleRowSelection(rowIdx);
-      setActiveCell(rowIdx, col, { scroll: false });
+    if (onControl) {
+      // Dropdowns and date boxes need the click to open, so they only move the cursor.
+      rowSelectMode = false;
+      selRanges = [singleRange(rowIdx, col)];
+      setActiveCell(rowIdx, col, { focus: false, scroll: false });
+      applySelectionClasses();
       return;
     }
-    if (!onControl) e.preventDefault(); // select the cell; don't drop a text caret into it
-    selectOnlyRow(rowIdx);
-    setActiveCell(rowIdx, col, { focus: !onControl, scroll: false });
+    e.preventDefault(); // select the cell; don't drop a text caret into it
+    if (e.shiftKey && activeCell && selRanges.length) {
+      rowSelectMode = false;
+      selRanges[selRanges.length - 1].focus = { rowIdx, col };
+      focusActiveCell({ scroll: false });
+    } else if (additive) {
+      rowSelectMode = false;
+      selRanges.push(singleRange(rowIdx, col));
+      setActiveCell(rowIdx, col, { scroll: false });
+    } else {
+      rowSelectMode = false;
+      selRanges = [singleRange(rowIdx, col)];
+      setActiveCell(rowIdx, col, { scroll: false });
+    }
+    dragMode = 'cells';
+    applySelectionClasses();
+  });
+
+  // Dragging with the button held stretches the latest range to the cell under the pointer.
+  body.addEventListener('mouseover', (e) => {
+    if (!dragMode) return;
+    if (!(e.buttons & 1)) { dragMode = null; return; }
+    const td = e.target.closest('td');
+    if (!td || !body.contains(td) || !selRanges.length) return;
+    const rowIdx = Number(td.parentElement.dataset.rowIdx);
+    const last = selRanges[selRanges.length - 1];
+    const col = dragMode === 'rows'
+      ? columns[columns.length - 1]
+      : (columns[Number(td.dataset.colIndex)] ?? last.focus.col);
+    if (last.focus.rowIdx === rowIdx && last.focus.col === col) return;
+    last.focus = { rowIdx, col };
+    applySelectionClasses();
+  });
+
+  document.addEventListener('mouseup', () => { dragMode = null; });
+
+  // True when the grid (not the search box, a dropdown, or a cell being typed in) should get clipboard keys.
+  function gridHasFocus() {
+    if (editing || !activeCell || openFilterMenu || openSheetMenu) return false;
+    const ae = document.activeElement;
+    return ae === document.body || (body.contains(ae) && !ae.matches('select, input'));
+  }
+
+  document.addEventListener('copy', (e) => {
+    if (!gridHasFocus()) return;
+    const out = selectionToTsv();
+    if (!out) return;
+    e.preventDefault();
+    e.clipboardData.setData('text/plain', out.tsv);
+    flashStatus(out.count === 1 ? 'Copied 1 cell' : `Copied ${out.count} cells`);
+  });
+
+  document.addEventListener('cut', (e) => {
+    if (!gridHasFocus()) return;
+    const out = selectionToTsv();
+    if (!out) return;
+    e.preventDefault();
+    e.clipboardData.setData('text/plain', out.tsv);
+    clearSelectedCells();
+  });
+
+  document.addEventListener('paste', (e) => {
+    if (!gridHasFocus()) return;
+    const text = e.clipboardData && e.clipboardData.getData('text/plain');
+    if (!text) return;
+    e.preventDefault();
+    pasteIntoSelection(text);
   });
 
   body.addEventListener('dblclick', (e) => {
@@ -1174,18 +1411,25 @@
       return;
     }
 
-    if (e.ctrlKey || e.metaKey || e.altKey) return; // shortcuts (Ctrl+Z, Ctrl+C, ...) aren't grid keys
-    if (ARROWS[e.key]) { e.preventDefault(); moveActiveCell(...ARROWS[e.key]); return; }
-    if (e.key === 'Tab') { e.preventDefault(); moveActiveCell(0, e.shiftKey ? -1 : 1); return; }
-    if (e.key === ' ' && e.shiftKey) { e.preventDefault(); selectOnlyRow(activeCell.rowIdx, { rowMode: true }); return; }
-    if (e.key === 'Delete' || e.key === 'Backspace') {
+    if ((e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey && e.key.toLowerCase() === 'a') {
       e.preventDefault();
-      if (rowSelectMode) clearSelectedRows();
-      else clearActiveCell();
+      selectAllCells();
       return;
     }
+    if (e.ctrlKey || e.metaKey || e.altKey) return; // shortcuts (Ctrl+Z, Ctrl+C, ...) aren't grid keys
+    if (ARROWS[e.key] && e.shiftKey) { e.preventDefault(); extendSelection(...ARROWS[e.key]); return; }
+    if (ARROWS[e.key]) { e.preventDefault(); moveActiveCell(...ARROWS[e.key]); return; }
+    if (e.key === 'Tab') { e.preventDefault(); moveActiveCell(0, e.shiftKey ? -1 : 1); return; }
+    if (e.key === ' ' && e.shiftKey) {
+      e.preventDefault();
+      rowSelectMode = true;
+      selRanges = [fullRowRange(activeCell.rowIdx)];
+      applySelectionClasses();
+      return;
+    }
+    if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); clearSelectedCells(); return; }
     if (e.key === 'Enter' || e.key === 'F2') { e.preventDefault(); startEdit(); return; }
-    if (e.key === 'Escape' && rowSelectMode) { e.preventDefault(); selectOnlyRow(activeCell.rowIdx); return; }
+    if (e.key === 'Escape' && (rowSelectMode || hasMultiSelection())) { e.preventDefault(); selectOnlyActiveCell(); return; }
     if (!isTextCell(activeCell.col)) return;
     if (e.key.length === 1) { e.preventDefault(); startEdit({ replaceWith: e.key }); return; }
     if (e.isComposing || e.key === 'Process') startEdit({ replaceWith: '' }); // IME input (e.g. Nepali) types into it
