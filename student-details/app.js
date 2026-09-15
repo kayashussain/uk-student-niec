@@ -25,9 +25,11 @@
   // once within 3 months of that expiry (21 months elapsed), matching the source sheet's rule.
   const LANGUAGE_TEST_VALID_MONTHS = 24;
   const LANGUAGE_TEST_WARN_MONTHS = 21;
-  // The language test cell holds "Waiver", the test date, or "Test Date" while the date is still to be picked.
+  // The language test cell holds "Waiver", "University Internal Test", the test date, or "Test Date" while
+  // the date is still to be picked. Only a test date has a calendar and expiry warnings.
   const LANGUAGE_TEST_COL = 'LANGUAGE TEST DATE';
-  const LANGUAGE_TEST_CHOICES = ['Waiver', 'Test Date'];
+  const LANGUAGE_TEST_CHOICES = ['Waiver', 'University Internal Test', 'Test Date'];
+  const LANGUAGE_TEST_NO_DATE = new Set(['Waiver', 'University Internal Test']);
   const CALC_COLS = {
     // Scholarship may be an amount ("3,000") or a share of the gross fee ("15%").
     'FEE AFTER SCHOLARSHIP': (row) => {
@@ -249,6 +251,7 @@
   function languageTestChoice(value) {
     const v = String(value || '').trim();
     if (!v) return '';
+    if (/internal\s*test/i.test(v)) return 'University Internal Test';
     if (/waiver/i.test(v)) return 'Waiver';
     if (v === 'Test Date' || toISODate(v)) return 'Test Date';
     return v;
@@ -263,7 +266,7 @@
     td.classList.add('lang-test');
 
     const select = document.createElement('select');
-    select.className = 'status-select ' + (choice === 'Waiver' ? 'badge-green' : choice ? 'badge-blue' : 'badge-gray');
+    select.className = 'status-select ' + (LANGUAGE_TEST_NO_DATE.has(choice) ? 'badge-green' : choice ? 'badge-blue' : 'badge-gray');
     const choices = choice && !LANGUAGE_TEST_CHOICES.includes(choice) ? [...LANGUAGE_TEST_CHOICES, choice] : LANGUAGE_TEST_CHOICES;
     [['', '— Select —'], ...choices.map((c) => [c, c])].forEach(([value, label]) => {
       const o = document.createElement('option');
@@ -1164,7 +1167,7 @@
         if (raw === undefined || CALC_COLS[col]) continue;
         let val = raw.trim();
         if (DATE_COLS.has(col) && val) val = toISODate(val) || val;
-        if (col === LANGUAGE_TEST_COL && /waiver/i.test(val)) val = 'Waiver';
+        if (col === LANGUAGE_TEST_COL && val && !toISODate(val)) val = languageTestChoice(val);
         if (SELECT_COLS[col] && val) {
           const match = SELECT_COLS[col].find((opt) => opt.toLowerCase() === val.toLowerCase());
           if (!match) continue; // not one of the dropdown's choices
