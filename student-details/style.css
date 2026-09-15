@@ -312,6 +312,8 @@ td.num { text-align: right; font-variant-numeric: tabular-nums; }
 td.calculated { background: var(--focus-dim) !important; cursor: default; color: var(--text); }
 td.date { font-variant-numeric: tabular-nums; color: var(--text-dim); padding: 3px 6px; }
 td.date-note { color: var(--text-dim); font-style: italic; }
+td.lang-test { padding: 3px 6px; white-space: nowrap; }
+td.lang-test .date-input { width: auto; margin-left: 6px; }
 
 .date-input {
   width: 100%;

@@ -25,6 +25,9 @@
   // once within 3 months of that expiry (21 months elapsed), matching the source sheet's rule.
   const LANGUAGE_TEST_VALID_MONTHS = 24;
   const LANGUAGE_TEST_WARN_MONTHS = 21;
+  // The language test cell holds "Waiver", the test date, or "Test Date" while the date is still to be picked.
+  const LANGUAGE_TEST_COL = 'LANGUAGE TEST DATE';
+  const LANGUAGE_TEST_CHOICES = ['Waiver', 'Test Date'];
   const CALC_COLS = {
     // Scholarship may be an amount ("3,000") or a share of the gross fee ("15%").
     'FEE AFTER SCHOLARSHIP': (row) => {
@@ -239,6 +242,71 @@
     td.title = status === 'expired'
       ? 'Language test result has expired (valid for 2 years) — a new test is needed'
       : 'Language test result expires within 3 months (valid for 2 years) — consider retaking soon';
+  }
+
+  // Which choice a language test value means: older text like "IELTS WAIVER" counts as Waiver, any date as
+  // Test Date. Anything else is a note, kept as it is.
+  function languageTestChoice(value) {
+    const v = String(value || '').trim();
+    if (!v) return '';
+    if (/waiver/i.test(v)) return 'Waiver';
+    if (v === 'Test Date' || toISODate(v)) return 'Test Date';
+    return v;
+  }
+
+  // Waiver: just the dropdown, never an expiry warning. Test Date: the dropdown plus a calendar, and the
+  // Expiring/Expired warning once a date is picked.
+  function renderLanguageTestCell(td, rowIdx) {
+    const col = LANGUAGE_TEST_COL;
+    const val = rows[rowIdx][col] || '';
+    const choice = languageTestChoice(val);
+    td.classList.add('lang-test');
+
+    const select = document.createElement('select');
+    select.className = 'status-select ' + (choice === 'Waiver' ? 'badge-green' : choice ? 'badge-blue' : 'badge-gray');
+    const choices = choice && !LANGUAGE_TEST_CHOICES.includes(choice) ? [...LANGUAGE_TEST_CHOICES, choice] : LANGUAGE_TEST_CHOICES;
+    [['', '— Select —'], ...choices.map((c) => [c, c])].forEach(([value, label]) => {
+      const o = document.createElement('option');
+      o.value = value;
+      o.textContent = label;
+      if (value === choice) o.selected = true;
+      select.appendChild(o);
+    });
+    select.addEventListener('click', (e) => e.stopPropagation());
+    select.addEventListener('change', () => {
+      if (select.value === choice) return;
+      pushUndo();
+      rows[rowIdx][col] = select.value; // switching away from a date drops it; Ctrl+Z brings it back
+      markDirty();
+      renderBody();
+      if (select.value === 'Test Date') {
+        const input = cellTd(rowIdx, col) && cellTd(rowIdx, col).querySelector('input');
+        if (input) {
+          input.focus();
+          if (input.showPicker) { try { input.showPicker(); } catch (err) { /* opens on click instead */ } }
+        }
+      }
+    });
+    td.appendChild(select);
+    if (choice !== 'Test Date') return;
+
+    const input = document.createElement('input');
+    input.type = 'date';
+    input.className = 'date-input';
+    input.value = toISODate(val);
+    input.title = 'Test date';
+    input.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (input.showPicker) { try { input.showPicker(); } catch (err) { /* unsupported */ } }
+    });
+    input.addEventListener('change', () => {
+      pushUndo();
+      rows[rowIdx][col] = input.value || 'Test Date';
+      markDirty();
+      applyLanguageTestFlag(td, input.value);
+    });
+    td.appendChild(input);
+    applyLanguageTestFlag(td, input.value);
   }
 
   // The sheet deferred students get moved into — whichever sheet sits immediately
@@ -728,6 +796,8 @@
           td.title = col === 'REMANING TUITION FEE'
             ? 'Auto-calculated: Fee After Scholarship − Early Bird Discount − Additional Discount − 1st Installment − 2nd Installment'
             : 'Auto-calculated: Gross Fee − Scholarship (a % scholarship is taken of the Gross Fee)';
+        } else if (col === LANGUAGE_TEST_COL) {
+          renderLanguageTestCell(td, rowIdx);
         } else if (SELECT_COLS[col]) {
           const select = document.createElement('select');
           select.className = 'status-select ' + badgeClass(val);
@@ -1094,6 +1164,7 @@
         if (raw === undefined || CALC_COLS[col]) continue;
         let val = raw.trim();
         if (DATE_COLS.has(col) && val) val = toISODate(val) || val;
+        if (col === LANGUAGE_TEST_COL && /waiver/i.test(val)) val = 'Waiver';
         if (SELECT_COLS[col] && val) {
           const match = SELECT_COLS[col].find((opt) => opt.toLowerCase() === val.toLowerCase());
           if (!match) continue; // not one of the dropdown's choices
