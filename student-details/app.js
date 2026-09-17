@@ -11,6 +11,10 @@
   const BADGE_COLS = new Set([
     'APPLICATION STATUS', 'PRE CAS INTERVIEW', 'NOC', 'MEDICAL REPORT', 'E-VISA',
   ]);
+  // Rows stay grouped by this column: whichever partner value appeared first in the sheet forms the
+  // first block, the next new value forms the next block, and so on — matching the sheet's convention
+  // of e.g. Adventus students first, then Real Dreams, then Official Rep. See autoGroupByPartner().
+  const PARTNER_COL = 'UNIVERSITY PARTNER';
   const SELECT_COLS = {
     'APPLICATION STATUS': [
       'Inquiry', 'Application Stage', 'Mock Stage', 'Payment Stage',
@@ -346,6 +350,47 @@
       activeCell = null;
       markDirty();
     }
+  }
+
+  // Standing rule: rows stay grouped by UNIVERSITY PARTNER, blocks ordered by each partner's first
+  // appearance in the sheet (not alphabetically) — so typing "Adventus" into a new row's partner cell
+  // moves it in next to the other Adventus rows, wherever that block currently sits. Runs on every
+  // render, same as autoMoveDeferredRows, so it stays true as values are typed or pasted in.
+  function autoGroupByPartner() {
+    if (!columns.includes(PARTNER_COL) || rows.length < 2) return;
+
+    const groupOf = new Map(); // partner value -> block order (first-seen)
+    rows.forEach((r) => {
+      const v = (r[PARTNER_COL] || '').trim();
+      if (!groupOf.has(v)) groupOf.set(v, groupOf.size);
+    });
+    const order = rows.map((_, i) => i);
+    order.sort((a, b) => {
+      const ga = groupOf.get((rows[a][PARTNER_COL] || '').trim());
+      const gb = groupOf.get((rows[b][PARTNER_COL] || '').trim());
+      return ga !== gb ? ga - gb : a - b; // stable within a block
+    });
+    if (order.every((oldIdx, newIdx) => oldIdx === newIdx)) return; // already grouped
+
+    // Row indices are about to move; keep the cell cursor/selection on the same students by id,
+    // the same trick applyRemoteWorkbook uses for a workbook reload.
+    const rowId = (idx) => (rows[idx] ? rows[idx]._id : null);
+    const activeId = activeCell ? rowId(activeCell.rowIdx) : null;
+    const rangeIds = selRanges.map((r) => ({
+      anchor: { id: rowId(r.anchor.rowIdx), col: r.anchor.col },
+      focus: { id: rowId(r.focus.rowIdx), col: r.focus.col },
+    }));
+
+    rows.splice(0, rows.length, ...order.map((oldIdx) => rows[oldIdx]));
+
+    const idxOf = new Map(rows.map((r, i) => [r._id, i]));
+    activeCell = activeId !== null && idxOf.has(activeId) ? { rowIdx: idxOf.get(activeId), col: activeCell.col } : null;
+    selRanges = rangeIds
+      .map(({ anchor, focus }) => (idxOf.has(anchor.id) && idxOf.has(focus.id)
+        ? { anchor: { rowIdx: idxOf.get(anchor.id), col: anchor.col }, focus: { rowIdx: idxOf.get(focus.id), col: focus.col } }
+        : null))
+      .filter(Boolean);
+    markDirty();
   }
 
   async function loadData() {
@@ -768,6 +813,7 @@
 
   function renderBody() {
     autoMoveDeferredRows();
+    autoGroupByPartner();
     // Rebuilding the table drops focus. Put it back on the cell cursor afterwards, but only if focus
     // was in the table (or nowhere): a search-box keystroke also re-renders and must keep the box.
     const ae = document.activeElement;
