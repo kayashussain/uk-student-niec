@@ -52,8 +52,8 @@
   ];
   const IDENTITY_COLS = ['APPLICATION STATUS', 'FIRST NAME', 'LAST NAME', 'UNIVERSITY NAME', 'UNIVERSITY PARTNER'];
   const COLUMN_VIEWS = {
-    compact: { label: 'Compact (hide empty)' },
     all: { label: 'All columns' },
+    compact: { label: 'Compact (hide empty)' },
     fees: {
       label: 'Fees',
       cols: [...IDENTITY_COLS, 'STUDENT ID', 'GROSS FEE', 'SCHOLARSHIP', 'FEE AFTER SCHOLARSHIP', 'EARLY BIRD DISCOUNT',
@@ -68,7 +68,7 @@
     },
   };
   const COLUMN_VIEW_KEY = 'niec.columnView';
-  let columnView = 'compact';
+  let columnView = 'all';
   try {
     const saved = localStorage.getItem(COLUMN_VIEW_KEY);
     if (saved && COLUMN_VIEWS[saved]) columnView = saved;
@@ -864,12 +864,6 @@
     indices.forEach((rowIdx, displayIdx) => {
       const tr = document.createElement('tr');
       tr.dataset.rowIdx = rowIdx;
-      // A line above the first Inquiry student marks where the bottom section starts (only in the
-      // sheet's own order — a column sort mixes the sections).
-      if (!sortCol && displayIdx > 0 && isBottomRow(rows[rowIdx]) && !isBottomRow(rows[indices[displayIdx - 1]])) {
-        tr.classList.add('section-start');
-        tr.title = 'Inquiry students are kept below this line';
-      }
 
       // Clicks on rows and cells are handled once, on the table body (see the grid section below).
       const idxTd = document.createElement('td');

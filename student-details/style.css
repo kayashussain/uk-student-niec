@@ -351,9 +351,6 @@ td.lang-test .date-input { width: auto; margin-left: 6px; }
 .lang-test-flag.expired { background: var(--red-bg); color: var(--red-fg); }
 
 tr.defer-warning-row td { background: var(--red-bg) !important; }
-
-/* Where the Inquiry section starts (see autoGroupRows in app.js). */
-tbody tr.section-start td { border-top: 3px solid var(--accent); }
 .defer-warning-flag {
   display: inline-block;
   margin-left: 6px;
