@@ -2,7 +2,7 @@
   const NUM_COLS = new Set([
     'GROSS FEE', 'SCHOLARSHIP', 'FEE AFTER SCHOLARSHIP', 'EARLY BIRD DISCOUNT',
     'ADDITIONAL DISCOUNT', 'TUITION FEE DEPOSIT(1st Installment)',
-    'TUITION FEE DEPOSIT(2nd Installment)', 'REMANING TUITION FEE',
+    'TUITION FEE DEPOSIT(2nd Installment)', 'REMAINING TUITION FEE',
   ]);
   const DATE_COLS = new Set([
     'LANGUAGE TEST DATE', 'PAYMENT DATE', 'CAS REQUESTED DATE', 'CAS RECEIVED DATE',
@@ -34,20 +34,10 @@
   const LANGUAGE_TEST_COL = 'LANGUAGE TEST DATE';
   const LANGUAGE_TEST_CHOICES = ['Waiver', 'University Internal Test', 'Test Date'];
   const LANGUAGE_TEST_NO_DATE = new Set(['Waiver', 'University Internal Test']);
+  const { parseNum, feeAfterScholarship, remainingTuitionFee } = window.NiecCalc;
   const CALC_COLS = {
-    // Scholarship may be an amount ("3,000") or a share of the gross fee ("15%").
-    'FEE AFTER SCHOLARSHIP': (row) => {
-      const gross = parseNum(row['GROSS FEE']);
-      return gross - resolveDiscount(row['SCHOLARSHIP'], gross);
-    },
-    'REMANING TUITION FEE': (row) => {
-      const base = parseNum(row['FEE AFTER SCHOLARSHIP']);
-      const earlyBird = resolveDiscount(row['EARLY BIRD DISCOUNT'], base);
-      const additional = parseNum(row['ADDITIONAL DISCOUNT']);
-      const dep1 = parseNum(row['TUITION FEE DEPOSIT(1st Installment)']);
-      const dep2 = parseNum(row['TUITION FEE DEPOSIT(2nd Installment)']);
-      return base - earlyBird - additional - dep1 - dep2;
-    },
+    'FEE AFTER SCHOLARSHIP': feeAfterScholarship,
+    'REMAINING TUITION FEE': remainingTuitionFee,
   };
   let sheets = [];
   let activeSheetId = null;
@@ -59,7 +49,8 @@
   let dirty = false;
   let saveTimer = null;
   // Saves carry the revision they were based on. If the file moved on in the meantime (another tab or
-  // device saved first), the server refuses with 409 instead of silently overwriting that work.
+  // device saved first), the server merges the two cell by cell. Only if it can't (it no longer knows
+  // that revision, e.g. after a restart) does it refuse with 409 instead of overwriting that work.
   let revision = 0;
   let saving = false;
   let saveQueued = false;
@@ -182,24 +173,9 @@
     return 'badge-gray';
   }
 
-  function parseNum(v) {
-    if (!v) return 0;
-    const n = parseFloat(String(v).replace(/[^0-9.\-]/g, ''));
-    return isNaN(n) ? 0 : n;
-  }
-
   function formatNum(n) {
     if (n === 0) return '0.00';
     return n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  }
-
-  // Resolves a discount entered either as a percentage ("5%") or a flat amount ("500")
-  // into an amount against the given base.
-  function resolveDiscount(raw, base) {
-    const s = String(raw || '').trim();
-    if (!s) return 0;
-    if (s.includes('%')) return base * (parseNum(s) / 100);
-    return parseNum(s);
   }
 
   function toISODate(v) {
@@ -842,7 +818,7 @@
           rows[rowIdx][col] = formatted;
           td.textContent = formatted;
           td.className = 'num calculated';
-          td.title = col === 'REMANING TUITION FEE'
+          td.title = col === 'REMAINING TUITION FEE'
             ? 'Auto-calculated: Fee After Scholarship − Early Bird Discount − Additional Discount − 1st Installment − 2nd Installment'
             : 'Auto-calculated: Gross Fee − Scholarship (a % scholarship is taken of the Gross Fee)';
         } else if (col === LANGUAGE_TEST_COL) {
@@ -1316,8 +1292,18 @@
       });
       if (res.status === 409) { showConflict(); return; }
       if (!res.ok) throw new Error('save failed');
-      revision = (await res.json()).revision;
-      if (changeCount === savedChange) {
+      const result = await res.json();
+      const caughtUp = changeCount === savedChange;
+      if (!result.merged) {
+        revision = result.revision;
+      } else if (caughtUp && !busyEditing()) {
+        // Someone else saved meanwhile and the server merged both: show the combined version.
+        applyRemoteWorkbook(result.workbook);
+      }
+      // Otherwise (merged, but this tab has newer edits or is mid-edit) `revision` stays where it was:
+      // the next save is merged against it again, and the background check picks up the combined
+      // version once this tab is idle.
+      if (caughtUp) {
         dirty = false;
         statusEl.textContent = 'All changes saved';
         statusEl.className = 'save-status';
@@ -1396,8 +1382,12 @@
   }
 
   // Keeps an open tab current when someone else saves. Never runs over unsaved or in-progress work.
+  function busyEditing() {
+    return Boolean(editing || dragMode || openFilterMenu || openSheetMenu);
+  }
+
   async function checkForRemoteChanges() {
-    const busy = () => dirty || saving || editing || conflicted || dragMode || openFilterMenu || openSheetMenu;
+    const busy = () => dirty || saving || conflicted || busyEditing();
     if (busy() || document.hidden) return;
     try {
       const res = await fetch('/api/revision', { cache: 'no-store' });

@@ -16,8 +16,10 @@
 // COUNSELOR_DATA_DIR (set by the host) so data survives redeploys.
 
 const http = require('http');
+const net = require('net');
 const { spawn } = require('child_process');
 const path = require('path');
+const { createAuth, send } = require('../shared/server-utils');
 
 const PORT = process.env.PORT || 8080;
 const STUDENT_DETAILS_PORT = 4173;
@@ -35,17 +37,53 @@ if (!USERNAME || !PASSWORD) {
   process.exit(1);
 }
 
+const requireAuth = createAuth({ username: USERNAME, password: PASSWORD });
+
+const children = [];
+let shuttingDown = false;
+
 function startChild(name, cwd, port, extraEnv) {
   const child = spawn(process.execPath, ['server.js'], {
     cwd,
     env: { ...process.env, PORT: String(port), ...extraEnv },
     stdio: 'inherit',
   });
-  child.on('exit', (code) => {
-    console.error(`[gateway] ${name} exited with code ${code} — shutting down.`);
-    process.exit(1);
+  child.on('exit', (code, signal) => {
+    if (shuttingDown) return;
+    console.error(`[gateway] ${name} exited (${signal || 'code ' + code}) — shutting down.`);
+    shutdown(1);
   });
+  children.push(child);
   return child;
+}
+
+// On a redeploy the host sends SIGTERM to this process only: pass it on so both apps stop too,
+// instead of being left running (and holding their ports) after the gateway is gone.
+function shutdown(exitCode) {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  children.forEach((c) => { if (c.exitCode === null) c.kill('SIGTERM'); });
+  setTimeout(() => process.exit(exitCode), 3000).unref();
+  Promise.all(children.map((c) => (c.exitCode !== null ? null : new Promise((r) => c.once('exit', r)))))
+    .then(() => process.exit(exitCode));
+}
+process.on('SIGTERM', () => shutdown(0));
+process.on('SIGINT', () => shutdown(0));
+
+// Resolves once something is accepting connections on the port.
+function waitForPort(port, timeoutMs = 30000) {
+  const started = Date.now();
+  return new Promise((resolve, reject) => {
+    (function attempt() {
+      const socket = net.connect(port, '127.0.0.1');
+      socket.once('connect', () => { socket.destroy(); resolve(); });
+      socket.once('error', () => {
+        socket.destroy();
+        if (Date.now() - started > timeoutMs) reject(new Error(`nothing listening on port ${port}`));
+        else setTimeout(attempt, 200);
+      });
+    })();
+  });
 }
 
 const studentDetailsDir = path.join(__dirname, '..', 'student-details');
@@ -72,29 +110,14 @@ function pickTarget(urlPath) {
   return { port: STUDENT_DETAILS_PORT, path: urlPath };
 }
 
-function checkAuth(req) {
-  const header = req.headers.authorization || '';
-  const [scheme, encoded] = header.split(' ');
-  if (scheme !== 'Basic' || !encoded) return false;
-  const decoded = Buffer.from(encoded, 'base64').toString('utf8');
-  const sep = decoded.indexOf(':');
-  if (sep === -1) return false;
-  const user = decoded.slice(0, sep);
-  const pass = decoded.slice(sep + 1);
-  return user === USERNAME && pass === PASSWORD;
-}
-
 const server = http.createServer((req, res) => {
-  if (!checkAuth(req)) {
-    res.writeHead(401, {
-      'WWW-Authenticate': 'Basic realm="UK Student NIEC", charset="UTF-8"',
-      'Content-Type': 'text/plain',
-    });
-    res.end('Authentication required.');
-    return;
-  }
+  if (!requireAuth(req, res)) return;
 
   const [urlPath, query = ''] = req.url.split('?');
+  // /commission -> /commission/, so the Incentive page's relative links (calc.js, favicon) stay inside it.
+  if (urlPath === '/commission') {
+    return send(res, 301, '', { Location: '/commission/' + (query ? '?' + query : '') });
+  }
   const target = pickTarget(urlPath);
   const targetUrl = target.path + (query ? '?' + query : '');
 
@@ -121,6 +144,15 @@ const server = http.createServer((req, res) => {
   req.pipe(proxyReq);
 });
 
-server.listen(PORT, () => {
-  console.log(`Gateway listening on http://localhost:${PORT}`);
-});
+// Only start taking traffic once both apps are up, so the first visitors after a deploy don't get
+// "Bad gateway" while they're still starting.
+Promise.all([waitForPort(STUDENT_DETAILS_PORT), waitForPort(COUNSELOR_PORT)])
+  .then(() => {
+    server.listen(PORT, () => {
+      console.log(`Gateway listening on http://localhost:${PORT}`);
+    });
+  })
+  .catch((err) => {
+    console.error('[gateway] an app failed to start:', err.message);
+    shutdown(1);
+  });

@@ -246,14 +246,13 @@
 
 </div>
 
+<script src="calc.js"></script>
 <script>
 // This page may be mounted at a sub-path (e.g. /incentive) rather than a domain's root —
 // derive that prefix from the URL actually used to load it, so every API call still hits
 // this app and not whatever else is mounted at the true root.
 const BASE = location.pathname.replace(/\/index\.html$/, '').replace(/\/+$/, '');
-const TDS_RATE = 0.15;
-// Flywire Incentive = 0.2% of the Flywire Fee Payment (in GBP), converted to NPR at today's rate.
-const FLYWIRE_INCENTIVE_RATE = 0.002;
+const { num, flywireIncentive } = window.IncentiveCalc;
 const POLL_MS = 8000;
 
 // Student details are synced read-only from UK Student NIEC; the money columns are edited here.
@@ -297,8 +296,6 @@ const redoBtn = $('#redoBtn');
 
 function fmt(n) { return (Number(n) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
 function esc(s) { return String(s ?? '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;'); }
-function num(v) { const n = parseFloat(v); return isNaN(n) ? 0 : n; }
-function round2(n) { return Math.round(n * 100) / 100; }
 function clamp(n, lo, hi) { return Math.max(lo, Math.min(hi, n)); }
 function colIndex(key) { return COLUMNS.findIndex((c) => c.key === key); }
 function isMoney(key) { const c = COLUMNS[colIndex(key)]; return Boolean(c && c.money); }
@@ -320,6 +317,15 @@ function parseMoney(text) {
 // ---------------------------------------------------------------------------------------------
 const pendingCommissions = new Set();
 const pendingAdvances = new Set();
+// Incentive fields edited here but not yet confirmed saved: id -> { field: edit number }. Only these
+// fields are sent, and only these override the server's copy on a refresh, so two people editing
+// different fields of the same student never undo each other.
+const unsavedFields = {};
+let editNumber = 0;
+function noteEdit(id, field) {
+  if (!unsavedFields[id]) unsavedFields[id] = {};
+  unsavedFields[id][field] = ++editNumber;
+}
 
 function createSaver(pending, request) {
   const timers = {};
@@ -354,11 +360,23 @@ function createSaver(pending, request) {
   };
 }
 
-const scheduleSaveCommission = createSaver(pendingCommissions, (id) => fetch(BASE + '/api/commissions/' + encodeURIComponent(id), {
-  method: 'PUT',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify(state.commissions[id] || {}),
-}));
+const scheduleSaveCommission = createSaver(pendingCommissions, async (id) => {
+  const sent = { ...(unsavedFields[id] || {}) };
+  const body = {};
+  Object.keys(sent).forEach((f) => { body[f] = commissionValue(id, f); });
+  const res = await fetch(BASE + '/api/commissions/' + encodeURIComponent(id), {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  const left = unsavedFields[id];
+  if (res.ok && left) {
+    // A field edited again while this was in flight keeps its newer edit number, so it stays unsaved.
+    Object.keys(sent).forEach((f) => { if (left[f] === sent[f]) delete left[f]; });
+    if (!Object.keys(left).length) delete unsavedFields[id];
+  }
+  return res;
+});
 
 const scheduleSaveAdvance = createSaver(pendingAdvances, (intake) => fetch(BASE + '/api/advances/' + encodeURIComponent(intake), {
   method: 'PUT',
@@ -391,6 +409,7 @@ function applyAction(action, dir) {
     action.changes.forEach((ch) => {
       if (!state.commissions[ch.id]) state.commissions[ch.id] = {};
       state.commissions[ch.id][ch.f] = ch[dir];
+      noteEdit(ch.id, ch.f);
     });
     [...new Set(action.changes.map((ch) => ch.id))].forEach(scheduleSaveCommission);
   } else if (action.kind === 'advance') {
@@ -418,16 +437,24 @@ function redo() {
 }
 
 // Cached per calendar day on top of the server's own daily cache.
-let exchangeRateCache = null; // { rate, date }
+// Returns { rate, date, stale } (stale: today's rate couldn't be fetched, so this is the last known one),
+// or null when there's no rate at all.
+let exchangeRateCache = null; // { result, day }
+function localDay() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
 async function getExchangeRate() {
-  const today = new Date().toISOString().slice(0, 10);
-  if (exchangeRateCache && exchangeRateCache.date === today) return exchangeRateCache.rate;
+  const today = localDay();
+  if (exchangeRateCache && exchangeRateCache.day === today) return exchangeRateCache.result;
   try {
     const res = await fetch(BASE + '/api/exchange-rate');
     const data = await res.json();
     if (data.ok) {
-      exchangeRateCache = { rate: data.rate, date: today };
-      return data.rate;
+      const result = { rate: data.rate, date: data.date, stale: Boolean(data.stale) };
+      // A stale rate isn't cached here, so the next edit tries for today's again.
+      if (!result.stale) exchangeRateCache = { result, day: today };
+      return result;
     }
   } catch (e) { /* fall through */ }
   return null;
@@ -442,15 +469,20 @@ async function applyChanges(changes) {
 
   let rate = null;
   if (feeChanges.some((ch) => ch.to !== 0)) {
-    rate = await getExchangeRate();
-    rateBannerEl.innerHTML = rate == null
-      ? '<div class="banner error">⚠ Could not fetch today\'s GBP→NPR exchange rate, so Flywire Incentive was left as it was. You can enter it by hand, or try again.</div>'
-      : '';
+    const fx = await getExchangeRate();
+    rate = fx ? fx.rate : null;
+    if (!fx) {
+      rateBannerEl.innerHTML = '<div class="banner error">⚠ Could not fetch today\'s GBP→NPR exchange rate, so Flywire Incentive was left as it was. You can enter it by hand, or try again.</div>';
+    } else if (fx.stale) {
+      rateBannerEl.innerHTML = `<div class="banner">⚠ Could not fetch today's GBP→NPR exchange rate, so Flywire Incentive was worked out with the last known rate (${esc(fx.rate)}, from ${esc(fx.date || 'an earlier day')}). Check it, or re-enter the fee payment later to use today's rate.</div>`;
+    } else {
+      rateBannerEl.innerHTML = '';
+    }
   }
   const all = [...real];
   feeChanges.forEach((ch) => {
     if (ch.to === 0) all.push({ id: ch.id, key: 'flywireCommission', to: 0 });
-    else if (rate != null) all.push({ id: ch.id, key: 'flywireCommission', to: round2(ch.to * FLYWIRE_INCENTIVE_RATE * rate) });
+    else if (rate != null) all.push({ id: ch.id, key: 'flywireCommission', to: flywireIncentive(ch.to, rate) });
   });
 
   const batch = all
@@ -461,6 +493,7 @@ async function applyChanges(changes) {
   batch.forEach((ch) => {
     if (!state.commissions[ch.id]) state.commissions[ch.id] = {};
     state.commissions[ch.id][ch.f] = ch.to;
+    noteEdit(ch.id, ch.f);
   });
   [...new Set(batch.map((ch) => ch.id))].forEach(scheduleSaveCommission);
   render();
@@ -486,7 +519,10 @@ async function loadAll() {
     lastSnapshot = snapshot;
 
     const commissions = commRes || {};
-    pendingCommissions.forEach((id) => { if (state.commissions[id]) commissions[id] = state.commissions[id]; });
+    Object.keys(unsavedFields).forEach((id) => {
+      commissions[id] = { ...(commissions[id] || {}) };
+      Object.keys(unsavedFields[id]).forEach((f) => { commissions[id][f] = commissionValue(id, f); });
+    });
     const advances = advRes || {};
     pendingAdvances.forEach((intake) => { if (state.advances[intake]) advances[intake] = state.advances[intake]; });
 
@@ -605,15 +641,10 @@ function render() {
 
 // Shared by the on-screen Payment Summary and the Excel export, so the two can't drift.
 function computeSummary(students) {
-  const sum = (key) => students.reduce((a, s) => a + commissionValue(s.id, key), 0);
-  const totalCommissions = sum('enrollmentCommission') + sum('enrollmentCommissionUni')
-    + sum('newPartnershipCommission') + sum('selfStudentCommission') + sum('flywireCommission');
-  const loanPayable = sum('loanCommission');
-  const netCommissions = totalCommissions - loanPayable;
-  const tds = Math.max(0, netCommissions) * TDS_RATE; // no TDS (and no negative TDS) when nothing is owed
-  const previousAdvance = num((state.advances[state.activeIntake] || {}).previousAdvance);
-  const netPayable = netCommissions - tds - previousAdvance;
-  return { totalCommissions, loanPayable, netCommissions, tds, previousAdvance, netPayable };
+  return window.IncentiveCalc.computeSummary(
+    students.map((s) => state.commissions[s.id] || {}),
+    (state.advances[state.activeIntake] || {}).previousAdvance,
+  );
 }
 
 function recalc(students) {

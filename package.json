@@ -2,9 +2,10 @@
   "name": "uk-student-niec",
   "version": "1.0.0",
   "private": true,
-  "description": "UK Student NIEC — student visa tracker + counselor commission apps, served together behind a password-protected gateway.",
+  "description": "UK Student NIEC \u2014 student visa tracker + counselor commission apps, served together behind a password-protected gateway.",
   "scripts": {
-    "start": "node gateway/server.js"
+    "start": "node gateway/server.js",
+    "test": "node --test"
   },
   "engines": {
     "node": ">=18"
