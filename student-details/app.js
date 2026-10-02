@@ -367,7 +367,9 @@
   }
 
   // Standing rules, applied together so neither undoes the other:
-  //  1. Inquiry students sit in a section at the bottom; everyone else is above them.
+  //  1. Three sections, top to bottom: students with a status, Inquiry students, then rows with no
+  //     status yet — so a newly added row stays at the very bottom while it's filled in, and moves
+  //     into place once its status is picked.
   //  2. Inside each section, rows stay grouped by UNIVERSITY PARTNER, blocks ordered by each partner's
   //     first appearance in that section (not alphabetically) — so typing "Adventus" into a row's
   //     partner cell moves it in next to the other Adventus rows of its section.
@@ -379,9 +381,13 @@
     const hasStatus = columns.includes('APPLICATION STATUS');
     if (!hasPartner && !hasStatus) return;
 
-    const sectionOf = (r) => (hasStatus && isBottomRow(r) ? 1 : 0);
+    const sectionOf = (r) => {
+      if (!hasStatus) return 0;
+      if (!(r['APPLICATION STATUS'] || '').trim()) return 2;
+      return isBottomRow(r) ? 1 : 0;
+    };
     const partnerOf = (r) => (hasPartner ? (r[PARTNER_COL] || '').trim() : '');
-    const groupOf = [new Map(), new Map()]; // per section: partner value -> block order (first-seen)
+    const groupOf = [new Map(), new Map(), new Map()]; // per section: partner value -> block order (first-seen)
     rows.forEach((r) => {
       const groups = groupOf[sectionOf(r)];
       const v = partnerOf(r);
