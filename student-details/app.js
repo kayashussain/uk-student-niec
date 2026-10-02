@@ -333,26 +333,28 @@
   }
 
   // Standing rules, applied together so neither undoes the other:
-  //  1. Three sections, top to bottom: students with a status, Inquiry students, then rows with no
-  //     status yet — so a newly added row stays at the very bottom while it's filled in, and moves
-  //     into place once its status is picked.
-  //  2. Inside each section, rows stay grouped by UNIVERSITY PARTNER, blocks ordered by each partner's
-  //     first appearance in that section (not alphabetically) — so typing "Adventus" into a row's
-  //     partner cell moves it in next to the other Adventus rows of its section.
-  // Moving a student out of Inquiry lifts them into their partner's block in the top section. Runs on
-  // every render, same as autoMoveDeferredRows, so it stays true as values are typed or pasted in.
+  //  1. A student with a UNIVERSITY PARTNER always sits in that partner's block, whatever their status.
+  //     Blocks are ordered by each partner's first appearance (not alphabetically) — so typing "OIEG"
+  //     into any row's partner cell moves it in next to the other OIEG rows, Inquiry or not.
+  //  2. Students without a partner go below all the partner blocks: first those with a status other
+  //     than Inquiry, then Inquiry students, then rows with no status yet — so a newly added row stays
+  //     at the very bottom while it's filled in, and moves into place once its partner or status is set.
+  // Runs on every render, same as autoMoveDeferredRows, so it stays true as values are typed or pasted in.
   function autoGroupRows() {
     if (rows.length < 2) return;
     const hasPartner = columns.includes(PARTNER_COL);
     const hasStatus = columns.includes('APPLICATION STATUS');
     if (!hasPartner && !hasStatus) return;
 
+    const partnerOf = (r) => (hasPartner ? (r[PARTNER_COL] || '').trim() : '');
+    // Partner blocks and partner-less active students share section 0 (the partner-less ones form
+    // their own block there, blank partner being just another value); sections 1 and 2 are for
+    // partner-less Inquiry students and partner-less rows with no status.
     const sectionOf = (r) => {
-      if (!hasStatus) return 0;
+      if (!hasStatus || partnerOf(r)) return 0;
       if (!(r['APPLICATION STATUS'] || '').trim()) return 2;
       return isBottomRow(r) ? 1 : 0;
     };
-    const partnerOf = (r) => (hasPartner ? (r[PARTNER_COL] || '').trim() : '');
     const groupOf = [new Map(), new Map(), new Map()]; // per section: partner value -> block order (first-seen)
     rows.forEach((r) => {
       const groups = groupOf[sectionOf(r)];
@@ -364,8 +366,9 @@
       const sa = sectionOf(rows[a]);
       const sb = sectionOf(rows[b]);
       if (sa !== sb) return sa - sb;
-      const ga = groupOf[sa].get(partnerOf(rows[a]));
-      const gb = groupOf[sb].get(partnerOf(rows[b]));
+      const block = (r, sec) => (partnerOf(r) ? groupOf[sec].get(partnerOf(r)) : Infinity); // no partner: after the blocks
+      const ga = block(rows[a], sa);
+      const gb = block(rows[b], sb);
       return ga !== gb ? ga - gb : a - b; // stable within a block
     });
     if (order.every((oldIdx, newIdx) => oldIdx === newIdx)) return; // already grouped
