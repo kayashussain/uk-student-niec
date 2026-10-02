@@ -43,42 +43,9 @@
     'FEE AFTER SCHOLARSHIP': feeAfterScholarship,
     'REMAINING TUITION FEE': remainingTuitionFee,
   };
-  // Column views (the "Columns" picker). Compact hides columns nobody has filled in on this sheet yet,
-  // but always keeps the basics so a new sheet still has somewhere to type. The stage views show just
-  // their columns (plus who the student is); columns they don't know about only appear in Compact/All.
-  const BASIC_COLS = [
-    'APPLICATION STATUS', 'FIRST NAME', 'LAST NAME', 'EMAIL', 'CONTACT NUMBER', 'UNIVERSITY NAME',
-    'COURSE NAME', 'RECEIVING PARTNER', 'UNIVERSITY PARTNER', 'LANGUAGE TEST DATE', 'STUDENT ID',
-  ];
-  const IDENTITY_COLS = ['APPLICATION STATUS', 'FIRST NAME', 'LAST NAME', 'UNIVERSITY NAME', 'UNIVERSITY PARTNER'];
-  const COLUMN_VIEWS = {
-    all: { label: 'All columns' },
-    compact: { label: 'Compact (hide empty)' },
-    fees: {
-      label: 'Fees',
-      cols: [...IDENTITY_COLS, 'STUDENT ID', 'GROSS FEE', 'SCHOLARSHIP', 'FEE AFTER SCHOLARSHIP', 'EARLY BIRD DISCOUNT',
-        'ADDITIONAL DISCOUNT', 'TUITION FEE DEPOSIT(1st Installment)', 'TUITION FEE DEPOSIT(2nd Installment)',
-        'REMAINING TUITION FEE', 'PAYMENT DATE'],
-    },
-    visa: {
-      label: 'CAS & Visa',
-      cols: [...IDENTITY_COLS, 'STUDENT ID', 'PRE CAS INTERVIEW', 'NOC', 'NOC NUMBER', 'MEDICAL REPORT', 'PAYMENT DATE',
-        'CAS REQUESTED DATE', 'CAS RECEIVED DATE', 'VISA LODGE DATE', 'VFS ATTENDED DATE', 'VISA RECEIVED DATE',
-        'E-VISA', 'UK CONTACT NUMBER'],
-    },
-  };
-  const COLUMN_VIEW_KEY = 'niec.columnView';
-  let columnView = 'all';
-  try {
-    const saved = localStorage.getItem(COLUMN_VIEW_KEY);
-    if (saved && COLUMN_VIEWS[saved]) columnView = saved;
-  } catch (e) { /* storage blocked: use the default */ }
   let sheets = [];
   let activeSheetId = null;
   let columns = []; // reference to the active sheet's columns array
-  // The columns shown on screen, in order — `columns` minus whatever the column view hides. Everything
-  // the grid does (cursor, selection, copy/paste) works in these; data operations use `columns`.
-  let gridCols = [];
   let rows = [];    // reference to the active sheet's rows array
   let sortCol = null;
   let sortDir = 1;
@@ -128,7 +95,6 @@
   const redoBtn = $('#redoBtn');
   const conflictBanner = $('#conflictBanner');
   const tableWrap = $('.table-wrap');
-  const columnViewEl = $('#columnView');
 
   function getActiveSheet() {
     return sheets.find((s) => s.id === activeSheetId);
@@ -677,28 +643,13 @@
     setTimeout(() => document.addEventListener('mousedown', onSheetMenuDocClick, true), 0);
   }
 
-  function computeGridCols() {
-    if (columnView === 'all') return [...columns];
-    if (columnView === 'compact') {
-      const filled = (c) => rows.some((r) => String(r[c] || '').trim());
-      // A calculated column counts as filled once any of its inputs has a fee in it.
-      const calcFilled = rows.some((r) => String(r['GROSS FEE'] || '').trim());
-      return columns.filter((c) => BASIC_COLS.includes(c) || (CALC_COLS[c] ? calcFilled : filled(c)));
-    }
-    const wanted = COLUMN_VIEWS[columnView].cols;
-    return columns.filter((c) => wanted.includes(c));
-  }
-
   function renderHeader() {
-    gridCols = computeGridCols();
-    const hidden = columns.length - gridCols.length;
-    columnViewEl.title = hidden ? `${hidden} column${hidden === 1 ? '' : 's'} hidden — pick "All columns" to see everything` : 'All columns shown';
     headerRow.innerHTML = '';
     const idxTh = document.createElement('th');
     idxTh.className = 'col-idx';
     idxTh.textContent = 'S.N';
     headerRow.appendChild(idxTh);
-    gridCols.forEach((col) => {
+    columns.forEach((col) => {
       const th = document.createElement('th');
       th.dataset.col = col;
       if (col === sortCol) th.classList.add(sortDir === 1 ? 'sorted' : 'sorted-desc');
@@ -878,7 +829,7 @@
       idxTd.title = 'Select this row (drag or Shift+Click for a range, Ctrl+Click for more). Delete clears it.';
       tr.appendChild(idxTd);
 
-      gridCols.forEach((col, colIndex) => {
+      columns.forEach((col, colIndex) => {
         const td = document.createElement('td');
         td.dataset.colIndex = colIndex;
         td.tabIndex = -1;
@@ -978,8 +929,8 @@
 
   function fullRowRange(fromRowIdx, toRowIdx = fromRowIdx) {
     return {
-      anchor: { rowIdx: fromRowIdx, col: gridCols[0] },
-      focus: { rowIdx: toRowIdx, col: gridCols[gridCols.length - 1] },
+      anchor: { rowIdx: fromRowIdx, col: columns[0] },
+      focus: { rowIdx: toRowIdx, col: columns[columns.length - 1] },
     };
   }
 
@@ -990,8 +941,8 @@
     return selRanges.map(({ anchor, focus }) => {
       const pa = pos.get(anchor.rowIdx);
       const pf = pos.get(focus.rowIdx);
-      const ca = gridCols.indexOf(anchor.col);
-      const cf = gridCols.indexOf(focus.col);
+      const ca = columns.indexOf(anchor.col);
+      const cf = columns.indexOf(focus.col);
       if (pa === undefined || pf === undefined || ca === -1 || cf === -1) return null;
       return { top: Math.min(pa, pf), bottom: Math.max(pa, pf), left: Math.min(ca, cf), right: Math.max(ca, cf) };
     }).filter(Boolean);
@@ -1006,7 +957,7 @@
           const key = indices[p] + '|' + c;
           if (seen.has(key)) continue;
           seen.add(key);
-          cells.push({ rowIdx: indices[p], col: gridCols[c] });
+          cells.push({ rowIdx: indices[p], col: columns[c] });
         }
       }
     });
@@ -1069,11 +1020,11 @@
     if (!selRanges.length) selRanges = [singleRange(activeCell.rowIdx, activeCell.col)];
     const last = selRanges[selRanges.length - 1];
     let p = indices.indexOf(last.focus.rowIdx);
-    let c = gridCols.indexOf(last.focus.col);
+    let c = columns.indexOf(last.focus.col);
     if (p === -1 || c === -1) return;
     p = Math.max(0, Math.min(indices.length - 1, p + dRow));
-    c = rowSelectMode ? gridCols.length - 1 : Math.max(0, Math.min(gridCols.length - 1, c + dCol));
-    last.focus = { rowIdx: indices[p], col: gridCols[c] };
+    c = rowSelectMode ? columns.length - 1 : Math.max(0, Math.min(columns.length - 1, c + dCol));
+    last.focus = { rowIdx: indices[p], col: columns[c] };
     applySelectionClasses(indices);
     const td = cellTd(last.focus.rowIdx, last.focus.col);
     if (td) td.scrollIntoView({ block: 'nearest', inline: 'nearest' });
@@ -1081,13 +1032,13 @@
 
   function selectAllCells() {
     const indices = getFilteredSortedIndices();
-    if (!indices.length || !gridCols.length) return;
+    if (!indices.length || !columns.length) return;
     rowSelectMode = false;
     selRanges = [{
-      anchor: { rowIdx: indices[0], col: gridCols[0] },
-      focus: { rowIdx: indices[indices.length - 1], col: gridCols[gridCols.length - 1] },
+      anchor: { rowIdx: indices[0], col: columns[0] },
+      focus: { rowIdx: indices[indices.length - 1], col: columns[columns.length - 1] },
     }];
-    if (!activeCell || !indices.includes(activeCell.rowIdx)) setActiveCell(indices[0], gridCols[0], { scroll: false });
+    if (!activeCell || !indices.includes(activeCell.rowIdx)) setActiveCell(indices[0], columns[0], { scroll: false });
     applySelectionClasses(indices);
   }
 
@@ -1107,7 +1058,7 @@
   // ---------------------------------------------------------------------------------------------
 
   function cellTd(rowIdx, col) {
-    const ci = gridCols.indexOf(col);
+    const ci = columns.indexOf(col);
     if (ci === -1) return null;
     return body.querySelector(`tr[data-row-idx="${rowIdx}"] > td[data-col-index="${ci}"]`);
   }
@@ -1136,19 +1087,19 @@
   // Moves through rows in the order they're shown (after search, filters and sorting).
   function moveActiveCell(dRow, dCol) {
     const indices = getFilteredSortedIndices();
-    if (!indices.length || !gridCols.length) return;
+    if (!indices.length || !columns.length) return;
     let pos = activeCell ? indices.indexOf(activeCell.rowIdx) : -1;
-    let ci = activeCell ? gridCols.indexOf(activeCell.col) : -1;
+    let ci = activeCell ? columns.indexOf(activeCell.col) : -1;
     if (pos === -1 || ci === -1) {
       pos = 0; // the cursor's row was hidden by a search or filter: start from the top
       ci = Math.max(ci, 0);
     } else {
       pos = Math.max(0, Math.min(indices.length - 1, pos + dRow));
-      ci = Math.max(0, Math.min(gridCols.length - 1, ci + dCol));
+      ci = Math.max(0, Math.min(columns.length - 1, ci + dCol));
     }
     rowSelectMode = false;
-    selRanges = [singleRange(indices[pos], gridCols[ci])];
-    setActiveCell(indices[pos], gridCols[ci]);
+    selRanges = [singleRange(indices[pos], columns[ci])];
+    setActiveCell(indices[pos], columns[ci]);
     applySelectionClasses(indices);
   }
 
@@ -1235,7 +1186,7 @@
     for (let p = r.top; p <= r.bottom; p += 1) {
       const cells = [];
       for (let c = r.left; c <= r.right; c += 1) {
-        cells.push(String(rows[indices[p]][gridCols[c]] || '').replace(/[\t\r\n]+/g, ' '));
+        cells.push(String(rows[indices[p]][columns[c]] || '').replace(/[\t\r\n]+/g, ' '));
       }
       lines.push(cells.join('\t'));
     }
@@ -1255,9 +1206,9 @@
 
     const changes = [];
     for (let dr = 0; dr < height && r.top + dr < indices.length; dr += 1) {
-      for (let dc = 0; dc < width && r.left + dc < gridCols.length; dc += 1) {
+      for (let dc = 0; dc < width && r.left + dc < columns.length; dc += 1) {
         const raw = fill ? data[0][0] : data[dr][dc];
-        const col = gridCols[r.left + dc];
+        const col = columns[r.left + dc];
         if (raw === undefined || CALC_COLS[col]) continue;
         let val = raw.trim();
         if (DATE_COLS.has(col) && val) val = toISODate(val) || val;
@@ -1275,10 +1226,10 @@
     pushUndo();
     changes.forEach(({ rowIdx, col, val }) => { rows[rowIdx][col] = val; });
     const bottom = Math.min(indices.length - 1, r.top + height - 1);
-    const right = Math.min(gridCols.length - 1, r.left + width - 1);
+    const right = Math.min(columns.length - 1, r.left + width - 1);
     rowSelectMode = false;
-    activeCell = { rowIdx: indices[r.top], col: gridCols[r.left] };
-    selRanges = [{ anchor: { ...activeCell }, focus: { rowIdx: indices[bottom], col: gridCols[right] } }];
+    activeCell = { rowIdx: indices[r.top], col: columns[r.left] };
+    selRanges = [{ anchor: { ...activeCell }, focus: { rowIdx: indices[bottom], col: columns[right] } }];
     markDirty();
     renderBody();
   }
@@ -1479,7 +1430,7 @@
     const blank = { _id: makeRowId() };
     columns.forEach((c) => (blank[c] = ''));
     rows.push(blank);
-    const startCol = gridCols.find(isTextCell) || gridCols[0];
+    const startCol = columns.find(isTextCell) || columns[0];
     selRanges = [singleRange(rows.length - 1, startCol)];
     rowSelectMode = false;
     markDirty();
@@ -1565,23 +1516,6 @@
   if (redoBtn) redoBtn.addEventListener('click', redo);
   searchEl.addEventListener('input', renderBody);
 
-  Object.entries(COLUMN_VIEWS).forEach(([key, view]) => {
-    const o = document.createElement('option');
-    o.value = key;
-    o.textContent = 'Columns: ' + view.label;
-    columnViewEl.appendChild(o);
-  });
-  columnViewEl.value = columnView;
-  columnViewEl.addEventListener('change', () => {
-    columnView = columnViewEl.value;
-    try { localStorage.setItem(COLUMN_VIEW_KEY, columnView); } catch (e) { /* remembered for this visit only */ }
-    renderHeader();
-    // A filter on a column that's now hidden would hide rows with no visible reason.
-    Object.keys(columnFilters).forEach((c) => { if (!gridCols.includes(c)) delete columnFilters[c]; });
-    renderHeader();
-    renderBody();
-  });
-
   // Google Sheets-style undo/redo hotkeys. Skipped while typing in the search box or
   // renaming a sheet tab, so ordinary text-field undo still works there.
   document.addEventListener('keydown', (e) => {
@@ -1612,24 +1546,24 @@
     if (td.classList.contains('col-idx')) {
       e.preventDefault();
       if (e.shiftKey && rowSelectMode && selRanges.length) {
-        selRanges[selRanges.length - 1].focus = { rowIdx, col: gridCols[gridCols.length - 1] };
+        selRanges[selRanges.length - 1].focus = { rowIdx, col: columns[columns.length - 1] };
         focusActiveCell({ scroll: false });
       } else if (additive && rowSelectMode) {
         const before = selRanges.length;
         selRanges = selRanges.filter((r) => !(r.anchor.rowIdx === rowIdx && r.focus.rowIdx === rowIdx));
         if (selRanges.length === before) selRanges.push(fullRowRange(rowIdx));
-        setActiveCell(rowIdx, gridCols[0], { scroll: false });
+        setActiveCell(rowIdx, columns[0], { scroll: false });
       } else {
         rowSelectMode = true;
         selRanges = [fullRowRange(rowIdx)];
-        setActiveCell(rowIdx, gridCols[0], { scroll: false });
+        setActiveCell(rowIdx, columns[0], { scroll: false });
       }
       dragMode = 'rows';
       applySelectionClasses();
       return;
     }
 
-    const col = gridCols[Number(td.dataset.colIndex)];
+    const col = columns[Number(td.dataset.colIndex)];
     if (col === undefined) return;
     if (onControl) {
       // Dropdowns and date boxes need the click to open, so they only move the cursor.
@@ -1666,8 +1600,8 @@
     const rowIdx = Number(td.parentElement.dataset.rowIdx);
     const last = selRanges[selRanges.length - 1];
     const col = dragMode === 'rows'
-      ? gridCols[gridCols.length - 1]
-      : (gridCols[Number(td.dataset.colIndex)] ?? last.focus.col);
+      ? columns[columns.length - 1]
+      : (columns[Number(td.dataset.colIndex)] ?? last.focus.col);
     if (last.focus.rowIdx === rowIdx && last.focus.col === col) return;
     last.focus = { rowIdx, col };
     applySelectionClasses();
@@ -1712,7 +1646,7 @@
     const td = e.target.closest('td');
     if (!td || !body.contains(td) || td.classList.contains('col-idx') || e.target.closest('select, input')) return;
     const rowIdx = Number(td.parentElement.dataset.rowIdx);
-    const col = gridCols[Number(td.dataset.colIndex)];
+    const col = columns[Number(td.dataset.colIndex)];
     if (col === undefined || !isTextCell(col)) return;
     if (!activeCell || activeCell.rowIdx !== rowIdx || activeCell.col !== col) setActiveCell(rowIdx, col, { scroll: false });
     startEdit();
