@@ -44,8 +44,17 @@ test('a first visit with no password is not counted as a wrong guess', () => {
   assert.strictEqual(auth(fakeReq({ user: 'admin', pass: 'pw' }), fakeRes()), true);
 });
 
-test('auth is off when no username/password is configured', () => {
-  assert.strictEqual(createAuth({})(fakeReq(), fakeRes()), true);
+test('auth is off when no username/password is configured (local dev)', () => {
+  assert.strictEqual(createAuth({ failClosed: false })(fakeReq(), fakeRes()), true);
+});
+
+test('in production, a missing username/password locks everything instead of opening it', () => {
+  const res = fakeRes();
+  assert.strictEqual(createAuth({ failClosed: true })(fakeReq(), res), false);
+  assert.strictEqual(res.status, 503);
+  const half = fakeRes();
+  assert.strictEqual(createAuth({ username: 'admin', failClosed: true })(fakeReq({ user: 'admin', pass: 'x' }), half), false);
+  assert.strictEqual(half.status, 503);
 });
 
 test('X-Forwarded-For is only trusted from a private proxy, and only its last entry', () => {

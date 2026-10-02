@@ -91,6 +91,10 @@ Save → **Run NPM Install** → **Restart**.
 Both apps load shared code from the repo's `shared/` folder, so keep the whole repo on the server
 (as cloned above), not just the two app folders.
 
+**Both apps need `APP_USERNAME` and `APP_PASSWORD`, with the same values.** In Production mode an app
+that doesn't have both set refuses every request (a "not set up yet" page) instead of serving without a
+password. If you see that page, add the two variables to that app and restart it once.
+
 Optional for both apps: `APP_TIMEZONE` (default `Asia/Kathmandu`) sets which calendar day daily
 backups and "today's" exchange rate follow.
 
