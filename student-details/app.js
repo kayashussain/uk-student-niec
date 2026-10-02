@@ -13,8 +13,12 @@
   ]);
   // Rows stay grouped by this column: whichever partner value appeared first in the sheet forms the
   // first block, the next new value forms the next block, and so on — matching the sheet's convention
-  // of e.g. Adventus students first, then Real Dreams, then Official Rep. See autoGroupByPartner().
+  // of e.g. Adventus students first, then Real Dreams, then Official Rep. See autoGroupRows().
   const PARTNER_COL = 'UNIVERSITY PARTNER';
+  // Students at these statuses sit in a section below everyone else (see autoGroupRows), so active
+  // applications stay together at the top.
+  const BOTTOM_STATUSES = new Set(['Inquiry']);
+  const isBottomRow = (row) => BOTTOM_STATUSES.has(row['APPLICATION STATUS']);
   const SELECT_COLS = {
     'APPLICATION STATUS': [
       'Inquiry', 'Application Stage', 'Mock Stage', 'Payment Stage',
@@ -328,22 +332,34 @@
     }
   }
 
-  // Standing rule: rows stay grouped by UNIVERSITY PARTNER, blocks ordered by each partner's first
-  // appearance in the sheet (not alphabetically) — so typing "Adventus" into a new row's partner cell
-  // moves it in next to the other Adventus rows, wherever that block currently sits. Runs on every
-  // render, same as autoMoveDeferredRows, so it stays true as values are typed or pasted in.
-  function autoGroupByPartner() {
-    if (!columns.includes(PARTNER_COL) || rows.length < 2) return;
+  // Standing rules, applied together so neither undoes the other:
+  //  1. Inquiry students sit in a section at the bottom; everyone else is above them.
+  //  2. Inside each section, rows stay grouped by UNIVERSITY PARTNER, blocks ordered by each partner's
+  //     first appearance in that section (not alphabetically) — so typing "Adventus" into a row's
+  //     partner cell moves it in next to the other Adventus rows of its section.
+  // Moving a student out of Inquiry lifts them into their partner's block in the top section. Runs on
+  // every render, same as autoMoveDeferredRows, so it stays true as values are typed or pasted in.
+  function autoGroupRows() {
+    if (rows.length < 2) return;
+    const hasPartner = columns.includes(PARTNER_COL);
+    const hasStatus = columns.includes('APPLICATION STATUS');
+    if (!hasPartner && !hasStatus) return;
 
-    const groupOf = new Map(); // partner value -> block order (first-seen)
+    const sectionOf = (r) => (hasStatus && isBottomRow(r) ? 1 : 0);
+    const partnerOf = (r) => (hasPartner ? (r[PARTNER_COL] || '').trim() : '');
+    const groupOf = [new Map(), new Map()]; // per section: partner value -> block order (first-seen)
     rows.forEach((r) => {
-      const v = (r[PARTNER_COL] || '').trim();
-      if (!groupOf.has(v)) groupOf.set(v, groupOf.size);
+      const groups = groupOf[sectionOf(r)];
+      const v = partnerOf(r);
+      if (!groups.has(v)) groups.set(v, groups.size);
     });
     const order = rows.map((_, i) => i);
     order.sort((a, b) => {
-      const ga = groupOf.get((rows[a][PARTNER_COL] || '').trim());
-      const gb = groupOf.get((rows[b][PARTNER_COL] || '').trim());
+      const sa = sectionOf(rows[a]);
+      const sb = sectionOf(rows[b]);
+      if (sa !== sb) return sa - sb;
+      const ga = groupOf[sa].get(partnerOf(rows[a]));
+      const gb = groupOf[sb].get(partnerOf(rows[b]));
       return ga !== gb ? ga - gb : a - b; // stable within a block
     });
     if (order.every((oldIdx, newIdx) => oldIdx === newIdx)) return; // already grouped
@@ -789,7 +805,7 @@
 
   function renderBody() {
     autoMoveDeferredRows();
-    autoGroupByPartner();
+    autoGroupRows();
     // Rebuilding the table drops focus. Put it back on the cell cursor afterwards, but only if focus
     // was in the table (or nowhere): a search-box keystroke also re-renders and must keep the box.
     const ae = document.activeElement;
@@ -799,6 +815,12 @@
     indices.forEach((rowIdx, displayIdx) => {
       const tr = document.createElement('tr');
       tr.dataset.rowIdx = rowIdx;
+      // A line above the first Inquiry student marks where the bottom section starts (only in the
+      // sheet's own order — a column sort mixes the sections).
+      if (!sortCol && displayIdx > 0 && isBottomRow(rows[rowIdx]) && !isBottomRow(rows[indices[displayIdx - 1]])) {
+        tr.classList.add('section-start');
+        tr.title = 'Inquiry students are kept below this line';
+      }
 
       // Clicks on rows and cells are handled once, on the table body (see the grid section below).
       const idxTd = document.createElement('td');
