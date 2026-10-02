@@ -309,7 +309,9 @@
     const target = getDeferTargetSheet();
     if (!target) return false;
     const [row] = rows.splice(rowIdx, 1);
-    const movedRow = { _id: row._id || makeRowId() };
+    // _deferredInto marks where the move landed, so the student isn't moved on again from there (still
+    // showing "Defer") the moment a later sheet is added. See autoMoveDeferredRows.
+    const movedRow = { _id: row._id || makeRowId(), _deferredInto: target.id };
     target.columns.forEach((c) => { movedRow[c] = row[c] !== undefined ? row[c] : ''; });
     target.rows.push(movedRow);
     return true;
@@ -318,11 +320,19 @@
   // Standing rule: any row on this sheet marked "Defer" gets moved into the next
   // sheet (by tab order) as soon as one exists. Runs on every render so it stays
   // true whether a row was just set to Defer, or the next sheet was only just added.
+  // A student who arrived here by being deferred stays put; once their status is changed
+  // the marker goes, so deferring them again (setting Defer later) moves them on as usual.
   function autoMoveDeferredRows() {
-    if (!columns.includes('APPLICATION STATUS') || !getDeferTargetSheet()) return;
+    if (!columns.includes('APPLICATION STATUS')) return;
+    rows.forEach((r) => {
+      if (r._deferredInto && (r['APPLICATION STATUS'] !== 'Defer' || r._deferredInto !== activeSheetId)) {
+        delete r._deferredInto;
+      }
+    });
+    if (!getDeferTargetSheet()) return;
     let moved = false;
     for (let i = rows.length - 1; i >= 0; i -= 1) {
-      if (rows[i]['APPLICATION STATUS'] === 'Defer' && tryMoveRowToDeferSheet(i)) moved = true;
+      if (rows[i]['APPLICATION STATUS'] === 'Defer' && !rows[i]._deferredInto && tryMoveRowToDeferSheet(i)) moved = true;
     }
     if (moved) {
       selectedRows = new Set(); // indices shifted; drop any stale selection
@@ -1493,10 +1503,28 @@
       cell.alignment = { vertical: 'middle', horizontal: 'left', wrapText: true };
     });
 
+    // Fees go out as real numbers and dates as real dates, so Excel can add them up, sort and filter.
+    // Anything else (a "15%" scholarship, a "Waiver" note) stays as the text it is.
+    const excelValue = (col, raw) => {
+      const v = String(raw || '').trim();
+      if (!v) return '';
+      if (NUM_COLS.has(col) && /^[£$]?\s*-?[\d,]+(\.\d+)?$/.test(v)) return { value: parseNum(v), numFmt: '#,##0.00' };
+      const iso = (DATE_COLS.has(col) || col === LANGUAGE_TEST_COL) ? toISODate(v) : '';
+      if (iso) {
+        const [y, m, d] = iso.split('-').map(Number);
+        return { value: new Date(Date.UTC(y, m - 1, d)), numFmt: 'dd mmm yyyy' };
+      }
+      return v;
+    };
     rows.forEach((r) => {
-      const row = ws.addRow(columns.map((c) => r[c] || ''));
+      const cells = columns.map((c) => excelValue(c, r[c]));
+      const row = ws.addRow(cells.map((x) => (x && typeof x === 'object' ? x.value : x)));
       row.height = 20;
-      row.eachCell((cell) => { cell.alignment = { vertical: 'middle' }; });
+      cells.forEach((x, i) => {
+        const cell = row.getCell(i + 1);
+        cell.alignment = { vertical: 'middle' };
+        if (x && typeof x === 'object') cell.numFmt = x.numFmt;
+      });
     });
 
     const buf = await wb.xlsx.writeBuffer();
