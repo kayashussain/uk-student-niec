@@ -67,12 +67,12 @@ function credentialsMatch(header, username, password) {
 // Shared-password Basic Auth with a lockout: after `maxFailures` wrong passwords from one address
 // within `windowMs`, that address is refused (429) until the window runs out, without its guesses
 // even being checked. Returns requireAuth(req, res) -> true when the request may go ahead.
-// With no username/password set, auth is off for local dev. In production (NODE_ENV=production, which
-// cPanel's "Production" mode and most hosts set) the app instead refuses everything with a 503 until they
-// are set, so a forgotten setting can never leave the data open to anyone with the link.
+// With no username/password set, auth is off (an app deliberately run without a login, or local dev).
+// Setting REQUIRE_PASSWORD=true makes that a hard stop instead: the app refuses everything with a 503
+// until they are set, so a forgotten setting can never leave the data open.
 function createAuth({
   username, password, maxFailures = 20, windowMs = 15 * 60 * 1000, now = Date.now,
-  failClosed = process.env.NODE_ENV === 'production',
+  failClosed = process.env.REQUIRE_PASSWORD === 'true',
 } = {}) {
   const failures = new Map(); // ip -> { count, since }
 

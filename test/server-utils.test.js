@@ -44,11 +44,11 @@ test('a first visit with no password is not counted as a wrong guess', () => {
   assert.strictEqual(auth(fakeReq({ user: 'admin', pass: 'pw' }), fakeRes()), true);
 });
 
-test('auth is off when no username/password is configured (local dev)', () => {
+test('auth is off when no username/password is configured', () => {
   assert.strictEqual(createAuth({ failClosed: false })(fakeReq(), fakeRes()), true);
 });
 
-test('in production, a missing username/password locks everything instead of opening it', () => {
+test('with REQUIRE_PASSWORD on, a missing username/password locks everything instead of opening it', () => {
   const res = fakeRes();
   assert.strictEqual(createAuth({ failClosed: true })(fakeReq(), res), false);
   assert.strictEqual(res.status, 503);
