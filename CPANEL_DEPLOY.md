@@ -1,5 +1,7 @@
 # Deploying to Nest Nepal (cPanel) with niec.duckdns.org
 
+This is one of two supported ways to host the apps; the other is Render (`DEPLOY.md`). Pick one.
+
 cPanel's "Setup Node.js App" runs each app as its own independent process (via
 Passenger), so — unlike the Render setup — **each app is created separately in cPanel**,
 both under the same domain, at different URL paths. No custom gateway needed here.
@@ -15,6 +17,13 @@ If your plan has **Terminal/SSH** (check cPanel for a "Terminal" icon):
 cd ~
 git clone https://github.com/kayashussain/uk-student-niec.git
 ```
+
+That plain URL only works while the repo is **public**. No student data is ever in git, but if you'd
+rather keep the code private, make the repo private on GitHub and clone with a read-only token
+instead: create a fine-grained personal access token (GitHub → Settings → Developer settings) with
+read access to just this repo, then
+`git clone https://YOUR_GITHUB_USERNAME:YOUR_TOKEN@github.com/kayashussain/uk-student-niec.git`.
+Treat the token like a password.
 
 No terminal? Download the repo as a ZIP from GitHub (**Code → Download ZIP**) and upload
 + extract it into your home directory via cPanel's **File Manager** instead. Either way,
@@ -79,6 +88,16 @@ in Application URL above).
 
 Save → **Run NPM Install** → **Restart**.
 
+Both apps load shared code from the repo's `shared/` folder, so keep the whole repo on the server
+(as cloned above), not just the two app folders.
+
+Optional for both apps: `APP_TIMEZONE` (default `Asia/Kathmandu`) sets which calendar day daily
+backups and "today's" exchange rate follow.
+
+After 20 wrong passwords from one address within 15 minutes, that address is locked out for the
+rest of the 15 minutes. This relies on the host passing the visitor's address in
+`X-Forwarded-For`; if it doesn't, a lockout applies to everyone at once until it runs out.
+
 (Replace `YOUR_CPANEL_USERNAME` with your actual cPanel username, visible at the top of
 the Node.js App screen or in "Application root" once created — cPanel shows the full
 absolute path there.)
@@ -89,11 +108,15 @@ The new data folder starts empty. From your own machine, upload your current
 `student-details/data.json`:
 
 ```bash
-curl -X POST https://niec.duckdns.org/api/data \
-  -u admin:YOUR_PASSWORD \
-  -H "Content-Type: application/json" \
-  --data @data.json
+node -e "const d=require('./data.json'); d.baseRevision=0; process.stdout.write(JSON.stringify(d))" \
+  | curl -X POST https://niec.duckdns.org/api/data \
+    -u admin:YOUR_PASSWORD \
+    -H "Content-Type: application/json" \
+    --data-binary @-
 ```
+
+(`baseRevision: 0` tells the server this save is based on the blank tracker the new folder starts
+with. Without it, the server refuses the upload as a conflict.)
 
 ## 5. Check it
 

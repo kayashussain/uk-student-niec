@@ -1,4 +1,8 @@
-# Deploying UK Student NIEC online
+# Deploying UK Student NIEC online (Render)
+
+There are two supported ways to host this: **Render** (this file — one service, with the `gateway/`
+in front of both apps) or **cPanel / Nest Nepal** (see `CPANEL_DEPLOY.md` — two separate cPanel apps,
+no gateway). Pick one; you don't need both.
 
 This repo runs **two apps together** behind one password-protected gateway:
 
@@ -35,11 +39,15 @@ local data up to it, run this once from the `student-details` folder on your mac
 (replace the URL, username, and password):
 
 ```bash
-curl -X POST https://uk-student-niec.onrender.com/api/data \
-  -u admin:YOUR_PASSWORD \
-  -H "Content-Type: application/json" \
-  --data @data.json
+node -e "const d=require('./data.json'); d.baseRevision=0; process.stdout.write(JSON.stringify(d))" \
+  | curl -X POST https://uk-student-niec.onrender.com/api/data \
+    -u admin:YOUR_PASSWORD \
+    -H "Content-Type: application/json" \
+    --data-binary @-
 ```
+
+(`baseRevision: 0` tells the server this save is based on the blank tracker the new disk starts
+with. Without it, the server refuses the upload as a conflict.)
 
 After that, the live site is the one source of truth — every edit there saves straight to
 the Render disk and survives redeploys.
@@ -51,6 +59,12 @@ the Render disk and survives redeploys.
 
 Both are behind the same login. Anyone you give the URL and password to can view and edit
 everything, so only share the password with people who should have full access.
+
+After 20 wrong passwords from the same address within 15 minutes, that address is locked out for
+the rest of the 15 minutes (even with the right password), to stop anyone guessing it.
+
+Daily backups and "today's" exchange rate follow Nepal time. To use a different time zone, set
+`APP_TIMEZONE` (e.g. `Europe/London`).
 
 ## Updating the code later
 

@@ -14,7 +14,9 @@
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
-const crypto = require('crypto');
+const {
+  send, sendJSON, createAuth, createStaticServer, readJSONBody, writeFileAtomic, snapshotDaily, localDate,
+} = require('../shared/server-utils');
 
 const PORT = process.env.PORT || 5173;
 const ROOT = __dirname;
@@ -35,67 +37,21 @@ const ADVANCES_FILE = path.join(DATA_DIR, 'advances.json');
 const EXCHANGE_RATE_FILE = path.join(DATA_DIR, 'exchange-rate-cache.json');
 const EXCHANGE_RATE_URL = 'https://api.exchangerate-api.com/v4/latest/GBP';
 const MAX_BODY_BYTES = 1024 * 1024;
+// Names that would change the stored object's prototype instead of adding an entry.
+const RESERVED_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
 
 // Only these files are served. The data files next to them and the server code stay private.
-const PUBLIC_FILES = {
+const serveStatic = createStaticServer(ROOT, {
   '/index.html': 'text/html; charset=utf-8',
+  '/calc.js': 'text/javascript; charset=utf-8',
   '/favicon.png': 'image/png',
   '/apple-touch-icon.png': 'image/png',
-};
-
-function send(res, status, body, headers = {}) {
-  res.writeHead(status, headers);
-  res.end(body);
-}
-
-function sendJSON(res, status, obj) {
-  send(res, status, JSON.stringify(obj), { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
-}
+});
 
 // Shared-password protection — only active when both env vars are set (so local dev,
 // where they're unset, is unaffected). On a host, set APP_USERNAME/APP_PASSWORD as
 // environment variables for this app.
-const AUTH_USER = process.env.APP_USERNAME;
-const AUTH_PASS = process.env.APP_PASSWORD;
-
-function safeEqual(a, b) {
-  const bufA = Buffer.from(String(a));
-  const bufB = Buffer.from(String(b));
-  return bufA.length === bufB.length && crypto.timingSafeEqual(bufA, bufB);
-}
-
-function checkAuth(req) {
-  if (!AUTH_USER || !AUTH_PASS) return true; // auth disabled (e.g. local dev)
-  const header = req.headers.authorization || '';
-  const [scheme, encoded] = header.split(' ');
-  if (scheme !== 'Basic' || !encoded) return false;
-  const decoded = Buffer.from(encoded, 'base64').toString('utf8');
-  const sep = decoded.indexOf(':');
-  if (sep === -1) return false;
-  return safeEqual(decoded.slice(0, sep), AUTH_USER) && safeEqual(decoded.slice(sep + 1), AUTH_PASS);
-}
-
-function requireAuth(req, res) {
-  if (checkAuth(req)) return true;
-  res.writeHead(401, {
-    'WWW-Authenticate': 'Basic realm="UK Student NIEC", charset="UTF-8"',
-    'Content-Type': 'text/plain',
-  });
-  res.end('Authentication required.');
-  return false;
-}
-
-function serveStatic(req, res) {
-  const urlPath = req.url.split('?')[0];
-  const name = urlPath === '/' ? '/index.html' : urlPath;
-  const type = PUBLIC_FILES[name];
-  if (!type) return send(res, 404, 'Not found');
-  fs.readFile(path.join(ROOT, name.slice(1)), (err, data) => {
-    if (err) return send(res, 404, 'Not found');
-    // no-cache: the browser checks for a newer copy every time, so a deploy shows up on a normal reload.
-    send(res, 200, data, { 'Content-Type': type, 'Cache-Control': 'no-cache' });
-  });
-}
+const requireAuth = createAuth({ username: process.env.APP_USERNAME, password: process.env.APP_PASSWORD });
 
 function readJSON(file, fallback) {
   try {
@@ -105,36 +61,13 @@ function readJSON(file, fallback) {
   }
 }
 
-// Writes to a temporary file and renames it into place, so a crash mid-write never leaves half a file.
 function writeJSONAtomic(file, data) {
-  const tmp = file + '.tmp';
-  fs.writeFileSync(tmp, JSON.stringify(data, null, 2));
-  fs.renameSync(tmp, file);
-}
-
-// Once a day, before the first save of that day, copies the file into backups/<prefix>-YYYY-MM-DD.json
-// and keeps the latest 60, so there's something to restore from beyond the last save.
-function snapshotDaily(file, prefix) {
-  try {
-    if (!fs.existsSync(file)) return;
-    const dir = path.join(DATA_DIR, 'backups');
-    const target = path.join(dir, `${prefix}-${new Date().toISOString().slice(0, 10)}.json`);
-    if (fs.existsSync(target)) return;
-    fs.mkdirSync(dir, { recursive: true });
-    fs.copyFileSync(file, target);
-    fs.readdirSync(dir)
-      .filter((f) => f.startsWith(prefix + '-') && f.endsWith('.json'))
-      .sort()
-      .slice(0, -60)
-      .forEach((f) => fs.unlinkSync(path.join(dir, f)));
-  } catch (e) {
-    console.error('[backup]', e.message); // never block a save over a backup problem
-  }
+  writeFileAtomic(file, JSON.stringify(data, null, 2));
 }
 
 // Keeps a daily snapshot plus a rolling copy of the previous version before replacing the file.
 function writeWithBackup(file, backupName, data) {
-  snapshotDaily(file, path.basename(file, '.json'));
+  snapshotDaily(file, DATA_DIR, path.basename(file, '.json'));
   if (fs.existsSync(file)) {
     try { fs.copyFileSync(file, path.join(DATA_DIR, backupName)); } catch (e) { /* non-fatal */ }
   }
@@ -185,49 +118,18 @@ function readSync() {
   return { ok: true, intakes, byIntake };
 }
 
-function readBody(req) {
-  return new Promise((resolve, reject) => {
-    const chunks = [];
-    let size = 0;
-    req.on('data', (chunk) => {
-      size += chunk.length;
-      if (size > MAX_BODY_BYTES) {
-        const err = new Error('Payload too large');
-        err.statusCode = 413;
-        reject(err);
-        req.destroy();
-        return;
-      }
-      chunks.push(chunk);
-    });
-    req.on('end', () => {
-      const body = Buffer.concat(chunks).toString('utf8');
-      try {
-        resolve(body ? JSON.parse(body) : {});
-      } catch (e) {
-        e.statusCode = 400;
-        reject(e);
-      }
-    });
-    req.on('error', reject);
-  });
-}
-
 function num(v, fallback) {
   const n = parseFloat(v);
   return isNaN(n) ? (fallback || 0) : n;
 }
 
-function todayISO() {
-  return new Date().toISOString().slice(0, 10);
-}
-
 // GBP -> NPR, refetched at most once per day (cached to disk) so entering a Flywire
 // Fee Payment doesn't hit the external API on every edit.
 async function getGbpToNprRate() {
-  const today = todayISO();
+  // fetchedOn is our own calendar day; `date` is the rate's own date from the API, which can lag a day.
+  const today = localDate();
   const cache = readJSON(EXCHANGE_RATE_FILE, null);
-  if (cache && cache.date === today && typeof cache.rate === 'number') {
+  if (cache && cache.fetchedOn === today && typeof cache.rate === 'number') {
     return { ok: true, rate: cache.rate, date: cache.date, cached: true };
   }
   try {
@@ -236,7 +138,7 @@ async function getGbpToNprRate() {
     const data = await res.json();
     const rate = data && data.rates && data.rates.NPR;
     if (typeof rate !== 'number') throw new Error('NPR rate missing from exchange rate response');
-    const record = { date: data.date || today, rate, fetchedAt: new Date().toISOString() };
+    const record = { date: data.date || today, rate, fetchedOn: today, fetchedAt: new Date().toISOString() };
     writeJSONAtomic(EXCHANGE_RATE_FILE, record);
     return { ok: true, rate, date: record.date, cached: false };
   } catch (e) {
@@ -250,8 +152,13 @@ async function getGbpToNprRate() {
 
 const server = http.createServer(async (req, res) => {
   try {
-    if (BASE_PATH && req.url.startsWith(BASE_PATH)) {
-      req.url = req.url.slice(BASE_PATH.length) || '/';
+    const rest = BASE_PATH && req.url.startsWith(BASE_PATH) ? req.url.slice(BASE_PATH.length) : null;
+    if (rest !== null && (rest === '' || rest[0] === '/' || rest[0] === '?')) {
+      // /incentive -> /incentive/, so the page's relative links (calc.js, favicon) resolve inside this app.
+      if (rest === '' || rest.startsWith('?')) {
+        return send(res, 301, '', { Location: BASE_PATH + '/' + rest });
+      }
+      req.url = rest;
     }
     if (!requireAuth(req, res)) return;
     const urlPath = req.url.split('?')[0];
@@ -267,9 +174,12 @@ const server = http.createServer(async (req, res) => {
     const commMatch = urlPath.match(/^\/api\/commissions\/([^/]+)$/);
     if (commMatch && req.method === 'PUT') {
       const id = decodeURIComponent(commMatch[1]);
-      const body = await readBody(req);
+      if (RESERVED_KEYS.has(id)) return sendJSON(res, 400, { error: 'invalid id' });
+      const body = await readJSONBody(req, MAX_BODY_BYTES);
       const all = readJSON(COMMISSIONS_FILE, {});
       const existing = all[id] || {};
+      // Only the fields in the body change; the rest keep their saved values, so two people editing
+      // different fields of the same student don't undo each other.
       all[id] = {
         enrollmentCommission: num(body.enrollmentCommission, existing.enrollmentCommission),
         enrollmentCommissionUni: num(body.enrollmentCommissionUni, existing.enrollmentCommissionUni),
@@ -291,7 +201,8 @@ const server = http.createServer(async (req, res) => {
     const advMatch = urlPath.match(/^\/api\/advances\/([^/]+)$/);
     if (advMatch && req.method === 'PUT') {
       const intake = decodeURIComponent(advMatch[1]);
-      const body = await readBody(req);
+      if (RESERVED_KEYS.has(intake)) return sendJSON(res, 400, { error: 'invalid intake' });
+      const body = await readJSONBody(req, MAX_BODY_BYTES);
       const all = readJSON(ADVANCES_FILE, {});
       all[intake] = {
         previousAdvance: num(body.previousAdvance, 0),

@@ -2,7 +2,7 @@
   const NUM_COLS = new Set([
     'GROSS FEE', 'SCHOLARSHIP', 'FEE AFTER SCHOLARSHIP', 'EARLY BIRD DISCOUNT',
     'ADDITIONAL DISCOUNT', 'TUITION FEE DEPOSIT(1st Installment)',
-    'TUITION FEE DEPOSIT(2nd Installment)', 'REMANING TUITION FEE',
+    'TUITION FEE DEPOSIT(2nd Installment)', 'REMAINING TUITION FEE',
   ]);
   const DATE_COLS = new Set([
     'LANGUAGE TEST DATE', 'PAYMENT DATE', 'CAS REQUESTED DATE', 'CAS RECEIVED DATE',
@@ -13,8 +13,12 @@
   ]);
   // Rows stay grouped by this column: whichever partner value appeared first in the sheet forms the
   // first block, the next new value forms the next block, and so on — matching the sheet's convention
-  // of e.g. Adventus students first, then Real Dreams, then Official Rep. See autoGroupByPartner().
+  // of e.g. Adventus students first, then Real Dreams, then Official Rep. See autoGroupRows().
   const PARTNER_COL = 'UNIVERSITY PARTNER';
+  // Students at these statuses sit in a section below everyone else (see autoGroupRows), so active
+  // applications stay together at the top.
+  const BOTTOM_STATUSES = new Set(['Inquiry']);
+  const isBottomRow = (row) => BOTTOM_STATUSES.has(row['APPLICATION STATUS']);
   const SELECT_COLS = {
     'APPLICATION STATUS': [
       'Inquiry', 'Application Stage', 'Mock Stage', 'Payment Stage',
@@ -34,24 +38,47 @@
   const LANGUAGE_TEST_COL = 'LANGUAGE TEST DATE';
   const LANGUAGE_TEST_CHOICES = ['Waiver', 'University Internal Test', 'Test Date'];
   const LANGUAGE_TEST_NO_DATE = new Set(['Waiver', 'University Internal Test']);
+  const { parseNum, feeAfterScholarship, remainingTuitionFee } = window.NiecCalc;
   const CALC_COLS = {
-    // Scholarship may be an amount ("3,000") or a share of the gross fee ("15%").
-    'FEE AFTER SCHOLARSHIP': (row) => {
-      const gross = parseNum(row['GROSS FEE']);
-      return gross - resolveDiscount(row['SCHOLARSHIP'], gross);
+    'FEE AFTER SCHOLARSHIP': feeAfterScholarship,
+    'REMAINING TUITION FEE': remainingTuitionFee,
+  };
+  // Column views (the "Columns" picker). Compact hides columns nobody has filled in on this sheet yet,
+  // but always keeps the basics so a new sheet still has somewhere to type. The stage views show just
+  // their columns (plus who the student is); columns they don't know about only appear in Compact/All.
+  const BASIC_COLS = [
+    'APPLICATION STATUS', 'FIRST NAME', 'LAST NAME', 'EMAIL', 'CONTACT NUMBER', 'UNIVERSITY NAME',
+    'COURSE NAME', 'RECEIVING PARTNER', 'UNIVERSITY PARTNER', 'LANGUAGE TEST DATE', 'STUDENT ID',
+  ];
+  const IDENTITY_COLS = ['APPLICATION STATUS', 'FIRST NAME', 'LAST NAME', 'UNIVERSITY NAME', 'UNIVERSITY PARTNER'];
+  const COLUMN_VIEWS = {
+    compact: { label: 'Compact (hide empty)' },
+    all: { label: 'All columns' },
+    fees: {
+      label: 'Fees',
+      cols: [...IDENTITY_COLS, 'STUDENT ID', 'GROSS FEE', 'SCHOLARSHIP', 'FEE AFTER SCHOLARSHIP', 'EARLY BIRD DISCOUNT',
+        'ADDITIONAL DISCOUNT', 'TUITION FEE DEPOSIT(1st Installment)', 'TUITION FEE DEPOSIT(2nd Installment)',
+        'REMAINING TUITION FEE', 'PAYMENT DATE'],
     },
-    'REMANING TUITION FEE': (row) => {
-      const base = parseNum(row['FEE AFTER SCHOLARSHIP']);
-      const earlyBird = resolveDiscount(row['EARLY BIRD DISCOUNT'], base);
-      const additional = parseNum(row['ADDITIONAL DISCOUNT']);
-      const dep1 = parseNum(row['TUITION FEE DEPOSIT(1st Installment)']);
-      const dep2 = parseNum(row['TUITION FEE DEPOSIT(2nd Installment)']);
-      return base - earlyBird - additional - dep1 - dep2;
+    visa: {
+      label: 'CAS & Visa',
+      cols: [...IDENTITY_COLS, 'STUDENT ID', 'PRE CAS INTERVIEW', 'NOC', 'NOC NUMBER', 'MEDICAL REPORT', 'PAYMENT DATE',
+        'CAS REQUESTED DATE', 'CAS RECEIVED DATE', 'VISA LODGE DATE', 'VFS ATTENDED DATE', 'VISA RECEIVED DATE',
+        'E-VISA', 'UK CONTACT NUMBER'],
     },
   };
+  const COLUMN_VIEW_KEY = 'niec.columnView';
+  let columnView = 'compact';
+  try {
+    const saved = localStorage.getItem(COLUMN_VIEW_KEY);
+    if (saved && COLUMN_VIEWS[saved]) columnView = saved;
+  } catch (e) { /* storage blocked: use the default */ }
   let sheets = [];
   let activeSheetId = null;
   let columns = []; // reference to the active sheet's columns array
+  // The columns shown on screen, in order — `columns` minus whatever the column view hides. Everything
+  // the grid does (cursor, selection, copy/paste) works in these; data operations use `columns`.
+  let gridCols = [];
   let rows = [];    // reference to the active sheet's rows array
   let sortCol = null;
   let sortDir = 1;
@@ -59,7 +86,8 @@
   let dirty = false;
   let saveTimer = null;
   // Saves carry the revision they were based on. If the file moved on in the meantime (another tab or
-  // device saved first), the server refuses with 409 instead of silently overwriting that work.
+  // device saved first), the server merges the two cell by cell. Only if it can't (it no longer knows
+  // that revision, e.g. after a restart) does it refuse with 409 instead of overwriting that work.
   let revision = 0;
   let saving = false;
   let saveQueued = false;
@@ -100,6 +128,7 @@
   const redoBtn = $('#redoBtn');
   const conflictBanner = $('#conflictBanner');
   const tableWrap = $('.table-wrap');
+  const columnViewEl = $('#columnView');
 
   function getActiveSheet() {
     return sheets.find((s) => s.id === activeSheetId);
@@ -182,24 +211,9 @@
     return 'badge-gray';
   }
 
-  function parseNum(v) {
-    if (!v) return 0;
-    const n = parseFloat(String(v).replace(/[^0-9.\-]/g, ''));
-    return isNaN(n) ? 0 : n;
-  }
-
   function formatNum(n) {
     if (n === 0) return '0.00';
     return n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  }
-
-  // Resolves a discount entered either as a percentage ("5%") or a flat amount ("500")
-  // into an amount against the given base.
-  function resolveDiscount(raw, base) {
-    const s = String(raw || '').trim();
-    if (!s) return 0;
-    if (s.includes('%')) return base * (parseNum(s) / 100);
-    return parseNum(s);
   }
 
   function toISODate(v) {
@@ -352,22 +366,34 @@
     }
   }
 
-  // Standing rule: rows stay grouped by UNIVERSITY PARTNER, blocks ordered by each partner's first
-  // appearance in the sheet (not alphabetically) — so typing "Adventus" into a new row's partner cell
-  // moves it in next to the other Adventus rows, wherever that block currently sits. Runs on every
-  // render, same as autoMoveDeferredRows, so it stays true as values are typed or pasted in.
-  function autoGroupByPartner() {
-    if (!columns.includes(PARTNER_COL) || rows.length < 2) return;
+  // Standing rules, applied together so neither undoes the other:
+  //  1. Inquiry students sit in a section at the bottom; everyone else is above them.
+  //  2. Inside each section, rows stay grouped by UNIVERSITY PARTNER, blocks ordered by each partner's
+  //     first appearance in that section (not alphabetically) — so typing "Adventus" into a row's
+  //     partner cell moves it in next to the other Adventus rows of its section.
+  // Moving a student out of Inquiry lifts them into their partner's block in the top section. Runs on
+  // every render, same as autoMoveDeferredRows, so it stays true as values are typed or pasted in.
+  function autoGroupRows() {
+    if (rows.length < 2) return;
+    const hasPartner = columns.includes(PARTNER_COL);
+    const hasStatus = columns.includes('APPLICATION STATUS');
+    if (!hasPartner && !hasStatus) return;
 
-    const groupOf = new Map(); // partner value -> block order (first-seen)
+    const sectionOf = (r) => (hasStatus && isBottomRow(r) ? 1 : 0);
+    const partnerOf = (r) => (hasPartner ? (r[PARTNER_COL] || '').trim() : '');
+    const groupOf = [new Map(), new Map()]; // per section: partner value -> block order (first-seen)
     rows.forEach((r) => {
-      const v = (r[PARTNER_COL] || '').trim();
-      if (!groupOf.has(v)) groupOf.set(v, groupOf.size);
+      const groups = groupOf[sectionOf(r)];
+      const v = partnerOf(r);
+      if (!groups.has(v)) groups.set(v, groups.size);
     });
     const order = rows.map((_, i) => i);
     order.sort((a, b) => {
-      const ga = groupOf.get((rows[a][PARTNER_COL] || '').trim());
-      const gb = groupOf.get((rows[b][PARTNER_COL] || '').trim());
+      const sa = sectionOf(rows[a]);
+      const sb = sectionOf(rows[b]);
+      if (sa !== sb) return sa - sb;
+      const ga = groupOf[sa].get(partnerOf(rows[a]));
+      const gb = groupOf[sb].get(partnerOf(rows[b]));
       return ga !== gb ? ga - gb : a - b; // stable within a block
     });
     if (order.every((oldIdx, newIdx) => oldIdx === newIdx)) return; // already grouped
@@ -645,13 +671,28 @@
     setTimeout(() => document.addEventListener('mousedown', onSheetMenuDocClick, true), 0);
   }
 
+  function computeGridCols() {
+    if (columnView === 'all') return [...columns];
+    if (columnView === 'compact') {
+      const filled = (c) => rows.some((r) => String(r[c] || '').trim());
+      // A calculated column counts as filled once any of its inputs has a fee in it.
+      const calcFilled = rows.some((r) => String(r['GROSS FEE'] || '').trim());
+      return columns.filter((c) => BASIC_COLS.includes(c) || (CALC_COLS[c] ? calcFilled : filled(c)));
+    }
+    const wanted = COLUMN_VIEWS[columnView].cols;
+    return columns.filter((c) => wanted.includes(c));
+  }
+
   function renderHeader() {
+    gridCols = computeGridCols();
+    const hidden = columns.length - gridCols.length;
+    columnViewEl.title = hidden ? `${hidden} column${hidden === 1 ? '' : 's'} hidden — pick "All columns" to see everything` : 'All columns shown';
     headerRow.innerHTML = '';
     const idxTh = document.createElement('th');
     idxTh.className = 'col-idx';
     idxTh.textContent = 'S.N';
     headerRow.appendChild(idxTh);
-    columns.forEach((col) => {
+    gridCols.forEach((col) => {
       const th = document.createElement('th');
       th.dataset.col = col;
       if (col === sortCol) th.classList.add(sortDir === 1 ? 'sorted' : 'sorted-desc');
@@ -813,7 +854,7 @@
 
   function renderBody() {
     autoMoveDeferredRows();
-    autoGroupByPartner();
+    autoGroupRows();
     // Rebuilding the table drops focus. Put it back on the cell cursor afterwards, but only if focus
     // was in the table (or nowhere): a search-box keystroke also re-renders and must keep the box.
     const ae = document.activeElement;
@@ -823,6 +864,12 @@
     indices.forEach((rowIdx, displayIdx) => {
       const tr = document.createElement('tr');
       tr.dataset.rowIdx = rowIdx;
+      // A line above the first Inquiry student marks where the bottom section starts (only in the
+      // sheet's own order — a column sort mixes the sections).
+      if (!sortCol && displayIdx > 0 && isBottomRow(rows[rowIdx]) && !isBottomRow(rows[indices[displayIdx - 1]])) {
+        tr.classList.add('section-start');
+        tr.title = 'Inquiry students are kept below this line';
+      }
 
       // Clicks on rows and cells are handled once, on the table body (see the grid section below).
       const idxTd = document.createElement('td');
@@ -831,18 +878,19 @@
       idxTd.title = 'Select this row (drag or Shift+Click for a range, Ctrl+Click for more). Delete clears it.';
       tr.appendChild(idxTd);
 
-      columns.forEach((col, colIndex) => {
+      gridCols.forEach((col, colIndex) => {
         const td = document.createElement('td');
         td.dataset.colIndex = colIndex;
         td.tabIndex = -1;
         const val = rows[rowIdx][col] || '';
         if (CALC_COLS[col]) {
-          const computed = CALC_COLS[col](rows[rowIdx]);
-          const formatted = formatNum(computed);
+          // Blank until a Gross Fee is entered, rather than a column of meaningless 0.00s.
+          const hasFee = String(rows[rowIdx]['GROSS FEE'] || '').trim() !== '';
+          const formatted = hasFee ? formatNum(CALC_COLS[col](rows[rowIdx])) : '';
           rows[rowIdx][col] = formatted;
           td.textContent = formatted;
           td.className = 'num calculated';
-          td.title = col === 'REMANING TUITION FEE'
+          td.title = col === 'REMAINING TUITION FEE'
             ? 'Auto-calculated: Fee After Scholarship − Early Bird Discount − Additional Discount − 1st Installment − 2nd Installment'
             : 'Auto-calculated: Gross Fee − Scholarship (a % scholarship is taken of the Gross Fee)';
         } else if (col === LANGUAGE_TEST_COL) {
@@ -930,8 +978,8 @@
 
   function fullRowRange(fromRowIdx, toRowIdx = fromRowIdx) {
     return {
-      anchor: { rowIdx: fromRowIdx, col: columns[0] },
-      focus: { rowIdx: toRowIdx, col: columns[columns.length - 1] },
+      anchor: { rowIdx: fromRowIdx, col: gridCols[0] },
+      focus: { rowIdx: toRowIdx, col: gridCols[gridCols.length - 1] },
     };
   }
 
@@ -942,8 +990,8 @@
     return selRanges.map(({ anchor, focus }) => {
       const pa = pos.get(anchor.rowIdx);
       const pf = pos.get(focus.rowIdx);
-      const ca = columns.indexOf(anchor.col);
-      const cf = columns.indexOf(focus.col);
+      const ca = gridCols.indexOf(anchor.col);
+      const cf = gridCols.indexOf(focus.col);
       if (pa === undefined || pf === undefined || ca === -1 || cf === -1) return null;
       return { top: Math.min(pa, pf), bottom: Math.max(pa, pf), left: Math.min(ca, cf), right: Math.max(ca, cf) };
     }).filter(Boolean);
@@ -958,7 +1006,7 @@
           const key = indices[p] + '|' + c;
           if (seen.has(key)) continue;
           seen.add(key);
-          cells.push({ rowIdx: indices[p], col: columns[c] });
+          cells.push({ rowIdx: indices[p], col: gridCols[c] });
         }
       }
     });
@@ -1021,11 +1069,11 @@
     if (!selRanges.length) selRanges = [singleRange(activeCell.rowIdx, activeCell.col)];
     const last = selRanges[selRanges.length - 1];
     let p = indices.indexOf(last.focus.rowIdx);
-    let c = columns.indexOf(last.focus.col);
+    let c = gridCols.indexOf(last.focus.col);
     if (p === -1 || c === -1) return;
     p = Math.max(0, Math.min(indices.length - 1, p + dRow));
-    c = rowSelectMode ? columns.length - 1 : Math.max(0, Math.min(columns.length - 1, c + dCol));
-    last.focus = { rowIdx: indices[p], col: columns[c] };
+    c = rowSelectMode ? gridCols.length - 1 : Math.max(0, Math.min(gridCols.length - 1, c + dCol));
+    last.focus = { rowIdx: indices[p], col: gridCols[c] };
     applySelectionClasses(indices);
     const td = cellTd(last.focus.rowIdx, last.focus.col);
     if (td) td.scrollIntoView({ block: 'nearest', inline: 'nearest' });
@@ -1033,13 +1081,13 @@
 
   function selectAllCells() {
     const indices = getFilteredSortedIndices();
-    if (!indices.length || !columns.length) return;
+    if (!indices.length || !gridCols.length) return;
     rowSelectMode = false;
     selRanges = [{
-      anchor: { rowIdx: indices[0], col: columns[0] },
-      focus: { rowIdx: indices[indices.length - 1], col: columns[columns.length - 1] },
+      anchor: { rowIdx: indices[0], col: gridCols[0] },
+      focus: { rowIdx: indices[indices.length - 1], col: gridCols[gridCols.length - 1] },
     }];
-    if (!activeCell || !indices.includes(activeCell.rowIdx)) setActiveCell(indices[0], columns[0], { scroll: false });
+    if (!activeCell || !indices.includes(activeCell.rowIdx)) setActiveCell(indices[0], gridCols[0], { scroll: false });
     applySelectionClasses(indices);
   }
 
@@ -1059,7 +1107,7 @@
   // ---------------------------------------------------------------------------------------------
 
   function cellTd(rowIdx, col) {
-    const ci = columns.indexOf(col);
+    const ci = gridCols.indexOf(col);
     if (ci === -1) return null;
     return body.querySelector(`tr[data-row-idx="${rowIdx}"] > td[data-col-index="${ci}"]`);
   }
@@ -1088,19 +1136,19 @@
   // Moves through rows in the order they're shown (after search, filters and sorting).
   function moveActiveCell(dRow, dCol) {
     const indices = getFilteredSortedIndices();
-    if (!indices.length || !columns.length) return;
+    if (!indices.length || !gridCols.length) return;
     let pos = activeCell ? indices.indexOf(activeCell.rowIdx) : -1;
-    let ci = activeCell ? columns.indexOf(activeCell.col) : -1;
+    let ci = activeCell ? gridCols.indexOf(activeCell.col) : -1;
     if (pos === -1 || ci === -1) {
       pos = 0; // the cursor's row was hidden by a search or filter: start from the top
       ci = Math.max(ci, 0);
     } else {
       pos = Math.max(0, Math.min(indices.length - 1, pos + dRow));
-      ci = Math.max(0, Math.min(columns.length - 1, ci + dCol));
+      ci = Math.max(0, Math.min(gridCols.length - 1, ci + dCol));
     }
     rowSelectMode = false;
-    selRanges = [singleRange(indices[pos], columns[ci])];
-    setActiveCell(indices[pos], columns[ci]);
+    selRanges = [singleRange(indices[pos], gridCols[ci])];
+    setActiveCell(indices[pos], gridCols[ci]);
     applySelectionClasses(indices);
   }
 
@@ -1187,7 +1235,7 @@
     for (let p = r.top; p <= r.bottom; p += 1) {
       const cells = [];
       for (let c = r.left; c <= r.right; c += 1) {
-        cells.push(String(rows[indices[p]][columns[c]] || '').replace(/[\t\r\n]+/g, ' '));
+        cells.push(String(rows[indices[p]][gridCols[c]] || '').replace(/[\t\r\n]+/g, ' '));
       }
       lines.push(cells.join('\t'));
     }
@@ -1207,9 +1255,9 @@
 
     const changes = [];
     for (let dr = 0; dr < height && r.top + dr < indices.length; dr += 1) {
-      for (let dc = 0; dc < width && r.left + dc < columns.length; dc += 1) {
+      for (let dc = 0; dc < width && r.left + dc < gridCols.length; dc += 1) {
         const raw = fill ? data[0][0] : data[dr][dc];
-        const col = columns[r.left + dc];
+        const col = gridCols[r.left + dc];
         if (raw === undefined || CALC_COLS[col]) continue;
         let val = raw.trim();
         if (DATE_COLS.has(col) && val) val = toISODate(val) || val;
@@ -1227,10 +1275,10 @@
     pushUndo();
     changes.forEach(({ rowIdx, col, val }) => { rows[rowIdx][col] = val; });
     const bottom = Math.min(indices.length - 1, r.top + height - 1);
-    const right = Math.min(columns.length - 1, r.left + width - 1);
+    const right = Math.min(gridCols.length - 1, r.left + width - 1);
     rowSelectMode = false;
-    activeCell = { rowIdx: indices[r.top], col: columns[r.left] };
-    selRanges = [{ anchor: { ...activeCell }, focus: { rowIdx: indices[bottom], col: columns[right] } }];
+    activeCell = { rowIdx: indices[r.top], col: gridCols[r.left] };
+    selRanges = [{ anchor: { ...activeCell }, focus: { rowIdx: indices[bottom], col: gridCols[right] } }];
     markDirty();
     renderBody();
   }
@@ -1316,8 +1364,18 @@
       });
       if (res.status === 409) { showConflict(); return; }
       if (!res.ok) throw new Error('save failed');
-      revision = (await res.json()).revision;
-      if (changeCount === savedChange) {
+      const result = await res.json();
+      const caughtUp = changeCount === savedChange;
+      if (!result.merged) {
+        revision = result.revision;
+      } else if (caughtUp && !busyEditing()) {
+        // Someone else saved meanwhile and the server merged both: show the combined version.
+        applyRemoteWorkbook(result.workbook);
+      }
+      // Otherwise (merged, but this tab has newer edits or is mid-edit) `revision` stays where it was:
+      // the next save is merged against it again, and the background check picks up the combined
+      // version once this tab is idle.
+      if (caughtUp) {
         dirty = false;
         statusEl.textContent = 'All changes saved';
         statusEl.className = 'save-status';
@@ -1396,8 +1454,12 @@
   }
 
   // Keeps an open tab current when someone else saves. Never runs over unsaved or in-progress work.
+  function busyEditing() {
+    return Boolean(editing || dragMode || openFilterMenu || openSheetMenu);
+  }
+
   async function checkForRemoteChanges() {
-    const busy = () => dirty || saving || editing || conflicted || dragMode || openFilterMenu || openSheetMenu;
+    const busy = () => dirty || saving || conflicted || busyEditing();
     if (busy() || document.hidden) return;
     try {
       const res = await fetch('/api/revision', { cache: 'no-store' });
@@ -1417,7 +1479,7 @@
     const blank = { _id: makeRowId() };
     columns.forEach((c) => (blank[c] = ''));
     rows.push(blank);
-    const startCol = columns.find(isTextCell) || columns[0];
+    const startCol = gridCols.find(isTextCell) || gridCols[0];
     selRanges = [singleRange(rows.length - 1, startCol)];
     rowSelectMode = false;
     markDirty();
@@ -1503,6 +1565,23 @@
   if (redoBtn) redoBtn.addEventListener('click', redo);
   searchEl.addEventListener('input', renderBody);
 
+  Object.entries(COLUMN_VIEWS).forEach(([key, view]) => {
+    const o = document.createElement('option');
+    o.value = key;
+    o.textContent = 'Columns: ' + view.label;
+    columnViewEl.appendChild(o);
+  });
+  columnViewEl.value = columnView;
+  columnViewEl.addEventListener('change', () => {
+    columnView = columnViewEl.value;
+    try { localStorage.setItem(COLUMN_VIEW_KEY, columnView); } catch (e) { /* remembered for this visit only */ }
+    renderHeader();
+    // A filter on a column that's now hidden would hide rows with no visible reason.
+    Object.keys(columnFilters).forEach((c) => { if (!gridCols.includes(c)) delete columnFilters[c]; });
+    renderHeader();
+    renderBody();
+  });
+
   // Google Sheets-style undo/redo hotkeys. Skipped while typing in the search box or
   // renaming a sheet tab, so ordinary text-field undo still works there.
   document.addEventListener('keydown', (e) => {
@@ -1533,24 +1612,24 @@
     if (td.classList.contains('col-idx')) {
       e.preventDefault();
       if (e.shiftKey && rowSelectMode && selRanges.length) {
-        selRanges[selRanges.length - 1].focus = { rowIdx, col: columns[columns.length - 1] };
+        selRanges[selRanges.length - 1].focus = { rowIdx, col: gridCols[gridCols.length - 1] };
         focusActiveCell({ scroll: false });
       } else if (additive && rowSelectMode) {
         const before = selRanges.length;
         selRanges = selRanges.filter((r) => !(r.anchor.rowIdx === rowIdx && r.focus.rowIdx === rowIdx));
         if (selRanges.length === before) selRanges.push(fullRowRange(rowIdx));
-        setActiveCell(rowIdx, columns[0], { scroll: false });
+        setActiveCell(rowIdx, gridCols[0], { scroll: false });
       } else {
         rowSelectMode = true;
         selRanges = [fullRowRange(rowIdx)];
-        setActiveCell(rowIdx, columns[0], { scroll: false });
+        setActiveCell(rowIdx, gridCols[0], { scroll: false });
       }
       dragMode = 'rows';
       applySelectionClasses();
       return;
     }
 
-    const col = columns[Number(td.dataset.colIndex)];
+    const col = gridCols[Number(td.dataset.colIndex)];
     if (col === undefined) return;
     if (onControl) {
       // Dropdowns and date boxes need the click to open, so they only move the cursor.
@@ -1587,8 +1666,8 @@
     const rowIdx = Number(td.parentElement.dataset.rowIdx);
     const last = selRanges[selRanges.length - 1];
     const col = dragMode === 'rows'
-      ? columns[columns.length - 1]
-      : (columns[Number(td.dataset.colIndex)] ?? last.focus.col);
+      ? gridCols[gridCols.length - 1]
+      : (gridCols[Number(td.dataset.colIndex)] ?? last.focus.col);
     if (last.focus.rowIdx === rowIdx && last.focus.col === col) return;
     last.focus = { rowIdx, col };
     applySelectionClasses();
@@ -1633,7 +1712,7 @@
     const td = e.target.closest('td');
     if (!td || !body.contains(td) || td.classList.contains('col-idx') || e.target.closest('select, input')) return;
     const rowIdx = Number(td.parentElement.dataset.rowIdx);
-    const col = columns[Number(td.dataset.colIndex)];
+    const col = gridCols[Number(td.dataset.colIndex)];
     if (col === undefined || !isTextCell(col)) return;
     if (!activeCell || activeCell.rowIdx !== rowIdx || activeCell.col !== col) setActiveCell(rowIdx, col, { scroll: false });
     startEdit();
