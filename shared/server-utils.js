@@ -12,8 +12,18 @@ function localDate(date = new Date(), timeZone = TIME_ZONE) {
   return new Intl.DateTimeFormat('en-CA', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(date);
 }
 
+// Sent with every response: the pages can't be shown inside another site's frame (so no one can trick
+// a logged-in user into clicking things there), browsers don't guess file types, and no addresses
+// leak to other sites through the Referer header.
+const SECURITY_HEADERS = {
+  'X-Frame-Options': 'SAMEORIGIN',
+  'Content-Security-Policy': "frame-ancestors 'self'",
+  'X-Content-Type-Options': 'nosniff',
+  'Referrer-Policy': 'same-origin',
+};
+
 function send(res, status, body, headers = {}) {
-  res.writeHead(status, headers);
+  res.writeHead(status, { ...SECURITY_HEADERS, ...headers });
   res.end(body);
 }
 
@@ -175,6 +185,7 @@ function snapshotDaily(file, dataDir, prefix) {
 }
 
 module.exports = {
+  SECURITY_HEADERS,
   TIME_ZONE,
   localDate,
   send,

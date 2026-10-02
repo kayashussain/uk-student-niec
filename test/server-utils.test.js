@@ -10,7 +10,7 @@ function fakeReq({ user, pass, ip = '203.0.113.5', forwardedFor } = {}) {
 }
 
 function fakeRes() {
-  return { status: null, writeHead(status) { this.status = status; }, end() {} };
+  return { status: null, headers: null, writeHead(status, headers) { this.status = status; this.headers = headers; }, end() {} };
 }
 
 test('safeEqual compares values of any length', () => {
@@ -58,4 +58,12 @@ test('localDate uses the office time zone, not UTC', () => {
   // 20:00 UTC on 1 Jan is already 2 Jan in Kathmandu (UTC+5:45).
   assert.strictEqual(localDate(new Date('2026-01-01T20:00:00Z'), 'Asia/Kathmandu'), '2026-01-02');
   assert.strictEqual(localDate(new Date('2026-01-01T20:00:00Z'), 'UTC'), '2026-01-01');
+});
+
+test('every response carries the security headers', () => {
+  const res = fakeRes();
+  createAuth({ username: 'admin', password: 'pw' })(fakeReq(), res);
+  assert.strictEqual(res.headers['X-Frame-Options'], 'SAMEORIGIN');
+  assert.strictEqual(res.headers['X-Content-Type-Options'], 'nosniff');
+  assert.ok(res.headers['WWW-Authenticate']);
 });

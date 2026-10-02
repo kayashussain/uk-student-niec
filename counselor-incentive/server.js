@@ -7,8 +7,9 @@
 // numbers (Enrollment, Enrollment from University, New Partnership, Direct Student,
 // Flywire, Loan) live only in this app's own commissions.json, keyed by the student's
 // stable _id. Each intake's Previous Advance figure lives in advances.json, keyed by
-// intake name. Flywire Incentive is auto-derived from Flywire Fee Payment (0.2% of the
-// GBP amount, converted to NPR at the day's rate) — that rate is fetched from a public
+// the sheet's id, so renaming a sheet keeps it (see advances.js). Flywire Incentive is
+// auto-derived from Flywire Fee Payment (0.2% of the GBP amount, converted to NPR at the
+// day's rate) — that rate is fetched from a public
 // API and cached in exchange-rate-cache.json, refreshed at most once per day.
 
 const http = require('http');
@@ -17,6 +18,7 @@ const path = require('path');
 const {
   send, sendJSON, createAuth, createStaticServer, readJSONBody, writeFileAtomic, snapshotDaily, localDate,
 } = require('../shared/server-utils');
+const { advancesByName, setAdvance } = require('./advances');
 
 const PORT = process.env.PORT || 5173;
 const ROOT = __dirname;
@@ -93,6 +95,18 @@ function normalizeStudent(row, intake) {
 // byIntake[sheetName] only ever contains students whose APPLICATION STATUS is exactly
 // "Visa Issued" right now. Every sheet becomes an intake tab here, even if it currently
 // has zero visa-issued students — mirroring the sheets over in Student Details 1:1.
+// The Student Details sheets as [{ id, name }] (empty if the file can't be read right now).
+function readSheetList() {
+  try {
+    const workbook = JSON.parse(fs.readFileSync(STUDENT_DETAILS_DATA, 'utf-8'));
+    return (Array.isArray(workbook.sheets) ? workbook.sheets : [])
+      .filter((s) => s && typeof s.id === 'string' && typeof s.name === 'string')
+      .map((s) => ({ id: s.id, name: s.name }));
+  } catch (e) {
+    return [];
+  }
+}
+
 function readSync() {
   let raw;
   try {
@@ -195,7 +209,7 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (urlPath === '/api/advances' && req.method === 'GET') {
-      return sendJSON(res, 200, readJSON(ADVANCES_FILE, {}));
+      return sendJSON(res, 200, advancesByName(readJSON(ADVANCES_FILE, {}), readSheetList()));
     }
 
     const advMatch = urlPath.match(/^\/api\/advances\/([^/]+)$/);
@@ -203,13 +217,10 @@ const server = http.createServer(async (req, res) => {
       const intake = decodeURIComponent(advMatch[1]);
       if (RESERVED_KEYS.has(intake)) return sendJSON(res, 400, { error: 'invalid intake' });
       const body = await readJSONBody(req, MAX_BODY_BYTES);
-      const all = readJSON(ADVANCES_FILE, {});
-      all[intake] = {
-        previousAdvance: num(body.previousAdvance, 0),
-        updatedAt: new Date().toISOString(),
-      };
+      const entry = { previousAdvance: num(body.previousAdvance, 0), updatedAt: new Date().toISOString() };
+      const all = setAdvance(readJSON(ADVANCES_FILE, {}), readSheetList(), intake, entry);
       writeWithBackup(ADVANCES_FILE, 'advances.backup.json', all);
-      return sendJSON(res, 200, all[intake]);
+      return sendJSON(res, 200, entry);
     }
 
     if (urlPath === '/api/exchange-rate' && req.method === 'GET') {
