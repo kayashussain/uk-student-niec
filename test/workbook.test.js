@@ -16,14 +16,17 @@ test('migrateWorkbook renames the misspelled columns in columns and rows', () =>
     sheets: [{ id: 's1', name: 'A', columns: ['RECEVING PARTNER', 'REMANING TUITION FEE'], rows: [{ _id: 'r1', 'RECEVING PARTNER': 'X', 'REMANING TUITION FEE': '10' }] }],
     activeSheetId: 's1',
   });
-  assert.deepStrictEqual(wb.sheets[0].columns, ['RECEIVING PARTNER', 'REMAINING TUITION FEE', 'STUDENT SOURCE', 'REMARKS']);
+  assert.deepStrictEqual(wb.sheets[0].columns, ['REMARKS', 'STUDENT SOURCE', 'APPLICATION STATUS', 'RECEIVING PARTNER', 'REMAINING TUITION FEE']);
   assert.deepStrictEqual(wb.sheets[0].rows[0], { _id: 'r1', 'RECEIVING PARTNER': 'X', 'REMAINING TUITION FEE': '10' });
 });
 
-test('migrateWorkbook adds STUDENT SOURCE after CONTACT NUMBER and REMARKS at the end, once', () => {
-  const input = { sheets: [{ id: 's1', name: 'A', columns: ['EMAIL', 'CONTACT NUMBER', 'COURSE NAME'], rows: [] }], activeSheetId: 's1' };
-  const wb = migrateWorkbook(migrateWorkbook(input));
-  assert.deepStrictEqual(wb.sheets[0].columns, ['EMAIL', 'CONTACT NUMBER', 'STUDENT SOURCE', 'COURSE NAME', 'REMARKS']);
+test('migrateWorkbook puts REMARKS, STUDENT SOURCE, APPLICATION STATUS first, once', () => {
+  const input = { sheets: [{ id: 's1', name: 'A', columns: ['APPLICATION STATUS', 'EMAIL', 'COURSE NAME'], rows: [] }], activeSheetId: 's1' };
+  const wb = migrateWorkbook(input);
+  assert.deepStrictEqual(wb.sheets[0].columns, ['REMARKS', 'STUDENT SOURCE', 'APPLICATION STATUS', 'EMAIL', 'COURSE NAME']);
+  wb.sheets[0].columns.reverse(); // a manual reorder afterwards is left alone
+  const again = migrateWorkbook(wb);
+  assert.deepStrictEqual(again.sheets[0].columns, ['COURSE NAME', 'EMAIL', 'APPLICATION STATUS', 'STUDENT SOURCE', 'REMARKS']);
 });
 
 test('migrateWorkbook upgrades the legacy single-sheet shape and adds row ids', () => {
