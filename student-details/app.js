@@ -879,6 +879,10 @@
             select.appendChild(o);
           });
           select.addEventListener('click', (e) => e.stopPropagation());
+          select.addEventListener('mousedown', (e) => {
+            const busy = peerOnCell(rowIdx, col, false);
+            if (busy) { e.preventDefault(); warnPeerOnCell(busy); }
+          });
           select.addEventListener('change', () => {
             const newVal = select.value;
             pushUndo();
@@ -1121,12 +1125,29 @@
     applySelectionClasses(indices);
   }
 
+  // A teammate who is editing (or, for dropdowns/dates, has their cursor on) this cell: don't let a
+  // second person change it at the same time, so neither overwrites the other.
+  function peerOnCell(rowIdx, col, editingOnly) {
+    const row = rows[rowIdx];
+    if (!row) return null;
+    return peers.find((p) => p.sheetId === activeSheetId && p.rowId === row._id && p.col === col
+      && (!editingOnly || p.editing)) || null;
+  }
+
+  function warnPeerOnCell(peer) {
+    statusEl.textContent = `${peer.name} is on this cell right now — wait for them to finish`;
+    statusEl.className = 'save-status error';
+    setTimeout(() => { if (!dirty) { statusEl.textContent = 'All changes saved'; statusEl.className = 'save-status'; } }, 3000);
+  }
+
   // replaceWith: the first character typed (typing over a cell replaces it, like Sheets).
   function startEdit({ replaceWith = null } = {}) {
     if (!activeCell || editing) return;
     const { rowIdx, col } = activeCell;
     const td = cellTd(rowIdx, col);
     if (!td || !rows[rowIdx] || CALC_COLS[col]) return;
+    const busy = peerOnCell(rowIdx, col, isTextCell(col));
+    if (busy) { warnPeerOnCell(busy); return; }
     if (!isTextCell(col)) {
       const control = td.querySelector('select, input');
       if (!control) return;
