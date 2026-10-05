@@ -504,4 +504,4 @@ tr.defer-warning-row td { background: var(--red-bg) !important; }
 }
 .hint code { background: var(--gray-bg); padding: 1px 5px; border-radius: 4px; }
 
-td.remarks { min-width: 260px; max-width: 420px; white-space: normal; }
+td.remarks { min-width: 160px; max-width: 220px; white-space: normal; }
