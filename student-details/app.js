@@ -1273,6 +1273,16 @@
     totalCard.innerHTML = `<span class="stat-value">${indices.length}</span><span class="stat-label">Total Students</span>`;
     statusSummaryEl.appendChild(totalCard);
 
+    if (columns.includes(SOURCE_COL)) {
+      SOURCE_OPTIONS.forEach((source) => {
+        const count = indices.reduce((acc, i) => acc + (rows[i][SOURCE_COL] === source ? 1 : 0), 0);
+        const card = document.createElement('div');
+        card.className = 'stat-card source-card';
+        card.innerHTML = `<span class="stat-value">${count}</span><span class="stat-label">${source}</span>`;
+        statusSummaryEl.appendChild(card);
+      });
+    }
+
     let visaIssuedCount = 0;
     SUMMARY_STATUSES.forEach((status) => {
       const count = indices.reduce((acc, i) => acc + (rows[i]['APPLICATION STATUS'] === status ? 1 : 0), 0);
@@ -1292,16 +1302,6 @@
     conversionCard.title = `${visaIssuedCount} Visa Issued out of ${indices.length} total students`;
     conversionCard.innerHTML = `<span class="stat-value">${conversionRate.toFixed(1)}%</span><span class="stat-label">Conversion Rate</span>`;
     statusSummaryEl.appendChild(conversionCard);
-
-    if (columns.includes(SOURCE_COL)) {
-      SOURCE_OPTIONS.forEach((source) => {
-        const count = indices.reduce((acc, i) => acc + (rows[i][SOURCE_COL] === source ? 1 : 0), 0);
-        const card = document.createElement('div');
-        card.className = 'stat-card source-card';
-        card.innerHTML = `<span class="stat-value">${count}</span><span class="stat-label">${source}</span>`;
-        statusSummaryEl.appendChild(card);
-      });
-    }
   }
 
   function markDirty() {
