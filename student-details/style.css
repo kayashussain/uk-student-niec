@@ -503,3 +503,15 @@ tr.defer-warning-row td { background: var(--red-bg) !important; }
   font-size: 11px;
 }
 .hint code { background: var(--gray-bg); padding: 1px 5px; border-radius: 4px; }
+
+/* Other people's cursors (live presence). Same login for everyone, so they're "User N" in their own colour. */
+#body td.peer-cell { outline: 2px solid var(--peer-color); outline-offset: -2px; position: relative; z-index: 2; }
+#body td.peer-cell::after {
+  content: attr(data-peer);
+  position: absolute; top: -1px; left: -2px; transform: translateY(-100%);
+  background: var(--peer-color); color: #fff; font-size: 10px; line-height: 1; font-weight: 600;
+  padding: 2px 5px; border-radius: 3px 3px 3px 0; white-space: nowrap; pointer-events: none; z-index: 5;
+  opacity: 0; transition: opacity .1s;
+}
+#body td.peer-cell:hover::after, #body td.peer-editing::after { opacity: 1; }
+#body td.peer-editing { background: color-mix(in srgb, var(--peer-color) 12%, transparent); }

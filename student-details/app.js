@@ -932,6 +932,7 @@
       body.appendChild(tr);
     });
     applySelectionClasses(indices);
+    renderPeers();
     renderStatusSummary();
     if (hadGridFocus && !editing && !skipRefocus) focusActiveCell({ scroll: false });
   }
@@ -1759,6 +1760,54 @@
     e.returnValue = '';
   });
 
-  setInterval(checkForRemoteChanges, 10000);
+  // ---- Live presence: coloured boxes on the cells other people have selected ----
+  const myId = Math.random().toString(36).slice(2) + Date.now().toString(36);
+  let peers = [];
+  let lastSent = '';
+
+  function myPresence() {
+    const row = activeCell && rows[activeCell.rowIdx];
+    return { id: myId, sheetId: activeSheetId, rowId: row ? row._id : null, col: activeCell ? activeCell.col : null, editing: Boolean(editing) };
+  }
+
+  function renderPeers() {
+    body.querySelectorAll('td.peer-cell').forEach((td) => {
+      td.classList.remove('peer-cell', 'peer-editing');
+      td.style.removeProperty('--peer-color');
+      td.removeAttribute('data-peer');
+    });
+    peers.forEach((p) => {
+      if (p.sheetId !== activeSheetId || !p.rowId || !p.col) return;
+      const rowIdx = rows.findIndex((r) => r._id === p.rowId);
+      const td = rowIdx === -1 ? null : cellTd(rowIdx, p.col);
+      if (!td) return;
+      td.classList.add('peer-cell');
+      td.classList.toggle('peer-editing', p.editing);
+      td.style.setProperty('--peer-color', p.color);
+      td.dataset.peer = p.editing ? p.name + ' (editing)' : p.name;
+    });
+  }
+
+  // Tells the server where this tab's cursor is and learns where everyone else's is, plus the latest
+  // revision, in one request. Runs every 2 seconds, and straight away when the cursor moves.
+  async function syncPresence() {
+    if (document.hidden) return;
+    const mine = myPresence();
+    lastSent = JSON.stringify(mine);
+    try {
+      const res = await fetch('/api/presence', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: lastSent, cache: 'no-store',
+      });
+      if (!res.ok) return;
+      const info = await res.json();
+      peers = info.peers || [];
+      renderPeers();
+      if (Number.isInteger(info.revision) && info.revision !== revision) checkForRemoteChanges();
+    } catch (e) { /* offline for a moment: try again next time */ }
+  }
+
+  setInterval(syncPresence, 2000);
+  setInterval(() => { if (JSON.stringify(myPresence()) !== lastSent) syncPresence(); }, 400);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) syncPresence(); });
   loadData();
 })();
