@@ -2,7 +2,7 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const {
-  sendJSON, send, createAuth, createStaticServer, readJSONBody, writeFileAtomic, snapshotDaily,
+  sendJSON, send, SECURITY_HEADERS, createAuth, createStaticServer, readJSONBody, writeFileAtomic, snapshotDaily,
 } = require('../shared/server-utils');
 const {
   blankWorkbook, ensureRowIds, migrateWorkbook, isValidWorkbook, mergeWorkbooks, createHistory,
@@ -61,6 +61,7 @@ function writeWorkbook(workbook) {
   if (fs.existsSync(DATA_FILE)) fs.copyFileSync(DATA_FILE, BACKUP_FILE); // rolling backup of the previous version
   writeFileAtomic(DATA_FILE, JSON.stringify(workbook, null, 2));
   history.remember(workbook);
+  broadcast();
 }
 
 // Every save says which revision it was based on. If someone else saved since (another tab or device),
@@ -136,6 +137,44 @@ function othersThan(id) {
   return out;
 }
 
+// Server-sent events: each open tab holds a connection and is pushed the state the moment anything
+// changes (someone moves their cursor, someone saves), instead of asking over and over.
+const streams = new Map(); // id -> res
+
+function stateFor(id) {
+  let revision = null;
+  try { revision = readWorkbook().revision; } catch (e) { /* none yet */ }
+  return { revision, peers: othersThan(id) };
+}
+
+function broadcast() {
+  streams.forEach((res, id) => {
+    try { res.write('data: ' + JSON.stringify(stateFor(id)) + '\n\n'); } catch (e) { /* closed; cleaned up below */ }
+  });
+}
+
+function handleEvents(req, res) {
+  const id = (new URL(req.url, 'http://x').searchParams.get('id') || '').slice(0, 40);
+  if (!id) return send(res, 400, 'id required');
+  res.writeHead(200, {
+    ...SECURITY_HEADERS,
+    'Content-Type': 'text/event-stream', 'Cache-Control': 'no-store, no-transform',
+    Connection: 'keep-alive', 'X-Accel-Buffering': 'no',
+  });
+  res.write('retry: 1000\n\n');
+  const old = streams.get(id);
+  if (old) try { old.end(); } catch (e) { /* already gone */ }
+  streams.set(id, res);
+  res.write('data: ' + JSON.stringify(stateFor(id)) + '\n\n');
+  req.on('close', () => {
+    if (streams.get(id) !== res) return;
+    streams.delete(id);
+    peers.delete(id); // closed tab: its box vanishes at once
+    broadcast();
+  });
+}
+setInterval(() => streams.forEach((res) => { try { res.write(': ping\n\n'); } catch (e) { /* ignore */ } }), 15000).unref();
+
 async function handlePresence(req, res) {
   let body;
   try {
@@ -144,9 +183,8 @@ async function handlePresence(req, res) {
     return sendJSON(res, e.statusCode || 400, { error: e.message });
   }
   recordPresence(body);
-  let revision = null;
-  try { revision = readWorkbook().revision; } catch (e) { /* the page just won't see a new revision yet */ }
-  return sendJSON(res, 200, { revision, peers: othersThan(body.id) });
+  broadcast();
+  return sendJSON(res, 200, stateFor(body.id));
 }
 
 function num(v) {
@@ -163,6 +201,7 @@ const server = http.createServer((req, res) => {
   try {
     if (!requireAuth(req, res)) return;
     const urlPath = req.url.split('?')[0];
+    if (urlPath === '/api/events' && req.method === 'GET') return handleEvents(req, res);
     if (urlPath === '/api/presence') {
       if (req.method === 'POST') return handlePresence(req, res);
       return send(res, 405, 'Method not allowed');

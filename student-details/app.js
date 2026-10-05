@@ -1788,8 +1788,21 @@
     });
   }
 
+  function applyState(info) {
+    peers = info.peers || [];
+    renderPeers();
+    if (Number.isInteger(info.revision) && info.revision !== revision) checkForRemoteChanges();
+  }
+
+  // The server pushes every change over this connection (reconnects by itself); the 5-second request
+  // below is only a safety net for hosts that hold streams back.
+  if (window.EventSource) {
+    const stream = new EventSource('/api/events?id=' + encodeURIComponent(myId));
+    stream.onmessage = (e) => { try { applyState(JSON.parse(e.data)); } catch (err) { /* ignore */ } };
+  }
+
   // Tells the server where this tab's cursor is and learns where everyone else's is, plus the latest
-  // revision, in one request. Runs every 2 seconds, and straight away when the cursor moves.
+  // revision, in one request. Runs every 5 seconds, and straight away when the cursor moves.
   async function syncPresence() {
     if (document.hidden) return;
     const mine = myPresence();
@@ -1799,15 +1812,12 @@
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: lastSent, cache: 'no-store',
       });
       if (!res.ok) return;
-      const info = await res.json();
-      peers = info.peers || [];
-      renderPeers();
-      if (Number.isInteger(info.revision) && info.revision !== revision) checkForRemoteChanges();
+      applyState(await res.json());
     } catch (e) { /* offline for a moment: try again next time */ }
   }
 
-  setInterval(syncPresence, 2000);
-  setInterval(() => { if (JSON.stringify(myPresence()) !== lastSent) syncPresence(); }, 400);
+  setInterval(syncPresence, 5000);
+  setInterval(() => { if (JSON.stringify(myPresence()) !== lastSent) syncPresence(); }, 50);
   document.addEventListener('visibilitychange', () => { if (!document.hidden) syncPresence(); });
   loadData();
 })();
