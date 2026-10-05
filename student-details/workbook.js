@@ -8,14 +8,14 @@ const RENAMED_COLUMNS = {
 };
 
 const DEFAULT_COLUMNS = [
-  'APPLICATION STATUS', 'FIRST NAME', 'LAST NAME', 'EMAIL', 'CONTACT NUMBER',
+  'APPLICATION STATUS', 'FIRST NAME', 'LAST NAME', 'EMAIL', 'CONTACT NUMBER', 'STUDENT SOURCE',
   'UNIVERSITY NAME', 'COURSE NAME', 'RECEIVING PARTNER', 'UNIVERSITY PARTNER',
   'LANGUAGE TEST DATE', 'STUDENT ID', 'GROSS FEE', 'SCHOLARSHIP', 'FEE AFTER SCHOLARSHIP',
   'EARLY BIRD DISCOUNT', 'ADDITIONAL DISCOUNT', 'TUITION FEE DEPOSIT(1st Installment)',
   'TUITION FEE DEPOSIT(2nd Installment)', 'REMAINING TUITION FEE', 'PRE CAS INTERVIEW',
   'NOC', 'NOC NUMBER', 'MEDICAL REPORT', 'PAYMENT DATE', 'CAS REQUESTED DATE',
   'CAS RECEIVED DATE', 'VISA LODGE DATE', 'VFS ATTENDED DATE', 'VISA RECEIVED DATE',
-  'E-VISA', 'UK CONTACT NUMBER',
+  'E-VISA', 'UK CONTACT NUMBER', 'REMARKS',
 ];
 
 function makeRowId() {
@@ -58,6 +58,26 @@ function renameColumns(workbook) {
   return workbook;
 }
 
+// Columns added after the first release: sheets saved before then get them inserted after `after`
+// (or appended if that column is missing), so existing data gains the new columns automatically.
+const ADDED_COLUMNS = [
+  { name: 'STUDENT SOURCE', after: 'CONTACT NUMBER' },
+  { name: 'REMARKS', after: null },
+];
+
+function addMissingColumns(workbook) {
+  (workbook.sheets || []).forEach((sheet) => {
+    if (!Array.isArray(sheet.columns)) return;
+    ADDED_COLUMNS.forEach(({ name, after }) => {
+      if (sheet.columns.includes(name)) return;
+      const at = after ? sheet.columns.indexOf(after) : -1;
+      if (at === -1) sheet.columns.push(name);
+      else sheet.columns.splice(at + 1, 0, name);
+    });
+  });
+  return workbook;
+}
+
 // Upgrades the legacy single-sheet {columns, rows} shape into {sheets, activeSheetId}, fixes renamed
 // columns, and makes sure there's a revision number and row ids. Already-migrated files come back unchanged.
 function migrateWorkbook(parsed) {
@@ -68,7 +88,7 @@ function migrateWorkbook(parsed) {
       activeSheetId: 'sheet-1',
     };
   if (!Number.isInteger(workbook.revision)) workbook.revision = 0;
-  return ensureRowIds(renameColumns(workbook));
+  return ensureRowIds(addMissingColumns(renameColumns(workbook)));
 }
 
 function isValidWorkbook(parsed) {

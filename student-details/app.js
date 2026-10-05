@@ -19,6 +19,8 @@
   // applications stay together at the top.
   const BOTTOM_STATUSES = new Set(['Inquiry']);
   const isBottomRow = (row) => BOTTOM_STATUSES.has(row['APPLICATION STATUS']);
+  const SOURCE_COL = 'STUDENT SOURCE';
+  const SOURCE_OPTIONS = ['Visitor', 'Reference', 'Branch', 'Agents'];
   const SELECT_COLS = {
     'APPLICATION STATUS': [
       'Inquiry', 'Application Stage', 'Mock Stage', 'Payment Stage',
@@ -27,6 +29,7 @@
     'PRE CAS INTERVIEW': ['Passed', 'Fail'],
     'NOC': ['Submitted', 'Pending'],
     'MEDICAL REPORT': ['Pending', 'Received'],
+    'STUDENT SOURCE': SOURCE_OPTIONS,
   };
   const SUMMARY_STATUSES = ['Payment Stage', 'CAS Issued', 'Visa Issued'];
   // Language test results (IELTS/PTE/etc.) are valid for 2 years. Flag as "expiring soon"
@@ -924,6 +927,7 @@
         } else {
           td.textContent = val;
           if (NUM_COLS.has(col)) td.classList.add('num');
+          if (col === 'REMARKS') td.classList.add('remarks');
         }
         // Added last: the calculated-cell branch above replaces className wholesale.
         if (activeCell && activeCell.rowIdx === rowIdx && activeCell.col === col) td.classList.add('active-cell');
@@ -1288,6 +1292,16 @@
     conversionCard.title = `${visaIssuedCount} Visa Issued out of ${indices.length} total students`;
     conversionCard.innerHTML = `<span class="stat-value">${conversionRate.toFixed(1)}%</span><span class="stat-label">Conversion Rate</span>`;
     statusSummaryEl.appendChild(conversionCard);
+
+    if (columns.includes(SOURCE_COL)) {
+      SOURCE_OPTIONS.forEach((source) => {
+        const count = indices.reduce((acc, i) => acc + (rows[i][SOURCE_COL] === source ? 1 : 0), 0);
+        const card = document.createElement('div');
+        card.className = 'stat-card source-card';
+        card.innerHTML = `<span class="stat-value">${count}</span><span class="stat-label">${source}</span>`;
+        statusSummaryEl.appendChild(card);
+      });
+    }
   }
 
   function markDirty() {

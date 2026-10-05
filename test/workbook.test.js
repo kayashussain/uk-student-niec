@@ -16,8 +16,14 @@ test('migrateWorkbook renames the misspelled columns in columns and rows', () =>
     sheets: [{ id: 's1', name: 'A', columns: ['RECEVING PARTNER', 'REMANING TUITION FEE'], rows: [{ _id: 'r1', 'RECEVING PARTNER': 'X', 'REMANING TUITION FEE': '10' }] }],
     activeSheetId: 's1',
   });
-  assert.deepStrictEqual(wb.sheets[0].columns, ['RECEIVING PARTNER', 'REMAINING TUITION FEE']);
+  assert.deepStrictEqual(wb.sheets[0].columns, ['RECEIVING PARTNER', 'REMAINING TUITION FEE', 'STUDENT SOURCE', 'REMARKS']);
   assert.deepStrictEqual(wb.sheets[0].rows[0], { _id: 'r1', 'RECEIVING PARTNER': 'X', 'REMAINING TUITION FEE': '10' });
+});
+
+test('migrateWorkbook adds STUDENT SOURCE after CONTACT NUMBER and REMARKS at the end, once', () => {
+  const input = { sheets: [{ id: 's1', name: 'A', columns: ['EMAIL', 'CONTACT NUMBER', 'COURSE NAME'], rows: [] }], activeSheetId: 's1' };
+  const wb = migrateWorkbook(migrateWorkbook(input));
+  assert.deepStrictEqual(wb.sheets[0].columns, ['EMAIL', 'CONTACT NUMBER', 'STUDENT SOURCE', 'COURSE NAME', 'REMARKS']);
 });
 
 test('migrateWorkbook upgrades the legacy single-sheet shape and adds row ids', () => {
