@@ -1297,10 +1297,18 @@
 
     if (columns.includes(SOURCE_COL)) {
       SOURCE_OPTIONS.forEach((source) => {
-        const count = indices.reduce((acc, i) => acc + (rows[i][SOURCE_COL] === source ? 1 : 0), 0);
+        let count = 0;
+        let visas = 0;
+        indices.forEach((i) => {
+          if (rows[i][SOURCE_COL] !== source) return;
+          count += 1;
+          if (rows[i]['APPLICATION STATUS'] === 'Visa Issued') visas += 1;
+        });
         const card = document.createElement('div');
         card.className = 'stat-card source-card';
-        card.innerHTML = `<span class="stat-value">${count}</span><span class="stat-label">${source}</span>`;
+        card.title = `${count} ${source}, ${visas} with Visa Issued`;
+        card.innerHTML = `<span class="stat-value">${count}</span><span class="stat-label">${source}</span>`
+          + `<span class="stat-visa">${visas} Visa</span>`;
         statusSummaryEl.appendChild(card);
       });
     }
