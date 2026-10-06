@@ -2,7 +2,7 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const {
-  sendJSON, send, createAuth, createStaticServer, readJSONBody, writeFileAtomic, snapshotDaily,
+  sendJSON, send, SECURITY_HEADERS, createAuth, createStaticServer, readJSONBody, writeFileAtomic, snapshotDaily,
 } = require('../shared/server-utils');
 const {
   blankWorkbook, ensureRowIds, migrateWorkbook, isValidWorkbook, mergeWorkbooks, createHistory,
@@ -61,6 +61,7 @@ function writeWorkbook(workbook) {
   if (fs.existsSync(DATA_FILE)) fs.copyFileSync(DATA_FILE, BACKUP_FILE); // rolling backup of the previous version
   writeFileAtomic(DATA_FILE, JSON.stringify(workbook, null, 2));
   history.remember(workbook);
+  broadcast();
 }
 
 // Every save says which revision it was based on. If someone else saved since (another tab or device),
@@ -100,6 +101,92 @@ async function handleSave(req, res) {
   }
 }
 
+// Who is looking at which cell. Everyone shares one login, so people are told apart by a per-tab id
+// the page makes up, and shown as "User N" with a colour — never by the login name. Kept in memory
+// only: a peer that stops reporting for PRESENCE_TTL_MS simply disappears.
+const PRESENCE_TTL_MS = 15000;
+const PEER_COLORS = ['#e8710a', '#188038', '#9334e6', '#d93025', '#0b8a8a', '#c2185b', '#7b5e00', '#1a73e8'];
+const peers = new Map(); // id -> { n, seen, sheetId, rowId, col, editing }
+let nextPeerNumber = 1;
+
+function recordPresence(body) {
+  const id = typeof body.id === 'string' ? body.id.slice(0, 40) : '';
+  if (!id) return;
+  const now = Date.now();
+  peers.forEach((p, key) => { if (now - p.seen > PRESENCE_TTL_MS) peers.delete(key); });
+  const peer = peers.get(id) || { n: nextPeerNumber++ };
+  Object.assign(peer, {
+    seen: now,
+    sheetId: typeof body.sheetId === 'string' ? body.sheetId : null,
+    rowId: typeof body.rowId === 'string' ? body.rowId : null,
+    col: typeof body.col === 'string' ? body.col : null,
+    editing: Boolean(body.editing),
+  });
+  peers.set(id, peer);
+}
+
+function othersThan(id) {
+  const out = [];
+  peers.forEach((p, key) => {
+    if (key === id) return;
+    out.push({
+      id: key, name: 'User ' + p.n, color: PEER_COLORS[(p.n - 1) % PEER_COLORS.length],
+      sheetId: p.sheetId, rowId: p.rowId, col: p.col, editing: p.editing,
+    });
+  });
+  return out;
+}
+
+// Server-sent events: each open tab holds a connection and is pushed the state the moment anything
+// changes (someone moves their cursor, someone saves), instead of asking over and over.
+const streams = new Map(); // id -> res
+
+function stateFor(id) {
+  let revision = null;
+  try { revision = readWorkbook().revision; } catch (e) { /* none yet */ }
+  return { revision, peers: othersThan(id) };
+}
+
+function broadcast() {
+  streams.forEach((res, id) => {
+    try { res.write('data: ' + JSON.stringify(stateFor(id)) + '\n\n'); } catch (e) { /* closed; cleaned up below */ }
+  });
+}
+
+function handleEvents(req, res) {
+  const id = (new URL(req.url, 'http://x').searchParams.get('id') || '').slice(0, 40);
+  if (!id) return send(res, 400, 'id required');
+  res.writeHead(200, {
+    ...SECURITY_HEADERS,
+    'Content-Type': 'text/event-stream', 'Cache-Control': 'no-store, no-transform',
+    Connection: 'keep-alive', 'X-Accel-Buffering': 'no',
+  });
+  res.write('retry: 1000\n\n');
+  const old = streams.get(id);
+  if (old) try { old.end(); } catch (e) { /* already gone */ }
+  streams.set(id, res);
+  res.write('data: ' + JSON.stringify(stateFor(id)) + '\n\n');
+  req.on('close', () => {
+    if (streams.get(id) !== res) return;
+    streams.delete(id);
+    peers.delete(id); // closed tab: its box vanishes at once
+    broadcast();
+  });
+}
+setInterval(() => streams.forEach((res) => { try { res.write(': ping\n\n'); } catch (e) { /* ignore */ } }), 15000).unref();
+
+async function handlePresence(req, res) {
+  let body;
+  try {
+    body = await readJSONBody(req, 4096);
+  } catch (e) {
+    return sendJSON(res, e.statusCode || 400, { error: e.message });
+  }
+  recordPresence(body);
+  broadcast();
+  return sendJSON(res, 200, stateFor(body.id));
+}
+
 function num(v) {
   return Number.isInteger(v) ? v : 0;
 }
@@ -114,6 +201,11 @@ const server = http.createServer((req, res) => {
   try {
     if (!requireAuth(req, res)) return;
     const urlPath = req.url.split('?')[0];
+    if (urlPath === '/api/events' && req.method === 'GET') return handleEvents(req, res);
+    if (urlPath === '/api/presence') {
+      if (req.method === 'POST') return handlePresence(req, res);
+      return send(res, 405, 'Method not allowed');
+    }
     if (urlPath === '/api/data' || urlPath === '/api/revision') {
       if (req.method === 'GET') {
         let workbook;

@@ -19,6 +19,8 @@
   // applications stay together at the top.
   const BOTTOM_STATUSES = new Set(['Inquiry']);
   const isBottomRow = (row) => BOTTOM_STATUSES.has(row['APPLICATION STATUS']);
+  const SOURCE_COL = 'STUDENT SOURCE';
+  const SOURCE_OPTIONS = ['Visitor', 'Reference', 'Branch', 'Agents'];
   const SELECT_COLS = {
     'APPLICATION STATUS': [
       'Inquiry', 'Application Stage', 'Mock Stage', 'Payment Stage',
@@ -27,6 +29,7 @@
     'PRE CAS INTERVIEW': ['Passed', 'Fail'],
     'NOC': ['Submitted', 'Pending'],
     'MEDICAL REPORT': ['Pending', 'Received'],
+    'STUDENT SOURCE': SOURCE_OPTIONS,
   };
   const SUMMARY_STATUSES = ['Payment Stage', 'CAS Issued', 'Visa Issued'];
   // Language test results (IELTS/PTE/etc.) are valid for 2 years. Flag as "expiring soon"
@@ -876,6 +879,10 @@
             select.appendChild(o);
           });
           select.addEventListener('click', (e) => e.stopPropagation());
+          select.addEventListener('mousedown', (e) => {
+            const busy = peerOnCell(rowIdx, col, false);
+            if (busy) { e.preventDefault(); warnPeerOnCell(busy); }
+          });
           select.addEventListener('change', () => {
             const newVal = select.value;
             pushUndo();
@@ -924,6 +931,7 @@
         } else {
           td.textContent = val;
           if (NUM_COLS.has(col)) td.classList.add('num');
+          if (col === 'REMARKS') td.classList.add('remarks');
         }
         // Added last: the calculated-cell branch above replaces className wholesale.
         if (activeCell && activeCell.rowIdx === rowIdx && activeCell.col === col) td.classList.add('active-cell');
@@ -932,6 +940,7 @@
       body.appendChild(tr);
     });
     applySelectionClasses(indices);
+    renderPeers();
     renderStatusSummary();
     if (hadGridFocus && !editing && !skipRefocus) focusActiveCell({ scroll: false });
   }
@@ -1116,12 +1125,29 @@
     applySelectionClasses(indices);
   }
 
+  // A teammate who is editing (or, for dropdowns/dates, has their cursor on) this cell: don't let a
+  // second person change it at the same time, so neither overwrites the other.
+  function peerOnCell(rowIdx, col, editingOnly) {
+    const row = rows[rowIdx];
+    if (!row) return null;
+    return peers.find((p) => p.sheetId === activeSheetId && p.rowId === row._id && p.col === col
+      && (!editingOnly || p.editing)) || null;
+  }
+
+  function warnPeerOnCell(peer) {
+    statusEl.textContent = `${peer.name} is on this cell right now — wait for them to finish`;
+    statusEl.className = 'save-status error';
+    setTimeout(() => { if (!dirty) { statusEl.textContent = 'All changes saved'; statusEl.className = 'save-status'; } }, 3000);
+  }
+
   // replaceWith: the first character typed (typing over a cell replaces it, like Sheets).
   function startEdit({ replaceWith = null } = {}) {
     if (!activeCell || editing) return;
     const { rowIdx, col } = activeCell;
     const td = cellTd(rowIdx, col);
     if (!td || !rows[rowIdx] || CALC_COLS[col]) return;
+    const busy = peerOnCell(rowIdx, col, isTextCell(col));
+    if (busy) { warnPeerOnCell(busy); return; }
     if (!isTextCell(col)) {
       const control = td.querySelector('select, input');
       if (!control) return;
@@ -1268,6 +1294,24 @@
     totalCard.className = 'stat-card';
     totalCard.innerHTML = `<span class="stat-value">${indices.length}</span><span class="stat-label">Total Students</span>`;
     statusSummaryEl.appendChild(totalCard);
+
+    if (columns.includes(SOURCE_COL)) {
+      SOURCE_OPTIONS.forEach((source) => {
+        let count = 0;
+        let visas = 0;
+        indices.forEach((i) => {
+          if (rows[i][SOURCE_COL] !== source) return;
+          count += 1;
+          if (rows[i]['APPLICATION STATUS'] === 'Visa Issued') visas += 1;
+        });
+        const card = document.createElement('div');
+        card.className = 'stat-card source-card';
+        card.title = `${count} ${source}, ${visas} with Visa Issued`;
+        card.innerHTML = `<span class="stat-value">${count}</span><span class="stat-label">${source}</span>`
+          + `<span class="stat-visa">${visas} Visa</span>`;
+        statusSummaryEl.appendChild(card);
+      });
+    }
 
     let visaIssuedCount = 0;
     SUMMARY_STATUSES.forEach((status) => {
@@ -1759,6 +1803,64 @@
     e.returnValue = '';
   });
 
-  setInterval(checkForRemoteChanges, 10000);
+  // ---- Live presence: coloured boxes on the cells other people have selected ----
+  const myId = Math.random().toString(36).slice(2) + Date.now().toString(36);
+  let peers = [];
+  let lastSent = '';
+
+  function myPresence() {
+    const row = activeCell && rows[activeCell.rowIdx];
+    return { id: myId, sheetId: activeSheetId, rowId: row ? row._id : null, col: activeCell ? activeCell.col : null, editing: Boolean(editing) };
+  }
+
+  function renderPeers() {
+    body.querySelectorAll('td.peer-cell').forEach((td) => {
+      td.classList.remove('peer-cell', 'peer-editing');
+      td.style.removeProperty('--peer-color');
+      td.removeAttribute('data-peer');
+    });
+    peers.forEach((p) => {
+      if (p.sheetId !== activeSheetId || !p.rowId || !p.col) return;
+      const rowIdx = rows.findIndex((r) => r._id === p.rowId);
+      const td = rowIdx === -1 ? null : cellTd(rowIdx, p.col);
+      if (!td) return;
+      td.classList.add('peer-cell');
+      td.classList.toggle('peer-editing', p.editing);
+      td.style.setProperty('--peer-color', p.color);
+      td.dataset.peer = p.editing ? p.name + ' (editing)' : p.name;
+    });
+  }
+
+  function applyState(info) {
+    peers = info.peers || [];
+    renderPeers();
+    if (Number.isInteger(info.revision) && info.revision !== revision) checkForRemoteChanges();
+  }
+
+  // The server pushes every change over this connection (reconnects by itself); the 5-second request
+  // below is only a safety net for hosts that hold streams back.
+  if (window.EventSource) {
+    const stream = new EventSource('/api/events?id=' + encodeURIComponent(myId));
+    stream.onmessage = (e) => { try { applyState(JSON.parse(e.data)); } catch (err) { /* ignore */ } };
+  }
+
+  // Tells the server where this tab's cursor is and learns where everyone else's is, plus the latest
+  // revision, in one request. Runs every 5 seconds, and straight away when the cursor moves.
+  async function syncPresence() {
+    if (document.hidden) return;
+    const mine = myPresence();
+    lastSent = JSON.stringify(mine);
+    try {
+      const res = await fetch('/api/presence', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: lastSent, cache: 'no-store',
+      });
+      if (!res.ok) return;
+      applyState(await res.json());
+    } catch (e) { /* offline for a moment: try again next time */ }
+  }
+
+  setInterval(syncPresence, 5000);
+  setInterval(() => { if (JSON.stringify(myPresence()) !== lastSent) syncPresence(); }, 50);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) syncPresence(); });
   loadData();
 })();
