@@ -1287,7 +1287,10 @@
       return;
     }
     statusSummaryEl.hidden = false;
-    const indices = getFilteredSortedIndices();
+    // Only rows with a first or last name count as students, so blank added rows are ignored.
+    const indices = getFilteredSortedIndices().filter((i) => (
+      String(rows[i]['FIRST NAME'] || '').trim() || String(rows[i]['LAST NAME'] || '').trim()
+    ));
     statusSummaryEl.innerHTML = '';
 
     const totalCard = document.createElement('div');
