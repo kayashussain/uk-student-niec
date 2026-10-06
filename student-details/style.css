@@ -5,8 +5,8 @@
   --border-strong: #c7ccd4;
   --text: #1c2126;
   --text-dim: #6b7280;
-  --accent: #fc6e1f;
-  --accent-dim: #fff0e5;
+  --accent: #15803d;
+  --accent-dim: #e6f6ea;
   --focus: #2563eb;
   --focus-dim: #eaf1ff;
   --focus-strong: #d3e2ff;
@@ -30,8 +30,8 @@
     --border-strong: #3a4049;
     --text: #e7eaee;
     --text-dim: #9aa2ad;
-    --accent: #ff8a47;
-    --accent-dim: #3a2415;
+    --accent: #4ade80;
+    --accent-dim: #12301f;
     --focus: #5b8def;
     --focus-dim: #1c2a44;
     --focus-strong: #26406b;
@@ -141,11 +141,13 @@ body { display: flex; flex-direction: column; height: 100vh; }
   border-radius: 8px;
   background: var(--panel);
   border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  box-shadow: 0 1px 3px rgba(21, 128, 61, 0.14);
   color: var(--text);
   min-width: 96px;
   flex: 0 0 auto;
 }
-.stat-card .stat-value { font-size: 20px; font-weight: 600; line-height: 1.15; color: var(--text); font-variant-numeric: tabular-nums; }
+.stat-card .stat-value { font-size: 20px; font-weight: 600; line-height: 1.15; color: var(--accent); font-variant-numeric: tabular-nums; }
 .stat-card .stat-label {
   font-size: 10px;
   color: var(--text-dim);
@@ -518,4 +520,6 @@ td.remarks { min-width: 160px; max-width: 220px; white-space: normal; }
 #body td.peer-cell:hover::after, #body td.peer-editing::after { opacity: 1; }
 #body td.peer-editing { background: color-mix(in srgb, var(--peer-color) 12%, transparent); }
 
-.stat-card .stat-visa { font-size: 11px; font-weight: 500; color: var(--green-fg); margin-top: 1px; }
+.stat-card .stat-visa { font-size: 11px; font-weight: 500; color: var(--text-dim); margin-top: 1px; }
+
+@media (prefers-color-scheme: dark) { .btn-primary { color: #052e16; } }
