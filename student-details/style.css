@@ -170,21 +170,21 @@ thead th {
   position: sticky;
   top: 0;
   z-index: 3;
-  background: var(--header-bg);
+  background: var(--orange);
   border-bottom: 1px solid var(--border-strong);
-  border-right: 1px solid var(--border);
+  border-right: 1px solid rgba(255, 255, 255, 0.35);
   padding: 8px 10px;
   text-align: left;
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.03em;
   font-weight: 600;
-  color: var(--orange);
+  color: #fff;
   white-space: nowrap;
   cursor: pointer;
   user-select: none;
 }
-thead th:hover { filter: brightness(0.85); }
+thead th:hover { filter: brightness(0.93); }
 thead th.sorted .th-label::after { content: " ▾"; }
 thead th.sorted-desc .th-label::after { content: " ▴"; }
 
@@ -196,11 +196,11 @@ thead th.sorted-desc .th-label::after { content: " ▴"; }
   padding: 0 3px;
   border-radius: 3px;
   font-size: 9px;
-  color: var(--text-dim);
+  color: rgba(255, 255, 255, 0.85);
   cursor: pointer;
 }
-.filter-btn:hover { background: var(--border); color: var(--text); }
-.filter-btn.active { color: var(--accent); font-weight: 700; }
+.filter-btn:hover { background: rgba(255, 255, 255, 0.25); color: #fff; }
+.filter-btn.active { color: #fff; background: rgba(0, 0, 0, 0.22); font-weight: 700; }
 
 .filter-menu {
   position: fixed;
@@ -274,7 +274,7 @@ th.col-idx, td.col-idx {
 }
 td.col-idx { background: var(--panel); color: var(--text-dim); font-variant-numeric: tabular-nums; }
 tbody tr:nth-child(even) td.col-idx { background: var(--row-alt); }
-thead th.col-idx { z-index: 4; }
+thead th.col-idx { z-index: 4; background: var(--orange); }
 
 td {
   border-right: 1px solid var(--border);
@@ -526,3 +526,4 @@ td.remarks { min-width: 160px; max-width: 220px; white-space: normal; }
 .stat-card .stat-visa { font-size: 11px; font-weight: 500; color: var(--orange); margin-top: 1px; }
 
 @media (prefers-color-scheme: dark) { .btn-primary { color: #052e16; } }
+@media (prefers-color-scheme: dark) { thead th, thead th .filter-btn, .filter-btn:hover, .filter-btn.active { color: #2b1200; } }
