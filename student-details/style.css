@@ -7,7 +7,7 @@
   --text-dim: #6b7280;
   --accent: #15803d;
   --accent-dim: #e6f6ea;
-  --orange: #ea580c;
+  --orange: #fc6e1f;
   --focus: #2563eb;
   --focus-dim: #eaf1ff;
   --focus-strong: #d3e2ff;
@@ -143,13 +143,13 @@ body { display: flex; flex-direction: column; height: 100vh; }
   border-radius: 8px;
   background: var(--panel);
   border: 1px solid var(--border);
-  border-left: 3px solid var(--accent);
-  box-shadow: 0 1px 3px rgba(21, 128, 61, 0.14);
+  border-left: 3px solid var(--orange);
+  box-shadow: 0 1px 3px rgba(252, 110, 31, 0.18);
   color: var(--text);
   min-width: 96px;
   flex: 0 0 auto;
 }
-.stat-card .stat-value { font-size: 20px; font-weight: 600; line-height: 1.15; color: var(--accent); font-variant-numeric: tabular-nums; }
+.stat-card .stat-value { font-size: 20px; font-weight: 600; line-height: 1.15; color: var(--orange); font-variant-numeric: tabular-nums; }
 .stat-card .stat-label {
   font-size: 10px;
   color: var(--text-dim);
