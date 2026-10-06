@@ -7,6 +7,7 @@
   --text-dim: #6b7280;
   --accent: #15803d;
   --accent-dim: #e6f6ea;
+  --orange: #ea580c;
   --focus: #2563eb;
   --focus-dim: #eaf1ff;
   --focus-strong: #d3e2ff;
@@ -32,6 +33,7 @@
     --text-dim: #9aa2ad;
     --accent: #4ade80;
     --accent-dim: #12301f;
+    --orange: #ff8a47;
     --focus: #5b8def;
     --focus-dim: #1c2a44;
     --focus-strong: #26406b;
@@ -176,12 +178,13 @@ thead th {
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.03em;
-  color: var(--text-dim);
+  font-weight: 600;
+  color: var(--orange);
   white-space: nowrap;
   cursor: pointer;
   user-select: none;
 }
-thead th:hover { color: var(--text); }
+thead th:hover { filter: brightness(0.85); }
 thead th.sorted .th-label::after { content: " ▾"; }
 thead th.sorted-desc .th-label::after { content: " ▴"; }
 
@@ -520,6 +523,6 @@ td.remarks { min-width: 160px; max-width: 220px; white-space: normal; }
 #body td.peer-cell:hover::after, #body td.peer-editing::after { opacity: 1; }
 #body td.peer-editing { background: color-mix(in srgb, var(--peer-color) 12%, transparent); }
 
-.stat-card .stat-visa { font-size: 11px; font-weight: 500; color: var(--text-dim); margin-top: 1px; }
+.stat-card .stat-visa { font-size: 11px; font-weight: 500; color: var(--orange); margin-top: 1px; }
 
 @media (prefers-color-scheme: dark) { .btn-primary { color: #052e16; } }
