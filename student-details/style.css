@@ -315,6 +315,8 @@ td[contenteditable="true"]:focus {
 td.num { text-align: right; font-variant-numeric: tabular-nums; }
 td.calculated { background: var(--focus-dim) !important; cursor: default; color: var(--text); }
 td.date { font-variant-numeric: tabular-nums; color: var(--text-dim); padding: 3px 6px; }
+/* A WhatsApp number shared by more than one student on the sheet. !important beats the striped/hover row backgrounds. */
+td.duplicate-phone { background: #fff176 !important; color: #1c2126; font-weight: 600; }
 td.date-note { color: var(--text-dim); font-style: italic; }
 td.lang-test { padding: 3px 6px; white-space: nowrap; }
 td.lang-test .date-input { width: auto; margin-left: 6px; }
