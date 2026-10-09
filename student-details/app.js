@@ -41,7 +41,9 @@
   const LANGUAGE_TEST_COL = 'LANGUAGE TEST DATE';
   const LANGUAGE_TEST_CHOICES = ['Waiver', 'University Internal Test', 'Test Date'];
   const LANGUAGE_TEST_NO_DATE = new Set(['Waiver', 'University Internal Test']);
-  const { parseNum, feeAfterScholarship, remainingTuitionFee } = window.NiecCalc;
+  const { parseNum, feeAfterScholarship, remainingTuitionFee, normalizePhone, duplicatePhones } = window.NiecCalc;
+  // The student's WhatsApp number. Any number that appears on more than one row of a sheet is highlighted yellow.
+  const WHATSAPP_COL = 'CONTACT NUMBER';
   const CALC_COLS = {
     'FEE AFTER SCHOLARSHIP': feeAfterScholarship,
     'REMAINING TUITION FEE': remainingTuitionFee,
@@ -834,6 +836,7 @@
     const hadGridFocus = !ae || ae === document.body || body.contains(ae);
     body.innerHTML = '';
     const indices = getFilteredSortedIndices();
+    const dupPhones = duplicatePhones(rows, WHATSAPP_COL); // across the whole sheet, not just the filtered rows
     indices.forEach((rowIdx, displayIdx) => {
       const tr = document.createElement('tr');
       tr.dataset.rowIdx = rowIdx;
@@ -932,6 +935,10 @@
           td.textContent = val;
           if (NUM_COLS.has(col)) td.classList.add('num');
           if (col === 'REMARKS') td.classList.add('remarks');
+          if (col === WHATSAPP_COL && dupPhones.has(normalizePhone(val))) {
+            td.classList.add('duplicate-phone');
+            td.title = 'Duplicate WhatsApp number: another student on this sheet has the same number.';
+          }
         }
         // Added last: the calculated-cell branch above replaces className wholesale.
         if (activeCell && activeCell.rowIdx === rowIdx && activeCell.col === col) td.classList.add('active-cell');

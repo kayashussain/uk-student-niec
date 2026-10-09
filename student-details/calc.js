@@ -30,7 +30,24 @@
     return base - earlyBird - additional - dep1 - dep2;
   }
 
-  const api = { parseNum, resolveDiscount, feeAfterScholarship, remainingTuitionFee };
+  // Reduces a phone number to its digits so "+977 981-2345678" and "9812345678" count as the same
+  // number. Nepal's 977 country code is dropped when what's left is a full 10-digit mobile.
+  function normalizePhone(v) {
+    const digits = String(v || '').replace(/\D/g, '');
+    return digits.length === 13 && digits.startsWith('977') ? digits.slice(3) : digits;
+  }
+
+  // The normalized numbers that appear on more than one of the given rows.
+  function duplicatePhones(rows, col) {
+    const counts = new Map();
+    rows.forEach((row) => {
+      const n = normalizePhone(row[col]);
+      if (n) counts.set(n, (counts.get(n) || 0) + 1);
+    });
+    return new Set([...counts].filter(([, c]) => c > 1).map(([n]) => n));
+  }
+
+  const api = { parseNum, resolveDiscount, feeAfterScholarship, remainingTuitionFee, normalizePhone, duplicatePhones };
   if (typeof module === 'object' && module.exports) module.exports = api;
   else root.NiecCalc = api;
 })(this);

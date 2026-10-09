@@ -47,3 +47,16 @@ test('no TDS is taken when nothing is owed', () => {
   assert.strictEqual(s.tds, 0);
   assert.strictEqual(s.netPayable, -500);
 });
+
+test('duplicate WhatsApp numbers are found regardless of formatting or +977 prefix', () => {
+  assert.strictEqual(tracker.normalizePhone('+977 981-2345678'), '9812345678');
+  assert.strictEqual(tracker.normalizePhone('9812345678'), '9812345678');
+  const rows = [
+    { 'CONTACT NUMBER': '9812345678' },
+    { 'CONTACT NUMBER': '+977-9812345678' },
+    { 'CONTACT NUMBER': '9800000000' },
+    { 'CONTACT NUMBER': '' },
+    { 'CONTACT NUMBER': '' },
+  ];
+  assert.deepStrictEqual([...tracker.duplicatePhones(rows, 'CONTACT NUMBER')], ['9812345678']);
+});
