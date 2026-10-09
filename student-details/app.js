@@ -1677,10 +1677,7 @@
   });
 
   // Dragging with the button held stretches the latest range to the cell under the pointer.
-  body.addEventListener('mouseover', (e) => {
-    if (!dragMode) return;
-    if (!(e.buttons & 1)) { dragMode = null; return; }
-    const td = e.target.closest('td');
+  function extendDragTo(td) {
     if (!td || !body.contains(td) || !selRanges.length) return;
     const rowIdx = Number(td.parentElement.dataset.rowIdx);
     const last = selRanges[selRanges.length - 1];
@@ -1690,9 +1687,64 @@
     if (last.focus.rowIdx === rowIdx && last.focus.col === col) return;
     last.focus = { rowIdx, col };
     applySelectionClasses();
+  }
+
+  body.addEventListener('mouseover', (e) => {
+    if (!dragMode) return;
+    if (!(e.buttons & 1)) { stopDrag(); return; }
+    extendDragTo(e.target.closest('td'));
   });
 
-  document.addEventListener('mouseup', () => { dragMode = null; });
+  // Auto-scroll while dragging a selection: holding the mouse near (or past) an edge of the table
+  // scrolls it, faster the further out the pointer is, and the selection keeps following.
+  const AUTOSCROLL_EDGE = 40; // px inside the edge where scrolling starts
+  let dragPointer = null;     // last { x, y } while the button is held
+  let autoScrollFrame = null;
+
+  function scrollSpeed(pos, start, end) {
+    if (pos < start + AUTOSCROLL_EDGE) return -Math.min(40, (start + AUTOSCROLL_EDGE - pos) / 2);
+    if (pos > end - AUTOSCROLL_EDGE) return Math.min(40, (pos - (end - AUTOSCROLL_EDGE)) / 2);
+    return 0;
+  }
+
+  function autoScrollStep() {
+    autoScrollFrame = null;
+    if (!dragMode || !dragPointer) return;
+    const r = tableWrap.getBoundingClientRect();
+    const headH = headerRow.offsetHeight;
+    const idxCell = body.querySelector('td.col-idx');
+    const idxW = idxCell ? idxCell.offsetWidth : 0;
+    // The sticky header and S.N column cover the table's top and left edges, so measure from past them.
+    const dy = scrollSpeed(dragPointer.y, r.top + headH, r.bottom);
+    const dx = dragMode === 'rows' ? 0 : scrollSpeed(dragPointer.x, r.left + idxW, r.right);
+    if (!dx && !dy) return;
+    const beforeTop = tableWrap.scrollTop;
+    const beforeLeft = tableWrap.scrollLeft;
+    tableWrap.scrollTop += dy;
+    tableWrap.scrollLeft += dx;
+    if (tableWrap.scrollTop === beforeTop && tableWrap.scrollLeft === beforeLeft) return; // hit the end
+    // Extend the selection to the cell nearest the pointer, clamped inside the visible table.
+    const x = Math.min(Math.max(dragPointer.x, r.left + idxW + 2), r.right - 2);
+    const y = Math.min(Math.max(dragPointer.y, r.top + headH + 2), r.bottom - 2);
+    const hit = document.elementFromPoint(dragMode === 'rows' ? r.left + 2 : x, y);
+    extendDragTo(hit && hit.closest('td'));
+    autoScrollFrame = requestAnimationFrame(autoScrollStep);
+  }
+
+  function stopDrag() {
+    dragMode = null;
+    dragPointer = null;
+    if (autoScrollFrame) { cancelAnimationFrame(autoScrollFrame); autoScrollFrame = null; }
+  }
+
+  document.addEventListener('mousemove', (e) => {
+    if (!dragMode) return;
+    if (!(e.buttons & 1)) { stopDrag(); return; }
+    dragPointer = { x: e.clientX, y: e.clientY };
+    if (!autoScrollFrame) autoScrollFrame = requestAnimationFrame(autoScrollStep);
+  });
+
+  document.addEventListener('mouseup', stopDrag);
 
   // True when the grid (not the search box, a dropdown, or a cell being typed in) should get clipboard keys.
   function gridHasFocus() {
