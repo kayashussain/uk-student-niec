@@ -1707,29 +1707,50 @@
     return 0;
   }
 
+  // The part of the table that shows cells: inside the scrollbars, and past the sticky header and
+  // S.N column that cover its top and left edges.
+  function visibleCellArea() {
+    const r = tableWrap.getBoundingClientRect();
+    const left = r.left + tableWrap.clientLeft;
+    const top = r.top + tableWrap.clientTop;
+    const idxCell = body.querySelector('td.col-idx');
+    return {
+      left: left + (idxCell ? idxCell.offsetWidth : 0),
+      top: top + headerRow.offsetHeight,
+      right: left + tableWrap.clientWidth,
+      bottom: top + tableWrap.clientHeight,
+      idxLeft: left,
+    };
+  }
+
+  // Extends the selection to the cell nearest the pointer, even when the pointer is outside the table.
+  function extendDragToPointer() {
+    if (!dragMode || !dragPointer) return;
+    const a = visibleCellArea();
+    const x = dragMode === 'rows' ? a.idxLeft + 2 : Math.min(Math.max(dragPointer.x, a.left + 2), a.right - 2);
+    const y = Math.min(Math.max(dragPointer.y, a.top + 2), a.bottom - 2);
+    const hit = document.elementFromPoint(x, y);
+    extendDragTo(hit && hit.closest('td'));
+  }
+
   function autoScrollStep() {
     autoScrollFrame = null;
     if (!dragMode || !dragPointer) return;
-    const r = tableWrap.getBoundingClientRect();
-    const headH = headerRow.offsetHeight;
-    const idxCell = body.querySelector('td.col-idx');
-    const idxW = idxCell ? idxCell.offsetWidth : 0;
-    // The sticky header and S.N column cover the table's top and left edges, so measure from past them.
-    const dy = scrollSpeed(dragPointer.y, r.top + headH, r.bottom);
-    const dx = dragMode === 'rows' ? 0 : scrollSpeed(dragPointer.x, r.left + idxW, r.right);
+    const a = visibleCellArea();
+    const dy = scrollSpeed(dragPointer.y, a.top, a.bottom);
+    const dx = dragMode === 'rows' ? 0 : scrollSpeed(dragPointer.x, a.left, a.right);
     if (!dx && !dy) return;
     const beforeTop = tableWrap.scrollTop;
     const beforeLeft = tableWrap.scrollLeft;
     tableWrap.scrollTop += dy;
     tableWrap.scrollLeft += dx;
+    extendDragToPointer();
     if (tableWrap.scrollTop === beforeTop && tableWrap.scrollLeft === beforeLeft) return; // hit the end
-    // Extend the selection to the cell nearest the pointer, clamped inside the visible table.
-    const x = Math.min(Math.max(dragPointer.x, r.left + idxW + 2), r.right - 2);
-    const y = Math.min(Math.max(dragPointer.y, r.top + headH + 2), r.bottom - 2);
-    const hit = document.elementFromPoint(dragMode === 'rows' ? r.left + 2 : x, y);
-    extendDragTo(hit && hit.closest('td'));
     autoScrollFrame = requestAnimationFrame(autoScrollStep);
   }
+
+  // Scrolling with the mouse wheel mid-drag keeps the selection following the pointer too.
+  tableWrap.addEventListener('scroll', () => { if (dragMode) extendDragToPointer(); });
 
   function stopDrag() {
     dragMode = null;
@@ -1741,6 +1762,7 @@
     if (!dragMode) return;
     if (!(e.buttons & 1)) { stopDrag(); return; }
     dragPointer = { x: e.clientX, y: e.clientY };
+    extendDragToPointer();
     if (!autoScrollFrame) autoScrollFrame = requestAnimationFrame(autoScrollStep);
   });
 
