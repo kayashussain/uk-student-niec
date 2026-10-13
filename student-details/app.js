@@ -5,7 +5,7 @@
     'TUITION FEE DEPOSIT(2nd Installment)', 'REMAINING TUITION FEE',
   ]);
   const DATE_COLS = new Set([
-    'LANGUAGE TEST DATE', 'PAYMENT DATE', 'CAS REQUESTED DATE', 'CAS RECEIVED DATE',
+    'APPLICATION SUBMISSION DATE', 'OFFER RECEIVED DATE', 'LANGUAGE TEST DATE', 'PAYMENT DATE', 'CAS REQUESTED DATE', 'CAS RECEIVED DATE',
     'VISA LODGE DATE', 'VFS ATTENDED DATE', 'VISA RECEIVED DATE',
   ]);
   const BADGE_COLS = new Set([
@@ -41,7 +41,7 @@
   const LANGUAGE_TEST_COL = 'LANGUAGE TEST DATE';
   const LANGUAGE_TEST_CHOICES = ['Waiver', 'University Internal Test', 'Test Date'];
   const LANGUAGE_TEST_NO_DATE = new Set(['Waiver', 'University Internal Test']);
-  const { parseNum, feeAfterScholarship, remainingTuitionFee, normalizePhone, duplicatePhones } = window.NiecCalc;
+  const { parseNum, feeAfterScholarship, remainingTuitionFee, normalizePhone, duplicatePhones, offerStuck } = window.NiecCalc;
   // The student's WhatsApp number. Any number that appears on more than one row of a sheet is highlighted yellow.
   const WHATSAPP_COL = 'CONTACT NUMBER';
   const CALC_COLS = {
@@ -840,6 +840,10 @@
     indices.forEach((rowIdx, displayIdx) => {
       const tr = document.createElement('tr');
       tr.dataset.rowIdx = rowIdx;
+      if (offerStuck(rows[rowIdx])) {
+        tr.classList.add('offer-stuck-row');
+        tr.title = 'Offer received over a week ago, but the student hasn\'t reached Payment Stage yet.';
+      }
 
       // Clicks on rows and cells are handled once, on the table body (see the grid section below).
       const idxTd = document.createElement('td');
@@ -928,6 +932,7 @@
             rows[rowIdx][col] = input.value;
             markDirty();
             if (col === 'LANGUAGE TEST DATE') applyLanguageTestFlag(td, input.value);
+            if (col === 'OFFER RECEIVED DATE') tr.classList.toggle('offer-stuck-row', offerStuck(rows[rowIdx]));
           });
           td.appendChild(input);
           if (col === 'LANGUAGE TEST DATE') applyLanguageTestFlag(td, input.value);

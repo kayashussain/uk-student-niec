@@ -16,17 +16,25 @@ test('migrateWorkbook renames the misspelled columns in columns and rows', () =>
     sheets: [{ id: 's1', name: 'A', columns: ['RECEVING PARTNER', 'REMANING TUITION FEE'], rows: [{ _id: 'r1', 'RECEVING PARTNER': 'X', 'REMANING TUITION FEE': '10' }] }],
     activeSheetId: 's1',
   });
-  assert.deepStrictEqual(wb.sheets[0].columns, ['REMARKS', 'STUDENT SOURCE', 'APPLICATION STATUS', 'RECEIVING PARTNER', 'REMAINING TUITION FEE']);
+  assert.deepStrictEqual(wb.sheets[0].columns, ['REMARKS', 'STUDENT SOURCE', 'APPLICATION STATUS', 'APPLICATION SUBMISSION DATE', 'OFFER RECEIVED DATE', 'RECEIVING PARTNER', 'REMAINING TUITION FEE']);
   assert.deepStrictEqual(wb.sheets[0].rows[0], { _id: 'r1', 'RECEIVING PARTNER': 'X', 'REMAINING TUITION FEE': '10' });
 });
 
 test('migrateWorkbook puts REMARKS, STUDENT SOURCE, APPLICATION STATUS first, once', () => {
   const input = { sheets: [{ id: 's1', name: 'A', columns: ['APPLICATION STATUS', 'EMAIL', 'COURSE NAME'], rows: [] }], activeSheetId: 's1' };
   const wb = migrateWorkbook(input);
-  assert.deepStrictEqual(wb.sheets[0].columns, ['REMARKS', 'STUDENT SOURCE', 'APPLICATION STATUS', 'EMAIL', 'COURSE NAME']);
+  assert.deepStrictEqual(wb.sheets[0].columns, ['REMARKS', 'STUDENT SOURCE', 'APPLICATION STATUS', 'APPLICATION SUBMISSION DATE', 'OFFER RECEIVED DATE', 'EMAIL', 'COURSE NAME']);
   wb.sheets[0].columns.reverse(); // a manual reorder afterwards is left alone
   const again = migrateWorkbook(wb);
-  assert.deepStrictEqual(again.sheets[0].columns, ['COURSE NAME', 'EMAIL', 'APPLICATION STATUS', 'STUDENT SOURCE', 'REMARKS']);
+  assert.deepStrictEqual(again.sheets[0].columns, ['COURSE NAME', 'EMAIL', 'OFFER RECEIVED DATE', 'APPLICATION SUBMISSION DATE', 'APPLICATION STATUS', 'STUDENT SOURCE', 'REMARKS']);
+});
+
+test('migrateWorkbook adds the application submission and offer received dates after APPLICATION STATUS', () => {
+  const wb = migrateWorkbook({
+    sheets: [{ id: 's1', name: 'A', leadColumnsApplied: true, columns: ['REMARKS', 'STUDENT SOURCE', 'APPLICATION STATUS', 'FIRST NAME'], rows: [] }],
+    activeSheetId: 's1',
+  });
+  assert.deepStrictEqual(wb.sheets[0].columns, ['REMARKS', 'STUDENT SOURCE', 'APPLICATION STATUS', 'APPLICATION SUBMISSION DATE', 'OFFER RECEIVED DATE', 'FIRST NAME']);
 });
 
 test('migrateWorkbook upgrades the legacy single-sheet shape and adds row ids', () => {

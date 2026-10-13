@@ -8,7 +8,8 @@ const RENAMED_COLUMNS = {
 };
 
 const DEFAULT_COLUMNS = [
-  'REMARKS', 'STUDENT SOURCE', 'APPLICATION STATUS', 'FIRST NAME', 'LAST NAME', 'EMAIL', 'CONTACT NUMBER',
+  'REMARKS', 'STUDENT SOURCE', 'APPLICATION STATUS', 'APPLICATION SUBMISSION DATE', 'OFFER RECEIVED DATE',
+  'FIRST NAME', 'LAST NAME', 'EMAIL', 'CONTACT NUMBER',
   'UNIVERSITY NAME', 'COURSE NAME', 'RECEIVING PARTNER', 'UNIVERSITY PARTNER',
   'LANGUAGE TEST DATE', 'STUDENT ID', 'GROSS FEE', 'SCHOLARSHIP', 'FEE AFTER SCHOLARSHIP',
   'EARLY BIRD DISCOUNT', 'ADDITIONAL DISCOUNT', 'TUITION FEE DEPOSIT(1st Installment)',
@@ -62,6 +63,7 @@ function renameColumns(workbook) {
 // saved before this layout existed are rearranged once (marked with `leadColumnsApplied`, so a later
 // manual reorder isn't undone); columns that are missing are created.
 const LEAD_COLUMNS = ['REMARKS', 'STUDENT SOURCE', 'APPLICATION STATUS'];
+const APPLICATION_DATE_COLUMNS = ['APPLICATION SUBMISSION DATE', 'OFFER RECEIVED DATE'];
 
 function addMissingColumns(workbook) {
   (workbook.sheets || []).forEach((sheet) => {
@@ -74,6 +76,13 @@ function addMissingColumns(workbook) {
       sheet.columns.splice(0, sheet.columns.length, ...LEAD_COLUMNS, ...rest);
       sheet.leadColumnsApplied = true;
     }
+    // Sheets saved before these dates were tracked get them right after Application Status.
+    let at = sheet.columns.indexOf('APPLICATION STATUS') + 1;
+    APPLICATION_DATE_COLUMNS.forEach((name) => {
+      const i = sheet.columns.indexOf(name);
+      if (i === -1) sheet.columns.splice(at, 0, name);
+      at = (i === -1 ? at : i) + 1;
+    });
   });
   return workbook;
 }

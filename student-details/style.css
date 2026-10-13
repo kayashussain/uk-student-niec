@@ -356,6 +356,9 @@ td.lang-test .date-input { width: auto; margin-left: 6px; }
 .lang-test-flag.expiring { background: var(--amber-bg); color: var(--amber-fg); }
 .lang-test-flag.expired { background: var(--red-bg); color: var(--red-fg); }
 
+/* Offer received a week or more ago but still before Payment Stage (see offerStuck in calc.js). */
+tr.offer-stuck-row td { background: #fff9c4 !important; color: #1c2126; }
+tbody tr.offer-stuck-row.row-picked td { background: var(--focus-strong) !important; }
 tr.defer-warning-row td { background: var(--red-bg) !important; }
 .defer-warning-flag {
   display: inline-block;
