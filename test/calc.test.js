@@ -60,3 +60,15 @@ test('duplicate WhatsApp numbers are found regardless of formatting or +977 pref
   ];
   assert.deepStrictEqual([...tracker.duplicatePhones(rows, 'CONTACT NUMBER')], ['9812345678']);
 });
+
+test('offerStuck flags a student still before Payment Stage a week or more after the offer', () => {
+  const today = new Date(2026, 9, 13);
+  const row = (status, offer) => ({ 'APPLICATION STATUS': status, 'OFFER RECEIVED DATE': offer });
+  assert.strictEqual(tracker.offerStuck(row('Mock Stage', '2026-10-06'), today), true);
+  assert.strictEqual(tracker.offerStuck(row('Application Stage', '10/1/2026'), today), true);
+  assert.strictEqual(tracker.offerStuck(row('Inquiry', '2026-09-01'), today), true);
+  assert.strictEqual(tracker.offerStuck(row('Mock Stage', '2026-10-07'), today), false); // only 6 days
+  assert.strictEqual(tracker.offerStuck(row('Payment Stage', '2026-09-01'), today), false);
+  assert.strictEqual(tracker.offerStuck(row('Visa Issued', '2026-09-01'), today), false);
+  assert.strictEqual(tracker.offerStuck(row('Mock Stage', ''), today), false);
+});

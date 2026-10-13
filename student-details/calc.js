@@ -47,7 +47,22 @@
     return new Set([...counts].filter(([, c]) => c > 1).map(([n]) => n));
   }
 
-  const api = { parseNum, resolveDiscount, feeAfterScholarship, remainingTuitionFee, normalizePhone, duplicatePhones };
+  // A student who got an offer a week or more ago but is still at Mock Stage or earlier (not yet at
+  // Payment Stage) is stuck and gets highlighted. The offer date is YYYY-MM-DD or M/D/YYYY.
+  const OFFER_STUCK_DAYS = 7;
+  const PRE_PAYMENT_STATUSES = new Set(['Inquiry', 'Application Stage', 'Mock Stage']);
+  function offerStuck(row, today = new Date()) {
+    if (!PRE_PAYMENT_STATUSES.has(row['APPLICATION STATUS'])) return false;
+    const s = String(row['OFFER RECEIVED DATE'] || '').trim();
+    const m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/) || s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if (!m) return false;
+    const [y, mo, d] = m[1].length === 4 ? [m[1], m[2], m[3]] : [m[3], m[1], m[2]];
+    const offer = Date.UTC(Number(y), Number(mo) - 1, Number(d));
+    const now = Date.UTC(today.getFullYear(), today.getMonth(), today.getDate());
+    return (now - offer) / 86400000 >= OFFER_STUCK_DAYS;
+  }
+
+  const api = { parseNum, resolveDiscount, feeAfterScholarship, remainingTuitionFee, normalizePhone, duplicatePhones, offerStuck };
   if (typeof module === 'object' && module.exports) module.exports = api;
   else root.NiecCalc = api;
 })(this);
