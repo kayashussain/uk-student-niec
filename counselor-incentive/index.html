@@ -27,6 +27,7 @@
     --green-bg: #e6f6ea; --green-fg: #1b7a3d;
     --amber-bg: #fef3e0; --amber-fg: #b45309;
     --red-bg: #fce8e8; --red-fg: #b91c1c;
+    --edit-bg: #fff8ef;
   }
   @media (prefers-color-scheme: dark) {
     :root {
@@ -49,6 +50,7 @@
       --green-bg: #12301f; --green-fg: #6fd894;
       --amber-bg: #3a2a10; --amber-fg: #f2b705;
       --red-bg: #3a1616; --red-fg: #f87171;
+      --edit-bg: #2a2118;
     }
   }
   * { box-sizing: border-box; }
@@ -113,15 +115,21 @@
   thead th {
     position: sticky; top: 0; z-index: 2; background: var(--header-bg);
     border-bottom: 1px solid var(--border-strong); border-right: 1px solid var(--border);
-    padding: 8px 10px; text-align: left; font-size: 11px; text-transform: uppercase;
-    letter-spacing: .03em; color: var(--text-dim); white-space: nowrap;
+    padding: 8px 10px; text-align: left; font-size: 12px; font-weight: 600;
+    color: var(--text-dim); white-space: nowrap;
   }
+  .info { color: var(--text-dim); font-weight: 400; cursor: help; }
+  .grid-key { display: inline-flex; gap: 12px; flex-wrap: wrap; }
+  .grid-key i { display: inline-block; width: 11px; height: 11px; border-radius: 3px; border: 1px solid var(--border-strong); vertical-align: -1px; margin-right: 4px; }
   thead th.num { text-align: right; }
   tbody td {
     padding: 7px 10px; border-bottom: 1px solid var(--border); border-right: 1px solid var(--border);
     white-space: nowrap; color: var(--text);
   }
   tbody tr:nth-child(even) td { background: var(--row-alt); }
+  /* Cells you type in are tinted; calculated ones are grey italic. See the key under the table. */
+  tbody tr td.editable { background: var(--edit-bg); }
+  tbody tr td.auto { color: var(--text-dim); font-style: italic; }
   tbody tr:hover td { background: var(--row-hover); }
   tbody tr.selected td { background: var(--focus-dim); }
   tbody tr.row-picked td { background: var(--focus-strong); }
@@ -132,7 +140,6 @@
   }
   tbody tr.row-picked td.sn { background: var(--focus); color: #fff; font-weight: 600; }
   td.num { text-align: right; font-variant-numeric: tabular-nums; min-width: 110px; }
-  td.num.zero { color: var(--text-dim); }
   .muted { color: var(--text-dim); }
 
   /* Spreadsheet grid: the cell cursor, a multi-cell selection, and the cell being typed in. */
@@ -214,21 +221,26 @@
     <div class="grid-footer">
       <span id="gridStatus"></span>
       <span class="grid-hint" id="gridHint"></span>
+      <span class="grid-key">
+        <span><i style="background: var(--edit-bg)"></i>Type here</span>
+        <span><em>Grey italic</em> = worked out automatically</span>
+        <span>Everything else comes from UK Student NIEC</span>
+      </span>
     </div>
   </div>
 
   <p class="summary-title" id="summaryTitle">Payment Summary</p>
   <div class="summary-card">
     <div class="summary-row">
-      <span class="label">Total Incentives</span>
+      <span class="label">Total Incentives <span class="info" title="Enrollment + Enrollment from University + New Partnership + Direct Student + Flywire incentives, for every student in this intake.">ⓘ</span></span>
       <span class="value" id="sumTotalCommissions">0.00</span>
     </div>
     <div class="summary-row subtract">
-      <span class="label">Loan Incentive to Share</span>
+      <span class="label">Loan Incentive to Share <span class="info" title="The Loan Incentive to Share column added up. Taken off Total Incentives.">ⓘ</span></span>
       <span class="value" id="sumLoanPayable">0.00</span>
     </div>
     <div class="summary-row">
-      <span class="label">Net Incentives</span>
+      <span class="label">Net Incentives <span class="info" title="Total Incentives − Loan Incentive to Share.">ⓘ</span></span>
       <span class="value" id="sumNetCommissions">0.00</span>
     </div>
     <div class="summary-row subtract">
@@ -236,11 +248,11 @@
       <span class="value" id="sumTds">0.00</span>
     </div>
     <div class="summary-row subtract">
-      <span class="label">Previous Advance</span>
+      <span class="label">Previous Advance <span class="info" title="Money already paid to you in advance for this intake. Type it in.">ⓘ</span></span>
       <input class="adv-input" id="advanceInput" type="number" step="0.01" value="0">
     </div>
     <div class="summary-row final">
-      <span class="label">Net Payable</span>
+      <span class="label">Net Payable <span class="info" title="What is still to be paid to you: Net Incentives − TDS − Previous Advance.">ⓘ</span></span>
       <span class="value" id="sumNetPayable">0.00</span>
     </div>
   </div>
@@ -248,11 +260,11 @@
   <p class="summary-title earnings-title" id="earningsTitle">Company Earnings</p>
   <div class="summary-card">
     <div class="summary-row">
-      <span class="label">Students Enrolled</span>
+      <span class="label">Students Enrolled <span class="info" title="Students in this intake with Visa Issued.">ⓘ</span></span>
       <span class="value" id="earnStudents">0</span>
     </div>
     <div class="summary-row">
-      <span class="label">Total Commission from Universities (£)</span>
+      <span class="label">Total Commission from Universities (£) <span class="info" title="The Commission Amount column added up.">ⓘ</span></span>
       <span class="value" id="earnGbp">0.00</span>
     </div>
     <div class="summary-row final">
@@ -272,7 +284,7 @@
       <span class="value" id="earnSalary">0.00</span>
     </div>
     <div class="summary-row">
-      <span class="label">Total Incentive for this Intake</span>
+      <span class="label">Total Incentive for this Intake <span class="info" title="Net Incentives from the Payment Summary above.">ⓘ</span></span>
       <span class="value" id="earnIncentives">0.00</span>
     </div>
     <div class="summary-row">
@@ -280,7 +292,7 @@
       <span class="value" id="earnMyTotal">0.00</span>
     </div>
     <div class="summary-row final">
-      <span class="label">My Share of Company Earnings</span>
+      <span class="label">My Share of Company Earnings <span class="info" title="Grand Total ÷ Company Earnings (NPR). How much of what the company earned on this intake went to you.">ⓘ</span></span>
       <span class="value" id="earnShare">—</span>
     </div>
   </div>
@@ -303,7 +315,7 @@ const COLUMNS = [
   { key: 'course', label: 'Course Name', width: 32 },
   { key: 'university', label: 'University Name', width: 30 },
   { key: 'studentId', label: 'Student ID', width: 14 },
-  { key: 'tuitionFee', label: 'Total Tuition Fee', width: 18, amount: true,
+  { key: 'tuitionFee', label: 'Total Tuition Fee (£)', width: 18, amount: true,
     title: 'Synced from UK Student NIEC: Gross Fee − Scholarship − Early Bird Discount − Additional Discount.' },
   { key: 'uniCommissionRate', label: 'Commission %', width: 13, money: true, percent: true,
     title: "The % of the tuition fee the university pays us as commission. Type it in, e.g. 15." },
@@ -311,14 +323,16 @@ const COLUMNS = [
     calc: (s) => universityCommission(s.tuitionFee, commissionValue(s.id, 'uniCommissionRate')),
     title: 'Auto-calculated: Total Tuition Fee × Commission %.' },
   { key: 'visaIssuedDate', label: 'Visa Issue Date', width: 15, synced: true },
-  { key: 'enrollmentCommission', label: 'Enrollment Incentive', width: 19, money: true },
-  { key: 'enrollmentCommissionUni', label: 'Enrollment Incentive from University', width: 28, money: true },
-  { key: 'newPartnershipCommission', label: 'New Partnership Incentive', width: 21, money: true },
-  { key: 'selfStudentCommission', label: 'Direct Student Incentive', width: 21, money: true },
-  { key: 'flywireFeePayment', label: 'Flywire Fee Payment', width: 19, money: true },
-  { key: 'flywireCommission', label: 'Flywire Incentive', width: 17, money: true,
+  { key: 'enrollmentCommission', label: 'Enrollment Incentive (NPR)', width: 22, money: true },
+  { key: 'enrollmentCommissionUni', label: 'Enrollment Incentive from University (NPR)', width: 32, money: true },
+  { key: 'newPartnershipCommission', label: 'New Partnership Incentive (NPR)', width: 25, money: true },
+  { key: 'selfStudentCommission', label: 'Direct Student Incentive (NPR)', width: 25, money: true },
+  { key: 'flywireFeePayment', label: 'Flywire Fee Payment (£)', width: 20, money: true,
+    title: 'The tuition fee the student paid through Flywire, in pounds. Fills in Flywire Incentive for you.' },
+  { key: 'flywireCommission', label: 'Flywire Incentive (NPR)', width: 20, money: true,
     title: "Auto-filled: 0.2% of Flywire Fee Payment (GBP), converted to NPR at today's rate. You can still edit it." },
-  { key: 'loanCommission', label: 'Loan Incentive to Share', width: 19, money: true },
+  { key: 'loanCommission', label: 'Loan Incentive to Share (NPR)', width: 24, money: true,
+    title: 'Loan incentive that is shared out. It is taken off your Total Incentives in the Payment Summary.' },
 ];
 const FIRST_KEY = COLUMNS[0].key;
 const LAST_KEY = COLUMNS[COLUMNS.length - 1].key;
@@ -354,7 +368,9 @@ function commissionValue(id, key) { return num((state.commissions[id] || {})[key
 // A synced or calculated (non-editable) column's value for a student.
 function infoValue(s, col) { return col.calc ? col.calc(s) : s[col.key]; }
 // How an editable cell shows its value: "15%" for a percentage, "1,250.00" for an amount.
+// Zero shows as an empty cell, so the amounts that are filled in stand out.
 function cellText(key, v) {
+  if (!Number(v)) return '';
   return isPercent(key) ? (Number(v) || 0).toLocaleString('en-US', { maximumFractionDigits: 2 }) + '%' : fmt(v);
 }
 
@@ -647,7 +663,7 @@ function renderTabs() {
 
 function renderHead() {
   headRow.innerHTML = '<th>S.N</th>' + COLUMNS.map((c) =>
-    `<th${c.money || c.amount ? ' class="num"' : ''}${c.title ? ` title="${esc(c.title)}"` : ''}>${esc(c.label)}</th>`).join('');
+    `<th${c.money || c.amount ? ' class="num"' : ''}${c.title ? ` title="${esc(c.title)}"` : ''}>${esc(c.label)}${c.title ? ' <span class="info">ⓘ</span>' : ''}</th>`).join('');
 }
 
 // Every visa-issued student in the open intake. The Payment Summary and the Excel export always use
@@ -669,7 +685,7 @@ function render() {
   // Rebuilding the table would throw away a cell that's being typed in: wait until it's finished.
   if (editing) { renderPending = true; return; }
   renderTabs();
-  $('#summaryTitle').textContent = state.activeIntake ? `Payment Summary · ${state.activeIntake}` : 'Payment Summary';
+  $('#summaryTitle').textContent = state.activeIntake ? `Payment Summary (NPR) · ${state.activeIntake}` : 'Payment Summary (NPR)';
 
   const ae = document.activeElement;
   const hadGridFocus = !ae || ae === document.body || rowsEl.contains(ae);
@@ -692,13 +708,13 @@ function render() {
       td.tabIndex = -1;
       if (col.money) {
         const value = commissionValue(s.id, col.key);
-        td.className = 'num' + (value === 0 ? ' zero' : '');
+        td.className = 'num editable';
         td.textContent = cellText(col.key, value);
       } else if (col.amount) {
         const value = infoValue(s, col);
         td.title = col.calc ? col.title : INFO_HINT;
-        td.className = 'num' + (value ? '' : ' zero');
-        td.textContent = fmt(value);
+        td.className = 'num' + (col.calc ? ' auto' : '');
+        td.textContent = value ? fmt(value) : '';
       } else {
         td.title = INFO_HINT;
         if (s[col.key]) td.textContent = s[col.key];
