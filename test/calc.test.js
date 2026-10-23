@@ -73,13 +73,13 @@ test('offerStuck flags a student still before Payment Stage a week or more after
   assert.strictEqual(tracker.offerStuck(row('Mock Stage', ''), today), false);
 });
 
-test('total tuition fee paid adds both installments, ignoring currency symbols and blanks', () => {
-  assert.strictEqual(incentive.tuitionPaid({
-    'TUITION FEE DEPOSIT(1st Installment)': '£4,000',
-    'TUITION FEE DEPOSIT(2nd Installment)': '2500.50',
-  }), 6500.5);
-  assert.strictEqual(incentive.tuitionPaid({ 'TUITION FEE DEPOSIT(1st Installment)': '3000' }), 3000);
-  assert.strictEqual(incentive.tuitionPaid({}), 0);
+test('net tuition fee takes scholarship, early bird and additional discount off the gross fee', () => {
+  const row = {
+    'GROSS FEE': '£15,000', SCHOLARSHIP: '20%', 'EARLY BIRD DISCOUNT': '10%', 'ADDITIONAL DISCOUNT': '500',
+    'TUITION FEE DEPOSIT(1st Installment)': '4000', // payments don't change the fee itself
+  };
+  assert.strictEqual(tracker.netTuitionFee(row), 15000 - 3000 - 1200 - 500);
+  assert.strictEqual(tracker.netTuitionFee({ 'GROSS FEE': '12000', SCHOLARSHIP: '3,000', 'EARLY BIRD DISCOUNT': '1000' }), 8000);
 });
 
 test('university commission is the given % of the tuition fee paid', () => {

@@ -21,6 +21,14 @@
     return gross - resolveDiscount(row['SCHOLARSHIP'], gross);
   }
 
+  // The tuition fee the student has to pay: Gross Fee − Scholarship − Early Bird Discount − Additional
+  // Discount (before any installments). Worked out from the Gross Fee, so it never depends on a stale
+  // Fee After Scholarship cell. Used by the Incentive app.
+  function netTuitionFee(row) {
+    const base = feeAfterScholarship(row);
+    return base - resolveDiscount(row['EARLY BIRD DISCOUNT'], base) - parseNum(row['ADDITIONAL DISCOUNT']);
+  }
+
   function remainingTuitionFee(row) {
     const base = parseNum(row['FEE AFTER SCHOLARSHIP']);
     const earlyBird = resolveDiscount(row['EARLY BIRD DISCOUNT'], base);
@@ -62,7 +70,7 @@
     return (now - offer) / 86400000 >= OFFER_STUCK_DAYS;
   }
 
-  const api = { parseNum, resolveDiscount, feeAfterScholarship, remainingTuitionFee, normalizePhone, duplicatePhones, offerStuck };
+  const api = { parseNum, resolveDiscount, feeAfterScholarship, netTuitionFee, remainingTuitionFee, normalizePhone, duplicatePhones, offerStuck };
   if (typeof module === 'object' && module.exports) module.exports = api;
   else root.NiecCalc = api;
 })(this);
