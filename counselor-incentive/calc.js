@@ -7,6 +7,18 @@
   function num(v) { const n = parseFloat(v); return isNaN(n) ? 0 : n; }
   function round2(n) { return Math.round(n * 100) / 100; }
 
+  // Student Details amounts are free text ("£4,000", "4000.50", ""), so strip everything but the number.
+  function parseAmount(v) {
+    const n = parseFloat(String(v || '').replace(/[^0-9.\-]/g, ''));
+    return isNaN(n) ? 0 : n;
+  }
+
+  // Total tuition fee the student has paid so far: 1st + 2nd installment from Student Details.
+  function tuitionPaid(row) {
+    return round2(parseAmount(row['TUITION FEE DEPOSIT(1st Installment)'])
+      + parseAmount(row['TUITION FEE DEPOSIT(2nd Installment)']));
+  }
+
   function flywireIncentive(feePaymentGbp, gbpToNpr) {
     return round2(feePaymentGbp * FLYWIRE_INCENTIVE_RATE * gbpToNpr);
   }
@@ -24,7 +36,7 @@
     return { totalCommissions, loanPayable, netCommissions, tds, previousAdvance: advance, netPayable };
   }
 
-  const api = { TDS_RATE, FLYWIRE_INCENTIVE_RATE, num, round2, flywireIncentive, computeSummary };
+  const api = { TDS_RATE, FLYWIRE_INCENTIVE_RATE, num, round2, parseAmount, tuitionPaid, flywireIncentive, computeSummary };
   if (typeof module === 'object' && module.exports) module.exports = api;
   else root.IncentiveCalc = api;
 })(this);

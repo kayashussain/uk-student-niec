@@ -19,6 +19,7 @@ const {
   send, sendJSON, createAuth, createStaticServer, readJSONBody, writeFileAtomic, snapshotDaily, localDate,
 } = require('../shared/server-utils');
 const { advancesByName, setAdvance } = require('./advances');
+const { tuitionPaid } = require('./calc');
 
 const PORT = process.env.PORT || 5173;
 const ROOT = __dirname;
@@ -77,7 +78,7 @@ function writeWithBackup(file, backupName, data) {
 }
 
 // Student Details -> the fields Incentive cares about. Everything else (visa lodge dates,
-// language test, tuition figures, etc.) stays over there — this app only needs enough to
+// language test, other tuition figures, etc.) stays over there — this app only needs enough to
 // identify the student and show read-only context alongside the incentive fields.
 function normalizeStudent(row, intake) {
   return {
@@ -87,6 +88,7 @@ function normalizeStudent(row, intake) {
     course: row['COURSE NAME'] || '',
     university: row['UNIVERSITY NAME'] || '',
     studentId: row['STUDENT ID'] || '',
+    tuitionPaid: tuitionPaid(row),
     visaIssuedDate: row['VISA RECEIVED DATE'] || '',
   };
 }

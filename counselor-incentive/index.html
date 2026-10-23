@@ -261,6 +261,8 @@ const COLUMNS = [
   { key: 'course', label: 'Course Name', width: 32 },
   { key: 'university', label: 'University Name', width: 30 },
   { key: 'studentId', label: 'Student ID', width: 14 },
+  { key: 'tuitionPaid', label: 'Total Tuition Fee Paid', width: 18, amount: true,
+    title: 'Synced from UK Student NIEC: Tuition Fee Deposit (1st Installment) + (2nd Installment).' },
   { key: 'visaIssuedDate', label: 'Visa Issue Date', width: 15, synced: true },
   { key: 'enrollmentCommission', label: 'Enrollment Incentive', width: 19, money: true },
   { key: 'enrollmentCommissionUni', label: 'Enrollment Incentive from University', width: 28, money: true },
@@ -571,7 +573,7 @@ function renderTabs() {
 
 function renderHead() {
   headRow.innerHTML = '<th>S.N</th>' + COLUMNS.map((c) =>
-    `<th${c.money ? ' class="num"' : ''}${c.title ? ` title="${esc(c.title)}"` : ''}>${esc(c.label)}</th>`).join('');
+    `<th${c.money || c.amount ? ' class="num"' : ''}${c.title ? ` title="${esc(c.title)}"` : ''}>${esc(c.label)}</th>`).join('');
 }
 
 // Every visa-issued student in the open intake. The Payment Summary and the Excel export always use
@@ -618,6 +620,10 @@ function render() {
         const value = commissionValue(s.id, col.key);
         td.className = 'num' + (value === 0 ? ' zero' : '');
         td.textContent = fmt(value);
+      } else if (col.amount) {
+        td.title = INFO_HINT;
+        td.className = 'num' + (s[col.key] ? '' : ' zero');
+        td.textContent = fmt(s[col.key]);
       } else {
         td.title = INFO_HINT;
         if (s[col.key]) td.textContent = s[col.key];
@@ -1113,7 +1119,7 @@ document.addEventListener('keydown', (e) => {
 // ---------------------------------------------------------------------------------------------
 // Excel export: bold headers, sized columns and a payment summary block, ready to forward.
 // ---------------------------------------------------------------------------------------------
-const EXCEL_COLUMNS = [{ header: 'S.N', width: 6 }, ...COLUMNS.map((c) => ({ header: c.label, width: c.width, num: Boolean(c.money) }))];
+const EXCEL_COLUMNS = [{ header: 'S.N', width: 6 }, ...COLUMNS.map((c) => ({ header: c.label, width: c.width, num: Boolean(c.money || c.amount) }))];
 const THIN_BORDER = { style: 'thin', color: { argb: 'FFC7CCD4' } };
 const ALL_BORDERS = { top: THIN_BORDER, bottom: THIN_BORDER, left: THIN_BORDER, right: THIN_BORDER };
 
@@ -1164,7 +1170,7 @@ $('#exportExcelBtn').addEventListener('click', async () => {
   });
 
   students.forEach((s, i) => {
-    const row = ws.addRow([i + 1, ...COLUMNS.map((c) => (c.money ? commissionValue(s.id, c.key) : s[c.key] || ''))]);
+    const row = ws.addRow([i + 1, ...COLUMNS.map((c) => (c.money ? commissionValue(s.id, c.key) : c.amount ? num(s[c.key]) : s[c.key] || ''))]);
     row.height = 24;
     row.font = { size: 11 };
     EXCEL_COLUMNS.forEach((col, idx) => {
