@@ -54,8 +54,21 @@
     return { commissionGbp: num(commissionGbp), companyNpr, salaryTotal, myTotal, sharePercent };
   }
 
+  // Puts each university's students together, universities in the order they first appear and
+  // students in their original order within each. Names are matched ignoring case and extra spaces.
+  function groupByUniversity(students) {
+    const key = (st) => String(st.university || '').trim().replace(/\s+/g, ' ').toLowerCase();
+    const groups = new Map();
+    students.forEach((st) => {
+      const k = key(st);
+      if (!groups.has(k)) groups.set(k, []);
+      groups.get(k).push(st);
+    });
+    return [...groups.values()].flat();
+  }
+
   const api = { TDS_RATE, FLYWIRE_INCENTIVE_RATE, num, round2, parseAmount, tuitionPaid, flywireIncentive, computeSummary,
-    universityCommission, DEFAULT_BASIC_SALARY, DEFAULT_SALARY_MONTHS, computeEarnings };
+    universityCommission, groupByUniversity, DEFAULT_BASIC_SALARY, DEFAULT_SALARY_MONTHS, computeEarnings };
   if (typeof module === 'object' && module.exports) module.exports = api;
   else root.IncentiveCalc = api;
 })(this);

@@ -97,3 +97,15 @@ test('earnings compare salary + incentives with what the company earned in NPR',
   assert.strictEqual(Math.round(e.sharePercent * 100) / 100, 22.22);
   assert.strictEqual(incentive.computeEarnings({ commissionGbp: 0, gbpToNpr: 180, basicSalary: 70000, salaryMonths: 4 }).sharePercent, null);
 });
+
+test('students are grouped by university, in order of first appearance', () => {
+  const list = [
+    { name: 'A', university: 'University of Essex' },
+    { name: 'B', university: 'University of Birmingham' },
+    { name: 'C', university: 'university of essex ' },
+    { name: 'D', university: 'University of East London' },
+    { name: 'E', university: 'University of Essex' },
+    { name: 'F', university: 'University of East London' },
+  ];
+  assert.deepStrictEqual(incentive.groupByUniversity(list).map((s) => s.name), ['A', 'C', 'E', 'B', 'D', 'F']);
+});
