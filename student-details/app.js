@@ -55,7 +55,7 @@
   const HIDDEN_COLUMNS_BY_SHEET = [
     {
       matches: (name) => /\bsep/i.test(name) && /2026/.test(name),
-      columns: ['REMARKS', 'STUDENT SOURCE', 'APPLICATION STATUS', 'APPLICATION SUBMISSION DATE', 'OFFER RECEIVED DATE'],
+      columns: ['REMARKS', 'STUDENT SOURCE', 'APPLICATION SUBMISSION DATE', 'OFFER RECEIVED DATE'],
     },
   ];
   const visibleColumns = (sheet) => {
