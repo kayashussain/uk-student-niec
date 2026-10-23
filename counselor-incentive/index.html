@@ -253,7 +253,7 @@
 // this app and not whatever else is mounted at the true root.
 const BASE = location.pathname.replace(/\/index\.html$/, '').replace(/\/+$/, '');
 const { num, flywireIncentive } = window.IncentiveCalc;
-const POLL_MS = 8000;
+const POLL_MS = 3000; // safety net only: changes normally arrive at once over /api/live
 
 // Student details are synced read-only from UK Student NIEC; the money columns are edited here.
 const COLUMNS = [
@@ -1213,11 +1213,16 @@ $('#exportExcelBtn').addEventListener('click', async () => {
 
 // Pick up changes made over in UK Student NIEC. Skipped while a cell or field is being typed in or a
 // range is being dragged, and only redraws when something actually changed.
-setInterval(() => {
+function refreshIfIdle() {
   if (editing || dragMode || document.hidden) return;
   if (document.activeElement && document.activeElement.tagName === 'INPUT') return;
   loadAll();
-}, POLL_MS);
+}
+setInterval(refreshIfIdle, POLL_MS);
+// The server pushes a notice the moment anything changes (reconnects by itself); the timer above
+// covers hosts that hold streams back, and catches up after typing.
+if (window.EventSource) new EventSource(BASE + '/api/live').onmessage = refreshIfIdle;
+document.addEventListener('visibilitychange', refreshIfIdle);
 
 renderHead();
 updateUndoRedoButtons();

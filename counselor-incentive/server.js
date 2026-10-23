@@ -166,6 +166,42 @@ async function getGbpToNprRate() {
   }
 }
 
+// Live updates: each open Incentive tab holds a server-sent-events connection and is told the moment
+// Student Details' data.json (or this app's own commissions/advances) changes, so it reloads at once
+// instead of waiting for its next poll.
+const liveStreams = new Set();
+let liveTimer = null;
+function notifyLive() {
+  clearTimeout(liveTimer); // a save can touch the file more than once: send one notice for the burst
+  liveTimer = setTimeout(() => {
+    liveStreams.forEach((res) => { try { res.write('data: changed\n\n'); } catch (e) { /* closed */ } });
+  }, 10);
+}
+
+function handleLive(req, res) {
+  res.writeHead(200, {
+    'Content-Type': 'text/event-stream', 'Cache-Control': 'no-store, no-transform',
+    Connection: 'keep-alive', 'X-Accel-Buffering': 'no',
+  });
+  res.write('retry: 1000\n\n');
+  liveStreams.add(res);
+  req.on('close', () => liveStreams.delete(res));
+}
+setInterval(() => liveStreams.forEach((res) => { try { res.write(': ping\n\n'); } catch (e) { /* ignore */ } }), 15000).unref();
+
+// Saves replace data.json with a rename, so the folder is watched rather than the file itself.
+// Where watching isn't available, the file is checked every half second instead.
+function watchDataFile(file) {
+  const dir = path.dirname(file);
+  const name = path.basename(file);
+  try {
+    fs.watch(dir, (event, changed) => { if (!changed || changed === name) notifyLive(); });
+  } catch (e) {
+    fs.watchFile(file, { interval: 500 }, notifyLive);
+  }
+}
+watchDataFile(STUDENT_DETAILS_DATA);
+
 const server = http.createServer(async (req, res) => {
   try {
     const rest = BASE_PATH && req.url.startsWith(BASE_PATH) ? req.url.slice(BASE_PATH.length) : null;
@@ -178,6 +214,8 @@ const server = http.createServer(async (req, res) => {
     }
     if (!requireAuth(req, res)) return;
     const urlPath = req.url.split('?')[0];
+
+    if (urlPath === '/api/live' && req.method === 'GET') return handleLive(req, res);
 
     if (urlPath === '/api/sync' && req.method === 'GET') {
       return sendJSON(res, 200, readSync());
@@ -207,6 +245,7 @@ const server = http.createServer(async (req, res) => {
         updatedAt: new Date().toISOString(),
       };
       writeWithBackup(COMMISSIONS_FILE, 'commissions.backup.json', all);
+      notifyLive();
       return sendJSON(res, 200, all[id]);
     }
 
@@ -222,6 +261,7 @@ const server = http.createServer(async (req, res) => {
       const entry = { previousAdvance: num(body.previousAdvance, 0), updatedAt: new Date().toISOString() };
       const all = setAdvance(readJSON(ADVANCES_FILE, {}), readSheetList(), intake, entry);
       writeWithBackup(ADVANCES_FILE, 'advances.backup.json', all);
+      notifyLive();
       return sendJSON(res, 200, entry);
     }
 

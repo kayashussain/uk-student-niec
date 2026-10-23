@@ -7,7 +7,7 @@
 //
 // Routing:
 //   /commission or /commission/*        -> counselor-incentive (prefix stripped)
-//   /api/sync, /api/commissions*,
+//   /api/live, /api/sync, /api/commissions*,
 //   /api/advances*, /api/exchange-rate  -> counselor-incentive (these path names are
 //                                          unique to it, so no prefix needed)
 //   everything else (/, /app.js, /style.css, /api/data, ...) -> student-details
@@ -97,7 +97,7 @@ startChild('counselor-incentive', counselorDir, COUNSELOR_PORT, {
   STUDENT_DETAILS_DATA_DIR: process.env.STUDENT_DETAILS_DATA_DIR || '',
 });
 
-const COUNSELOR_API_PREFIXES = ['/api/sync', '/api/commissions', '/api/advances', '/api/exchange-rate'];
+const COUNSELOR_API_PREFIXES = ['/api/live', '/api/sync', '/api/commissions', '/api/advances', '/api/exchange-rate'];
 
 function pickTarget(urlPath) {
   if (urlPath === '/commission' || urlPath.startsWith('/commission/')) {
