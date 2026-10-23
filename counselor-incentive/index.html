@@ -264,7 +264,7 @@
       <input class="adv-input" id="salaryInput" type="number" step="1" min="0">
     </div>
     <div class="summary-row">
-      <span class="label">Total Months</span>
+      <span class="label">Total Months for this Intake</span>
       <input class="adv-input" id="monthsInput" type="number" step="0.5" min="0">
     </div>
     <div class="summary-row">
@@ -288,6 +288,7 @@
 </div>
 
 <script src="calc.js"></script>
+<script src="edit-guard.js"></script>
 <script>
 // This page may be mounted at a sub-path (e.g. /incentive) rather than a domain's root —
 // derive that prefix from the URL actually used to load it, so every API call still hits
@@ -521,9 +522,22 @@ async function getExchangeRate() {
   return null;
 }
 
-// The one way incentive values change: [{ id, key, to }]. A new Flywire Fee Payment also refills that
-// student's Flywire Incentive, unless the same change sets the incentive itself (e.g. a pasted row).
-async function applyChanges(changes) {
+// Every change asks "Do you really want to make this change?" first (see shared/edit-guard.js):
+// apply() runs once it's confirmed, revert() puts things back if it's cancelled.
+function confirmChange(apply, revert) {
+  if (window.EditGuard) window.EditGuard.confirmChange(apply, revert);
+  else apply();
+}
+
+// The one way incentive values change: [{ id, key, to }]. Asks first, unless nothing actually changes.
+function applyChanges(changes) {
+  if (!changes.some((ch) => commissionValue(ch.id, ch.key) !== ch.to)) { render(); return; }
+  confirmChange(() => applyChangesNow(changes), render);
+}
+
+// A new Flywire Fee Payment also refills that student's Flywire Incentive, unless the same change sets
+// the incentive itself (e.g. a pasted row).
+async function applyChangesNow(changes) {
   const real = changes.filter((ch) => commissionValue(ch.id, ch.key) !== ch.to);
   const feeChanges = real.filter((ch) => ch.key === 'flywireFeePayment'
     && !changes.some((o) => o.id === ch.id && o.key === 'flywireCommission'));
@@ -771,11 +785,13 @@ function bindIntakeSetting(input, field, fallback) {
     const v = num(input.value);
     const prev = intakeSetting(field, fallback);
     if (v === prev) return;
-    pushUndo({ kind: 'advance', intake, field, from: prev, to: v });
-    if (!state.advances[intake]) state.advances[intake] = {};
-    state.advances[intake][field] = v;
-    recalc(intakeStudents());
-    scheduleSaveAdvance(intake);
+    confirmChange(() => {
+      pushUndo({ kind: 'advance', intake, field, from: prev, to: v });
+      if (!state.advances[intake]) state.advances[intake] = {};
+      state.advances[intake][field] = v;
+      recalc(intakeStudents());
+      scheduleSaveAdvance(intake);
+    }, () => { input.value = prev; });
   });
 }
 bindIntakeSetting(salaryInput, 'basicSalary', DEFAULT_BASIC_SALARY);
@@ -787,11 +803,13 @@ advanceInput.addEventListener('change', () => {
   const v = num(advanceInput.value);
   const prev = num((state.advances[intake] || {}).previousAdvance);
   if (v === prev) return;
-  pushUndo({ kind: 'advance', intake, from: prev, to: v });
-  if (!state.advances[intake]) state.advances[intake] = {};
-  state.advances[intake].previousAdvance = v;
-  recalc(intakeStudents());
-  scheduleSaveAdvance(intake);
+  confirmChange(() => {
+    pushUndo({ kind: 'advance', intake, from: prev, to: v });
+    if (!state.advances[intake]) state.advances[intake] = {};
+    state.advances[intake].previousAdvance = v;
+    recalc(intakeStudents());
+    scheduleSaveAdvance(intake);
+  }, () => { advanceInput.value = prev; });
 });
 
 // ---------------------------------------------------------------------------------------------
@@ -1334,7 +1352,7 @@ $('#exportExcelBtn').addEventListener('click', async () => {
     addExcelSummaryRow(ws, `Company Earnings (NPR, £1 = ${earningsRate.rate})`, e.companyNpr, { bold: true, color: 'FF1D4ED8', fill: 'FFEAF1FF' });
   }
   addExcelSummaryRow(ws, 'Basic Salary (per month, NPR)', intakeSetting('basicSalary', DEFAULT_BASIC_SALARY));
-  addExcelSummaryRow(ws, 'Total Months', intakeSetting('salaryMonths', DEFAULT_SALARY_MONTHS));
+  addExcelSummaryRow(ws, 'Total Months for this Intake', intakeSetting('salaryMonths', DEFAULT_SALARY_MONTHS));
   ws.lastRow.getCell(5).numFmt = '0.##';
   addExcelSummaryRow(ws, 'Salary for this Intake', e.salaryTotal);
   addExcelSummaryRow(ws, 'Total Incentive for this Intake', s.netCommissions);
@@ -1359,7 +1377,7 @@ $('#exportExcelBtn').addEventListener('click', async () => {
 // Pick up changes made over in UK Student NIEC. Skipped while a cell or field is being typed in or a
 // range is being dragged, and only redraws when something actually changed.
 function refreshIfIdle() {
-  if (editing || dragMode || document.hidden) return;
+  if (editing || dragMode || document.hidden || (window.EditGuard && window.EditGuard.isOpen())) return;
   if (document.activeElement && document.activeElement.tagName === 'INPUT') return;
   loadAll();
 }
