@@ -109,3 +109,9 @@ test('students are grouped by university, in order of first appearance', () => {
   ];
   assert.deepStrictEqual(incentive.groupByUniversity(list).map((s) => s.name), ['A', 'C', 'E', 'B', 'D', 'F']);
 });
+
+test('visa dates show in one format whichever way they were stored', () => {
+  assert.strictEqual(incentive.displayDate('2026-09-23'), '9/23/2026');
+  assert.strictEqual(incentive.displayDate('7/15/2026'), '7/15/2026');
+  assert.strictEqual(incentive.displayDate(''), '');
+});

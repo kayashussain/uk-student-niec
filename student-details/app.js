@@ -144,6 +144,35 @@
     else apply();
   }
 
+  // Date boxes fire "change" as soon as a typed date is complete — already after the first digit of the
+  // year (0002) — so a typed date is only confirmed once the typing is done: Enter, leaving the box, or a
+  // 2-second pause. A date picked from the calendar is confirmed straight away.
+  function confirmDateInput(input, original, apply) {
+    let lastKey = 0;
+    let pending = false;
+    let timer = null;
+    const finish = () => {
+      if (!pending) return;
+      pending = false;
+      clearTimeout(timer);
+      const value = input.value;
+      if (value === original) return;
+      confirmChange(() => apply(value), () => { input.value = original; });
+    };
+    input.addEventListener('keydown', (e) => {
+      lastKey = Date.now();
+      if (pending) { clearTimeout(timer); timer = setTimeout(finish, 2000); }
+      if (e.key === 'Enter') finish();
+    });
+    input.addEventListener('change', () => {
+      pending = true;
+      clearTimeout(timer);
+      if (Date.now() - lastKey > 500) finish();
+      else timer = setTimeout(finish, 2000);
+    });
+    input.addEventListener('blur', finish);
+  }
+
   function snapshotWorkbook() {
     return { sheets: JSON.parse(JSON.stringify(sheets)), activeSheetId };
   }
@@ -313,14 +342,11 @@
       e.stopPropagation();
       if (input.showPicker) { try { input.showPicker(); } catch (err) { /* unsupported */ } }
     });
-    input.addEventListener('change', () => {
-      const value = input.value;
-      confirmChange(() => {
-        pushUndo();
-        rows[rowIdx][col] = value || 'Test Date';
-        markDirty();
-        applyLanguageTestFlag(td, value);
-      }, () => { input.value = toISODate(val); });
+    confirmDateInput(input, toISODate(val), (value) => {
+      pushUndo();
+      rows[rowIdx][col] = value || 'Test Date';
+      markDirty();
+      applyLanguageTestFlag(td, value);
     });
     td.appendChild(input);
     applyLanguageTestFlag(td, input.value);
@@ -653,11 +679,12 @@
     tab.appendChild(input);
     input.focus();
     input.select();
-    const commit = () => renameSheet(sheet.id, input.value);
+    let cancelled = false; // Escape: removing the box below also blurs it, which mustn't save the name
+    const commit = () => { if (!cancelled) renameSheet(sheet.id, input.value); };
     input.addEventListener('blur', commit);
     input.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') { e.preventDefault(); input.blur(); }
-      if (e.key === 'Escape') { e.preventDefault(); renderSheetTabs(); }
+      if (e.key === 'Escape') { e.preventDefault(); cancelled = true; renderSheetTabs(); }
     });
   }
 
@@ -973,15 +1000,12 @@
             e.stopPropagation();
             if (input.showPicker) { try { input.showPicker(); } catch (err) { /* unsupported */ } }
           });
-          input.addEventListener('change', () => {
-            const value = input.value;
-            confirmChange(() => {
-              pushUndo();
-              rows[rowIdx][col] = value;
-              markDirty();
-              if (col === 'LANGUAGE TEST DATE') applyLanguageTestFlag(td, value);
-              if (col === 'OFFER RECEIVED DATE') tr.classList.toggle('offer-stuck-row', offerStuck(rows[rowIdx]));
-            }, () => { input.value = toISODate(val); });
+          confirmDateInput(input, toISODate(val), (value) => {
+            pushUndo();
+            rows[rowIdx][col] = value;
+            markDirty();
+            if (col === 'LANGUAGE TEST DATE') applyLanguageTestFlag(td, value);
+            if (col === 'OFFER RECEIVED DATE') tr.classList.toggle('offer-stuck-row', offerStuck(rows[rowIdx]));
           });
           td.appendChild(input);
           if (col === 'LANGUAGE TEST DATE') applyLanguageTestFlag(td, input.value);

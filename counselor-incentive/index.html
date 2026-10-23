@@ -323,6 +323,7 @@ const COLUMNS = [
 const FIRST_KEY = COLUMNS[0].key;
 const LAST_KEY = COLUMNS[COLUMNS.length - 1].key;
 const INFO_HINT = 'Student details come from UK Student NIEC. Change them there.';
+const CALC_HINT = 'Commission Amount is worked out from Total Tuition Fee × Commission %. Change the Commission % instead.';
 
 const state = { intakes: [], byIntake: {}, commissions: {}, advances: {}, activeIntake: null, syncOk: true };
 let visible = []; // the students shown right now, in order (active intake + search)
@@ -964,7 +965,7 @@ function selectAllCells() {
 function startEdit({ replaceWith = null } = {}) {
   if (!activeCell || editing) return;
   const { id, key } = activeCell;
-  if (!isMoney(key)) { showHint(INFO_HINT); return; }
+  if (!isMoney(key)) { showHint(COLUMNS[colIndex(key)].calc ? CALC_HINT : INFO_HINT); return; }
   const td = cellTd(id, key);
   if (!td) return;
   const original = commissionValue(id, key);
@@ -1232,8 +1233,7 @@ document.addEventListener('keydown', (e) => {
   }
   if (e.key.length === 1) {
     e.preventDefault();
-    if (isMoney(activeCell.key)) startEdit({ replaceWith: e.key });
-    else showHint(INFO_HINT);
+    startEdit({ replaceWith: e.key }); // a synced or calculated cell just shows why it can't be typed in
   }
 });
 
