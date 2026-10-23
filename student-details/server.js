@@ -28,6 +28,11 @@ const serveStatic = createStaticServer(ROOT, {
   '/apple-touch-icon.png': 'image/png',
 });
 
+// The "Do you really want to make this change?" box, shared with the other app.
+const serveShared = createStaticServer(path.join(__dirname, '..', 'shared'), {
+  '/edit-guard.js': 'text/javascript; charset=utf-8',
+});
+
 // Shared-password protection — only active when both env vars are set (so local dev,
 // where they're unset, is unaffected). On a host, set APP_USERNAME/APP_PASSWORD as
 // environment variables for this app.
@@ -220,6 +225,7 @@ const server = http.createServer((req, res) => {
       if (req.method === 'POST' && urlPath === '/api/data') return handleSave(req, res);
       return send(res, 405, 'Method not allowed');
     }
+    if (urlPath === '/edit-guard.js') return serveShared(req, res);
     serveStatic(req, res);
   } catch (e) {
     console.error(e);

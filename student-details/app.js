@@ -137,6 +137,13 @@
     return 'row-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
   }
 
+  // Every change asks "Do you really want to make this change?" first (see shared/edit-guard.js):
+  // apply() runs once it's confirmed, revert() puts the cell back if it's cancelled.
+  function confirmChange(apply, revert) {
+    if (window.EditGuard) window.EditGuard.confirmChange(apply, revert);
+    else apply();
+  }
+
   function snapshotWorkbook() {
     return { sheets: JSON.parse(JSON.stringify(sheets)), activeSheetId };
   }
@@ -279,18 +286,21 @@
     select.addEventListener('click', (e) => e.stopPropagation());
     select.addEventListener('change', () => {
       if (select.value === choice) return;
+      confirmChange(() => applyLanguageChoice(select.value), () => { select.value = choice; });
+    });
+    const applyLanguageChoice = (value) => {
       pushUndo();
-      rows[rowIdx][col] = select.value; // switching away from a date drops it; Ctrl+Z brings it back
+      rows[rowIdx][col] = value; // switching away from a date drops it; Ctrl+Z brings it back
       markDirty();
       renderBody();
-      if (select.value === 'Test Date') {
+      if (value === 'Test Date') {
         const input = cellTd(rowIdx, col) && cellTd(rowIdx, col).querySelector('input');
         if (input) {
           input.focus();
           if (input.showPicker) { try { input.showPicker(); } catch (err) { /* opens on click instead */ } }
         }
       }
-    });
+    };
     td.appendChild(select);
     if (choice !== 'Test Date') return;
 
@@ -304,10 +314,13 @@
       if (input.showPicker) { try { input.showPicker(); } catch (err) { /* unsupported */ } }
     });
     input.addEventListener('change', () => {
-      pushUndo();
-      rows[rowIdx][col] = input.value || 'Test Date';
-      markDirty();
-      applyLanguageTestFlag(td, input.value);
+      const value = input.value;
+      confirmChange(() => {
+        pushUndo();
+        rows[rowIdx][col] = value || 'Test Date';
+        markDirty();
+        applyLanguageTestFlag(td, value);
+      }, () => { input.value = toISODate(val); });
     });
     td.appendChild(input);
     applyLanguageTestFlag(td, input.value);
@@ -482,6 +495,10 @@
   }
 
   function addSheet() {
+    confirmChange(addSheetNow);
+  }
+
+  function addSheetNow() {
     pushUndo();
     const template = getActiveSheet();
     const sheet = {
@@ -500,6 +517,10 @@
   }
 
   function duplicateSheet(id) {
+    confirmChange(() => duplicateSheetNow(id));
+  }
+
+  function duplicateSheetNow(id) {
     const source = sheets.find((s) => s.id === id);
     if (!source) return;
     pushUndo();
@@ -561,6 +582,11 @@
       renderSheetTabs();
       return;
     }
+    confirmChange(() => renameSheetNow(sheet, trimmed), renderSheetTabs);
+  }
+
+  function renameSheetNow(sheet, trimmed) {
+    const id = sheet.id;
     pushUndo();
     sheet.name = trimmed;
     markDirtyAndSaveNow();
@@ -910,11 +936,13 @@
           });
           select.addEventListener('change', () => {
             const newVal = select.value;
-            pushUndo();
-            rows[rowIdx][col] = newVal;
-            select.className = 'status-select ' + badgeClass(newVal);
-            markDirty();
-            if (col === 'APPLICATION STATUS') renderBody(); // re-run the defer-move check, refresh the warning
+            confirmChange(() => {
+              pushUndo();
+              rows[rowIdx][col] = newVal;
+              select.className = 'status-select ' + badgeClass(newVal);
+              markDirty();
+              if (col === 'APPLICATION STATUS') renderBody(); // re-run the defer-move check, refresh the warning
+            }, () => { select.value = val; });
           });
           td.appendChild(select);
           if (col === 'APPLICATION STATUS' && val === 'Defer' && !getDeferTargetSheet()) {
@@ -946,11 +974,14 @@
             if (input.showPicker) { try { input.showPicker(); } catch (err) { /* unsupported */ } }
           });
           input.addEventListener('change', () => {
-            pushUndo();
-            rows[rowIdx][col] = input.value;
-            markDirty();
-            if (col === 'LANGUAGE TEST DATE') applyLanguageTestFlag(td, input.value);
-            if (col === 'OFFER RECEIVED DATE') tr.classList.toggle('offer-stuck-row', offerStuck(rows[rowIdx]));
+            const value = input.value;
+            confirmChange(() => {
+              pushUndo();
+              rows[rowIdx][col] = value;
+              markDirty();
+              if (col === 'LANGUAGE TEST DATE') applyLanguageTestFlag(td, value);
+              if (col === 'OFFER RECEIVED DATE') tr.classList.toggle('offer-stuck-row', offerStuck(rows[rowIdx]));
+            }, () => { input.value = toISODate(val); });
           });
           td.appendChild(input);
           if (col === 'LANGUAGE TEST DATE') applyLanguageTestFlag(td, input.value);
@@ -1207,19 +1238,26 @@
     td.classList.remove('editing');
     const newVal = td.textContent.trim();
     if (rows[rowIdx] && newVal !== original) {
-      pushUndo();
-      rows[rowIdx][col] = newVal;
-      markDirty();
-      skipRefocus = true; // the caller decides where focus goes next
-      renderBody(); // recalculates the fee columns and redraws status badges
-      skipRefocus = false;
-    } else if (BADGE_COLS.has(col) && original) {
-      renderRowCell(td, rowIdx, col);
+      const row = rows[rowIdx];
+      confirmChange(() => {
+        if (!rows.includes(row)) return;
+        pushUndo();
+        row[col] = newVal;
+        markDirty();
+        skipRefocus = true; // the caller decides where focus goes next
+        renderBody(); // recalculates the fee columns and redraws status badges
+        skipRefocus = false;
+      }, () => restoreCell(td, rows.indexOf(row), col, original));
     } else {
-      td.textContent = original;
+      restoreCell(td, rowIdx, col, original);
     }
     if (move) moveActiveCell(move[0], move[1]);
     else if (refocus) focusActiveCell({ scroll: false });
+  }
+
+  function restoreCell(td, rowIdx, col, original) {
+    if (BADGE_COLS.has(col) && original && rowIdx !== -1) renderRowCell(td, rowIdx, col);
+    else td.textContent = original;
   }
 
   function cancelEdit() {
@@ -1239,10 +1277,12 @@
   function clearSelectedCells() {
     const cells = selectedCells().filter(({ rowIdx, col }) => rows[rowIdx] && !CALC_COLS[col] && (rows[rowIdx][col] || ''));
     if (!cells.length) return;
-    pushUndo();
-    cells.forEach(({ rowIdx, col }) => { rows[rowIdx][col] = ''; });
-    markDirty();
-    renderBody();
+    confirmChange(() => {
+      pushUndo();
+      cells.forEach(({ rowIdx, col }) => { rows[rowIdx][col] = ''; });
+      markDirty();
+      renderBody();
+    });
   }
 
   // Copy/paste as tab-separated text, so ranges move to and from Excel and Google Sheets.
@@ -1292,15 +1332,17 @@
       }
     }
     if (!changes.length) return;
-    pushUndo();
-    changes.forEach(({ rowIdx, col, val }) => { rows[rowIdx][col] = val; });
-    const bottom = Math.min(indices.length - 1, r.top + height - 1);
-    const right = Math.min(columns.length - 1, r.left + width - 1);
-    rowSelectMode = false;
-    activeCell = { rowIdx: indices[r.top], col: columns[r.left] };
-    selRanges = [{ anchor: { ...activeCell }, focus: { rowIdx: indices[bottom], col: columns[right] } }];
-    markDirty();
-    renderBody();
+    confirmChange(() => {
+      pushUndo();
+      changes.forEach(({ rowIdx, col, val }) => { rows[rowIdx][col] = val; });
+      const bottom = Math.min(indices.length - 1, r.top + height - 1);
+      const right = Math.min(columns.length - 1, r.left + width - 1);
+      rowSelectMode = false;
+      activeCell = { rowIdx: indices[r.top], col: columns[r.left] };
+      selRanges = [{ anchor: { ...activeCell }, focus: { rowIdx: indices[bottom], col: columns[right] } }];
+      markDirty();
+      renderBody();
+    });
   }
 
   function flashStatus(text) {
@@ -1496,7 +1538,7 @@
 
   // Keeps an open tab current when someone else saves. Never runs over unsaved or in-progress work.
   function busyEditing() {
-    return Boolean(editing || dragMode || openFilterMenu || openSheetMenu);
+    return Boolean(editing || dragMode || openFilterMenu || openSheetMenu || (window.EditGuard && window.EditGuard.isOpen()));
   }
 
   async function checkForRemoteChanges() {
@@ -1516,6 +1558,10 @@
   }
 
   function addRow() {
+    confirmChange(addRowNow);
+  }
+
+  function addRowNow() {
     pushUndo();
     const blank = { _id: makeRowId() };
     columns.forEach((c) => (blank[c] = ''));
