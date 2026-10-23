@@ -55,8 +55,16 @@
     return [...groups.values()].flat();
   }
 
+  // Student Details holds dates as either 2026-09-23 (picked in the app) or 9/23/2026 (imported);
+  // both are shown as 9/23/2026 here so the column reads the same all the way down.
+  function displayDate(v) {
+    const s = String(v || '').trim();
+    const m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    return m ? `${Number(m[2])}/${Number(m[3])}/${m[1]}` : s;
+  }
+
   const api = { TDS_RATE, FLYWIRE_INCENTIVE_RATE, num, round2, flywireIncentive, computeSummary,
-    universityCommission, groupByUniversity, DEFAULT_BASIC_SALARY, DEFAULT_SALARY_MONTHS, computeEarnings };
+    universityCommission, groupByUniversity, displayDate, DEFAULT_BASIC_SALARY, DEFAULT_SALARY_MONTHS, computeEarnings };
   if (typeof module === 'object' && module.exports) module.exports = api;
   else root.IncentiveCalc = api;
 })(this);
