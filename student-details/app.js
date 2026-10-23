@@ -31,7 +31,6 @@
     'MEDICAL REPORT': ['Pending', 'Received'],
     'STUDENT SOURCE': SOURCE_OPTIONS,
   };
-  const SUMMARY_STATUSES = ['Payment Stage', 'CAS Issued', 'Visa Issued'];
   // Language test results (IELTS/PTE/etc.) are valid for 2 years. Flag as "expiring soon"
   // once within 3 months of that expiry (21 months elapsed), matching the source sheet's rule.
   const LANGUAGE_TEST_VALID_MONTHS = 24;
@@ -1389,12 +1388,30 @@
     ));
     statusSummaryEl.innerHTML = '';
 
-    const totalCard = document.createElement('div');
-    totalCard.className = 'stat-card';
-    totalCard.innerHTML = `<span class="stat-value">${indices.length}</span><span class="stat-label">Total Students</span>`;
-    statusSummaryEl.appendChild(totalCard);
+    const card = (value, label, extra = '', title = '') => {
+      const el = document.createElement('div');
+      el.className = 'stat-card';
+      if (title) el.title = title;
+      el.innerHTML = `<span class="stat-value">${value}</span><span class="stat-label">${label}</span>${extra}`;
+      return el;
+    };
+    // Two labelled rows: where students came from, then where their applications are.
+    const group = (title) => {
+      const el = document.createElement('div');
+      el.className = 'stat-group';
+      el.innerHTML = `<span class="stat-group-title">${title}</span>`;
+      const cards = document.createElement('div');
+      cards.className = 'stat-group-cards';
+      el.appendChild(cards);
+      statusSummaryEl.appendChild(el);
+      return cards;
+    };
+    const countStatus = (status) => indices.reduce((acc, i) => acc + (rows[i]['APPLICATION STATUS'] === status ? 1 : 0), 0);
+    const totalCard = card(indices.length, 'Total Students');
 
     if (columns.includes(SOURCE_COL)) {
+      const sourceCards = group('Student Source');
+      sourceCards.appendChild(totalCard);
       SOURCE_OPTIONS.forEach((source) => {
         let count = 0;
         let visas = 0;
@@ -1403,34 +1420,19 @@
           count += 1;
           if (rows[i]['APPLICATION STATUS'] === 'Visa Issued') visas += 1;
         });
-        const card = document.createElement('div');
-        card.className = 'stat-card source-card';
-        card.title = `${count} ${source}, ${visas} with Visa Issued`;
-        card.innerHTML = `<span class="stat-value">${count}</span><span class="stat-label">${source}</span>`
-          + `<span class="stat-visa">${visas} Visa</span>`;
-        statusSummaryEl.appendChild(card);
+        const el = card(count, source, `<span class="stat-visa">${visas} Visa</span>`, `${count} ${source}, ${visas} with Visa Issued`);
+        el.classList.add('source-card');
+        sourceCards.appendChild(el);
       });
     }
 
-    let visaIssuedCount = 0;
-    SUMMARY_STATUSES.forEach((status) => {
-      const count = indices.reduce((acc, i) => acc + (rows[i]['APPLICATION STATUS'] === status ? 1 : 0), 0);
-      if (status === 'Visa Issued') visaIssuedCount = count;
-      const card = document.createElement('div');
-      card.className = 'stat-card';
-      card.innerHTML = `<span class="stat-value">${count}</span><span class="stat-label">${status}</span>`;
-      statusSummaryEl.appendChild(card);
-    });
-    if (!SUMMARY_STATUSES.includes('Visa Issued')) {
-      visaIssuedCount = indices.reduce((acc, i) => acc + (rows[i]['APPLICATION STATUS'] === 'Visa Issued' ? 1 : 0), 0);
-    }
-
+    const statusCards = group('Application Status');
+    if (!columns.includes(SOURCE_COL)) statusCards.appendChild(totalCard);
+    statusOptions.forEach((status) => statusCards.appendChild(card(countStatus(status), status)));
+    const visaIssuedCount = countStatus('Visa Issued');
     const conversionRate = indices.length ? (visaIssuedCount / indices.length) * 100 : 0;
-    const conversionCard = document.createElement('div');
-    conversionCard.className = 'stat-card';
-    conversionCard.title = `${visaIssuedCount} Visa Issued out of ${indices.length} total students`;
-    conversionCard.innerHTML = `<span class="stat-value">${conversionRate.toFixed(1)}%</span><span class="stat-label">Conversion Rate</span>`;
-    statusSummaryEl.appendChild(conversionCard);
+    statusCards.appendChild(card(`${conversionRate.toFixed(1)}%`, 'Conversion Rate', '',
+      `${visaIssuedCount} Visa Issued out of ${indices.length} total students`));
   }
 
   function markDirty() {
