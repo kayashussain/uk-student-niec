@@ -6,7 +6,8 @@
 // there, grouped under the same sheet/tab name (the "intake"). Incentive-specific
 // numbers (Enrollment, Enrollment from University, New Partnership, Direct Student,
 // Flywire, Loan) live only in this app's own commissions.json, keyed by the student's
-// stable _id. Each intake's Previous Advance figure lives in advances.json, keyed by
+// stable _id. Each intake's Previous Advance (and basic salary / salary months for the
+// earnings comparison) lives in advances.json, keyed by
 // the sheet's id, so renaming a sheet keeps it (see advances.js). Flywire Incentive is
 // auto-derived from Flywire Fee Payment (0.2% of the GBP amount, converted to NPR at the
 // day's rate) — that rate is fetched from a public
@@ -242,6 +243,7 @@ const server = http.createServer(async (req, res) => {
         loanCommission: num(body.loanCommission, existing.loanCommission),
         newPartnershipCommission: num(body.newPartnershipCommission, existing.newPartnershipCommission),
         selfStudentCommission: num(body.selfStudentCommission, existing.selfStudentCommission),
+        uniCommissionRate: num(body.uniCommissionRate, existing.uniCommissionRate),
         updatedAt: new Date().toISOString(),
       };
       writeWithBackup(COMMISSIONS_FILE, 'commissions.backup.json', all);
@@ -258,8 +260,16 @@ const server = http.createServer(async (req, res) => {
       const intake = decodeURIComponent(advMatch[1]);
       if (RESERVED_KEYS.has(intake)) return sendJSON(res, 400, { error: 'invalid intake' });
       const body = await readJSONBody(req, MAX_BODY_BYTES);
-      const entry = { previousAdvance: num(body.previousAdvance, 0), updatedAt: new Date().toISOString() };
-      const all = setAdvance(readJSON(ADVANCES_FILE, {}), readSheetList(), intake, entry);
+      const stored = readJSON(ADVANCES_FILE, {});
+      const sheets = readSheetList();
+      const existing = advancesByName(stored, sheets)[intake] || stored[intake] || {};
+      // Fields left out of the body keep their saved values. Salary settings are only stored once set.
+      const entry = { ...existing, previousAdvance: num(body.previousAdvance, existing.previousAdvance) };
+      ['basicSalary', 'salaryMonths'].forEach((f) => {
+        if (f in body) entry[f] = num(body[f], existing[f]);
+      });
+      entry.updatedAt = new Date().toISOString();
+      const all = setAdvance(stored, sheets, intake, entry);
       writeWithBackup(ADVANCES_FILE, 'advances.backup.json', all);
       notifyLive();
       return sendJSON(res, 200, entry);

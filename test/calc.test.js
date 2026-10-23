@@ -81,3 +81,19 @@ test('total tuition fee paid adds both installments, ignoring currency symbols a
   assert.strictEqual(incentive.tuitionPaid({ 'TUITION FEE DEPOSIT(1st Installment)': '3000' }), 3000);
   assert.strictEqual(incentive.tuitionPaid({}), 0);
 });
+
+test('university commission is the given % of the tuition fee paid', () => {
+  assert.strictEqual(incentive.universityCommission(7800, 15), 1170);
+  assert.strictEqual(incentive.universityCommission(7800, ''), 0);
+});
+
+test('earnings compare salary + incentives with what the company earned in NPR', () => {
+  const e = incentive.computeEarnings({
+    commissionGbp: 10000, gbpToNpr: 180, basicSalary: 70000, salaryMonths: 4, myIncentives: 120000,
+  });
+  assert.strictEqual(e.companyNpr, 1800000);
+  assert.strictEqual(e.salaryTotal, 280000);
+  assert.strictEqual(e.myTotal, 400000);
+  assert.strictEqual(Math.round(e.sharePercent * 100) / 100, 22.22);
+  assert.strictEqual(incentive.computeEarnings({ commissionGbp: 0, gbpToNpr: 180, basicSalary: 70000, salaryMonths: 4 }).sharePercent, null);
+});

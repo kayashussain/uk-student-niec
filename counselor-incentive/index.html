@@ -161,6 +161,7 @@
   .grid-hint { color: var(--amber-fg); font-weight: 600; }
 
   .summary-title { font-size: 13px; font-weight: 700; margin: 0 0 10px; color: var(--text); }
+  .summary-title.earnings-title { margin-top: 20px; }
   .summary-card { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
   .summary-row {
     display: flex; align-items: center; justify-content: space-between; padding: 10px 16px;
@@ -244,6 +245,46 @@
     </div>
   </div>
 
+  <p class="summary-title earnings-title" id="earningsTitle">Company Earnings</p>
+  <div class="summary-card">
+    <div class="summary-row">
+      <span class="label">Students Enrolled</span>
+      <span class="value" id="earnStudents">0</span>
+    </div>
+    <div class="summary-row">
+      <span class="label">Total Commission from Universities (£)<span class="hint">sum of Commission Amount</span></span>
+      <span class="value" id="earnGbp">0.00</span>
+    </div>
+    <div class="summary-row final">
+      <span class="label">Company Earnings (NPR)<span class="hint" id="earnRateHint"></span></span>
+      <span class="value" id="earnNpr">—</span>
+    </div>
+    <div class="summary-row">
+      <span class="label">My Basic Salary (per month, NPR)</span>
+      <input class="adv-input" id="salaryInput" type="number" step="1" min="0">
+    </div>
+    <div class="summary-row">
+      <span class="label">Months of Salary for this Intake<span class="hint">January, April/May and September: about 4 months each</span></span>
+      <input class="adv-input" id="monthsInput" type="number" step="0.5" min="0">
+    </div>
+    <div class="summary-row">
+      <span class="label">My Salary for this Intake</span>
+      <span class="value" id="earnSalary">0.00</span>
+    </div>
+    <div class="summary-row">
+      <span class="label">My Incentives<span class="hint">Net Incentives, above</span></span>
+      <span class="value" id="earnIncentives">0.00</span>
+    </div>
+    <div class="summary-row">
+      <span class="label">My Total (Salary + Incentives)</span>
+      <span class="value" id="earnMyTotal">0.00</span>
+    </div>
+    <div class="summary-row final">
+      <span class="label">My Share of Company Earnings</span>
+      <span class="value" id="earnShare">—</span>
+    </div>
+  </div>
+
 </div>
 
 <script src="calc.js"></script>
@@ -252,7 +293,7 @@
 // derive that prefix from the URL actually used to load it, so every API call still hits
 // this app and not whatever else is mounted at the true root.
 const BASE = location.pathname.replace(/\/index\.html$/, '').replace(/\/+$/, '');
-const { num, flywireIncentive } = window.IncentiveCalc;
+const { num, flywireIncentive, universityCommission, DEFAULT_BASIC_SALARY, DEFAULT_SALARY_MONTHS } = window.IncentiveCalc;
 const POLL_MS = 3000; // safety net only: changes normally arrive at once over /api/live
 
 // Student details are synced read-only from UK Student NIEC; the money columns are edited here.
@@ -263,6 +304,11 @@ const COLUMNS = [
   { key: 'studentId', label: 'Student ID', width: 14 },
   { key: 'tuitionPaid', label: 'Total Tuition Fee Paid', width: 18, amount: true,
     title: 'Synced from UK Student NIEC: Tuition Fee Deposit (1st Installment) + (2nd Installment).' },
+  { key: 'uniCommissionRate', label: 'Commission %', width: 13, money: true, percent: true,
+    title: "The % of the tuition fee the university pays us as commission. Type it in, e.g. 15." },
+  { key: 'uniCommissionAmount', label: 'Commission Amount (£)', width: 20, amount: true,
+    calc: (s) => universityCommission(s.tuitionPaid, commissionValue(s.id, 'uniCommissionRate')),
+    title: 'Auto-calculated: Total Tuition Fee Paid × Commission %.' },
   { key: 'visaIssuedDate', label: 'Visa Issue Date', width: 15, synced: true },
   { key: 'enrollmentCommission', label: 'Enrollment Incentive', width: 19, money: true },
   { key: 'enrollmentCommissionUni', label: 'Enrollment Incentive from University', width: 28, money: true },
@@ -301,12 +347,19 @@ function esc(s) { return String(s ?? '').replace(/&/g, '&amp;').replace(/"/g, '&
 function clamp(n, lo, hi) { return Math.max(lo, Math.min(hi, n)); }
 function colIndex(key) { return COLUMNS.findIndex((c) => c.key === key); }
 function isMoney(key) { const c = COLUMNS[colIndex(key)]; return Boolean(c && c.money); }
+function isPercent(key) { const c = COLUMNS[colIndex(key)]; return Boolean(c && c.percent); }
 function commissionValue(id, key) { return num((state.commissions[id] || {})[key]); }
+// A synced or calculated (non-editable) column's value for a student.
+function infoValue(s, col) { return col.calc ? col.calc(s) : s[col.key]; }
+// How an editable cell shows its value: "15%" for a percentage, "1,250.00" for an amount.
+function cellText(key, v) {
+  return isPercent(key) ? (Number(v) || 0).toLocaleString('en-US', { maximumFractionDigits: 2 }) + '%' : fmt(v);
+}
 
 // Reads a typed or pasted amount: "1,250.50", "£1250" and "Rs. 1250" all work. Blank means 0.
 // Returns null when it isn't a number at all.
 function parseMoney(text) {
-  const s = String(text ?? '').trim().replace(/,/g, '').replace(/^(rs\.?|npr|gbp|£|\$|€)\s*/i, '');
+  const s = String(text ?? '').trim().replace(/,/g, '').replace(/^(rs\.?|npr|gbp|£|\$|€)\s*/i, '').replace(/\s*%$/, '');
   if (!s) return 0;
   const n = Number(s);
   return Number.isFinite(n) ? n : null;
@@ -383,8 +436,14 @@ const scheduleSaveCommission = createSaver(pendingCommissions, async (id) => {
 const scheduleSaveAdvance = createSaver(pendingAdvances, (intake) => fetch(BASE + '/api/advances/' + encodeURIComponent(intake), {
   method: 'PUT',
   headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({ previousAdvance: num((state.advances[intake] || {}).previousAdvance) }),
+  body: JSON.stringify(advanceBody(state.advances[intake] || {})),
 }));
+// Only fields that have been set are sent, so an unset salary keeps following the default.
+function advanceBody(entry) {
+  const body = { previousAdvance: num(entry.previousAdvance) };
+  ['basicSalary', 'salaryMonths'].forEach((f) => { if (entry[f] !== undefined) body[f] = num(entry[f]); });
+  return body;
+}
 
 // ---------------------------------------------------------------------------------------------
 // Undo/redo. Every change to the incentive cells is one 'commission-batch' step (a single cell edit,
@@ -416,7 +475,7 @@ function applyAction(action, dir) {
     [...new Set(action.changes.map((ch) => ch.id))].forEach(scheduleSaveCommission);
   } else if (action.kind === 'advance') {
     if (!state.advances[action.intake]) state.advances[action.intake] = {};
-    state.advances[action.intake].previousAdvance = action[dir];
+    state.advances[action.intake][action.field || 'previousAdvance'] = action[dir];
     scheduleSaveAdvance(action.intake);
   }
   render();
@@ -619,11 +678,12 @@ function render() {
       if (col.money) {
         const value = commissionValue(s.id, col.key);
         td.className = 'num' + (value === 0 ? ' zero' : '');
-        td.textContent = fmt(value);
+        td.textContent = cellText(col.key, value);
       } else if (col.amount) {
-        td.title = INFO_HINT;
-        td.className = 'num' + (s[col.key] ? '' : ' zero');
-        td.textContent = fmt(s[col.key]);
+        const value = infoValue(s, col);
+        td.title = col.calc ? col.title : INFO_HINT;
+        td.className = 'num' + (value ? '' : ' zero');
+        td.textContent = fmt(value);
       } else {
         td.title = INFO_HINT;
         if (s[col.key]) td.textContent = s[col.key];
@@ -660,7 +720,66 @@ function recalc(students) {
   $('#sumNetCommissions').textContent = fmt(s.netCommissions);
   $('#sumTds').textContent = fmt(s.tds);
   $('#sumNetPayable').textContent = fmt(s.netPayable);
+  renderEarnings(students, s);
 }
+
+// Company Earnings: what the universities pay us for this intake (in £, then NPR at today's rate)
+// against the counselor's salary for the intake period plus their incentives.
+const salaryInput = $('#salaryInput');
+const monthsInput = $('#monthsInput');
+let earningsRate = null; // { rate, date, stale } once fetched
+
+function intakeSetting(field, fallback) {
+  const v = (state.advances[state.activeIntake] || {})[field];
+  return v === undefined ? fallback : num(v);
+}
+
+function computeEarnings(students, summary) {
+  const amountCol = COLUMNS[colIndex('uniCommissionAmount')];
+  return window.IncentiveCalc.computeEarnings({
+    commissionGbp: students.reduce((a, st) => a + infoValue(st, amountCol), 0),
+    gbpToNpr: earningsRate ? earningsRate.rate : null,
+    basicSalary: intakeSetting('basicSalary', DEFAULT_BASIC_SALARY),
+    salaryMonths: intakeSetting('salaryMonths', DEFAULT_SALARY_MONTHS),
+    myIncentives: summary.netCommissions,
+  });
+}
+
+function renderEarnings(students, summary) {
+  $('#earningsTitle').textContent = state.activeIntake ? `Company Earnings · ${state.activeIntake}` : 'Company Earnings';
+  const e = computeEarnings(students, summary);
+  $('#earnStudents').textContent = students.length;
+  $('#earnGbp').textContent = '£' + fmt(e.commissionGbp);
+  $('#earnNpr').textContent = e.companyNpr === null ? '—' : fmt(e.companyNpr);
+  $('#earnRateHint').textContent = earningsRate
+    ? `at today's rate, £1 = ${earningsRate.rate} NPR${earningsRate.stale ? ' (last known)' : ''}`
+    : 'exchange rate not available right now';
+  if (document.activeElement !== salaryInput) salaryInput.value = intakeSetting('basicSalary', DEFAULT_BASIC_SALARY);
+  if (document.activeElement !== monthsInput) monthsInput.value = intakeSetting('salaryMonths', DEFAULT_SALARY_MONTHS);
+  $('#earnSalary').textContent = fmt(e.salaryTotal);
+  $('#earnIncentives').textContent = fmt(summary.netCommissions);
+  $('#earnMyTotal').textContent = fmt(e.myTotal);
+  $('#earnShare').textContent = e.sharePercent === null ? '—' : e.sharePercent.toFixed(2) + '%';
+}
+
+getExchangeRate().then((fx) => { earningsRate = fx; recalc(intakeStudents()); });
+
+function bindIntakeSetting(input, field, fallback) {
+  input.addEventListener('change', () => {
+    const intake = state.activeIntake;
+    if (!intake) return;
+    const v = num(input.value);
+    const prev = intakeSetting(field, fallback);
+    if (v === prev) return;
+    pushUndo({ kind: 'advance', intake, field, from: prev, to: v });
+    if (!state.advances[intake]) state.advances[intake] = {};
+    state.advances[intake][field] = v;
+    recalc(intakeStudents());
+    scheduleSaveAdvance(intake);
+  });
+}
+bindIntakeSetting(salaryInput, 'basicSalary', DEFAULT_BASIC_SALARY);
+bindIntakeSetting(monthsInput, 'salaryMonths', DEFAULT_SALARY_MONTHS);
 
 advanceInput.addEventListener('change', () => {
   const intake = state.activeIntake;
@@ -756,7 +875,7 @@ function applySelectionClasses() {
   if (multi) {
     const cells = selectedCells();
     text += ` · ${cells.length} cells selected`;
-    const money = cells.filter((c) => isMoney(c.key));
+    const money = cells.filter((c) => isMoney(c.key) && !isPercent(c.key));
     if (money.length) text += ` · Sum: ${fmt(money.reduce((sum, c) => sum + commissionValue(c.id, c.key), 0))}`;
   }
   gridStatusEl.textContent = text;
@@ -834,7 +953,7 @@ function startEdit({ replaceWith = null } = {}) {
   editing = { td, id, key, original, typed: replaceWith !== null };
   td.contentEditable = 'true';
   td.classList.add('editing');
-  td.textContent = replaceWith !== null ? replaceWith : (original ? String(original) : '');
+  td.textContent = replaceWith !== null ? replaceWith : (original ? String(original) : '');  // plain number while typing
   td.focus({ preventScroll: true });
   const range = document.createRange();
   range.selectNodeContents(td);
@@ -856,11 +975,11 @@ function commitEdit({ move = null, refocus = true } = {}) {
   td.classList.remove('editing');
   const value = parseMoney(td.textContent);
   if (value === null) {
-    td.textContent = fmt(original);
+    td.textContent = cellText(key, original);
     showHint('Only numbers can go in incentive cells.');
     finishEditing();
   } else {
-    td.textContent = fmt(value);
+    td.textContent = cellText(key, value);
     if (value !== original) applyChanges([{ id, key, to: value }]);
     else finishEditing();
   }
@@ -870,11 +989,11 @@ function commitEdit({ move = null, refocus = true } = {}) {
 
 function cancelEdit() {
   if (!editing) return;
-  const { td, original } = editing;
+  const { td, key, original } = editing;
   editing = null;
   td.removeAttribute('contenteditable');
   td.classList.remove('editing');
-  td.textContent = fmt(original);
+  td.textContent = cellText(key, original);
   finishEditing();
   focusActiveCell({ scroll: false });
 }
@@ -900,7 +1019,7 @@ function selectionToTsv() {
     const cells = [];
     for (let c = r.left; c <= r.right; c += 1) {
       const col = COLUMNS[c];
-      const value = col.money ? String(commissionValue(s.id, col.key)) : String(s[col.key] || '');
+      const value = col.money ? String(commissionValue(s.id, col.key)) : String(infoValue(s, col) || '');
       cells.push(value.replace(/[\t\r\n]+/g, ' '));
     }
     lines.push(cells.join('\t'));
@@ -1170,7 +1289,7 @@ $('#exportExcelBtn').addEventListener('click', async () => {
   });
 
   students.forEach((s, i) => {
-    const row = ws.addRow([i + 1, ...COLUMNS.map((c) => (c.money ? commissionValue(s.id, c.key) : c.amount ? num(s[c.key]) : s[c.key] || ''))]);
+    const row = ws.addRow([i + 1, ...COLUMNS.map((c) => (c.money ? commissionValue(s.id, c.key) : c.amount ? num(infoValue(s, c)) : s[c.key] || ''))]);
     row.height = 24;
     row.font = { size: 11 };
     EXCEL_COLUMNS.forEach((col, idx) => {
@@ -1198,6 +1317,29 @@ $('#exportExcelBtn').addEventListener('click', async () => {
   addExcelSummaryRow(ws, 'TDS 15% (-)', s.tds, { color: 'FFDC2626' });
   addExcelSummaryRow(ws, 'Previous Advance (-)', s.previousAdvance, { color: 'FFDC2626' });
   addExcelSummaryRow(ws, 'Net Payable', s.netPayable, { bold: true, color: 'FF1D4ED8', fill: 'FFEAF1FF' });
+
+  const e = computeEarnings(students, s);
+  ws.addRow([]);
+  const earnTitleNum = ws.lastRow.number + 1;
+  ws.mergeCells(earnTitleNum, 2, earnTitleNum, 5);
+  const earnTitle = ws.getRow(earnTitleNum);
+  earnTitle.height = 26;
+  earnTitle.getCell(2).value = `Company Earnings · ${state.activeIntake || ''}`;
+  earnTitle.getCell(2).font = { bold: true, size: 13 };
+  earnTitle.getCell(2).alignment = { vertical: 'middle' };
+  addExcelSummaryRow(ws, 'Students Enrolled', students.length);
+  ws.lastRow.getCell(5).numFmt = '0';
+  addExcelSummaryRow(ws, 'Total Commission from Universities (£)', e.commissionGbp);
+  if (e.companyNpr !== null) {
+    addExcelSummaryRow(ws, `Company Earnings (NPR, £1 = ${earningsRate.rate})`, e.companyNpr, { bold: true, color: 'FF1D4ED8', fill: 'FFEAF1FF' });
+  }
+  addExcelSummaryRow(ws, `My Salary (${intakeSetting('salaryMonths', DEFAULT_SALARY_MONTHS)} months × ${fmt(intakeSetting('basicSalary', DEFAULT_BASIC_SALARY))})`, e.salaryTotal);
+  addExcelSummaryRow(ws, 'My Incentives (Net Incentives)', s.netCommissions);
+  addExcelSummaryRow(ws, 'My Total (Salary + Incentives)', e.myTotal);
+  if (e.sharePercent !== null) {
+    addExcelSummaryRow(ws, 'My Share of Company Earnings', e.sharePercent / 100, { bold: true, color: 'FF1D4ED8', fill: 'FFEAF1FF' });
+    ws.lastRow.getCell(5).numFmt = '0.00%';
+  }
 
   const buf = await wb.xlsx.writeBuffer();
   const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
