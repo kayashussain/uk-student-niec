@@ -72,3 +72,12 @@ test('offerStuck flags a student still before Payment Stage a week or more after
   assert.strictEqual(tracker.offerStuck(row('Visa Issued', '2026-09-01'), today), false);
   assert.strictEqual(tracker.offerStuck(row('Mock Stage', ''), today), false);
 });
+
+test('total tuition fee paid adds both installments, ignoring currency symbols and blanks', () => {
+  assert.strictEqual(incentive.tuitionPaid({
+    'TUITION FEE DEPOSIT(1st Installment)': '£4,000',
+    'TUITION FEE DEPOSIT(2nd Installment)': '2500.50',
+  }), 6500.5);
+  assert.strictEqual(incentive.tuitionPaid({ 'TUITION FEE DEPOSIT(1st Installment)': '3000' }), 3000);
+  assert.strictEqual(incentive.tuitionPaid({}), 0);
+});
