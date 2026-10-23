@@ -20,7 +20,9 @@ const {
   send, sendJSON, createAuth, createStaticServer, readJSONBody, writeFileAtomic, snapshotDaily, localDate,
 } = require('../shared/server-utils');
 const { advancesByName, setAdvance } = require('./advances');
-const { tuitionPaid, groupByUniversity } = require('./calc');
+const { round2, groupByUniversity } = require('./calc');
+// Student Details' own fee math, so the tuition fee shown here always matches what's shown over there.
+const { netTuitionFee } = require('../student-details/calc');
 
 const PORT = process.env.PORT || 5173;
 const ROOT = __dirname;
@@ -94,7 +96,7 @@ function normalizeStudent(row, intake) {
     course: row['COURSE NAME'] || '',
     university: row['UNIVERSITY NAME'] || '',
     studentId: row['STUDENT ID'] || '',
-    tuitionPaid: tuitionPaid(row),
+    tuitionFee: String(row['GROSS FEE'] || '').trim() ? round2(netTuitionFee(row)) : 0,
     visaIssuedDate: row['VISA RECEIVED DATE'] || '',
   };
 }
