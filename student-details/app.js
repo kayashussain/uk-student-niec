@@ -57,6 +57,27 @@
       columns: ['REMARKS', 'STUDENT SOURCE', 'APPLICATION SUBMISSION DATE', 'OFFER RECEIVED DATE'],
     },
   ];
+  // Column names are stored in capitals (they match the imported spreadsheet). On screen they're shown
+  // in normal case, with the currency on money columns, so they're quicker to read.
+  const COLUMN_LABELS = {
+    'APPLICATION SUBMISSION DATE': 'Application Submitted',
+    'OFFER RECEIVED DATE': 'Offer Received',
+    'CONTACT NUMBER': 'Contact Number (WhatsApp)',
+    'LANGUAGE TEST DATE': 'Language Test',
+    'GROSS FEE': 'Gross Fee (£)',
+    'SCHOLARSHIP': 'Scholarship (£ or %)',
+    'FEE AFTER SCHOLARSHIP': 'Fee After Scholarship (£)',
+    'EARLY BIRD DISCOUNT': 'Early Bird Discount (£ or %)',
+    'ADDITIONAL DISCOUNT': 'Additional Discount (£)',
+    'TUITION FEE DEPOSIT(1st Installment)': '1st Installment Paid (£)',
+    'TUITION FEE DEPOSIT(2nd Installment)': '2nd Installment Paid (£)',
+    'REMAINING TUITION FEE': 'Remaining Tuition Fee (£)',
+    'PRE CAS INTERVIEW': 'Pre-CAS Interview',
+    'E-VISA': 'E-Visa',
+  };
+  const KEEP_CAPS = new Set(['CAS', 'NOC', 'UK', 'VFS', 'ID']);
+  const columnLabel = (col) => COLUMN_LABELS[col] || col.split(' ')
+    .map((w) => (KEEP_CAPS.has(w) ? w : w.charAt(0) + w.slice(1).toLowerCase())).join(' ');
   const visibleColumns = (sheet) => {
     const hidden = new Set(HIDDEN_COLUMNS_BY_SHEET.filter((h) => h.matches(sheet.name || '')).flatMap((h) => h.columns));
     return sheet.columns.filter((c) => !hidden.has(c));
@@ -146,6 +167,9 @@
   // Date boxes fire "change" as soon as a typed date is complete — already after the first digit of the
   // year (0002) — so a typed date is only confirmed once the typing is done: Enter, leaving the box, or a
   // 2-second pause. A date picked from the calendar is confirmed straight away.
+  // An empty date box shows no "mm/dd/yyyy" until it's clicked (see .date-input.empty in style.css).
+  function markEmptyDate(input) { input.classList.toggle('empty', !input.value); }
+
   function confirmDateInput(input, original, apply) {
     let lastKey = 0;
     let pending = false;
@@ -156,8 +180,10 @@
       clearTimeout(timer);
       const value = input.value;
       if (value === original) return;
-      confirmChange(() => apply(value), () => { input.value = original; });
+      confirmChange(() => apply(value), () => { input.value = original; markEmptyDate(input); });
     };
+    markEmptyDate(input);
+    input.addEventListener('input', () => markEmptyDate(input));
     input.addEventListener('keydown', (e) => {
       lastKey = Date.now();
       if (pending) { clearTimeout(timer); timer = setTimeout(finish, 2000); }
@@ -744,7 +770,10 @@
 
       const label = document.createElement('span');
       label.className = 'th-label';
-      label.textContent = col;
+      label.textContent = columnLabel(col);
+      if (CALC_COLS[col]) th.title = 'Worked out automatically: ' + (col === 'REMAINING TUITION FEE'
+        ? 'Fee After Scholarship − Early Bird − Additional Discount − 1st − 2nd Installment'
+        : 'Gross Fee − Scholarship');
       label.addEventListener('click', () => {
         if (sortCol === col) sortDir = -sortDir;
         else { sortCol = col; sortDir = 1; }
@@ -1103,6 +1132,9 @@
         text += ` · Sum: ${formatNum(numeric.reduce((sum, { rowIdx, col }) => sum + parseNum(rows[rowIdx][col]), 0))}`;
       }
     }
+    const sheet = getActiveSheet();
+    const hidden = sheet ? sheet.columns.filter((c) => !columns.includes(c)) : [];
+    if (hidden.length) text += ` · ${hidden.length} columns hidden on this sheet (${hidden.map(columnLabel).join(', ')})`;
     rowCountEl.textContent = text;
   }
 
