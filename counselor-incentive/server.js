@@ -20,7 +20,7 @@ const {
   send, sendJSON, createAuth, createStaticServer, readJSONBody, writeFileAtomic, snapshotDaily, localDate,
 } = require('../shared/server-utils');
 const { advancesByName, setAdvance } = require('./advances');
-const { tuitionPaid } = require('./calc');
+const { tuitionPaid, groupByUniversity } = require('./calc');
 
 const PORT = process.env.PORT || 5173;
 const ROOT = __dirname;
@@ -128,9 +128,9 @@ function readSync() {
   const byIntake = {};
   sheets.forEach((sheet) => {
     const rows = Array.isArray(sheet.rows) ? sheet.rows : [];
-    byIntake[sheet.name] = rows
+    byIntake[sheet.name] = groupByUniversity(rows
       .filter((r) => r['APPLICATION STATUS'] === 'Visa Issued' && r._id)
-      .map((r) => normalizeStudent(r, sheet.name));
+      .map((r) => normalizeStudent(r, sheet.name)));
   });
   return { ok: true, intakes, byIntake };
 }
