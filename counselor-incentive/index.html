@@ -252,7 +252,7 @@
       <span class="value" id="earnStudents">0</span>
     </div>
     <div class="summary-row">
-      <span class="label">Total Commission from Universities (£)<span class="hint">sum of Commission Amount</span></span>
+      <span class="label">Total Commission from Universities (£)</span>
       <span class="value" id="earnGbp">0.00</span>
     </div>
     <div class="summary-row final">
@@ -260,23 +260,23 @@
       <span class="value" id="earnNpr">—</span>
     </div>
     <div class="summary-row">
-      <span class="label">My Basic Salary (per month, NPR)</span>
+      <span class="label">Basic Salary (per month, NPR)</span>
       <input class="adv-input" id="salaryInput" type="number" step="1" min="0">
     </div>
     <div class="summary-row">
-      <span class="label">Months of Salary for this Intake<span class="hint">January, April/May and September: about 4 months each</span></span>
+      <span class="label">Total Months</span>
       <input class="adv-input" id="monthsInput" type="number" step="0.5" min="0">
     </div>
     <div class="summary-row">
-      <span class="label">My Salary for this Intake</span>
+      <span class="label">Salary for this Intake</span>
       <span class="value" id="earnSalary">0.00</span>
     </div>
     <div class="summary-row">
-      <span class="label">My Incentives<span class="hint">Net Incentives, above</span></span>
+      <span class="label">Total Incentive for this Intake</span>
       <span class="value" id="earnIncentives">0.00</span>
     </div>
     <div class="summary-row">
-      <span class="label">My Total (Salary + Incentives)</span>
+      <span class="label">Grand Total (Salary + Incentive)</span>
       <span class="value" id="earnMyTotal">0.00</span>
     </div>
     <div class="summary-row final">
@@ -1333,9 +1333,12 @@ $('#exportExcelBtn').addEventListener('click', async () => {
   if (e.companyNpr !== null) {
     addExcelSummaryRow(ws, `Company Earnings (NPR, £1 = ${earningsRate.rate})`, e.companyNpr, { bold: true, color: 'FF1D4ED8', fill: 'FFEAF1FF' });
   }
-  addExcelSummaryRow(ws, `My Salary (${intakeSetting('salaryMonths', DEFAULT_SALARY_MONTHS)} months × ${fmt(intakeSetting('basicSalary', DEFAULT_BASIC_SALARY))})`, e.salaryTotal);
-  addExcelSummaryRow(ws, 'My Incentives (Net Incentives)', s.netCommissions);
-  addExcelSummaryRow(ws, 'My Total (Salary + Incentives)', e.myTotal);
+  addExcelSummaryRow(ws, 'Basic Salary (per month, NPR)', intakeSetting('basicSalary', DEFAULT_BASIC_SALARY));
+  addExcelSummaryRow(ws, 'Total Months', intakeSetting('salaryMonths', DEFAULT_SALARY_MONTHS));
+  ws.lastRow.getCell(5).numFmt = '0.##';
+  addExcelSummaryRow(ws, 'Salary for this Intake', e.salaryTotal);
+  addExcelSummaryRow(ws, 'Total Incentive for this Intake', s.netCommissions);
+  addExcelSummaryRow(ws, 'Grand Total (Salary + Incentive)', e.myTotal);
   if (e.sharePercent !== null) {
     addExcelSummaryRow(ws, 'My Share of Company Earnings', e.sharePercent / 100, { bold: true, color: 'FF1D4ED8', fill: 'FFEAF1FF' });
     ws.lastRow.getCell(5).numFmt = '0.00%';
