@@ -50,7 +50,19 @@
   };
   let sheets = [];
   let activeSheetId = null;
-  let columns = []; // reference to the active sheet's columns array
+  // Columns not shown on particular sheets. The data stays in the file (and in other sheets), these
+  // sheets just don't display them. Matched by sheet name, e.g. "Sep Intake 2026" or "September 2026".
+  const HIDDEN_COLUMNS_BY_SHEET = [
+    {
+      matches: (name) => /\bsep/i.test(name) && /2026/.test(name),
+      columns: ['REMARKS', 'STUDENT SOURCE', 'APPLICATION STATUS', 'APPLICATION SUBMISSION DATE', 'OFFER RECEIVED DATE'],
+    },
+  ];
+  const visibleColumns = (sheet) => {
+    const hidden = new Set(HIDDEN_COLUMNS_BY_SHEET.filter((h) => h.matches(sheet.name || '')).flatMap((h) => h.columns));
+    return sheet.columns.filter((c) => !hidden.has(c));
+  };
+  let columns = []; // the active sheet's shown columns (see visibleColumns)
   let rows = [];    // reference to the active sheet's rows array
   let sortCol = null;
   let sortDir = 1;
@@ -438,7 +450,7 @@
 
   function syncActiveSheet() {
     const sheet = getActiveSheet();
-    columns = sheet.columns;
+    columns = visibleColumns(sheet);
     rows = sheet.rows;
     selectedRows = new Set();
     selRanges = [];
@@ -509,8 +521,9 @@
 
   function sheetToTsv(sheet) {
     const esc = (v) => String(v ?? '').replace(/\t/g, ' ').replace(/\r?\n/g, ' ');
-    const lines = [sheet.columns.map(esc).join('\t')];
-    sheet.rows.forEach((r) => lines.push(sheet.columns.map((c) => esc(r[c])).join('\t')));
+    const cols = visibleColumns(sheet);
+    const lines = [cols.map(esc).join('\t')];
+    sheet.rows.forEach((r) => lines.push(cols.map((c) => esc(r[c])).join('\t')));
     return lines.join('\n');
   }
 
@@ -552,6 +565,11 @@
     sheet.name = trimmed;
     markDirtyAndSaveNow();
     renderSheetTabs();
+    if (id === activeSheetId) { // the new name may show or hide columns (see HIDDEN_COLUMNS_BY_SHEET)
+      columns = visibleColumns(sheet);
+      renderHeader();
+      renderBody();
+    }
   }
 
   function deleteSheet(id) {
@@ -840,7 +858,7 @@
     indices.forEach((rowIdx, displayIdx) => {
       const tr = document.createElement('tr');
       tr.dataset.rowIdx = rowIdx;
-      if (offerStuck(rows[rowIdx])) {
+      if (columns.includes('OFFER RECEIVED DATE') && offerStuck(rows[rowIdx])) {
         tr.classList.add('offer-stuck-row');
         tr.title = 'Offer received over a week ago, but the student hasn\'t reached Payment Stage yet.';
       }
