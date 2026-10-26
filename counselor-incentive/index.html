@@ -71,17 +71,17 @@
 
   /* NIEC brand header, matching the Student Details page: navy to sky blue, logo, orange accent line. */
   header.top {
-    background: linear-gradient(110deg, #0b2e4f 0%, #0e4a78 55%, #0a7fbf 100%);
-    border-bottom: 3px solid #fc6e1f; padding: 10px 18px;
+    background: linear-gradient(100deg, #0b2e4f 0%, #0e4a78 100%);
+    border-bottom: 2px solid #fc6e1f; padding: 10px 18px;
   }
-  .brand-logo { width: 38px; height: 38px; border-radius: 50%; background: #fff; padding: 3px; box-shadow: 0 0 0 2px rgba(255, 255, 255, .25); }
-  header.top .brand h1 { color: #fff; font-size: 17px; font-weight: 700; text-transform: none; letter-spacing: .01em; }
-  header.top .subtitle { color: #bfe9fb; font-size: 11px; letter-spacing: .02em; }
-  header.top input.search { background: rgba(255, 255, 255, .96); border-color: transparent; color: #1c2126; }
-  header.top .btn { background: rgba(255, 255, 255, .1); border-color: rgba(255, 255, 255, .28); color: #fff; }
-  header.top .btn:hover { background: rgba(255, 255, 255, .2); }
-  header.top .btn:disabled { background: rgba(255, 255, 255, .06); }
-  header.top .live { color: #cfe6f5; }
+  .brand-logo { width: 36px; height: 36px; border-radius: 50%; background: #fff; padding: 3px; }
+  header.top .brand h1 { color: #fff; font-size: 16px; font-weight: 600; text-transform: none; letter-spacing: .01em; }
+  header.top .subtitle { color: #a9c6dc; font-size: 11px; letter-spacing: .02em; }
+  header.top input.search { background: #fff; border-color: transparent; color: #1c2126; }
+  header.top .btn { background: transparent; border-color: rgba(255, 255, 255, .3); color: #fff; }
+  header.top .btn:hover { background: rgba(255, 255, 255, .12); }
+  header.top .btn:disabled { background: transparent; }
+  header.top .live { color: #a9c6dc; }
 
   .toolbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
   input.search {
@@ -139,8 +139,8 @@
   .grid-key i { display: inline-block; width: 11px; height: 11px; border-radius: 3px; border: 1px solid var(--border-strong); vertical-align: -1px; margin-right: 4px; }
   thead th.num { text-align: right; }
   /* NIEC navy column headings, matching Student Details. */
-  thead th { background: #0b2e4f; color: #e6f1f9; border-bottom-color: #fc6e1f; border-right-color: rgba(255, 255, 255, .1); }
-  thead th .info { color: #9fc3dc; }
+  thead th { background: #0b2e4f; color: #e3edf5; border-bottom: 2px solid #00adef; border-right-color: rgba(255, 255, 255, .08); }
+  thead th .info { color: #a9c6dc; }
   tbody td {
     padding: 7px 10px; border-bottom: 1px solid var(--border); border-right: 1px solid var(--border);
     white-space: nowrap; color: var(--text);

@@ -283,8 +283,9 @@ th.col-idx, td.col-idx {
   z-index: 2;
   background: var(--header-bg);
   text-align: center;
-  min-width: 40px;
-  max-width: 40px;
+  padding-left: 4px;
+  padding-right: 4px;
+  text-overflow: clip !important; /* never "…" on a row number */
 }
 td.col-idx { background: var(--panel); color: var(--text-dim); font-variant-numeric: tabular-nums; }
 tbody tr:nth-child(even) td.col-idx { background: var(--row-alt); }
@@ -309,7 +310,7 @@ tbody tr.row-picked td.col-idx { background: var(--focus); color: #fff; font-wei
 td.col-idx { cursor: pointer; user-select: none; }
 
 /* The cell cursor that the arrow keys move. scroll-margin keeps it clear of the sticky header and S.N column. */
-#body td { scroll-margin: 40px 0 0 44px; }
+#body td { scroll-margin: 40px 0 0 60px; }
 #body td:focus { outline: none; }
 /* Outline only (no position/z-index change), so moving the cursor repaints one cell instead of relaying out the table. */
 #body td.active-cell { outline: 2px solid var(--focus); outline-offset: -2px; }
@@ -562,92 +563,67 @@ tr.defer-warning-row td { background: var(--red-bg) !important; }
 
 
 /* ---------------------------------------------------------------------------------------------
-   NIEC brand theme: a navy-to-sky-blue header bar with the logo and an orange accent line, orange
-   for the main buttons, navy column headings with a colour stripe per section, and summary cards
-   coloured by what they count. Status badge colours inside the table are unchanged.
+   NIEC brand theme, kept restrained: NIEC navy for the header bar and column headings, the logo's
+   sky blue as the one supporting colour, and NIEC orange only as a thin accent and on the main
+   button. Status badge colours inside the table are unchanged.
    --------------------------------------------------------------------------------------------- */
 .topbar {
-  background: linear-gradient(110deg, var(--niec-navy) 0%, var(--niec-navy-2) 55%, #0a7fbf 100%);
-  border-bottom: 3px solid var(--niec-orange);
+  background: linear-gradient(100deg, var(--niec-navy) 0%, var(--niec-navy-2) 100%);
+  border-bottom: 2px solid var(--niec-orange);
   padding: 10px 18px;
 }
-.brand-logo {
-  width: 38px; height: 38px; border-radius: 50%; background: #fff; padding: 3px;
-  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.25);
-}
-.brand h1 { color: #fff; font-size: 17px; font-weight: 700; letter-spacing: 0.01em; }
-.brand .subtitle { color: #bfe9fb; font-size: 11px; letter-spacing: 0.02em; }
-.topbar #search {
-  background: rgba(255, 255, 255, 0.96); border-color: transparent; color: #1c2126;
-}
+.brand-logo { width: 36px; height: 36px; border-radius: 50%; background: #fff; padding: 3px; }
+.brand h1 { color: #fff; font-size: 16px; font-weight: 600; letter-spacing: 0.01em; }
+.brand .subtitle { color: #a9c6dc; font-size: 11px; letter-spacing: 0.02em; }
+.topbar #search { background: #fff; border-color: transparent; color: #1c2126; }
 .topbar #search::placeholder { color: #6b7280; }
-.topbar .btn {
-  background: rgba(255, 255, 255, 0.1); border-color: rgba(255, 255, 255, 0.28); color: #fff;
-}
-.topbar .btn:hover { background: rgba(255, 255, 255, 0.2); }
-.topbar .btn:disabled { background: rgba(255, 255, 255, 0.06); }
+.topbar .btn { background: transparent; border-color: rgba(255, 255, 255, 0.3); color: #fff; }
+.topbar .btn:hover { background: rgba(255, 255, 255, 0.12); }
+.topbar .btn:disabled { background: transparent; }
 .topbar .btn-primary, .btn-primary {
   background: var(--niec-orange); border-color: var(--niec-orange); color: #fff; font-weight: 600;
 }
-.topbar .btn-primary:hover { background: var(--niec-orange); filter: brightness(1.08); }
-.topbar .btn-danger { color: #ffc2b3; border-color: rgba(255, 170, 150, 0.45); }
-.topbar .save-status { color: #cfe6f5; }
+.topbar .btn-primary:hover { background: var(--niec-orange); filter: brightness(1.06); }
+.topbar .btn-danger { color: #ffc9bd; }
+.topbar .save-status { color: #a9c6dc; }
 .topbar .save-status.dirty { color: #ffd38a; }
 .topbar .save-status.error { color: #ffb4a8; }
 
-/* Summary: section titles in navy with an orange marker; each card's colour says what it counts. */
-.status-summary { background: linear-gradient(180deg, #e9f3fa 0%, var(--bg) 100%); }
-.stat-group-title { color: var(--niec-navy); display: inline-flex; align-items: center; gap: 6px; }
-.stat-group-title::before { content: ""; width: 14px; height: 3px; border-radius: 2px; background: var(--niec-orange); }
+/* Summary: plain white cards with navy figures; a sky-blue edge, and Total Students in navy. */
+.stat-group-title { color: var(--niec-navy); }
 .stat-card {
-  --card-color: var(--niec-blue);
-  border-left: 4px solid var(--card-color);
-  box-shadow: 0 1px 2px rgba(11, 46, 79, 0.06), 0 2px 8px rgba(11, 46, 79, 0.06);
+  border-left: 3px solid var(--niec-blue);
+  box-shadow: 0 1px 2px rgba(11, 46, 79, 0.06);
 }
-.stat-card .stat-value { color: var(--card-color); }
-.stat-card.tone-green { --card-color: #16a34a; }
-.stat-card.tone-blue { --card-color: #0284c7; }
-.stat-card.tone-amber { --card-color: #d97706; }
-.stat-card.tone-red { --card-color: #dc2626; }
-.stat-card.tone-gray { --card-color: #64748b; }
-.stat-card.tone-orange { --card-color: var(--niec-orange); }
-/* Headline cards: filled with the brand colours. */
-.stat-card.stat-total, .stat-card.stat-rate { border-left: none; color: #fff; }
-.stat-card.stat-total { background: linear-gradient(135deg, var(--niec-navy), var(--niec-navy-2)); }
-.stat-card.stat-rate { background: linear-gradient(135deg, var(--niec-orange), #f59e0b); }
-.stat-card.stat-total .stat-value, .stat-card.stat-rate .stat-value { color: #fff; }
-.stat-card.stat-total .stat-label, .stat-card.stat-rate .stat-label { color: rgba(255, 255, 255, 0.85); }
-.stat-card .stat-visa { color: #16a34a; font-weight: 600; }
+.stat-card .stat-value { color: var(--niec-navy); }
+.stat-card.stat-total { background: var(--niec-navy); border-left-color: var(--niec-navy); }
+.stat-card.stat-total .stat-value { color: #fff; }
+.stat-card.stat-total .stat-label { color: #a9c6dc; }
+.stat-card.stat-rate { border-left-color: var(--niec-orange); }
+.stat-card .stat-visa { color: #15803d; font-weight: 600; }
 
-/* Column headings: navy, with a stripe on top showing which part of the process the column is in. */
+/* Column headings: navy with light text, a sky-blue line underneath. */
 thead th {
   background: var(--niec-navy);
-  color: #e6f1f9;
-  border-right-color: rgba(255, 255, 255, 0.1);
-  border-bottom: none;
-  box-shadow: inset 0 4px 0 var(--group-color, transparent);
-  padding-top: 10px;
+  color: #e3edf5;
+  border-right-color: rgba(255, 255, 255, 0.08);
+  border-bottom: 2px solid var(--niec-blue);
 }
-thead th:hover { color: #fff; background: #10395f; }
-thead th.col-idx { background: var(--niec-navy); color: #9fc3dc; }
-thead th.group-lead { --group-color: var(--niec-grey); }
-thead th.group-student { --group-color: var(--niec-blue); }
-thead th.group-precas { --group-color: var(--niec-orange); }
-thead th.group-fees { --group-color: #22c55e; }
-thead th.group-visa { --group-color: #a78bfa; }
-thead .filter-btn { color: #9fc3dc; }
+thead th:hover { color: #fff; background: #103a60; }
+thead th.col-idx { background: var(--niec-navy); color: #a9c6dc; }
+thead .filter-btn { color: #a9c6dc; }
 thead .filter-btn:hover { background: rgba(255, 255, 255, 0.15); color: #fff; }
 thead .filter-btn.active { color: var(--niec-orange); }
-td.col-idx { color: var(--niec-navy-2); font-weight: 600; }
+td.col-idx { color: var(--text-dim); }
 
 /* Sheet tabs: the open intake in navy with an orange underline. */
-.sheet-tab.active { color: var(--niec-navy); border-color: #bcd3e6; box-shadow: inset 0 -3px 0 var(--niec-orange); }
+.sheet-tab.active { color: var(--niec-navy); box-shadow: inset 0 -2px 0 var(--niec-orange); }
 
 @media (prefers-color-scheme: dark) {
-  .status-summary { background: var(--bg); }
-  .stat-group-title { color: #8fd3f5; }
-  thead th { background: #0a2540; }
-  thead th.col-idx { background: #0a2540; }
-  td.col-idx { color: #8fb8d6; }
-  .sheet-tab.active { color: #e7eaee; border-color: var(--border-strong); }
+  .stat-group-title { color: #a9c6dc; }
+  .stat-card .stat-value { color: #e7eaee; }
+  .stat-card.stat-total { background: #0e3a60; border-left-color: #0e3a60; }
+  .stat-card .stat-visa { color: #6fd894; }
+  thead th, thead th.col-idx { background: #0a2540; }
+  .sheet-tab.active { color: #e7eaee; }
 }
