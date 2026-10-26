@@ -110,6 +110,8 @@
   let editing = null;    // { td, rowIdx, col, original, typed }
   let rowSelectMode = false;
   let skipRefocus = false;
+  let rowEls = new Map(); // rowIdx -> its <tr>, for the rows currently shown
+  let marked = { trs: new Set(), tds: new Set() }; // elements carrying selection classes right now
 
   // Multi-cell selection, like Sheets: one or more rectangles, each running from where it started
   // (anchor) to where it was dragged/extended to (focus). Ends are stored by row id index + column
@@ -358,7 +360,7 @@
       pushUndo();
       rows[rowIdx][col] = value; // switching away from a date drops it; Ctrl+Z brings it back
       markDirty();
-      renderBody();
+      renderRow(rowIdx, col);
       if (value === 'Test Date') {
         const input = cellTd(rowIdx, col) && cellTd(rowIdx, col).querySelector('input');
         if (input) {
@@ -568,6 +570,10 @@
       id: makeSheetId(),
       name: uniqueSheetName(`Sheet${sheets.length + 1}`),
       columns: [...template.columns],
+      // Copied from a sheet that's already in the current layout, so the server's one-time column
+      // reorders (see workbook.js) must not run on it again and undo a manual column order.
+      leadColumnsApplied: true,
+      precasColumnsApplied: true,
       rows: [],
     };
     sheets.push(sheet);
@@ -591,6 +597,8 @@
       id: makeSheetId(),
       name: uniqueSheetName(`${source.name} (Copy)`),
       columns: [...source.columns],
+      leadColumnsApplied: true,
+      precasColumnsApplied: true,
       rows: source.rows.map((r) => ({ ...r, _id: makeRowId() })),
     };
     const idx = sheets.findIndex((s) => s.id === id);
@@ -769,15 +777,43 @@
     setTimeout(() => document.addEventListener('mousedown', onSheetMenuDocClick, true), 0);
   }
 
+  // Every column has a set width that doesn't depend on what's typed in it (wide enough for its title
+  // and its kind of cell). Besides keeping the sheet tidy, it lets the browser lay the table out
+  // without measuring every cell, which keeps typing and moving around a long sheet smooth.
+  const COL_IDX_WIDTH = 40;
+  let measureCtx = null;
+  function textWidth(text, font) {
+    if (!measureCtx) measureCtx = document.createElement('canvas').getContext('2d');
+    measureCtx.font = font;
+    return Math.ceil(measureCtx.measureText(text).width);
+  }
+
+  function columnWidth(col) {
+    const family = getComputedStyle(document.body).fontFamily;
+    const header = textWidth(columnLabel(col) + ' ▾', `600 12px ${family}`) + 42; // padding + filter button
+    let cell = 160;
+    if (LONG_TEXT_COLS.has(col)) cell = 240;
+    else if (col === LANGUAGE_TEST_COL) cell = 310;
+    else if (SELECT_COLS[col]) cell = Math.max(...SELECT_COLS[col].map((o) => textWidth(o, `600 11px ${family}`)), 60) + 56;
+    else if (DATE_COLS.has(col)) cell = 144;
+    else if (NUM_COLS.has(col)) cell = 110;
+    return Math.max(cell, header);
+  }
+
   function renderHeader() {
     headerRow.innerHTML = '';
     const idxTh = document.createElement('th');
     idxTh.className = 'col-idx';
     idxTh.textContent = 'S.N';
+    idxTh.style.width = COL_IDX_WIDTH + 'px';
     headerRow.appendChild(idxTh);
+    let tableWidth = COL_IDX_WIDTH;
     columns.forEach((col) => {
       const th = document.createElement('th');
       th.dataset.col = col;
+      const width = columnWidth(col);
+      th.style.width = width + 'px';
+      tableWidth += width;
       if (col === sortCol) th.classList.add(sortDir === 1 ? 'sorted' : 'sorted-desc');
 
       const label = document.createElement('span');
@@ -807,6 +843,7 @@
 
       headerRow.appendChild(th);
     });
+    $('#sheet').style.width = tableWidth + 'px';
   }
 
   function closeFilterMenu() {
@@ -946,131 +983,155 @@
     const ae = document.activeElement;
     const hadGridFocus = !ae || ae === document.body || body.contains(ae);
     body.innerHTML = '';
+    rowEls = new Map();
+    marked = { trs: new Set(), tds: new Set() };
     const indices = getFilteredSortedIndices();
     const dupPhones = duplicatePhones(rows, WHATSAPP_COL); // across the whole sheet, not just the filtered rows
-    indices.forEach((rowIdx, displayIdx) => {
-      const tr = document.createElement('tr');
-      tr.dataset.rowIdx = rowIdx;
-      if (columns.includes('OFFER RECEIVED DATE') && offerStuck(rows[rowIdx])) {
-        tr.classList.add('offer-stuck-row');
-        tr.title = 'Offer received over a week ago, but the student hasn\'t reached Payment Stage yet.';
-      }
-
-      // Clicks on rows and cells are handled once, on the table body (see the grid section below).
-      const idxTd = document.createElement('td');
-      idxTd.className = 'col-idx';
-      idxTd.textContent = displayIdx + 1;
-      idxTd.title = 'Select this row (drag or Shift+Click for a range, Ctrl+Click for more). Delete clears it.';
-      tr.appendChild(idxTd);
-
-      columns.forEach((col, colIndex) => {
-        const td = document.createElement('td');
-        td.dataset.colIndex = colIndex;
-        td.tabIndex = -1;
-        const val = rows[rowIdx][col] || '';
-        if (CALC_COLS[col]) {
-          // Blank until a Gross Fee is entered, rather than a column of meaningless 0.00s.
-          const hasFee = String(rows[rowIdx]['GROSS FEE'] || '').trim() !== '';
-          const formatted = hasFee ? formatNum(CALC_COLS[col](rows[rowIdx])) : '';
-          rows[rowIdx][col] = formatted;
-          td.textContent = formatted;
-          td.className = 'num calculated';
-          td.title = col === 'REMAINING TUITION FEE'
-            ? 'Auto-calculated: Fee After Scholarship − Early Bird Discount − Additional Discount − 1st Installment − 2nd Installment'
-            : 'Auto-calculated: Gross Fee − Scholarship (a % scholarship is taken of the Gross Fee)';
-        } else if (col === LANGUAGE_TEST_COL) {
-          renderLanguageTestCell(td, rowIdx);
-        } else if (SELECT_COLS[col]) {
-          const select = document.createElement('select');
-          select.className = 'status-select ' + badgeClass(val);
-          const blankOpt = document.createElement('option');
-          blankOpt.value = '';
-          blankOpt.textContent = '— Select —';
-          select.appendChild(blankOpt);
-          // A value that isn't one of the choices (e.g. imported from a spreadsheet) is still shown, not hidden.
-          const options = val && !SELECT_COLS[col].includes(val) ? [...SELECT_COLS[col], val] : SELECT_COLS[col];
-          options.forEach((opt) => {
-            const o = document.createElement('option');
-            o.value = opt;
-            o.textContent = opt;
-            if (opt === val) o.selected = true;
-            select.appendChild(o);
-          });
-          select.addEventListener('click', (e) => e.stopPropagation());
-          select.addEventListener('mousedown', (e) => {
-            const busy = peerOnCell(rowIdx, col, false);
-            if (busy) { e.preventDefault(); warnPeerOnCell(busy); }
-          });
-          select.addEventListener('change', () => {
-            const newVal = select.value;
-            confirmChange(() => {
-              pushUndo();
-              rows[rowIdx][col] = newVal;
-              select.className = 'status-select ' + badgeClass(newVal);
-              markDirty();
-              if (col === 'APPLICATION STATUS') renderBody(); // re-run the defer-move check, refresh the warning
-            }, () => { select.value = val; });
-          });
-          td.appendChild(select);
-          if (col === 'APPLICATION STATUS' && val === 'Defer' && !getDeferTargetSheet()) {
-            tr.classList.add('defer-warning-row');
-            const warn = document.createElement('span');
-            warn.className = 'defer-warning-flag';
-            warn.textContent = '⚠ No next sheet';
-            warn.title = 'There\'s no sheet after this one to move this deferred student to. Add another sheet (it will become the target) to enable auto-move.';
-            td.appendChild(warn);
-          }
-        } else if (BADGE_COLS.has(col) && val) {
-          const span = document.createElement('span');
-          span.className = 'badge ' + badgeClass(val);
-          span.textContent = val;
-          td.appendChild(span);
-        } else if (DATE_COLS.has(col) && val && !toISODate(val)) {
-          // Not a date (e.g. "IELTS WAIVER"): show the note instead of an empty date box hiding it.
-          td.textContent = val;
-          td.classList.add('date-note');
-          td.title = 'Not a date. Clear this cell (Delete) to pick a date instead.';
-        } else if (DATE_COLS.has(col)) {
-          td.classList.add('date');
-          const input = document.createElement('input');
-          input.type = 'date';
-          input.className = 'date-input';
-          input.value = toISODate(val);
-          input.addEventListener('click', (e) => {
-            e.stopPropagation();
-            if (input.showPicker) { try { input.showPicker(); } catch (err) { /* unsupported */ } }
-          });
-          confirmDateInput(input, toISODate(val), (value) => {
-            pushUndo();
-            rows[rowIdx][col] = value;
-            markDirty();
-            if (col === 'LANGUAGE TEST DATE') applyLanguageTestFlag(td, value);
-            if (col === 'OFFER RECEIVED DATE') tr.classList.toggle('offer-stuck-row', offerStuck(rows[rowIdx]));
-          });
-          td.appendChild(input);
-          if (col === 'LANGUAGE TEST DATE') applyLanguageTestFlag(td, input.value);
-        } else {
-          // Plain text cells keep a fixed size whatever they hold: long text is cut off with "…" and
-          // shown in full on hover (or by double-clicking to edit), so rows never grow taller.
-          td.textContent = val;
-          td.classList.add(NUM_COLS.has(col) ? 'num' : 'text');
-          if (LONG_TEXT_COLS.has(col)) td.classList.add('long-text');
-          if (val) td.title = val;
-          if (col === WHATSAPP_COL && dupPhones.has(normalizePhone(val))) {
-            td.classList.add('duplicate-phone');
-            td.title = 'Duplicate WhatsApp number: another student on this sheet has the same number.';
-          }
-        }
-        // Added last: the calculated-cell branch above replaces className wholesale.
-        if (activeCell && activeCell.rowIdx === rowIdx && activeCell.col === col) td.classList.add('active-cell');
-        tr.appendChild(td);
-      });
-      body.appendChild(tr);
-    });
+    // Built off-screen and inserted in one go, so the browser lays the table out once, not once per row.
+    const frag = document.createDocumentFragment();
+    indices.forEach((rowIdx, displayIdx) => frag.appendChild(buildRow(rowIdx, displayIdx, dupPhones)));
+    body.appendChild(frag);
     applySelectionClasses(indices);
     renderPeers();
     renderStatusSummary();
     if (hadGridFocus && !editing && !skipRefocus) focusActiveCell({ scroll: false });
+  }
+
+  // Redraws one student's row in place after an edit to it — far quicker than rebuilding the whole
+  // table. Falls back to a full redraw when the edit can move rows or hide/show them, or affects
+  // other rows: the sort or a filter is on that column, a search is active, or it's a column the rows
+  // are grouped by or compared across (partner, status, WhatsApp duplicates).
+  function renderRow(rowIdx, col) {
+    const old = rowEls.get(rowIdx);
+    const affectsOtherRows = col === sortCol || columnFilters[col] || searchEl.value.trim()
+      || col === PARTNER_COL || col === 'APPLICATION STATUS' || col === WHATSAPP_COL;
+    if (!old || affectsOtherRows) { renderBody(); return; }
+    const tr = buildRow(rowIdx, Number(old.dataset.displayIdx), duplicatePhones(rows, WHATSAPP_COL));
+    old.replaceWith(tr);
+    applySelectionClasses();
+    renderPeers();
+  }
+
+  function buildRow(rowIdx, displayIdx, dupPhones) {
+    const tr = document.createElement('tr');
+    tr.dataset.rowIdx = rowIdx;
+    tr.dataset.displayIdx = displayIdx;
+    rowEls.set(rowIdx, tr);
+    if (columns.includes('OFFER RECEIVED DATE') && offerStuck(rows[rowIdx])) {
+      tr.classList.add('offer-stuck-row');
+      tr.title = 'Offer received over a week ago, but the student hasn\'t reached Payment Stage yet.';
+    }
+
+    // Clicks on rows and cells are handled once, on the table body (see the grid section below).
+    const idxTd = document.createElement('td');
+    idxTd.className = 'col-idx';
+    idxTd.textContent = displayIdx + 1;
+    idxTd.title = 'Select this row (drag or Shift+Click for a range, Ctrl+Click for more). Delete clears it.';
+    tr.appendChild(idxTd);
+
+    columns.forEach((col, colIndex) => {
+      const td = document.createElement('td');
+      td.dataset.colIndex = colIndex;
+      td.tabIndex = -1;
+      const val = rows[rowIdx][col] || '';
+      if (CALC_COLS[col]) {
+        // Blank until a Gross Fee is entered, rather than a column of meaningless 0.00s.
+        const hasFee = String(rows[rowIdx]['GROSS FEE'] || '').trim() !== '';
+        const formatted = hasFee ? formatNum(CALC_COLS[col](rows[rowIdx])) : '';
+        rows[rowIdx][col] = formatted;
+        td.textContent = formatted;
+        td.className = 'num calculated';
+        td.title = col === 'REMAINING TUITION FEE'
+          ? 'Auto-calculated: Fee After Scholarship − Early Bird Discount − Additional Discount − 1st Installment − 2nd Installment'
+          : 'Auto-calculated: Gross Fee − Scholarship (a % scholarship is taken of the Gross Fee)';
+      } else if (col === LANGUAGE_TEST_COL) {
+        renderLanguageTestCell(td, rowIdx);
+      } else if (SELECT_COLS[col]) {
+        const select = document.createElement('select');
+        select.className = 'status-select ' + badgeClass(val);
+        const blankOpt = document.createElement('option');
+        blankOpt.value = '';
+        blankOpt.textContent = '— Select —';
+        select.appendChild(blankOpt);
+        // A value that isn't one of the choices (e.g. imported from a spreadsheet) is still shown, not hidden.
+        const options = val && !SELECT_COLS[col].includes(val) ? [...SELECT_COLS[col], val] : SELECT_COLS[col];
+        options.forEach((opt) => {
+          const o = document.createElement('option');
+          o.value = opt;
+          o.textContent = opt;
+          if (opt === val) o.selected = true;
+          select.appendChild(o);
+        });
+        select.addEventListener('click', (e) => e.stopPropagation());
+        select.addEventListener('mousedown', (e) => {
+          const busy = peerOnCell(rowIdx, col, false);
+          if (busy) { e.preventDefault(); warnPeerOnCell(busy); }
+        });
+        select.addEventListener('change', () => {
+          const newVal = select.value;
+          confirmChange(() => {
+            pushUndo();
+            rows[rowIdx][col] = newVal;
+            select.className = 'status-select ' + badgeClass(newVal);
+            markDirty();
+            if (col === 'APPLICATION STATUS') renderBody(); // re-run the defer-move check, refresh the warning
+          }, () => { select.value = val; });
+        });
+        td.appendChild(select);
+        if (col === 'APPLICATION STATUS' && val === 'Defer' && !getDeferTargetSheet()) {
+          tr.classList.add('defer-warning-row');
+          const warn = document.createElement('span');
+          warn.className = 'defer-warning-flag';
+          warn.textContent = '⚠ No next sheet';
+          warn.title = 'There\'s no sheet after this one to move this deferred student to. Add another sheet (it will become the target) to enable auto-move.';
+          td.appendChild(warn);
+        }
+      } else if (BADGE_COLS.has(col) && val) {
+        const span = document.createElement('span');
+        span.className = 'badge ' + badgeClass(val);
+        span.textContent = val;
+        td.appendChild(span);
+      } else if (DATE_COLS.has(col) && val && !toISODate(val)) {
+        // Not a date (e.g. "IELTS WAIVER"): show the note instead of an empty date box hiding it.
+        td.textContent = val;
+        td.classList.add('date-note');
+        td.title = 'Not a date. Clear this cell (Delete) to pick a date instead.';
+      } else if (DATE_COLS.has(col)) {
+        td.classList.add('date');
+        const input = document.createElement('input');
+        input.type = 'date';
+        input.className = 'date-input';
+        input.value = toISODate(val);
+        input.addEventListener('click', (e) => {
+          e.stopPropagation();
+          if (input.showPicker) { try { input.showPicker(); } catch (err) { /* unsupported */ } }
+        });
+        confirmDateInput(input, toISODate(val), (value) => {
+          pushUndo();
+          rows[rowIdx][col] = value;
+          markDirty();
+          if (col === 'LANGUAGE TEST DATE') applyLanguageTestFlag(td, value);
+          if (col === 'OFFER RECEIVED DATE') tr.classList.toggle('offer-stuck-row', offerStuck(rows[rowIdx]));
+        });
+        td.appendChild(input);
+        if (col === 'LANGUAGE TEST DATE') applyLanguageTestFlag(td, input.value);
+      } else {
+        // Plain text cells keep a fixed size whatever they hold: long text is cut off with "…" and
+        // shown in full on hover (or by double-clicking to edit), so rows never grow taller.
+        td.textContent = val;
+        td.classList.add(NUM_COLS.has(col) ? 'num' : 'text');
+        if (LONG_TEXT_COLS.has(col)) td.classList.add('long-text');
+        if (val) td.title = val;
+        if (col === WHATSAPP_COL && dupPhones.has(normalizePhone(val))) {
+          td.classList.add('duplicate-phone');
+          td.title = 'Duplicate WhatsApp number: another student on this sheet has the same number.';
+        }
+      }
+      // Added last: the calculated-cell branch above replaces className wholesale.
+      if (activeCell && activeCell.rowIdx === rowIdx && activeCell.col === col) td.classList.add('active-cell');
+      tr.appendChild(td);
+    });
+    return tr;
   }
 
   function singleRange(rowIdx, col) {
@@ -1117,25 +1178,30 @@
   // Redraws the selection highlight without rebuilding the table, and keeps `selectedRows` (used by
   // "Delete rows") in step with it: every row the selection touches counts as selected.
   function applySelectionClasses(indices = getFilteredSortedIndices()) {
-    const pos = new Map(indices.map((rowIdx, p) => [rowIdx, p]));
     const rects = rangeRects(indices);
     const multi = rects.length > 1 || rects.some((r) => r.top !== r.bottom || r.left !== r.right);
     selectedRows = new Set();
     rects.forEach((r) => { for (let p = r.top; p <= r.bottom; p += 1) selectedRows.add(indices[p]); });
 
-    body.querySelectorAll('tr').forEach((tr) => {
-      const rowIdx = Number(tr.dataset.rowIdx);
-      const p = pos.get(rowIdx);
-      const picked = selectedRows.has(rowIdx);
-      tr.classList.toggle('selected', picked);
-      tr.classList.toggle('row-picked', rowSelectMode && picked);
-      const rowRects = multi ? rects.filter((r) => p >= r.top && p <= r.bottom) : [];
-      for (const td of tr.children) {
-        if (td.classList.contains('col-idx')) continue;
-        const c = Number(td.dataset.colIndex);
-        td.classList.toggle('in-range', rowRects.some((r) => c >= r.left && c <= r.right));
-      }
-    });
+    // Only the rows and cells inside the selection are visited (plus whatever was highlighted before),
+    // so moving the cursor stays instant however long the sheet is.
+    const trs = new Set();
+    const tds = new Set();
+    selectedRows.forEach((rowIdx) => { const tr = rowEls.get(rowIdx); if (tr) trs.add(tr); });
+    if (multi) {
+      rects.forEach((r) => {
+        for (let p = r.top; p <= r.bottom; p += 1) {
+          const tr = rowEls.get(indices[p]);
+          if (!tr) continue;
+          for (let c = r.left; c <= r.right; c += 1) if (tr.children[c + 1]) tds.add(tr.children[c + 1]);
+        }
+      });
+    }
+    marked.trs.forEach((tr) => { if (!trs.has(tr)) tr.classList.remove('selected', 'row-picked'); });
+    trs.forEach((tr) => { tr.classList.add('selected'); tr.classList.toggle('row-picked', rowSelectMode); });
+    marked.tds.forEach((td) => { if (!tds.has(td)) td.classList.remove('in-range'); });
+    tds.forEach((td) => td.classList.add('in-range'));
+    marked = { trs, tds };
 
     let text = `${indices.length} of ${rows.length} rows`;
     if (selectedRows.size) text += ` · ${selectedRows.size} selected`;
@@ -1212,8 +1278,9 @@
 
   function cellTd(rowIdx, col) {
     const ci = columns.indexOf(col);
-    if (ci === -1) return null;
-    return body.querySelector(`tr[data-row-idx="${rowIdx}"] > td[data-col-index="${ci}"]`);
+    const tr = rowEls.get(rowIdx);
+    if (ci === -1 || !tr) return null;
+    return tr.children[ci + 1] || null; // +1: the S.N cell comes first
   }
 
   function isTextCell(col) {
@@ -1230,8 +1297,9 @@
 
   // focus: false when the click landed on a dropdown or date box, which needs the focus to open.
   function setActiveCell(rowIdx, col, { focus = true, scroll = true } = {}) {
+    const prev = activeCell && cellTd(activeCell.rowIdx, activeCell.col);
+    if (prev) prev.classList.remove('active-cell');
     activeCell = { rowIdx, col };
-    body.querySelectorAll('td.active-cell').forEach((el) => el.classList.remove('active-cell'));
     const td = cellTd(rowIdx, col);
     if (td) td.classList.add('active-cell');
     if (focus) focusActiveCell({ scroll });
@@ -1315,7 +1383,7 @@
         row[col] = newVal;
         markDirty();
         skipRefocus = true; // the caller decides where focus goes next
-        renderBody(); // recalculates the fee columns and redraws status badges
+        renderRow(rows.indexOf(row), col); // recalculates the fee columns and redraws status badges
         skipRefocus = false;
       }, () => restoreCell(td, rows.indexOf(row), col, original));
     } else {
@@ -1741,7 +1809,12 @@
   $('#addSheet').addEventListener('click', addSheet);
   if (undoBtn) undoBtn.addEventListener('click', undo);
   if (redoBtn) redoBtn.addEventListener('click', redo);
-  searchEl.addEventListener('input', renderBody);
+  // Redraw once typing pauses rather than on every letter, so the search box never lags behind.
+  let searchTimer = null;
+  searchEl.addEventListener('input', () => {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(renderBody, 150);
+  });
 
   // Google Sheets-style undo/redo hotkeys. Skipped while typing in the search box or
   // renaming a sheet tab, so ordinary text-field undo still works there.
