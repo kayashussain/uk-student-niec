@@ -77,6 +77,9 @@ html, body {
 }
 
 body { display: flex; flex-direction: column; height: 100vh; }
+/* A hard sideways swipe on a touchpad must scroll the table, never trigger the browser's swipe-to-go
+   Back/Forward (which would leave the page mid-entry). */
+html, body, .table-wrap { overscroll-behavior-x: none; }
 
 .topbar {
   display: flex;

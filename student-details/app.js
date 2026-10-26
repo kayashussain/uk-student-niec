@@ -135,6 +135,15 @@
   const redoBtn = $('#redoBtn');
   const conflictBanner = $('#conflictBanner');
   const tableWrap = $('.table-wrap');
+  // A sideways touchpad swipe that runs past the table's left/right edge would make the browser go
+  // Back/Forward. CSS overscroll-behavior stops that in Chrome/Edge; this covers browsers (Safari) that
+  // still navigate: a mostly-sideways scroll with nowhere left to go in that direction is swallowed.
+  tableWrap.addEventListener('wheel', (e) => {
+    if (Math.abs(e.deltaX) <= Math.abs(e.deltaY)) return;
+    const atLeft = tableWrap.scrollLeft <= 0;
+    const atRight = tableWrap.scrollLeft + tableWrap.clientWidth >= tableWrap.scrollWidth - 1;
+    if ((e.deltaX < 0 && atLeft) || (e.deltaX > 0 && atRight)) e.preventDefault();
+  }, { passive: false });
 
   function getActiveSheet() {
     return sheets.find((s) => s.id === activeSheetId);
