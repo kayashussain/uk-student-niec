@@ -69,19 +69,20 @@
   .brand { display: flex; align-items: center; gap: 10px; }
   .brand h1 { font-size: 16px; margin: 0; text-transform: uppercase; letter-spacing: 0.02em; }
 
-  /* NIEC brand header, matching the Student Details page: navy to sky blue, logo, orange accent line. */
-  header.top {
-    background: linear-gradient(100deg, #0b2e4f 0%, #0e4a78 100%);
-    border-bottom: 2px solid #fc6e1f; padding: 10px 18px;
+  /* NIEC brand header, matching the Student Details page: white, NIEC logo, light-blue line. */
+  header.top { background: var(--panel); border-bottom: 3px solid #00adef; padding: 8px 18px; }
+  .brand { gap: 14px; }
+  .brand-logo { height: 46px; width: auto; display: block; }
+  .brand-title { padding-left: 14px; border-left: 1px solid var(--border); }
+  header.top .brand h1 { color: #0077a8; font-size: 16px; font-weight: 700; text-transform: none; letter-spacing: .01em; }
+  header.top .subtitle { color: var(--text-dim); font-size: 11px; }
+  .btn:hover { background: #e8f7fe; border-color: #00adef; }
+  .btn:disabled:hover { border-color: var(--border-strong); }
+  @media (prefers-color-scheme: dark) {
+    .brand-logo { background: #fff; border-radius: 6px; padding: 2px 6px; }
+    header.top .brand h1 { color: #6fd0f7; }
+    .btn:hover { background: #173b4d; }
   }
-  .brand-logo { width: 36px; height: 36px; border-radius: 50%; background: #fff; padding: 3px; }
-  header.top .brand h1 { color: #fff; font-size: 16px; font-weight: 600; text-transform: none; letter-spacing: .01em; }
-  header.top .subtitle { color: #a9c6dc; font-size: 11px; letter-spacing: .02em; }
-  header.top input.search { background: #fff; border-color: transparent; color: #1c2126; }
-  header.top .btn { background: transparent; border-color: rgba(255, 255, 255, .3); color: #fff; }
-  header.top .btn:hover { background: rgba(255, 255, 255, .12); }
-  header.top .btn:disabled { background: transparent; }
-  header.top .live { color: #a9c6dc; }
 
   .toolbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
   input.search {
@@ -138,9 +139,13 @@
   .grid-key { display: inline-flex; gap: 12px; flex-wrap: wrap; }
   .grid-key i { display: inline-block; width: 11px; height: 11px; border-radius: 3px; border: 1px solid var(--border-strong); vertical-align: -1px; margin-right: 4px; }
   thead th.num { text-align: right; }
-  /* NIEC navy column headings, matching Student Details. */
-  thead th { background: #0b2e4f; color: #e3edf5; border-bottom: 2px solid #00adef; border-right-color: rgba(255, 255, 255, .08); }
-  thead th .info { color: #a9c6dc; }
+  /* Light-blue NIEC column headings, matching Student Details. */
+  thead th { background: #e8f7fe; color: #0a5878; border-bottom: 2px solid #00adef; border-right-color: #cdebf8; }
+  thead th .info { color: #4f8aa3; }
+  @media (prefers-color-scheme: dark) {
+    thead th { background: #12303f; color: #bfe9fb; border-right-color: #1d4153; }
+    thead th .info { color: #8fc9e3; }
+  }
   tbody td {
     padding: 7px 10px; border-bottom: 1px solid var(--border); border-right: 1px solid var(--border);
     white-space: nowrap; color: var(--text);
@@ -214,8 +219,8 @@
 
   <header class="top">
     <div class="brand">
-      <img class="brand-logo" src="apple-touch-icon.png" alt="" />
-      <div>
+      <img class="brand-logo" src="niec-logo.png" alt="NIEC — Your Future, Our Responsibility" />
+      <div class="brand-title">
         <h1>Incentive History</h1>
         <div class="subtitle">Nepal International Education Consultancy</div>
       </div>
