@@ -800,6 +800,21 @@
     return Math.max(cell, header);
   }
 
+  // Which part of the process a column belongs to; shown as a coloured stripe on its heading.
+  // Anything not listed (names, contact, university, partner and any added column) is student details.
+  const COLUMN_GROUPS = {
+    lead: ['REMARKS', 'STUDENT SOURCE', 'APPLICATION STATUS', 'APPLICATION SUBMISSION DATE', 'OFFER RECEIVED DATE'],
+    precas: [
+      'LANGUAGE TEST DATE', 'STUDENT ID', 'NOC', 'NOC NUMBER', 'MOCK SCHEDULE 1', 'FEEDBACK 1', 'MOCK SCHEDULE 2',
+      'FEEDBACK 2', 'MOCK SCHEDULE 3', 'FEEDBACK 3', 'MOCK SCHEDULE 4', 'FEEDBACK 4', 'PRE CAS INTERVIEW', 'MEDICAL REPORT',
+    ],
+    fees: [...NUM_COLS, 'PAYMENT DATE'],
+    visa: ['CAS REQUESTED DATE', 'CAS RECEIVED DATE', 'VISA LODGE DATE', 'VFS ATTENDED DATE', 'VISA RECEIVED DATE', 'E-VISA', 'UK CONTACT NUMBER'],
+  };
+  function columnGroup(col) {
+    return Object.keys(COLUMN_GROUPS).find((g) => COLUMN_GROUPS[g].includes(col)) || 'student';
+  }
+
   function renderHeader() {
     headerRow.innerHTML = '';
     const idxTh = document.createElement('th');
@@ -812,6 +827,7 @@
       const th = document.createElement('th');
       th.dataset.col = col;
       const width = columnWidth(col);
+      th.classList.add('group-' + columnGroup(col));
       th.style.width = width + 'px';
       tableWidth += width;
       if (col === sortCol) th.classList.add(sortDir === 1 ? 'sorted' : 'sorted-desc');
@@ -1503,9 +1519,9 @@
     ));
     statusSummaryEl.innerHTML = '';
 
-    const card = (value, label, extra = '', title = '') => {
+    const card = (value, label, extra = '', title = '', tone = 'blue') => {
       const el = document.createElement('div');
-      el.className = 'stat-card';
+      el.className = 'stat-card tone-' + tone;
       if (title) el.title = title;
       el.innerHTML = `<span class="stat-value">${value}</span><span class="stat-label">${label}</span>${extra}`;
       return el;
@@ -1523,6 +1539,7 @@
     };
     const countStatus = (status) => indices.reduce((acc, i) => acc + (rows[i]['APPLICATION STATUS'] === status ? 1 : 0), 0);
     const totalCard = card(indices.length, 'Total Students');
+    totalCard.classList.add('stat-total');
 
     if (columns.includes(SOURCE_COL)) {
       const sourceCards = group('Student Source');
@@ -1543,11 +1560,16 @@
 
     const statusCards = group('Application Status');
     if (!columns.includes(SOURCE_COL)) statusCards.appendChild(totalCard);
-    statusOptions.forEach((status) => statusCards.appendChild(card(countStatus(status), status)));
+    // Same colours as the status badges in the table (green = done, blue = in progress, ...).
+    statusOptions.forEach((status) => statusCards.appendChild(
+      card(countStatus(status), status, '', '', badgeClass(status).replace('badge-', '')),
+    ));
     const visaIssuedCount = countStatus('Visa Issued');
     const conversionRate = indices.length ? (visaIssuedCount / indices.length) * 100 : 0;
-    statusCards.appendChild(card(`${conversionRate.toFixed(1)}%`, 'Conversion Rate', '',
-      `${visaIssuedCount} Visa Issued out of ${indices.length} total students`));
+    const rateCard = card(`${conversionRate.toFixed(1)}%`, 'Conversion Rate', '',
+      `${visaIssuedCount} Visa Issued out of ${indices.length} total students`);
+    rateCard.classList.add('stat-rate');
+    statusCards.appendChild(rateCard);
   }
 
   function markDirty() {
