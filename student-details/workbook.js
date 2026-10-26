@@ -11,10 +11,10 @@ const DEFAULT_COLUMNS = [
   'REMARKS', 'STUDENT SOURCE', 'APPLICATION STATUS', 'APPLICATION SUBMISSION DATE', 'OFFER RECEIVED DATE',
   'FIRST NAME', 'LAST NAME', 'EMAIL', 'CONTACT NUMBER',
   'UNIVERSITY NAME', 'COURSE NAME', 'RECEIVING PARTNER', 'UNIVERSITY PARTNER',
-  'LANGUAGE TEST DATE', 'STUDENT ID', 'PRE CAS INTERVIEW',
+  'LANGUAGE TEST DATE', 'STUDENT ID', 'NOC', 'NOC NUMBER',
   'MOCK SCHEDULE 1', 'FEEDBACK 1', 'MOCK SCHEDULE 2', 'FEEDBACK 2',
   'MOCK SCHEDULE 3', 'FEEDBACK 3', 'MOCK SCHEDULE 4', 'FEEDBACK 4',
-  'NOC', 'NOC NUMBER', 'MEDICAL REPORT', 'GROSS FEE', 'SCHOLARSHIP', 'FEE AFTER SCHOLARSHIP',
+  'PRE CAS INTERVIEW', 'MEDICAL REPORT', 'GROSS FEE', 'SCHOLARSHIP', 'FEE AFTER SCHOLARSHIP',
   'EARLY BIRD DISCOUNT', 'ADDITIONAL DISCOUNT', 'TUITION FEE DEPOSIT(1st Installment)',
   'TUITION FEE DEPOSIT(2nd Installment)', 'REMAINING TUITION FEE', 'PAYMENT DATE', 'CAS REQUESTED DATE',
   'CAS RECEIVED DATE', 'VISA LODGE DATE', 'VFS ATTENDED DATE', 'VISA RECEIVED DATE',
@@ -66,16 +66,18 @@ function renameColumns(workbook) {
 // manual reorder isn't undone); columns that are missing are created.
 const LEAD_COLUMNS = ['REMARKS', 'STUDENT SOURCE', 'APPLICATION STATUS'];
 const APPLICATION_DATE_COLUMNS = ['APPLICATION SUBMISSION DATE', 'OFFER RECEIVED DATE'];
-// Student ID and the pre-CAS checks come straight after the language test, before the fee columns.
-// Applied once per sheet (marked with `precasColumnsApplied`) so a later manual reorder isn't undone.
 // Each mock interview date is followed by its feedback.
 const MOCK_SCHEDULE_COLUMNS = [
   'MOCK SCHEDULE 1', 'FEEDBACK 1', 'MOCK SCHEDULE 2', 'FEEDBACK 2',
   'MOCK SCHEDULE 3', 'FEEDBACK 3', 'MOCK SCHEDULE 4', 'FEEDBACK 4',
 ];
+// Student ID and the pre-CAS steps come straight after the language test, before the fee columns:
+// NOC, the mock interviews, then the real Pre-CAS Interview and the medical report. Applied once per
+// sheet for each version of this order (`columnOrderVersion`), so a later manual reorder isn't undone.
 const AFTER_LANGUAGE_TEST_COLUMNS = [
-  'STUDENT ID', 'PRE CAS INTERVIEW', ...MOCK_SCHEDULE_COLUMNS, 'NOC', 'NOC NUMBER', 'MEDICAL REPORT',
+  'STUDENT ID', 'NOC', 'NOC NUMBER', ...MOCK_SCHEDULE_COLUMNS, 'PRE CAS INTERVIEW', 'MEDICAL REPORT',
 ];
+const COLUMN_ORDER_VERSION = 2;
 
 function addMissingColumns(workbook) {
   (workbook.sheets || []).forEach((sheet) => {
@@ -95,7 +97,17 @@ function addMissingColumns(workbook) {
       if (i === -1) sheet.columns.splice(at, 0, name);
       at = (i === -1 ? at : i) + 1;
     });
-    if (!sheet.precasColumnsApplied) {
+    // Sheets saved before the mock interviews were tracked get them in front of Pre-CAS Interview (or
+    // after Student ID when there's no Pre-CAS Interview column; sheets with neither are left alone).
+    if (sheet.columns.includes('PRE CAS INTERVIEW')) at = sheet.columns.indexOf('PRE CAS INTERVIEW');
+    else if (sheet.columns.includes('STUDENT ID')) at = sheet.columns.indexOf('STUDENT ID') + 1;
+    else at = -1;
+    if (at !== -1) MOCK_SCHEDULE_COLUMNS.forEach((name) => {
+      const i = sheet.columns.indexOf(name);
+      if (i === -1) sheet.columns.splice(at, 0, name);
+      at = (i === -1 ? at : i) + 1;
+    });
+    if ((sheet.columnOrderVersion || 0) < COLUMN_ORDER_VERSION) {
       const anchor = sheet.columns.includes('LANGUAGE TEST DATE') ? 'LANGUAGE TEST DATE' : 'STUDENT ID';
       const block = AFTER_LANGUAGE_TEST_COLUMNS.filter((c) => c !== anchor && sheet.columns.includes(c));
       if (sheet.columns.includes(anchor)) {
@@ -103,17 +115,9 @@ function addMissingColumns(workbook) {
         rest.splice(rest.indexOf(anchor) + 1, 0, ...block);
         sheet.columns.splice(0, sheet.columns.length, ...rest);
       }
-      sheet.precasColumnsApplied = true;
+      sheet.columnOrderVersion = COLUMN_ORDER_VERSION;
+      delete sheet.precasColumnsApplied; // the version-1 marker
     }
-    // Sheets saved before the mock interviews were tracked get them right after Pre-CAS Interview
-    // (or Student ID when there's no Pre-CAS Interview column; sheets with neither are left alone).
-    const after = ['PRE CAS INTERVIEW', 'STUDENT ID'].find((c) => sheet.columns.includes(c));
-    at = sheet.columns.indexOf(after) + 1;
-    if (after) MOCK_SCHEDULE_COLUMNS.forEach((name) => {
-      const i = sheet.columns.indexOf(name);
-      if (i === -1) sheet.columns.splice(at, 0, name);
-      at = (i === -1 ? at : i) + 1;
-    });
   });
   return workbook;
 }
