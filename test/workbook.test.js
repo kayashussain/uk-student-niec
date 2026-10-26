@@ -37,6 +37,37 @@ test('migrateWorkbook adds the application submission and offer received dates a
   assert.deepStrictEqual(wb.sheets[0].columns, ['REMARKS', 'STUDENT SOURCE', 'APPLICATION STATUS', 'APPLICATION SUBMISSION DATE', 'OFFER RECEIVED DATE', 'FIRST NAME']);
 });
 
+test('migrateWorkbook moves Student ID, Pre-CAS Interview, NOC, NOC Number and Medical Report after the language test, once', () => {
+  const columns = ['REMARKS', 'STUDENT SOURCE', 'APPLICATION STATUS', 'APPLICATION SUBMISSION DATE', 'OFFER RECEIVED DATE',
+    'LANGUAGE TEST DATE', 'STUDENT ID', 'GROSS FEE', 'SCHOLARSHIP', 'FEE AFTER SCHOLARSHIP', 'REMAINING TUITION FEE',
+    'PRE CAS INTERVIEW', 'NOC', 'NOC NUMBER', 'MEDICAL REPORT', 'PAYMENT DATE'];
+  const wb = migrateWorkbook({ sheets: [{ id: 's1', name: 'A', leadColumnsApplied: true, columns, rows: [] }], activeSheetId: 's1' });
+  assert.deepStrictEqual(wb.sheets[0].columns.slice(5), ['LANGUAGE TEST DATE', 'STUDENT ID', 'PRE CAS INTERVIEW',
+    'MOCK SCHEDULE 1', 'FEEDBACK 1', 'MOCK SCHEDULE 2', 'FEEDBACK 2',
+    'MOCK SCHEDULE 3', 'FEEDBACK 3', 'MOCK SCHEDULE 4', 'FEEDBACK 4', 'NOC', 'NOC NUMBER',
+    'MEDICAL REPORT', 'GROSS FEE', 'SCHOLARSHIP', 'FEE AFTER SCHOLARSHIP', 'REMAINING TUITION FEE', 'PAYMENT DATE']);
+  wb.sheets[0].columns.reverse(); // a manual reorder afterwards is left alone
+  const reordered = [...wb.sheets[0].columns];
+  assert.deepStrictEqual(migrateWorkbook(wb).sheets[0].columns, reordered);
+});
+
+test('migrateWorkbook adds a Feedback column after each existing Mock Schedule column', () => {
+  const wb = migrateWorkbook({
+    sheets: [{ id: 's1', name: 'A', leadColumnsApplied: true, precasColumnsApplied: true, rows: [],
+      columns: ['REMARKS', 'STUDENT SOURCE', 'APPLICATION STATUS', 'APPLICATION SUBMISSION DATE', 'OFFER RECEIVED DATE',
+        'PRE CAS INTERVIEW', 'MOCK SCHEDULE 1', 'MOCK SCHEDULE 2', 'MOCK SCHEDULE 3', 'MOCK SCHEDULE 4', 'NOC'] }],
+    activeSheetId: 's1',
+  });
+  assert.deepStrictEqual(wb.sheets[0].columns.slice(5), ['PRE CAS INTERVIEW', 'MOCK SCHEDULE 1', 'FEEDBACK 1', 'MOCK SCHEDULE 2',
+    'FEEDBACK 2', 'MOCK SCHEDULE 3', 'FEEDBACK 3', 'MOCK SCHEDULE 4', 'FEEDBACK 4', 'NOC']);
+});
+
+test('migrateWorkbook keeps a new sheet in the default column order', () => {
+  const { DEFAULT_COLUMNS } = require('../student-details/workbook');
+  const wb = migrateWorkbook({ sheets: [{ id: 's1', name: 'A', columns: [...DEFAULT_COLUMNS], rows: [] }], activeSheetId: 's1' });
+  assert.deepStrictEqual(wb.sheets[0].columns, DEFAULT_COLUMNS);
+});
+
 test('migrateWorkbook upgrades the legacy single-sheet shape and adds row ids', () => {
   const wb = migrateWorkbook({ columns: ['A'], rows: [{ A: '1' }] });
   assert.strictEqual(wb.revision, 0);

@@ -111,6 +111,8 @@
     overflow: hidden; margin-bottom: 20px;
   }
   .table-scroll { overflow-x: auto; }
+  /* A hard sideways swipe on a touchpad scrolls the table instead of going Back/Forward in the browser. */
+  html, body, .table-scroll { overscroll-behavior-x: none; }
   table { border-collapse: separate; border-spacing: 0; width: max-content; min-width: 100%; font-size: 13px; }
   thead th {
     position: sticky; top: 0; z-index: 2; background: var(--header-bg);
