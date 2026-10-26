@@ -42,7 +42,8 @@ test('migrateWorkbook moves Student ID, Pre-CAS Interview, NOC, NOC Number and M
     'LANGUAGE TEST DATE', 'STUDENT ID', 'GROSS FEE', 'SCHOLARSHIP', 'FEE AFTER SCHOLARSHIP', 'REMAINING TUITION FEE',
     'PRE CAS INTERVIEW', 'NOC', 'NOC NUMBER', 'MEDICAL REPORT', 'PAYMENT DATE'];
   const wb = migrateWorkbook({ sheets: [{ id: 's1', name: 'A', leadColumnsApplied: true, columns, rows: [] }], activeSheetId: 's1' });
-  assert.deepStrictEqual(wb.sheets[0].columns.slice(5), ['LANGUAGE TEST DATE', 'STUDENT ID', 'PRE CAS INTERVIEW', 'NOC', 'NOC NUMBER',
+  assert.deepStrictEqual(wb.sheets[0].columns.slice(5), ['LANGUAGE TEST DATE', 'STUDENT ID', 'PRE CAS INTERVIEW',
+    'MOCK SCHEDULE 1', 'MOCK SCHEDULE 2', 'MOCK SCHEDULE 3', 'MOCK SCHEDULE 4', 'NOC', 'NOC NUMBER',
     'MEDICAL REPORT', 'GROSS FEE', 'SCHOLARSHIP', 'FEE AFTER SCHOLARSHIP', 'REMAINING TUITION FEE', 'PAYMENT DATE']);
   wb.sheets[0].columns.reverse(); // a manual reorder afterwards is left alone
   const reordered = [...wb.sheets[0].columns];

@@ -11,8 +11,9 @@ const DEFAULT_COLUMNS = [
   'REMARKS', 'STUDENT SOURCE', 'APPLICATION STATUS', 'APPLICATION SUBMISSION DATE', 'OFFER RECEIVED DATE',
   'FIRST NAME', 'LAST NAME', 'EMAIL', 'CONTACT NUMBER',
   'UNIVERSITY NAME', 'COURSE NAME', 'RECEIVING PARTNER', 'UNIVERSITY PARTNER',
-  'LANGUAGE TEST DATE', 'STUDENT ID', 'PRE CAS INTERVIEW', 'NOC', 'NOC NUMBER', 'MEDICAL REPORT',
-  'GROSS FEE', 'SCHOLARSHIP', 'FEE AFTER SCHOLARSHIP',
+  'LANGUAGE TEST DATE', 'STUDENT ID', 'PRE CAS INTERVIEW',
+  'MOCK SCHEDULE 1', 'MOCK SCHEDULE 2', 'MOCK SCHEDULE 3', 'MOCK SCHEDULE 4',
+  'NOC', 'NOC NUMBER', 'MEDICAL REPORT', 'GROSS FEE', 'SCHOLARSHIP', 'FEE AFTER SCHOLARSHIP',
   'EARLY BIRD DISCOUNT', 'ADDITIONAL DISCOUNT', 'TUITION FEE DEPOSIT(1st Installment)',
   'TUITION FEE DEPOSIT(2nd Installment)', 'REMAINING TUITION FEE', 'PAYMENT DATE', 'CAS REQUESTED DATE',
   'CAS RECEIVED DATE', 'VISA LODGE DATE', 'VFS ATTENDED DATE', 'VISA RECEIVED DATE',
@@ -67,6 +68,7 @@ const APPLICATION_DATE_COLUMNS = ['APPLICATION SUBMISSION DATE', 'OFFER RECEIVED
 // Student ID and the pre-CAS checks come straight after the language test, before the fee columns.
 // Applied once per sheet (marked with `precasColumnsApplied`) so a later manual reorder isn't undone.
 const AFTER_LANGUAGE_TEST_COLUMNS = ['STUDENT ID', 'PRE CAS INTERVIEW', 'NOC', 'NOC NUMBER', 'MEDICAL REPORT'];
+const MOCK_SCHEDULE_COLUMNS = ['MOCK SCHEDULE 1', 'MOCK SCHEDULE 2', 'MOCK SCHEDULE 3', 'MOCK SCHEDULE 4'];
 
 function addMissingColumns(workbook) {
   (workbook.sheets || []).forEach((sheet) => {
@@ -96,6 +98,15 @@ function addMissingColumns(workbook) {
       }
       sheet.precasColumnsApplied = true;
     }
+    // Sheets saved before the mock interview dates were tracked get them right after Pre-CAS Interview
+    // (or Student ID when there's no Pre-CAS Interview column; sheets with neither are left alone).
+    const after = ['PRE CAS INTERVIEW', 'STUDENT ID'].find((c) => sheet.columns.includes(c));
+    at = sheet.columns.indexOf(after) + 1;
+    if (after) MOCK_SCHEDULE_COLUMNS.forEach((name) => {
+      const i = sheet.columns.indexOf(name);
+      if (i === -1) sheet.columns.splice(at, 0, name);
+      at = (i === -1 ? at : i) + 1;
+    });
   });
   return workbook;
 }
