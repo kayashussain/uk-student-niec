@@ -9,6 +9,8 @@
     'VISA LODGE DATE', 'VFS ATTENDED DATE', 'VISA RECEIVED DATE',
     'MOCK SCHEDULE 1', 'MOCK SCHEDULE 2', 'MOCK SCHEDULE 3', 'MOCK SCHEDULE 4',
   ]);
+  // Free-text notes: a wider (but still fixed) column than other text.
+  const LONG_TEXT_COLS = new Set(['REMARKS', 'FEEDBACK 1', 'FEEDBACK 2', 'FEEDBACK 3', 'FEEDBACK 4']);
   const BADGE_COLS = new Set([
     'APPLICATION STATUS', 'PRE CAS INTERVIEW', 'NOC', 'MEDICAL REPORT', 'E-VISA',
   ]);
@@ -1039,9 +1041,12 @@
           td.appendChild(input);
           if (col === 'LANGUAGE TEST DATE') applyLanguageTestFlag(td, input.value);
         } else {
+          // Plain text cells keep a fixed size whatever they hold: long text is cut off with "…" and
+          // shown in full on hover (or by double-clicking to edit), so rows never grow taller.
           td.textContent = val;
-          if (NUM_COLS.has(col)) td.classList.add('num');
-          if (col === 'REMARKS') td.classList.add('remarks');
+          td.classList.add(NUM_COLS.has(col) ? 'num' : 'text');
+          if (LONG_TEXT_COLS.has(col)) td.classList.add('long-text');
+          if (val) td.title = val;
           if (col === WHATSAPP_COL && dupPhones.has(normalizePhone(val))) {
             td.classList.add('duplicate-phone');
             td.title = 'Duplicate WhatsApp number: another student on this sheet has the same number.';

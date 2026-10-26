@@ -12,7 +12,8 @@ const DEFAULT_COLUMNS = [
   'FIRST NAME', 'LAST NAME', 'EMAIL', 'CONTACT NUMBER',
   'UNIVERSITY NAME', 'COURSE NAME', 'RECEIVING PARTNER', 'UNIVERSITY PARTNER',
   'LANGUAGE TEST DATE', 'STUDENT ID', 'PRE CAS INTERVIEW',
-  'MOCK SCHEDULE 1', 'MOCK SCHEDULE 2', 'MOCK SCHEDULE 3', 'MOCK SCHEDULE 4',
+  'MOCK SCHEDULE 1', 'FEEDBACK 1', 'MOCK SCHEDULE 2', 'FEEDBACK 2',
+  'MOCK SCHEDULE 3', 'FEEDBACK 3', 'MOCK SCHEDULE 4', 'FEEDBACK 4',
   'NOC', 'NOC NUMBER', 'MEDICAL REPORT', 'GROSS FEE', 'SCHOLARSHIP', 'FEE AFTER SCHOLARSHIP',
   'EARLY BIRD DISCOUNT', 'ADDITIONAL DISCOUNT', 'TUITION FEE DEPOSIT(1st Installment)',
   'TUITION FEE DEPOSIT(2nd Installment)', 'REMAINING TUITION FEE', 'PAYMENT DATE', 'CAS REQUESTED DATE',
@@ -67,8 +68,14 @@ const LEAD_COLUMNS = ['REMARKS', 'STUDENT SOURCE', 'APPLICATION STATUS'];
 const APPLICATION_DATE_COLUMNS = ['APPLICATION SUBMISSION DATE', 'OFFER RECEIVED DATE'];
 // Student ID and the pre-CAS checks come straight after the language test, before the fee columns.
 // Applied once per sheet (marked with `precasColumnsApplied`) so a later manual reorder isn't undone.
-const AFTER_LANGUAGE_TEST_COLUMNS = ['STUDENT ID', 'PRE CAS INTERVIEW', 'NOC', 'NOC NUMBER', 'MEDICAL REPORT'];
-const MOCK_SCHEDULE_COLUMNS = ['MOCK SCHEDULE 1', 'MOCK SCHEDULE 2', 'MOCK SCHEDULE 3', 'MOCK SCHEDULE 4'];
+// Each mock interview date is followed by its feedback.
+const MOCK_SCHEDULE_COLUMNS = [
+  'MOCK SCHEDULE 1', 'FEEDBACK 1', 'MOCK SCHEDULE 2', 'FEEDBACK 2',
+  'MOCK SCHEDULE 3', 'FEEDBACK 3', 'MOCK SCHEDULE 4', 'FEEDBACK 4',
+];
+const AFTER_LANGUAGE_TEST_COLUMNS = [
+  'STUDENT ID', 'PRE CAS INTERVIEW', ...MOCK_SCHEDULE_COLUMNS, 'NOC', 'NOC NUMBER', 'MEDICAL REPORT',
+];
 
 function addMissingColumns(workbook) {
   (workbook.sheets || []).forEach((sheet) => {
@@ -98,7 +105,7 @@ function addMissingColumns(workbook) {
       }
       sheet.precasColumnsApplied = true;
     }
-    // Sheets saved before the mock interview dates were tracked get them right after Pre-CAS Interview
+    // Sheets saved before the mock interviews were tracked get them right after Pre-CAS Interview
     // (or Student ID when there's no Pre-CAS Interview column; sheets with neither are left alone).
     const after = ['PRE CAS INTERVIEW', 'STUDENT ID'].find((c) => sheet.columns.includes(c));
     at = sheet.columns.indexOf(after) + 1;

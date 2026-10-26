@@ -522,7 +522,13 @@ tr.defer-warning-row td { background: var(--red-bg) !important; }
 }
 .hint code { background: var(--gray-bg); padding: 1px 5px; border-radius: 4px; }
 
-td.remarks { min-width: 160px; max-width: 220px; white-space: normal; }
+/* Text cells have a fixed width and one line of height, whatever they hold. Longer text ends in "…"
+   (the full text is in the hover tooltip); while editing, the text scrolls sideways inside the cell. */
+#body td.text, #body td.num { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#body td.text { width: 160px; min-width: 160px; max-width: 160px; }
+#body td.num { width: 110px; min-width: 110px; max-width: 110px; }
+#body td.text.long-text { width: 240px; min-width: 240px; max-width: 240px; }
+#body td.editing { text-overflow: clip; overflow-x: auto; }
 
 /* Other people's cursors (live presence). Same login for everyone, so they're "User N" in their own colour. */
 #body td.peer-cell { outline: 2px solid var(--peer-color); outline-offset: -2px; position: relative; z-index: 2; }
