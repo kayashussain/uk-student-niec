@@ -573,7 +573,7 @@
       // Copied from a sheet that's already in the current layout, so the server's one-time column
       // reorders (see workbook.js) must not run on it again and undo a manual column order.
       leadColumnsApplied: true,
-      precasColumnsApplied: true,
+      columnOrderVersion: template.columnOrderVersion,
       rows: [],
     };
     sheets.push(sheet);
@@ -598,7 +598,7 @@
       name: uniqueSheetName(`${source.name} (Copy)`),
       columns: [...source.columns],
       leadColumnsApplied: true,
-      precasColumnsApplied: true,
+      columnOrderVersion: source.columnOrderVersion,
       rows: source.rows.map((r) => ({ ...r, _id: makeRowId() })),
     };
     const idx = sheets.findIndex((s) => s.id === id);
