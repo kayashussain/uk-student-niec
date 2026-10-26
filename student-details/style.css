@@ -1,20 +1,26 @@
 :root {
-  --bg: #f6f7f9;
+  /* NIEC brand: the logo's sky blue and grey, NIEC orange, and a deep navy for the header bars. */
+  --niec-navy: #0b2e4f;
+  --niec-navy-2: #0e4a78;
+  --niec-blue: #00adef;
+  --niec-orange: #fc6e1f;
+  --niec-grey: #949599;
+  --bg: #f3f6fa;
   --panel: #ffffff;
   --border: #dfe3e8;
   --border-strong: #c7ccd4;
   --text: #1c2126;
   --text-dim: #6b7280;
-  --accent: #15803d;
-  --accent-dim: #e6f6ea;
+  --accent: #fc6e1f;
+  --accent-dim: #fff0e5;
   --orange: #fc6e1f;
-  --focus: #2563eb;
-  --focus-dim: #eaf1ff;
-  --focus-strong: #d3e2ff;
-  --range-tint: rgba(37, 99, 235, 0.14);
-  --header-bg: #f1f3f6;
-  --row-alt: #fafbfc;
-  --row-hover: #eef4ff;
+  --focus: #0284c7;
+  --focus-dim: #e6f4fb;
+  --focus-strong: #cbe9f8;
+  --range-tint: rgba(2, 132, 199, 0.14);
+  --header-bg: #eef3f8;
+  --row-alt: #f8fafc;
+  --row-hover: #e8f6fd;
   --danger: #dc2626;
   --green-bg: #e6f6ea; --green-fg: #1b7a3d;
   --blue-bg: #e8f0fe; --blue-fg: #1d4ed8;
@@ -31,8 +37,8 @@
     --border-strong: #3a4049;
     --text: #e7eaee;
     --text-dim: #9aa2ad;
-    --accent: #4ade80;
-    --accent-dim: #12301f;
+    --accent: #ff8a47;
+    --accent-dim: #3a2415;
     --orange: #ff8a47;
     --focus: #5b8def;
     --focus-dim: #1c2a44;
@@ -544,7 +550,6 @@ tr.defer-warning-row td { background: var(--red-bg) !important; }
 
 .stat-card .stat-visa { font-size: 11px; font-weight: 500; color: var(--orange); margin-top: 1px; }
 
-@media (prefers-color-scheme: dark) { .btn-primary { color: #052e16; } }
 
 /* Colour key in the footer, matching the row/cell highlights above. */
 .legend { display: flex; flex-wrap: wrap; gap: 4px 14px; }
@@ -554,3 +559,95 @@ tr.defer-warning-row td { background: var(--red-bg) !important; }
 .legend .key-stuck { background: #fff9c4; }
 .legend .key-dup { background: #fff176; }
 .legend .key-defer { background: var(--red-bg); }
+
+
+/* ---------------------------------------------------------------------------------------------
+   NIEC brand theme: a navy-to-sky-blue header bar with the logo and an orange accent line, orange
+   for the main buttons, navy column headings with a colour stripe per section, and summary cards
+   coloured by what they count. Status badge colours inside the table are unchanged.
+   --------------------------------------------------------------------------------------------- */
+.topbar {
+  background: linear-gradient(110deg, var(--niec-navy) 0%, var(--niec-navy-2) 55%, #0a7fbf 100%);
+  border-bottom: 3px solid var(--niec-orange);
+  padding: 10px 18px;
+}
+.brand-logo {
+  width: 38px; height: 38px; border-radius: 50%; background: #fff; padding: 3px;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.25);
+}
+.brand h1 { color: #fff; font-size: 17px; font-weight: 700; letter-spacing: 0.01em; }
+.brand .subtitle { color: #bfe9fb; font-size: 11px; letter-spacing: 0.02em; }
+.topbar #search {
+  background: rgba(255, 255, 255, 0.96); border-color: transparent; color: #1c2126;
+}
+.topbar #search::placeholder { color: #6b7280; }
+.topbar .btn {
+  background: rgba(255, 255, 255, 0.1); border-color: rgba(255, 255, 255, 0.28); color: #fff;
+}
+.topbar .btn:hover { background: rgba(255, 255, 255, 0.2); }
+.topbar .btn:disabled { background: rgba(255, 255, 255, 0.06); }
+.topbar .btn-primary, .btn-primary {
+  background: var(--niec-orange); border-color: var(--niec-orange); color: #fff; font-weight: 600;
+}
+.topbar .btn-primary:hover { background: var(--niec-orange); filter: brightness(1.08); }
+.topbar .btn-danger { color: #ffc2b3; border-color: rgba(255, 170, 150, 0.45); }
+.topbar .save-status { color: #cfe6f5; }
+.topbar .save-status.dirty { color: #ffd38a; }
+.topbar .save-status.error { color: #ffb4a8; }
+
+/* Summary: section titles in navy with an orange marker; each card's colour says what it counts. */
+.status-summary { background: linear-gradient(180deg, #e9f3fa 0%, var(--bg) 100%); }
+.stat-group-title { color: var(--niec-navy); display: inline-flex; align-items: center; gap: 6px; }
+.stat-group-title::before { content: ""; width: 14px; height: 3px; border-radius: 2px; background: var(--niec-orange); }
+.stat-card {
+  --card-color: var(--niec-blue);
+  border-left: 4px solid var(--card-color);
+  box-shadow: 0 1px 2px rgba(11, 46, 79, 0.06), 0 2px 8px rgba(11, 46, 79, 0.06);
+}
+.stat-card .stat-value { color: var(--card-color); }
+.stat-card.tone-green { --card-color: #16a34a; }
+.stat-card.tone-blue { --card-color: #0284c7; }
+.stat-card.tone-amber { --card-color: #d97706; }
+.stat-card.tone-red { --card-color: #dc2626; }
+.stat-card.tone-gray { --card-color: #64748b; }
+.stat-card.tone-orange { --card-color: var(--niec-orange); }
+/* Headline cards: filled with the brand colours. */
+.stat-card.stat-total, .stat-card.stat-rate { border-left: none; color: #fff; }
+.stat-card.stat-total { background: linear-gradient(135deg, var(--niec-navy), var(--niec-navy-2)); }
+.stat-card.stat-rate { background: linear-gradient(135deg, var(--niec-orange), #f59e0b); }
+.stat-card.stat-total .stat-value, .stat-card.stat-rate .stat-value { color: #fff; }
+.stat-card.stat-total .stat-label, .stat-card.stat-rate .stat-label { color: rgba(255, 255, 255, 0.85); }
+.stat-card .stat-visa { color: #16a34a; font-weight: 600; }
+
+/* Column headings: navy, with a stripe on top showing which part of the process the column is in. */
+thead th {
+  background: var(--niec-navy);
+  color: #e6f1f9;
+  border-right-color: rgba(255, 255, 255, 0.1);
+  border-bottom: none;
+  box-shadow: inset 0 4px 0 var(--group-color, transparent);
+  padding-top: 10px;
+}
+thead th:hover { color: #fff; background: #10395f; }
+thead th.col-idx { background: var(--niec-navy); color: #9fc3dc; }
+thead th.group-lead { --group-color: var(--niec-grey); }
+thead th.group-student { --group-color: var(--niec-blue); }
+thead th.group-precas { --group-color: var(--niec-orange); }
+thead th.group-fees { --group-color: #22c55e; }
+thead th.group-visa { --group-color: #a78bfa; }
+thead .filter-btn { color: #9fc3dc; }
+thead .filter-btn:hover { background: rgba(255, 255, 255, 0.15); color: #fff; }
+thead .filter-btn.active { color: var(--niec-orange); }
+td.col-idx { color: var(--niec-navy-2); font-weight: 600; }
+
+/* Sheet tabs: the open intake in navy with an orange underline. */
+.sheet-tab.active { color: var(--niec-navy); border-color: #bcd3e6; box-shadow: inset 0 -3px 0 var(--niec-orange); }
+
+@media (prefers-color-scheme: dark) {
+  .status-summary { background: var(--bg); }
+  .stat-group-title { color: #8fd3f5; }
+  thead th { background: #0a2540; }
+  thead th.col-idx { background: #0a2540; }
+  td.col-idx { color: #8fb8d6; }
+  .sheet-tab.active { color: #e7eaee; border-color: var(--border-strong); }
+}
