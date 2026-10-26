@@ -330,7 +330,15 @@ td[contenteditable="true"]:focus {
 
 td.num { text-align: right; font-variant-numeric: tabular-nums; }
 td.calculated { background: var(--focus-dim) !important; cursor: default; color: var(--text); }
-td.date { font-variant-numeric: tabular-nums; color: var(--text-dim); padding: 3px 6px; }
+td.date { font-variant-numeric: tabular-nums; color: var(--text-dim); padding: 3px 26px 3px 10px; cursor: pointer; }
+/* Calendar icon, drawn as a background so the many date cells shown as text cost no extra elements.
+   #body gives it priority over the striped/hover row backgrounds, which would otherwise wipe it. */
+#body td.date {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2.2'%3E%3Crect x='3' y='5' width='18' height='16' rx='2'/%3E%3Cpath d='M3 10h18M8 3v4M16 3v4'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 8px center;
+}
+/* While a date is being picked the real date box is in the cell, with its own icon. */
+#body td.date:has(input) { background-image: none; padding: 3px 6px; }
 /* A WhatsApp number shared by more than one student on the sheet. !important beats the striped/hover row backgrounds. */
 td.duplicate-phone { background: #fff176 !important; color: #1c2126; font-weight: 600; }
 td.date-note { color: var(--text-dim); font-style: italic; }
@@ -564,14 +572,11 @@ tr.defer-warning-row td { background: var(--red-bg) !important; }
 
 
 /* ---------------------------------------------------------------------------------------------
-   NIEC brand theme, after niec.edu.np: a white header with the NIEC logo and a light-blue line,
+   NIEC brand theme, after niec.edu.np: a white header with a light-blue line,
    light-blue column headings and accents, and NIEC orange for the main button. Status badge colours
    inside the table are unchanged.
    --------------------------------------------------------------------------------------------- */
 .topbar { background: var(--panel); border-bottom: 3px solid var(--niec-blue); padding: 8px 18px; }
-.brand { gap: 14px; }
-.brand-logo { height: 46px; width: auto; display: block; }
-.brand-title { padding-left: 14px; border-left: 1px solid var(--border); }
 .brand h1 { color: var(--niec-blue-text); font-size: 16px; font-weight: 700; }
 .brand .subtitle { color: var(--text-dim); }
 .topbar #search { background: var(--panel); }
@@ -613,7 +618,6 @@ thead .filter-btn.active { color: var(--niec-orange); }
 
 @media (prefers-color-scheme: dark) {
   :root { --niec-blue-text: #6fd0f7; --niec-blue-tint: #10283a; }
-  .brand-logo { background: #fff; border-radius: 6px; padding: 2px 6px; }
   .stat-card.stat-total { background: #0088bd; border-color: #0088bd; }
   .stat-card.stat-rate .stat-value { color: #ff9a5c; }
   .stat-card .stat-visa { color: #6fd894; }

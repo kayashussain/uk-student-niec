@@ -212,8 +212,21 @@
     input.addEventListener('blur', finish);
   }
 
+  // Undo steps hold each sheet as JSON text, which takes a fraction of the memory of a live copy.
+  // A sheet that didn't change since the previous step reuses that step's text, so in practice each
+  // step only costs the one sheet being edited (and 100 steps don't eat the laptop's memory).
+  const lastSheetJson = new Map(); // sheet id -> JSON text from the latest step
   function snapshotWorkbook() {
-    return { sheets: JSON.parse(JSON.stringify(sheets)), activeSheetId };
+    return {
+      sheets: sheets.map((sheet) => {
+        const json = JSON.stringify(sheet);
+        const prev = lastSheetJson.get(sheet.id);
+        if (prev === json) return prev;
+        lastSheetJson.set(sheet.id, json);
+        return json;
+      }),
+      activeSheetId,
+    };
   }
 
   // Call BEFORE mutating `sheets`/`rows`, while the old values are still in place.
@@ -233,7 +246,7 @@
   function applySnapshot(snap) {
     // Keep the cell cursor on the same student after Ctrl+Z (row positions can shift, ids don't).
     const keep = activeCell && rows[activeCell.rowIdx] ? { id: rows[activeCell.rowIdx]._id, col: activeCell.col } : null;
-    sheets = snap.sheets;
+    sheets = snap.sheets.map((json) => JSON.parse(json));
     activeSheetId = snap.activeSheetId;
     syncActiveSheet();
     if (keep) {
@@ -258,6 +271,40 @@
     if (!redoStack.length) return;
     undoStack.push(snapshotWorkbook());
     applySnapshot(redoStack.pop());
+  }
+
+  // A YYYY-MM-DD date the way the browser's own date box shows it (e.g. 05/01/2026 in the US).
+  const dateFormat = new Intl.DateTimeFormat(undefined, { year: 'numeric', month: '2-digit', day: '2-digit', timeZone: 'UTC' });
+  function displayDate(iso) {
+    const [y, m, d] = iso.split('-').map(Number);
+    return dateFormat.format(new Date(Date.UTC(y, m - 1, d)));
+  }
+
+  // Swaps a date cell's text for a real date box and returns it (or the one already there).
+  function openDateCell(td) {
+    const existing = td.querySelector('input');
+    if (existing) return existing;
+    const tr = td.parentElement;
+    const rowIdx = Number(tr.dataset.rowIdx);
+    const col = columns[Number(td.dataset.colIndex)];
+    const original = toISODate(rows[rowIdx][col] || '');
+    const input = document.createElement('input');
+    input.type = 'date';
+    input.className = 'date-input';
+    input.value = original;
+    input.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (input.showPicker) { try { input.showPicker(); } catch (err) { /* unsupported */ } }
+    });
+    confirmDateInput(input, original, (value) => {
+      pushUndo();
+      rows[rowIdx][col] = value;
+      markDirty();
+      if (col === 'OFFER RECEIVED DATE') tr.classList.toggle('offer-stuck-row', offerStuck(rows[rowIdx]));
+    });
+    td.textContent = '';
+    td.appendChild(input);
+    return input;
   }
 
   function badgeClass(value) {
@@ -1049,21 +1096,34 @@
       } else if (SELECT_COLS[col]) {
         const select = document.createElement('select');
         select.className = 'status-select ' + badgeClass(val);
-        const blankOpt = document.createElement('option');
-        blankOpt.value = '';
-        blankOpt.textContent = '— Select —';
-        select.appendChild(blankOpt);
+        // Only the current value is put in at first; the full list of choices is added the moment the
+        // dropdown is clicked or focused. Thousands of rows × every choice was most of the page's weight.
         // A value that isn't one of the choices (e.g. imported from a spreadsheet) is still shown, not hidden.
-        const options = val && !SELECT_COLS[col].includes(val) ? [...SELECT_COLS[col], val] : SELECT_COLS[col];
-        options.forEach((opt) => {
-          const o = document.createElement('option');
-          o.value = opt;
-          o.textContent = opt;
-          if (opt === val) o.selected = true;
-          select.appendChild(o);
-        });
+        const addOptions = (list) => {
+          select.textContent = '';
+          ['', ...list].forEach((opt) => {
+            const o = document.createElement('option');
+            o.value = opt;
+            o.textContent = opt || '— Select —';
+            if (opt === val) o.selected = true;
+            select.appendChild(o);
+          });
+        };
+        addOptions(val ? [val] : []);
+        let filled = false;
+        const fill = () => {
+          if (filled) return;
+          filled = true;
+          const current = select.value;
+          addOptions(val && !SELECT_COLS[col].includes(val) ? [...SELECT_COLS[col], val] : SELECT_COLS[col]);
+          select.value = current;
+        };
+        select.addEventListener('focus', fill);
+        select.addEventListener('keydown', fill);
+        select.addEventListener('pointerdown', fill); // touch screens
         select.addEventListener('click', (e) => e.stopPropagation());
         select.addEventListener('mousedown', (e) => {
+          fill();
           const busy = peerOnCell(rowIdx, col, false);
           if (busy) { e.preventDefault(); warnPeerOnCell(busy); }
         });
@@ -1097,24 +1157,11 @@
         td.classList.add('date-note');
         td.title = 'Not a date. Clear this cell (Delete) to pick a date instead.';
       } else if (DATE_COLS.has(col)) {
+        // Shown as plain text; the real date box is only created for the cell being changed (see
+        // openDateCell). A date box per cell made up most of the page's memory on long sheets.
         td.classList.add('date');
-        const input = document.createElement('input');
-        input.type = 'date';
-        input.className = 'date-input';
-        input.value = toISODate(val);
-        input.addEventListener('click', (e) => {
-          e.stopPropagation();
-          if (input.showPicker) { try { input.showPicker(); } catch (err) { /* unsupported */ } }
-        });
-        confirmDateInput(input, toISODate(val), (value) => {
-          pushUndo();
-          rows[rowIdx][col] = value;
-          markDirty();
-          if (col === 'LANGUAGE TEST DATE') applyLanguageTestFlag(td, value);
-          if (col === 'OFFER RECEIVED DATE') tr.classList.toggle('offer-stuck-row', offerStuck(rows[rowIdx]));
-        });
-        td.appendChild(input);
-        if (col === 'LANGUAGE TEST DATE') applyLanguageTestFlag(td, input.value);
+        const iso = toISODate(val);
+        if (iso) td.textContent = displayDate(iso);
       } else {
         // Plain text cells keep a fixed size whatever they hold: long text is cut off with "…" and
         // shown in full on hover (or by double-clicking to edit), so rows never grow taller.
@@ -1348,7 +1395,7 @@
     const busy = peerOnCell(rowIdx, col, isTextCell(col));
     if (busy) { warnPeerOnCell(busy); return; }
     if (!isTextCell(col)) {
-      const control = td.querySelector('select, input');
+      const control = td.querySelector('select, input') || (td.classList.contains('date') ? openDateCell(td) : null);
       if (!control) return;
       control.focus();
       if (control.showPicker) { try { control.showPicker(); } catch (err) { /* some browsers need a click */ } }
@@ -1868,6 +1915,19 @@
 
     const col = columns[Number(td.dataset.colIndex)];
     if (col === undefined) return;
+    if (!onControl && !additive && !e.shiftKey && td.classList.contains('date')) {
+      e.preventDefault();
+      rowSelectMode = false;
+      selRanges = [singleRange(rowIdx, col)];
+      setActiveCell(rowIdx, col, { focus: false, scroll: false });
+      applySelectionClasses();
+      const busy = peerOnCell(rowIdx, col, false);
+      if (busy) { warnPeerOnCell(busy); return; }
+      const input = openDateCell(td);
+      input.focus();
+      if (input.showPicker) { try { input.showPicker(); } catch (err) { /* opens on the next click */ } }
+      return;
+    }
     if (onControl) {
       // Dropdowns and date boxes need the click to open, so they only move the cursor.
       rowSelectMode = false;

@@ -52,7 +52,6 @@ const serveStatic = createStaticServer(ROOT, {
   '/calc.js': 'text/javascript; charset=utf-8',
   '/favicon.png': 'image/png',
   '/apple-touch-icon.png': 'image/png',
-  '/niec-logo.png': 'image/png',
 });
 
 // The "Do you really want to make this change?" box, shared with the other app.

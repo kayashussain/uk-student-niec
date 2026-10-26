@@ -69,17 +69,13 @@
   .brand { display: flex; align-items: center; gap: 10px; }
   .brand h1 { font-size: 16px; margin: 0; text-transform: uppercase; letter-spacing: 0.02em; }
 
-  /* NIEC brand header, matching the Student Details page: white, NIEC logo, light-blue line. */
+  /* NIEC brand header, matching the Student Details page: white with a light-blue line. */
   header.top { background: var(--panel); border-bottom: 3px solid #00adef; padding: 8px 18px; }
-  .brand { gap: 14px; }
-  .brand-logo { height: 46px; width: auto; display: block; }
-  .brand-title { padding-left: 14px; border-left: 1px solid var(--border); }
   header.top .brand h1 { color: #0077a8; font-size: 16px; font-weight: 700; text-transform: none; letter-spacing: .01em; }
   header.top .subtitle { color: var(--text-dim); font-size: 11px; }
   .btn:hover { background: #e8f7fe; border-color: #00adef; }
   .btn:disabled:hover { border-color: var(--border-strong); }
   @media (prefers-color-scheme: dark) {
-    .brand-logo { background: #fff; border-radius: 6px; padding: 2px 6px; }
     header.top .brand h1 { color: #6fd0f7; }
     .btn:hover { background: #173b4d; }
   }
@@ -219,8 +215,7 @@
 
   <header class="top">
     <div class="brand">
-      <img class="brand-logo" src="niec-logo.png" alt="NIEC — Your Future, Our Responsibility" />
-      <div class="brand-title">
+      <div>
         <h1>Incentive History</h1>
         <div class="subtitle">Nepal International Education Consultancy</div>
       </div>
