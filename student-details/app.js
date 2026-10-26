@@ -30,8 +30,8 @@
       'CAS Stage', 'CAS Issued', 'Visa Lodge', 'Visa Issued', 'Visa Rejected', 'Defer', 'Withdrawn',
     ],
     'PRE CAS INTERVIEW': ['Passed', 'Fail'],
-    'NOC': ['Submitted', 'Pending'],
-    'MEDICAL REPORT': ['Pending', 'Received'],
+    'NOC': ['Submitted'],
+    'MEDICAL REPORT': ['Received'],
     'STUDENT SOURCE': SOURCE_OPTIONS,
   };
   // Language test results (IELTS/PTE/etc.) are valid for 2 years. Flag as "expiring soon"
