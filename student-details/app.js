@@ -780,7 +780,7 @@
   // Every column has a set width that doesn't depend on what's typed in it (wide enough for its title
   // and its kind of cell). Besides keeping the sheet tidy, it lets the browser lay the table out
   // without measuring every cell, which keeps typing and moving around a long sheet smooth.
-  const COL_IDX_WIDTH = 40;
+  const COL_IDX_WIDTH = 56; // room for a 4-digit row number
   let measureCtx = null;
   function textWidth(text, font) {
     if (!measureCtx) measureCtx = document.createElement('canvas').getContext('2d');
@@ -800,21 +800,6 @@
     return Math.max(cell, header);
   }
 
-  // Which part of the process a column belongs to; shown as a coloured stripe on its heading.
-  // Anything not listed (names, contact, university, partner and any added column) is student details.
-  const COLUMN_GROUPS = {
-    lead: ['REMARKS', 'STUDENT SOURCE', 'APPLICATION STATUS', 'APPLICATION SUBMISSION DATE', 'OFFER RECEIVED DATE'],
-    precas: [
-      'LANGUAGE TEST DATE', 'STUDENT ID', 'NOC', 'NOC NUMBER', 'MOCK SCHEDULE 1', 'FEEDBACK 1', 'MOCK SCHEDULE 2',
-      'FEEDBACK 2', 'MOCK SCHEDULE 3', 'FEEDBACK 3', 'MOCK SCHEDULE 4', 'FEEDBACK 4', 'PRE CAS INTERVIEW', 'MEDICAL REPORT',
-    ],
-    fees: [...NUM_COLS, 'PAYMENT DATE'],
-    visa: ['CAS REQUESTED DATE', 'CAS RECEIVED DATE', 'VISA LODGE DATE', 'VFS ATTENDED DATE', 'VISA RECEIVED DATE', 'E-VISA', 'UK CONTACT NUMBER'],
-  };
-  function columnGroup(col) {
-    return Object.keys(COLUMN_GROUPS).find((g) => COLUMN_GROUPS[g].includes(col)) || 'student';
-  }
-
   function renderHeader() {
     headerRow.innerHTML = '';
     const idxTh = document.createElement('th');
@@ -827,7 +812,6 @@
       const th = document.createElement('th');
       th.dataset.col = col;
       const width = columnWidth(col);
-      th.classList.add('group-' + columnGroup(col));
       th.style.width = width + 'px';
       tableWidth += width;
       if (col === sortCol) th.classList.add(sortDir === 1 ? 'sorted' : 'sorted-desc');
@@ -1519,9 +1503,9 @@
     ));
     statusSummaryEl.innerHTML = '';
 
-    const card = (value, label, extra = '', title = '', tone = 'blue') => {
+    const card = (value, label, extra = '', title = '') => {
       const el = document.createElement('div');
-      el.className = 'stat-card tone-' + tone;
+      el.className = 'stat-card';
       if (title) el.title = title;
       el.innerHTML = `<span class="stat-value">${value}</span><span class="stat-label">${label}</span>${extra}`;
       return el;
@@ -1560,10 +1544,7 @@
 
     const statusCards = group('Application Status');
     if (!columns.includes(SOURCE_COL)) statusCards.appendChild(totalCard);
-    // Same colours as the status badges in the table (green = done, blue = in progress, ...).
-    statusOptions.forEach((status) => statusCards.appendChild(
-      card(countStatus(status), status, '', '', badgeClass(status).replace('badge-', '')),
-    ));
+    statusOptions.forEach((status) => statusCards.appendChild(card(countStatus(status), status)));
     const visaIssuedCount = countStatus('Visa Issued');
     const conversionRate = indices.length ? (visaIssuedCount / indices.length) * 100 : 0;
     const rateCard = card(`${conversionRate.toFixed(1)}%`, 'Conversion Rate', '',
