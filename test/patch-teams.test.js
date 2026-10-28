@@ -103,7 +103,7 @@ test('a team save is checked cell by cell', () => {
   mine.sheets[0].rows[0]['NOC NUMBER'] = 'N-1';
   mine.sheets[0].rows[0]['FEE AFTER SCHOLARSHIP'] = '1.00'; // recalculated by the page: ignored
   let out = teamChanges('application', base, mine, ['FEE AFTER SCHOLARSHIP']);
-  assert.deepStrictEqual(out, { changes: [{ sheetId: 'a', rowId: 'r1', col: 'NOC NUMBER', value: 'N-1' }], errors: [] });
+  assert.deepStrictEqual(out, { changes: [{ sheetId: 'a', rowId: 'r1', col: 'NOC NUMBER', value: 'N-1' }], adds: [], errors: [] });
 
   const sneaky = clone(base);
   sneaky.sheets[0].rows[0]['GROSS FEE'] = '1';
@@ -115,8 +115,8 @@ test('a team save is checked cell by cell', () => {
   deleted.sheets[0].rows = [];
   assert.ok(teamChanges('application', base, deleted).errors.some((e) => /delete students/.test(e)));
   const added = clone(base);
-  added.sheets[0].rows.push({ _id: 'n', 'FIRST NAME': 'x' });
-  assert.ok(teamChanges('application', base, added).errors.some((e) => /add students/.test(e)));
+  added.sheets[0].rows.push({ _id: 'n', 'FIRST NAME': 'x' }); // a new student: allowed (see below)
+  assert.deepStrictEqual(teamChanges('application', base, added).adds.map((a) => a.row[S]), ['Application Stage']);
 });
 
 test('a team save moving a student on is checked from the status it had before', () => {
@@ -128,4 +128,35 @@ test('a team save moving a student on is checked from the status it had before',
   const early = clone(mockBase);
   early.sheets[0].rows[0][S] = 'Payment Stage'; // mocks not filled: refused even if the page is bypassed
   assert.ok(teamChanges('mock', mockBase, early).errors.some((e) => /can't go to Payment Stage/.test(e)));
+});
+
+test('a team can add a student at its own stage, and fill in the basics of students it added', () => {
+  const base = viewFor('followup', book());
+  const mine = clone(base);
+  mine.sheets[0].rows.push({ _id: 'n1', [S]: '', 'FIRST NAME': 'Nabin', 'CONTACT NUMBER': '98000', REMARKS: 'walk-in', 'FEE AFTER SCHOLARSHIP': '' });
+  const out = teamChanges('followup', base, mine, ['FEE AFTER SCHOLARSHIP']);
+  assert.deepStrictEqual(out.errors, []);
+  assert.deepStrictEqual(out.adds, [{ sheetId: 'a', row: {
+    _id: 'n1', [S]: 'Inquiry', _addedByTeam: 'followup', 'FIRST NAME': 'Nabin', 'CONTACT NUMBER': '98000', REMARKS: 'walk-in',
+  } }]);
+  // Later: the team may fix the name of a student it added, but not of one it didn't.
+  const own = { _id: 'n1', [S]: 'Inquiry', _addedByTeam: 'followup', 'FIRST NAME': 'Nabin' };
+  assert.ok(canEdit('followup', 'FIRST NAME', own));
+  assert.ok(!canEdit('followup', 'FIRST NAME', { ...own, _addedByTeam: undefined }));
+  assert.ok(!canEdit('followup', 'GROSS FEE', own));
+});
+
+test('a team cannot add a student at another stage, with other columns, or claim another\'s student', () => {
+  const base = viewFor('application', book());
+  const wrongStage = clone(base);
+  wrongStage.sheets[0].rows.push({ _id: 'n2', [S]: 'Visa Issued' });
+  assert.ok(teamChanges('application', base, wrongStage).errors.some((e) => /starts at Application Stage/.test(e)));
+  const extra = clone(base);
+  extra.sheets[0].rows.push({ _id: 'n3', [S]: 'Application Stage', 'GROSS FEE': '9' });
+  assert.ok(teamChanges('application', base, extra).errors.some((e) => /Gross Fee/.test(e)));
+  // Sending `_addedByTeam` on an existing student doesn't unlock it: the server's copy decides.
+  const fu = viewFor('followup', book());
+  const claim = clone(fu);
+  Object.assign(claim.sheets[0].rows[0], { _addedByTeam: 'followup', 'FIRST NAME': 'Changed' });
+  assert.ok(teamChanges('followup', fu, claim).errors.some((e) => /First Name/.test(e)));
 });

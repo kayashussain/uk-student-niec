@@ -21,6 +21,10 @@
     'MOCK SCHEDULE 3', 'FEEDBACK 3', 'MOCK SCHEDULE 4', 'FEEDBACK 4', 'PRE CAS INTERVIEW',
   ];
 
+  // The basics of a new student. A team can fill these in on the students it added itself (the
+  // server marks those rows with `_addedByTeam`), on top of its usual columns.
+  const NEW_STUDENT_COLUMNS = ['FIRST NAME', 'LAST NAME', 'EMAIL', 'CONTACT NUMBER', 'STUDENT SOURCE', 'REMARKS'];
+
   const TEAMS = {
     application: {
       statuses: ['Application Stage'],
@@ -51,10 +55,15 @@
     return !team || team.statuses.includes(String((row && row[STATUS]) || '').trim());
   }
 
-  function canEdit(role, col) {
+  // `row` (optional): the student, so a team can also edit the basics of students it added itself.
+  function canEdit(role, col, row = null) {
     const team = teamOf(role);
-    return !team || team.editable.has(col);
+    if (!team || team.editable.has(col)) return true;
+    return Boolean(row && row._addedByTeam === role && NEW_STUDENT_COLUMNS.includes(col));
   }
+
+  // The status a new student starts with when this team adds one.
+  const newStudentStatus = (role) => (teamOf(role) ? teamOf(role).statuses[0] : '');
 
   // The statuses this account may pick for a student currently at `status` (including staying put).
   function statusChoices(role, status, all) {
@@ -103,9 +112,12 @@
 
   // The cell changes a team made between its view of the base version and its edited copy, checked
   // against the rules. Order changes and the auto-calculated columns are ignored (the page reorders
-  // and recalculates on its own). { changes: [{ sheetId, rowId, col, value }], errors: [text] }
+  // and recalculates on its own). New students come back in `adds`, holding only what the team may
+  // fill in (anything else in them is dropped) and marked as added by the team.
+  // { changes: [{ sheetId, rowId, col, value }], adds: [{ sheetId, row }], errors: [text] }
   function teamChanges(role, baseView, mineView, calculated = []) {
     const changes = [];
+    const adds = [];
     const errors = [];
     const skip = new Set(calculated);
     const baseSheets = new Map(baseView.sheets.map((s) => [s.id, s]));
@@ -119,14 +131,29 @@
       sheet.rows.forEach((row) => {
         mineRowIds.add(row._id);
         const before = baseRows.get(row._id);
-        if (!before) { errors.push('Only Admin can add students.'); return; }
+        if (!before) {
+          const team = teamOf(role);
+          const status = String(row[STATUS] ?? '').trim() || newStudentStatus(role);
+          if (!team || !team.statuses.includes(status)) {
+            errors.push(`A student your team adds starts at ${newStudentStatus(role)}.`);
+            return;
+          }
+          const added = { _id: row._id, [STATUS]: status, _addedByTeam: role };
+          Object.keys(row).forEach((col) => {
+            if (col.startsWith('_') || col === STATUS || skip.has(col) || String(row[col] ?? '').trim() === '') return;
+            if (canEdit(role, col, added)) added[col] = row[col];
+            else errors.push(`Your team can't fill in ${label(col)}.`);
+          });
+          adds.push({ sheetId: sheet.id, row: added });
+          return;
+        }
         new Set([...Object.keys(before), ...Object.keys(row)]).forEach((col) => {
           if (col.startsWith('_') || skip.has(col)) return;
           if (String(before[col] ?? '') === String(row[col] ?? '')) return;
           if (col === STATUS) {
             const check = checkMove(role, row, String(row[col] ?? '').trim(), String(before[col] ?? '').trim());
             if (!check.ok) { errors.push(check.message.split('\n')[0]); return; }
-          } else if (!canEdit(role, col)) {
+          } else if (!canEdit(role, col, before)) { // `before`: what the server has, not what was sent
             errors.push(`Your team can't change ${label(col)}.`);
             return;
           }
@@ -135,8 +162,8 @@
       });
       base.rows.forEach((r) => { if (!mineRowIds.has(r._id)) errors.push('Only Admin can delete students.'); });
     });
-    return { changes, errors: [...new Set(errors)] };
+    return { changes, adds, errors: [...new Set(errors)] };
   }
 
-  return { TEAMS, STATUS, teamOf, seesRow, canEdit, statusChoices, checkMove, viewFor, teamChanges };
+  return { TEAMS, STATUS, NEW_STUDENT_COLUMNS, teamOf, seesRow, canEdit, newStudentStatus, statusChoices, checkMove, viewFor, teamChanges };
 });

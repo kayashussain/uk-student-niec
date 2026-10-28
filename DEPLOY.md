@@ -60,7 +60,10 @@ sends a team its own students):
 | Mock Team | students at *Mock Stage* | Remarks and the mock columns up to Pre-CAS Interview; can move to *Payment Stage* only once those are all filled |
 | Follow-up Team | *Inquiry*, *Defer* and *Withdrawn* students | Remarks only |
 
-Adding or deleting students and sheets, hidden sheets, Export Excel and the Incentive page are Admin only.
+Every team can add a new student with **+ Row**: it starts at the team's own stage (Application Stage,
+Mock Stage or Inquiry), and the team can also fill in its name, email, contact number and student
+source (on students it added itself). Deleting students, sheets, hidden sheets, Export Excel and the
+Incentive page are Admin only.
 
 
 ## Seeding your existing data (one time)

@@ -783,10 +783,10 @@ body:not([data-role="admin"]) #exportExcel { display: none; }
 .activity-changes { margin: 6px 0 0; padding-left: 18px; font-size: 12.5px; }
 .activity-changes li { margin: 2px 0; overflow-wrap: anywhere; }
 
-/* Teams: cells outside their own columns are read-only, and the sheet-wide tools are Admin's. */
+/* Teams: cells outside their own columns are read-only, and the sheet-wide tools are Admin's (teams can add students). */
 td.locked { color: var(--text-dim); cursor: default; }
 select.status-select:disabled { opacity: 0.85; cursor: default; }
-body:not([data-role="admin"]) #addRow,
+body:not([data-role]) #addRow,
 body:not([data-role="admin"]) #delRow,
 body:not([data-role="admin"]) #addSheet,
 body:not([data-role="admin"]) #allSheetsBtn,
