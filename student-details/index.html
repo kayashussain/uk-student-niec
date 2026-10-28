@@ -24,6 +24,9 @@
       <button id="delRow" class="btn btn-danger" title="Click the row numbers (S.N) of the students to delete first — Ctrl+Click to pick several">Delete rows</button>
       <button id="exportExcel" class="btn">Export Excel</button>
       <span id="status" class="save-status">All changes saved</span>
+      <button id="activityBtn" class="btn" type="button" hidden>Check activity</button>
+      <span id="userLabel" class="user-label" title="Logged in as" hidden></span>
+      <button id="logoutBtn" class="btn" type="button" onclick="NiecSession.logout()">Log out</button>
     </div>
   </header>
 
@@ -46,7 +49,7 @@
   <div class="sheet-tabs" id="sheetTabs">
     <button id="addSheet" class="sheet-add-btn" title="Add sheet">+</button>
     <div class="sheet-tabs-list" id="sheetTabsList"></div>
-    <button id="hiddenSheetsBtn" class="sheet-hidden-btn" type="button" hidden>Hidden sheet ▾</button>
+    <button id="allSheetsBtn" class="sheet-hidden-btn" type="button" title="See every sheet; tick one to hide it">All sheets ▾</button>
   </div>
 
   <footer class="footbar">
@@ -61,7 +64,9 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
 <script src="calc.js"></script>
+<script src="session.js"></script>
 <script src="edit-guard.js"></script>
 <script src="app.js"></script>
+<script src="activity.js"></script>
 </body>
 </html>

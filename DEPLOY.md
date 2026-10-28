@@ -4,12 +4,11 @@ There are two supported ways to host this: **Render** (this file — one service
 in front of both apps) or **cPanel / Nest Nepal** (see `CPANEL_DEPLOY.md` — two separate cPanel apps,
 no gateway). Pick one; you don't need both.
 
-This repo runs **two apps together** behind one password-protected gateway:
+This repo runs **two apps together** behind one gateway, both behind the same login page:
 
 - `student-details/` — the visa application tracker
 - `counselor-incentive/` — the commission tracker (reads `student-details`'s data directly off disk)
-- `gateway/` — the one public entry point: checks a shared username/password, then routes
-  each request to whichever app owns it
+- `gateway/` — the one public entry point: routes each request to whichever app owns it
 
 Locally, nothing changes — keep running each app the way you always have
 (`node server.js` inside each folder, on ports 4173 and 5173). The gateway is only used
@@ -22,26 +21,39 @@ by the hosted deployment.
    GitHub repo. Render will read `render.yaml` in this repo and pre-fill almost everything:
    a web service, a 1GB persistent disk mounted at `/data`, and the two data-directory
    environment variables.
-3. Render will ask you to fill in two values it deliberately left blank (so they're never
-   stored in the repo):
-   - `APP_USERNAME` — pick anything, e.g. `admin`
-   - `APP_PASSWORD` — pick a strong password; this is what protects **all** your student
-     and financial data once this is public. Don't reuse a password from elsewhere.
-4. Click **Apply** / **Create**. The first deploy takes a minute or two.
-5. Once it's live, Render gives you a URL like `https://uk-student-niec.onrender.com`.
-   Opening it will prompt for the username/password from step 3 — that's the gateway's
-   Basic Auth login.
+3. Click **Apply** / **Create**. The first deploy takes a minute or two.
+4. Once it's live, Render gives you a URL like `https://uk-student-niec.onrender.com`.
+   Opening it shows the login page (see **The login** below).
+
+## The login
+
+Both apps open a **login page** (`/login`) that asks you to pick your account and enter its password. There are
+four accounts (Admin, Application Team, Mock Team, Follow-up Team), each with its
+own password, set in `shared/server-utils.js` (`ACCOUNTS`; only a scrambled copy of each password is
+kept there, and the comment shows how to make a new one). After logging in
+you stay logged in on that device for 30 days, or until **Log out** (top right). No environment
+variables are needed for it.
+
+Every login (account, device, time) and every change is recorded in `activity.jsonl` in the Student
+Details data folder. Admin sees it with **Check activity** at the top of Student Details.
+
 
 ## Seeding your existing data (one time)
 
 The disk starts empty, so the live site starts with a blank tracker. To copy your current
 local data up to it, run this once from the `student-details` folder on your machine
-(replace the URL, username, and password):
+(replace the URL and the Admin password). The first command logs in and keeps the login in
+`cookies.txt`; the second uploads with it:
+
+```bash
+curl -c cookies.txt -X POST https://uk-student-niec.onrender.com/api/login \
+  -H "Content-Type: application/json" -d '{"account":"admin","password":"ADMIN_PASSWORD"}'
+```
 
 ```bash
 node -e "const d=require('./data.json'); d.baseRevision=0; process.stdout.write(JSON.stringify(d))" \
   | curl -X POST https://uk-student-niec.onrender.com/api/data \
-    -u admin:YOUR_PASSWORD \
+    -b cookies.txt \
     -H "Content-Type: application/json" \
     --data-binary @-
 ```

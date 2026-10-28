@@ -124,6 +124,17 @@ function addMissingColumns(workbook) {
 
 // Upgrades the legacy single-sheet {columns, rows} shape into {sheets, activeSheetId}, fixes renamed
 // columns, and makes sure there's a revision number and row ids. Already-migrated files come back unchanged.
+// Each sheet says whether it's hidden on the Student Details page (ticked in "All sheets"). Sheets
+// from before that setting existed get it once: Sep Intake 2026 starts hidden, as it already was.
+function addHiddenFlags(workbook) {
+  workbook.sheets.forEach((sheet) => {
+    if (typeof sheet.hidden !== 'boolean') {
+      sheet.hidden = /\bsep/i.test(sheet.name || '') && /2026/.test(sheet.name || '');
+    }
+  });
+  return workbook;
+}
+
 function migrateWorkbook(parsed) {
   const workbook = parsed && Array.isArray(parsed.sheets)
     ? parsed
@@ -132,7 +143,7 @@ function migrateWorkbook(parsed) {
       activeSheetId: 'sheet-1',
     };
   if (!Number.isInteger(workbook.revision)) workbook.revision = 0;
-  return ensureRowIds(addMissingColumns(renameColumns(workbook)));
+  return addHiddenFlags(ensureRowIds(addMissingColumns(renameColumns(workbook))));
 }
 
 function isValidWorkbook(parsed) {
@@ -232,6 +243,59 @@ function mergeWorkbooks(base, theirs, mine) {
   return { sheets, activeSheetId };
 }
 
+// What a save changed, as short lines for the activity record ("Check activity"): sheets added,
+// removed, renamed or hidden, students added or removed, and each cell's old and new value.
+// Internal fields (starting with "_") are left out. At most `limit` lines, then a count of the rest.
+function describeChanges(before, after, limit = 300) {
+  const lines = [];
+  const show = (v) => (v === undefined || v === null || v === '' ? '(blank)' : `"${String(v).slice(0, 120)}"`);
+  const studentName = (row) => String((row && row['STUDENT NAME']) || '').trim() || 'a student with no name';
+  const beforeSheets = new Map(((before && before.sheets) || []).map((s) => [s.id, s]));
+  const afterSheets = new Map(((after && after.sheets) || []).map((s) => [s.id, s]));
+
+  afterSheets.forEach((sheet, id) => {
+    const old = beforeSheets.get(id);
+    if (!old) {
+      lines.push(`Added sheet "${sheet.name}"`);
+      return;
+    }
+    if (old.name !== sheet.name) lines.push(`Renamed sheet "${old.name}" to "${sheet.name}"`);
+    if (Boolean(old.hidden) !== Boolean(sheet.hidden)) {
+      lines.push(`${sheet.hidden ? 'Hid' : 'Showed again'} sheet "${sheet.name}"`);
+    }
+    const oldRows = new Map(old.rows.map((r) => [r._id, r]));
+    const newIds = new Set(sheet.rows.map((r) => r._id));
+    sheet.rows.forEach((row) => {
+      const prev = oldRows.get(row._id);
+      if (!prev) {
+        lines.push(`${sheet.name}: added ${studentName(row)}`);
+        return;
+      }
+      const cols = new Set([...Object.keys(prev), ...Object.keys(row)]);
+      cols.forEach((col) => {
+        if (col.startsWith('_')) return;
+        const a = prev[col] ?? '';
+        const b = row[col] ?? '';
+        if (String(a) !== String(b)) {
+          lines.push(`${sheet.name} › ${studentName(row)} › ${col}: ${show(a)} → ${show(b)}`);
+        }
+      });
+    });
+    old.rows.forEach((row) => {
+      if (!newIds.has(row._id)) lines.push(`${sheet.name}: removed ${studentName(row)}`);
+    });
+  });
+  beforeSheets.forEach((sheet, id) => {
+    if (!afterSheets.has(id)) lines.push(`Deleted sheet "${sheet.name}" (${sheet.rows.length} rows)`);
+  });
+
+  if (lines.length > limit) {
+    const rest = lines.length - limit;
+    return [...lines.slice(0, limit), `…and ${rest} more change${rest === 1 ? '' : 's'}`];
+  }
+  return lines;
+}
+
 // Recent revisions, kept in memory so a save based on one of them can be merged.
 function createHistory(limit = 30) {
   const versions = new Map(); // revision -> JSON text
@@ -253,6 +317,7 @@ module.exports = {
   blankWorkbook,
   ensureRowIds,
   migrateWorkbook,
+  describeChanges,
   isValidWorkbook,
   mergeOrder,
   mergeWorkbooks,

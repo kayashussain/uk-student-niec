@@ -17,7 +17,8 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const {
-  send, sendJSON, createAuth, createStaticServer, readJSONBody, writeFileAtomic, snapshotDaily, localDate,
+  send, sendJSON, createAuth, createActivityLog, createStaticServer, readJSONBody, writeFileAtomic, snapshotDaily,
+  localDate,
 } = require('../shared/server-utils');
 const { advancesByName, setAdvance } = require('./advances');
 const { round2, groupByUniversity, displayDate } = require('./calc');
@@ -54,15 +55,45 @@ const serveStatic = createStaticServer(ROOT, {
   '/apple-touch-icon.png': 'image/png',
 });
 
-// The "Do you really want to make this change?" box, shared with the other app.
+// Files shared with the other app: the "Do you really want to make this change?" box and the login
+// session helper.
 const serveShared = createStaticServer(path.join(__dirname, '..', 'shared'), {
   '/edit-guard.js': 'text/javascript; charset=utf-8',
+  '/session.js': 'text/javascript; charset=utf-8',
 });
 
-// Shared-password protection — only active when both env vars are set (so local dev,
-// where they're unset, is unaffected). On a host, set APP_USERNAME/APP_PASSWORD as
-// environment variables for this app.
-const requireAuth = createAuth({ username: process.env.APP_USERNAME, password: process.env.APP_PASSWORD });
+// Same login as Student Details, which shows the login page at /login (it sits at the site's root).
+// The cookie's signing key is read from the Student Details data folder, so one login covers both.
+const { requireAuth } = createAuth({
+  secretDir: path.dirname(STUDENT_DETAILS_DATA),
+  homePath: () => (BASE_PATH || '/commission') + '/',
+});
+
+// Changes made here go into the same activity record as Student Details ("Check activity").
+const activity = createActivityLog(path.dirname(STUDENT_DETAILS_DATA));
+
+// One line per field that changed, e.g. "Ram Thapa › Enrollment Commission: 100 → 150".
+function recordChanges(req, what, before, after, fields) {
+  // These are all amounts, and an amount never typed in is saved as 0, so blank and 0 count as the same.
+  const show = (v) => (v === undefined || v === null || v === '' || v === 0 ? '0' : String(v));
+  const label = (f) => f.replace(/([A-Z])/g, ' $1').replace(/^./, (c) => c.toUpperCase());
+  const changes = fields
+    .filter((f) => show(before[f]) !== show(after[f]))
+    .map((f) => `${what} › ${label(f)}: ${show(before[f])} → ${show(after[f])}`);
+  if (changes.length) activity.record(req, req.user, 'Changed', { app: 'Incentive', changes });
+}
+
+// The student's name for a Student Details row id, for the activity record.
+function studentName(rowId) {
+  try {
+    const workbook = JSON.parse(fs.readFileSync(STUDENT_DETAILS_DATA, 'utf-8'));
+    for (const sheet of workbook.sheets || []) {
+      const row = (sheet.rows || []).find((r) => r._id === rowId);
+      if (row) return `${sheet.name} › ${String(row['STUDENT NAME'] || '').trim() || 'a student with no name'}`;
+    }
+  } catch (e) { /* fall back to the id */ }
+  return `Student ${rowId}`;
+}
 
 function readJSON(file, fallback) {
   try {
@@ -254,6 +285,7 @@ const server = http.createServer(async (req, res) => {
         updatedAt: new Date().toISOString(),
       };
       writeWithBackup(COMMISSIONS_FILE, 'commissions.backup.json', all);
+      recordChanges(req, studentName(id), existing, all[id], Object.keys(all[id]).filter((f) => f !== 'updatedAt'));
       notifyLive();
       return sendJSON(res, 200, all[id]);
     }
@@ -278,6 +310,7 @@ const server = http.createServer(async (req, res) => {
       entry.updatedAt = new Date().toISOString();
       const all = setAdvance(stored, sheets, intake, entry);
       writeWithBackup(ADVANCES_FILE, 'advances.backup.json', all);
+      recordChanges(req, `${intake} advances`, existing, entry, ['previousAdvance', 'basicSalary', 'salaryMonths']);
       notifyLive();
       return sendJSON(res, 200, entry);
     }
@@ -291,7 +324,7 @@ const server = http.createServer(async (req, res) => {
       return sendJSON(res, 404, { error: 'Not found' });
     }
 
-    if (urlPath === '/edit-guard.js') return serveShared(req, res);
+    if (urlPath === '/edit-guard.js' || urlPath === '/session.js') return serveShared(req, res);
     serveStatic(req, res);
   } catch (e) {
     const status = e.statusCode || (e instanceof URIError ? 400 : 500);

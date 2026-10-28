@@ -226,6 +226,7 @@
       <button class="btn" id="redoBtn" title="Redo (Ctrl+Y)" disabled>↷ Redo</button>
       <button class="btn" id="exportExcelBtn">Export Excel</button>
       <span class="live"><span class="dot" id="liveDot"></span><span id="liveText">connecting…</span></span>
+      <button class="btn" id="logoutBtn" type="button" onclick="NiecSession.logout()">Log out</button>
     </div>
   </header>
 
@@ -323,6 +324,7 @@
 </div>
 
 <script src="calc.js"></script>
+<script src="session.js"></script>
 <script src="edit-guard.js"></script>
 <script>
 // This page may be mounted at a sub-path (e.g. /incentive) rather than a domain's root —
