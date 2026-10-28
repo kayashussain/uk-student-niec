@@ -815,7 +815,7 @@
       <form class="pw-box" role="dialog" aria-modal="true" aria-labelledby="pw-title">
         <h2 id="pw-title">View hidden sheet</h2>
         <label for="pw-input">Password</label>
-        <input id="pw-input" type="password" autocomplete="off" required>
+        <input id="pw-input" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" required>
         <p class="pw-error" hidden>Wrong password. Please try again.</p>
         <div class="pw-actions">
           <button type="button" class="pw-cancel">Cancel</button>
@@ -837,17 +837,22 @@
       e.preventDefault();
       okBtn.disabled = true;
       error.hidden = true;
-      let ok = false;
+      let status = 0;
       try {
         const res = await fetch('/api/unlock-hidden', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ password: input.value }),
         });
-        ok = res.ok;
-      } catch (err) { /* treated as a failed attempt */ }
+        status = res.status;
+      } catch (err) { /* no answer from the server */ }
       okBtn.disabled = false;
-      if (!ok) {
+      if (status !== 200) {
+        // 403 is a wrong password; anything else means the server couldn't check it (e.g. it is
+        // still running a version from before this feature and needs restarting).
+        error.textContent = status === 403
+          ? 'Wrong password. Please try again.'
+          : `Couldn't check the password (server error ${status || 'no response'}). The server may need restarting.`;
         error.hidden = false;
         input.select();
         return;

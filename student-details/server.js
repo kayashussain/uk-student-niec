@@ -199,7 +199,7 @@ async function handleUnlockHidden(req, res) {
     return sendJSON(res, e.statusCode || 400, { error: e.message });
   }
   const ok = crypto.timingSafeEqual(
-    Buffer.from(sha256(body && body.password), 'hex'),
+    Buffer.from(sha256(String((body && body.password) || '').trim()), 'hex'),
     Buffer.from(HIDDEN_SHEET_PASSWORD_HASH, 'hex'),
   );
   if (ok) return sendJSON(res, 200, { ok: true });
