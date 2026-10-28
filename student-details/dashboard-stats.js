@@ -13,6 +13,7 @@
 // `quality` block says how many students were filled in this way, so nothing looks hidden.
 
 const { parseNum, netTuitionFee } = require('./calc');
+const { newestSheet } = require('../shared/teams');
 
 // The stages in the order a student moves through them, then the ones that leave the pipeline.
 const PIPELINE = ['Inquiry', 'Application Stage', 'Mock Stage', 'Payment Stage', 'CAS Stage', 'CAS Issued', 'Visa Lodge', 'Visa Issued'];
@@ -32,11 +33,6 @@ const STEPS = [
   { key: 'lodged', label: 'Visa lodged', stage: 6 },
   { key: 'visa', label: 'Visa issued', stage: 7 },
 ];
-// Chances used until enough students have finished to learn them from the data (weighted as 8 students).
-const PRIOR_WEIGHT = 8;
-const PRIOR_VISA = [0.12, 0.2, 0.3, 0.45, 0.8, 0.88, 0.92, 1]; // by furthest step: none, applied ... visa
-const PRIOR_PAY = [0.2, 0.3, 0.45, 0.65, 1, 1, 1, 1];
-
 const text = (v) => String(v ?? '').trim();
 const has = (row, col) => text(row[col]) !== '';
 
@@ -123,24 +119,6 @@ function topGroups(map, n) {
   return [...list.slice(0, n), { label: 'Other', count: sum('count'), paid: sum('paid'), visas: sum('visas'), left: sum('left'), other: true }];
 }
 
-// Settled students (finished one way or the other) show how likely a student at each step is to pay and to
-// get a visa. Learned from every intake, so a new intake with few finished students still gets a sensible
-// forecast; until there are enough of them, the starting chances above carry the estimate.
-function learnRates(students) {
-  const settled = students.filter((s) => s.settled);
-  const rates = PRIOR_VISA.map((_, step) => {
-    const here = settled.filter((s) => s.p.furthest >= step);
-    const visa = here.filter((s) => s.p.reached.visa).length;
-    const pay = here.filter((s) => s.p.reached.paid).length;
-    return {
-      n: here.length,
-      visa: (visa + PRIOR_VISA[step] * PRIOR_WEIGHT) / (here.length + PRIOR_WEIGHT),
-      pay: (pay + PRIOR_PAY[step] * PRIOR_WEIGHT) / (here.length + PRIOR_WEIGHT),
-    };
-  });
-  return { rates, settled: settled.length };
-}
-
 // What needs chasing, with the days it has waited. Each rule: who, why, since which date.
 function chaseRules(row, status, p, today) {
   const out = [];
@@ -178,9 +156,10 @@ const GAPS = [
   { key: 'whole', label: 'Application to visa issued', from: 'APPLICATION SUBMISSION DATE', to: 'VISA RECEIVED DATE' },
 ];
 
-function buildDashboard(workbook, { sheetId = 'all', includeHidden = false, today = new Date() } = {}) {
+// One intake at a time: the one asked for, else the newest.
+function buildDashboard(workbook, { sheetId = '', includeHidden = false, today = new Date() } = {}) {
   const shown = (workbook.sheets || []).filter((s) => includeHidden || !s.hidden);
-  const selected = shown.find((s) => s.id === sheetId) ? sheetId : 'all';
+  const selected = (shown.find((s) => s.id === sheetId) || newestSheet(shown) || { id: '' }).id;
   const nowMs = Date.UTC(today.getFullYear(), today.getMonth(), today.getDate());
 
   // Every student of every shown intake, read once.
@@ -193,14 +172,12 @@ function buildDashboard(workbook, { sheetId = 'all', includeHidden = false, toda
       const left = LEFT.includes(status);
       everyone.push({
         row, status, p, left, sheet,
-        settled: left || p.reached.visa,
         active: !left && !p.reached.visa,
         deposited: deposits(row),
       });
     });
   });
-  const students = selected === 'all' ? everyone : everyone.filter((s) => s.sheet.id === selected);
-  const { rates, settled: settledCount } = learnRates(everyone);
+  const students = everyone.filter((s) => s.sheet.id === selected);
 
   const months = lastMonths(today, MONTHS);
   const monthly = { applications: new Map(), payments: new Map(), visas: new Map() };
@@ -221,7 +198,6 @@ function buildDashboard(workbook, { sheetId = 'all', includeHidden = false, toda
   };
   const chase = [];
   const chaseCounts = new Map();
-  const forecast = { expectedVisas: 0, expectedPayments: 0, active: 0 };
 
   for (const s of students) {
     const { row, status, p } = s;
@@ -271,10 +247,6 @@ function buildDashboard(workbook, { sheetId = 'all', includeHidden = false, toda
         chaseCounts.set(r.key, (chaseCounts.get(r.key) || 0) + 1);
         chase.push({ name: name || 'Unnamed student', stage: status || 'No status', reason: r.reason, days: r.days, intake: s.sheet.name });
       });
-      const rate = rates[p.furthest];
-      forecast.active += 1;
-      forecast.expectedVisas += rate.visa;
-      if (!p.reached.paid) forecast.expectedPayments += rate.pay;
     }
   }
 
@@ -306,13 +278,6 @@ function buildDashboard(workbook, { sheetId = 'all', includeHidden = false, toda
     left: LEFT.map((label) => ({ label, count: stageCounts.get(label) })),
     milestones: steps,
     paidInFull: pay.full, partlyPaid: pay.partly,
-    forecast: {
-      active: forecast.active,
-      expectedVisas: round1(reachedCount.visa + forecast.expectedVisas),
-      expectedPayments: round1(reachedCount.paid + forecast.expectedPayments),
-      settledStudents: settledCount,
-      reliable: settledCount >= 30,
-    },
     speed: GAPS.map((g) => ({
       key: g.key, label: g.label, samples: gaps[g.key].length, median: median(gaps[g.key]),
     })),

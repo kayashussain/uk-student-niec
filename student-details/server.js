@@ -386,7 +386,7 @@ const server = http.createServer(async (req, res) => {
     if (urlPath === '/api/dashboard' && req.method === 'GET') {
       if (!isAdmin(req.user) && !isManager(req.user)) return sendJSON(res, 403, { error: 'The dashboard is for Admin and the Manager.' });
       if (!current) return sendJSON(res, 500, { error: 'Could not read the data file' });
-      const intake = new URL(req.url, 'http://x').searchParams.get('intake') || 'all';
+      const intake = new URL(req.url, 'http://x').searchParams.get('intake') || '';
       return send(res, 200, servedDashboard(req.user, intake), JSON_HEADERS);
     }
     if (urlPath === '/api/activity' && req.method === 'GET') {

@@ -16,10 +16,10 @@
     <div class="page-head">
       <div>
         <h1>Dashboard</h1>
-        <p>How the UK department is performing: where students are, how long steps take and what to expect next.</p>
+        <p>How each intake is performing: where students are, how long steps take and who needs chasing.</p>
       </div>
       <div class="filters" role="group" aria-label="Filter">
-        <label>Intake <select id="intake"><option value="all">All intakes</option></select></label>
+        <label>Intake <select id="intake"></select></label>
         <span class="updated" id="updated" role="status"></span>
       </div>
     </div>
@@ -34,14 +34,10 @@
     </section>
     <section class="kpis kpis-money" id="kpis2" aria-label="Outcomes"></section>
 
-    <section class="grid-2 chase-row">
+    <section class="chase-row">
       <figure class="card" id="cardChase">
         <figcaption><div><h2>Needs attention</h2><p>Students waiting longer than they should, longest first</p></div></figcaption>
         <div class="body" id="attention"></div>
-      </figure>
-      <figure class="card" id="cardForecast">
-        <figcaption><div><h2>Looking ahead</h2><p>An estimate for the students still in progress</p></div></figcaption>
-        <div class="body" id="forecast"></div>
       </figure>
     </section>
 
