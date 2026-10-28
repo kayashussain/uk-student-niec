@@ -74,7 +74,7 @@ test('each team sees only its students and no hidden sheets; Admin sees everythi
   assert.deepStrictEqual(app.sheets[0].rows.map((r) => r._id), ['r1']);
   assert.deepStrictEqual(viewFor('mock', base).sheets[0].rows.map((r) => r._id), ['r2']);
   assert.deepStrictEqual(viewFor('followup', base).sheets[0].rows.map((r) => r._id), ['r3']);
-  assert.ok(seesRow('followup', { [S]: 'Defer' }) && seesRow('followup', { [S]: 'Withdrawn' }));
+  assert.ok(seesRow('followup', { [S]: 'Defer' }) && !seesRow('followup', { [S]: 'Withdrawn' }));
 });
 
 test('teams edit only their own columns and make only their own moves', () => {

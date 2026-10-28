@@ -52,7 +52,7 @@
     followup: {
       label: 'Follow-up Team',
       start: 'Inquiry',
-      statuses: ['Inquiry', 'Defer', 'Withdrawn'],
+      statuses: ['Inquiry', 'Defer'],
       editable: new Set(['REMARKS']),
     },
     // A branch works on its own students, whatever their stage: the ones whose Student Source is the branch.
