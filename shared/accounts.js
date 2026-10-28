@@ -54,12 +54,11 @@ function verifyPassword(password, stored) {
 // Checked for a username that doesn't exist, so a wrong username takes as long as a wrong password.
 const DUMMY_HASH = hashPassword(crypto.randomBytes(8).toString('hex'));
 
-function passwordProblem(password, username) {
+// A password may include (or be) the username: that's each person's choice. The authenticator code
+// is what stops someone who only knows or guesses the password.
+function passwordProblem(password) {
   const pw = String(password || '');
   if (pw.length < MIN_PASSWORD_LENGTH) return `The password needs at least ${MIN_PASSWORD_LENGTH} characters.`;
-  if (pw.toLowerCase().includes(String(username || '').toLowerCase().split('@')[0]) && username) {
-    return "The password can't contain the username.";
-  }
   if (/^(.)\1+$/.test(pw) || /^(0123456789|1234567890|password|qwerty)/i.test(pw)) return 'That password is too easy to guess.';
   return null;
 }
@@ -463,7 +462,7 @@ function createAccounts({
     if (urlPath === '/api/login/new-password' && method === 'POST') {
       const found = currentSession(req);
       if (!found || found.session.stage !== 'setup') { bad(res, 401, 'Please start again with your username and password.'); return true; }
-      const problem = passwordProblem(body.password, found.user.username);
+      const problem = passwordProblem(body.password);
       if (problem) { bad(res, 400, problem); return true; }
       if (verifyPassword(body.password, found.user.passwordHash)) { bad(res, 400, 'Please choose a new password, not the temporary one.'); return true; }
       const updated = updateUser(found.user.id, { passwordHash: hashPassword(body.password), mustChangePassword: false });

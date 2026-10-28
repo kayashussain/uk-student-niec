@@ -83,7 +83,7 @@ test('passwords are salted and checked; weak ones are refused', () => {
   assert.ok(verifyPassword('correct horse battery', a));
   assert.ok(!verifyPassword('wrong', a));
   assert.ok(passwordProblem('short', 'sita'));
-  assert.ok(passwordProblem('sita12345678', 'sita'));
+  assert.strictEqual(passwordProblem('sita12345678'), null); // may contain the username
   assert.strictEqual(passwordProblem('blue mango river', 'sita'), null);
 });
 
