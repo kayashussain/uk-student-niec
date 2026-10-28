@@ -1,0 +1,116 @@
+// The Fact File: one page of facts per university (entry requirements, language test, courses, location,
+// intakes and the application process) that every team can read and Admin edits. Kept in fact-file.json
+// in the data folder, written whole and atomically (it is small), with a one-time starting list.
+
+const fs = require('fs');
+const path = require('path');
+const crypto = require('crypto');
+const { writeFileAtomic } = require('../shared/server-utils');
+
+// Universities the list starts with the first time it is opened. Only names: the details are for Admin to enter.
+const STARTER_UNIVERSITIES = ['University of West London', 'Bangor University', 'University of Roehampton', 'University of East London', 'University of York'];
+
+// The usual steps for a student, as a starting point for each new university to adjust.
+const STARTER_STEPS = [
+  'Application submitted', 'Offer letter received', 'Pre-CAS interview', 'Tuition deposit paid', 'CAS issued', 'Visa application',
+];
+
+const LIMITS = { name: 120, short: 300, text: 12000, items: 300, intakes: 12, steps: 30 };
+
+const str = (v, max) => (typeof v === 'string' ? v.replace(/\r\n?/g, '\n').slice(0, max) : '');
+const newId = () => crypto.randomBytes(6).toString('hex');
+
+// What is kept for a university, whatever was sent: only the known fields, as text, within limits.
+function clean(input, old = {}) {
+  const intakes = (Array.isArray(input.intakes) ? input.intakes : []).slice(0, LIMITS.intakes).map((i) => ({
+    id: /^[a-f0-9]{12}$/.test(i && i.id) ? i.id : newId(),
+    name: str(i && i.name, LIMITS.short).trim(),
+    deadline: str(i && i.deadline, LIMITS.short).trim(),
+    requirements: str(i && i.requirements, LIMITS.text),
+    courses: str(i && i.courses, LIMITS.text),
+    notes: str(i && i.notes, LIMITS.text),
+  })).filter((i) => i.name);
+  const process = (Array.isArray(input.process) ? input.process : []).slice(0, LIMITS.steps).map((s) => ({
+    title: str(s && s.title, LIMITS.short).trim(),
+    detail: str(s && s.detail, LIMITS.text),
+  })).filter((s) => s.title);
+  return {
+    id: old.id,
+    name: str(input.name, LIMITS.name).trim() || old.name || '',
+    city: str(input.city, LIMITS.short).trim(),
+    location: str(input.location, LIMITS.text),
+    website: str(input.website, LIMITS.short).trim(),
+    entryRequirements: str(input.entryRequirements, LIMITS.text),
+    languageTests: str(input.languageTests, LIMITS.text),
+    courses: str(input.courses, LIMITS.text),
+    interview: str(input.interview, LIMITS.text),
+    notes: str(input.notes, LIMITS.text),
+    intakes,
+    process,
+  };
+}
+
+function createFacts(dir, { now = () => new Date() } = {}) {
+  const file = path.join(dir, 'fact-file.json');
+
+  function read() {
+    try {
+      const data = JSON.parse(fs.readFileSync(file, 'utf8'));
+      if (Array.isArray(data.universities)) return data;
+    } catch (e) { /* first time, or unreadable: start the list */ }
+    return null;
+  }
+  function write(data) {
+    fs.mkdirSync(dir, { recursive: true });
+    writeFileAtomic(file, JSON.stringify(data, null, 2));
+  }
+  function load() {
+    let data = read();
+    if (!data) {
+      data = {
+        universities: STARTER_UNIVERSITIES.map((name) => ({
+          ...clean({ name, process: STARTER_STEPS.map((title) => ({ title })) }), id: newId(), updatedAt: now().toISOString(), updatedBy: '',
+        })),
+      };
+      write(data);
+    }
+    return data;
+  }
+
+  const summary = (u) => ({ id: u.id, name: u.name, city: u.city, intakes: u.intakes.map((i) => i.name), updatedAt: u.updatedAt });
+
+  return {
+    list: () => load().universities.map(summary).sort((a, b) => a.name.localeCompare(b.name)),
+    get: (id) => load().universities.find((u) => u.id === id) || null,
+    // Adds a university (just its name; the rest is filled in on its page).
+    create(name, by) {
+      const data = load();
+      const cleaned = clean({ name, process: STARTER_STEPS.map((title) => ({ title })) });
+      if (!cleaned.name) return { error: 'Please enter the university name.' };
+      if (data.universities.some((u) => u.name.toLowerCase() === cleaned.name.toLowerCase())) return { error: 'That university is already in the list.' };
+      const uni = { ...cleaned, id: newId(), updatedAt: now().toISOString(), updatedBy: by };
+      data.universities.push(uni);
+      write(data);
+      return { university: uni };
+    },
+    update(id, input, by) {
+      const data = load();
+      const i = data.universities.findIndex((u) => u.id === id);
+      if (i === -1) return { error: 'No such university.' };
+      const cleaned = clean(input, data.universities[i]);
+      if (data.universities.some((u, k) => k !== i && u.name.toLowerCase() === cleaned.name.toLowerCase())) return { error: 'Another university already has that name.' };
+      data.universities[i] = { ...cleaned, id, updatedAt: now().toISOString(), updatedBy: by };
+      write(data);
+      return { university: data.universities[i] };
+    },
+    remove(id) {
+      const data = load();
+      const uni = data.universities.find((u) => u.id === id);
+      if (!uni) return { error: 'No such university.' };
+      write({ ...data, universities: data.universities.filter((u) => u.id !== id) });
+      return { removed: uni };
+    },
+  };
+}
+
+module.exports = { createFacts, clean, STARTER_UNIVERSITIES, STARTER_STEPS };
