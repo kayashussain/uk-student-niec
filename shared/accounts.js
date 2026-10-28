@@ -237,6 +237,8 @@ function cleanEmail(s) {
 
 function createAccounts({
   dir, homePath = (req) => req.url, activity = null, writable = true, now = Date.now, mailer = defaultMailer,
+  // Password only by default. Set REQUIRE_AUTHENTICATOR=1 to also ask for the 6-digit code from an authenticator app.
+  requireAuthenticator = process.env.REQUIRE_AUTHENTICATOR === '1',
   maxFailures = 20, maxUserFailures = 8, windowMs = 15 * 60 * 1000,
 }) {
   fs.mkdirSync(dir, { recursive: true });
@@ -251,8 +253,8 @@ function createAccounts({
   const findUser = (id) => users().find((u) => u.id === id);
 
   // The one-time code for creating the first Admin: made (and printed) only while no accounts exist.
-  // Someone who can log in: their own password and authenticator are set.
-  const isSetUp = (u) => !u.disabled && !u.mustChangePassword && Boolean(u.totpSecret);
+  // Someone who can log in: their own password is set (and their authenticator, when that is required).
+  const isSetUp = (u) => !u.disabled && !u.mustChangePassword && (!requireAuthenticator || Boolean(u.totpSecret));
   const hasReadyAdmin = () => users().some((u) => u.role === 'admin' && isSetUp(u));
 
   function setupCode() {
@@ -389,7 +391,7 @@ function createAccounts({
     const cfg = emailConfig();
     if (!cfg) return { status: 'not-configured', to: user.email };
     const message = mailer.setupEmail({
-      name: user.name, username: user.username, temporaryPassword: temp, access: accessLabel(user), siteUrl: siteUrlFor(req), kind,
+      name: user.name, username: user.username, temporaryPassword: temp, access: accessLabel(user), siteUrl: siteUrlFor(req), kind, authenticator: requireAuthenticator,
     });
     try {
       await mailer.sendMail(cfg, { to: user.email, ...message });
@@ -421,13 +423,14 @@ function createAccounts({
     if (session.stage === 'code') return { stage: 'code', name: user.name };
     // stage 'setup'
     if (user.mustChangePassword) return { stage: 'new-password', name: user.name };
-    return { stage: 'authenticator', name: user.name };
+    return { stage: requireAuthenticator ? 'authenticator' : 'done', name: user.name };
   }
 
   // Signs the person in fully once their password and authenticator are both set.
   function finishSetupIfDone(req, res, user) {
-    if (user.mustChangePassword || !user.totpSecret) return ok(res, loginState(req));
+    if (user.mustChangePassword || (requireAuthenticator && !user.totpSecret)) return ok(res, loginState(req));
     if (user.role === 'admin') { try { fs.unlinkSync(setupCodeFile); } catch (e) { /* already gone */ } }
+    user = updateUser(user.id, { lastLoginAt: new Date(now()).toISOString() });
     startSession(req, res, user, 'full');
     record(req, publicUser(user), 'Logged in', { note: 'after setting up their login' });
     return ok(res, { stage: 'done' });
@@ -448,7 +451,8 @@ function createAccounts({
       ...publicUser(u),
       accessLabel: accessLabel(u),
       disabled: Boolean(u.disabled),
-      authenticatorLinked: Boolean(u.totpSecret),
+      authenticatorRequired: requireAuthenticator,
+      authenticatorLinked: !requireAuthenticator || Boolean(u.totpSecret),
       mustChangePassword: Boolean(u.mustChangePassword),
       createdAt: u.createdAt,
       lastLoginAt: u.lastLoginAt || null,
@@ -514,6 +518,16 @@ function createAccounts({
           note: user && user.disabled ? `disabled account "${username}" tried to log in` : `wrong username or password (tried "${username.slice(0, 60)}")`,
         });
         bad(res, 401, 'Wrong username or password.');
+        return true;
+      }
+      if (!requireAuthenticator && !user.mustChangePassword) {
+        // Password only: the right password is the whole login.
+        ipFailures.delete(ip);
+        userFailures.delete(user.username);
+        const updated = updateUser(user.id, { lastLoginAt: new Date(now()).toISOString() });
+        startSession(req, res, updated, 'full');
+        record(req, publicUser(updated), 'Logged in');
+        sendJSON(res, 200, { ok: true, stage: 'done', name: user.name });
         return true;
       }
       const needsSetup = user.mustChangePassword || !user.totpSecret;

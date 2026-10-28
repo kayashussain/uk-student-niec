@@ -28,13 +28,15 @@ by the hosted deployment.
 ## The login
 
 Everyone has **their own account**; there are no shared logins. Logging in takes the person's
-password **and** the 6-digit code from the authenticator app on their own phone (Google or Microsoft
-Authenticator), so a password alone, or one someone shared, isn't enough. A login lasts 12 hours.
+password (at least 10 characters). There is no second step by default. To also ask for the 6-digit code from
+an authenticator app (Google or Microsoft Authenticator), set the environment variable `REQUIRE_AUTHENTICATOR=1`
+on both apps and restart; people then link their phone at their next login. A login lasts 12 hours, and
+wrong passwords lock the account for 15 minutes.
 
 - **First start:** while there are no accounts, the server makes a one-time **setup code**, prints it
   in the app's log and saves it in `first-admin-code.txt` in the Student Details data folder. The
   login page asks for it to create the first Admin account; you then choose your own password and
-  link your phone, and the code is deleted. Do this straight after deploying.
+  and the code is deleted. Do this straight after deploying.
 - **Intakes:** Admin and the Manager see every intake sheet. The Application, Mock and Follow-up teams see only the newest sheet, so when you start a new intake the earlier one leaves their screens by itself. There is no sheet password.
 - **Adding people:** Admin → **Users** → *Add a person*: name, username (not case sensitive), email, and
   what they can do. Tick any mix of Application, Mock, Follow-up, Chitwan Branch, Pokhara Branch and Manager (a Manager who also ticks a team can change that team's students in the current intake). They are emailed a link and a temporary
@@ -42,7 +44,7 @@ Authenticator), so a password alone, or one someone shared, isn't enough. A logi
   phone. Admin is the owner account: nobody else can ever be made Admin.
 - **When someone leaves:** Users → **Remove**. Their login is deleted and they're logged out of every device at once; they can't
   log in again. **Disable** pauses a login without deleting it.
-- **Lost phone / forgotten password:** Admin uses *Reset authenticator* or *Reset password* (the new
+- **Lost phone / forgotten password:** Admin uses *Reset password* (and *Reset authenticator* when codes are required) (the new
   temporary password is emailed to the person).
   If no Admin can log in, run on the server
   `STUDENT_DETAILS_DATA_DIR=<the data folder> node scripts/reset-login.js <username>`.
@@ -76,7 +78,7 @@ Incentive page, are Admin only. Export Excel is for Admin and the Manager.
 
 Copy your current `student-details/data.json` into the disk's `/data/student-details` folder **before the app's first start**
 (or stop the app, copy it, and start it again). The app reads it from there. (Uploading through the
-site isn't possible any more, since every login needs a code from a phone.)
+site isn't possible any more, since uploads need a login.)
 
 After that, the live site is the one source of truth. Every edit there saves straight to
 the Render disk and survives redeploys.
