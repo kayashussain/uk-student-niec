@@ -118,7 +118,6 @@
     ]);
     tiles($('kpis2'), [
       ['Visa success', rate(k.visaSuccessRate), 'visas issued out of visas decided'],
-      ['Students in progress', num(k.active), 'still moving through the stages'],
     ]);
   }
 
@@ -221,11 +220,6 @@
     if (q.paymentsWithoutDate) undated.push(`${num(q.paymentsWithoutDate)} payments`);
     if (q.visasWithoutDate) undated.push(`${num(q.visasWithoutDate)} visas`);
     if (undated.length) parts.push(`${undated.join(', ')} have no date entered, so they are in the totals but not on the month charts or the timing figures.`);
-    const missing = [];
-    if (q.noSource) missing.push(`${num(q.noSource)} without a source`);
-    if (q.noPartner) missing.push(`${num(q.noPartner)} without a university partner`);
-    if (q.noUniversity) missing.push(`${num(q.noUniversity)} without a university`);
-    if (missing.length) parts.push(`Students ${missing.join(', ')}.`);
     $('notes').textContent = parts.length ? 'About these numbers: ' + parts.join(' ') : '';
   }
 

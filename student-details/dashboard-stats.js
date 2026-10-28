@@ -18,7 +18,8 @@ const { newestSheet } = require('../shared/teams');
 // The stages in the order a student moves through them, then the ones that leave the pipeline.
 const PIPELINE = ['Inquiry', 'Application Stage', 'Mock Stage', 'Payment Stage', 'CAS Stage', 'CAS Issued', 'Visa Lodge', 'Visa Issued'];
 const LEFT = ['Visa Rejected', 'Defer', 'Withdrawn'];
-const SOURCES = ['Visitor', 'Reference', 'Branch', 'Agents', 'Events', 'Social Media'];
+// Sheets whose Student Source column is hidden on the Student Details page (see HIDDEN_COLUMNS_BY_SHEET in app.js).
+const SOURCE_HIDDEN = (sheetName) => /\bsep/i.test(sheetName || '') && /2026/.test(sheetName || '');
 const TOP_N = 8;
 const MONTHS = 12;
 const DAY = 86400000;
@@ -183,7 +184,7 @@ function buildDashboard(workbook, { sheetId = '', includeHidden = false, today =
   const monthly = { applications: new Map(), payments: new Map(), visas: new Map() };
   Object.values(monthly).forEach((m) => months.forEach((mo) => m.set(mo, 0)));
   const stageCounts = new Map([...PIPELINE, ...LEFT].map((s) => [s, 0]));
-  const sources = new Map(SOURCES.map((s) => [s, newGroup()]));
+  const sources = new Map();
   const partners = new Map();
   const universities = new Map();
   const courses = new Map();
@@ -194,7 +195,7 @@ function buildDashboard(workbook, { sheetId = '', includeHidden = false, today =
   };
   const pay = { full: 0, partly: 0, unknown: 0 }; // students who have paid: the whole fee, part of it, or no fee entered to compare with
   const quality = {
-    filledFromStage: 0, paymentsWithoutDate: 0, visasWithoutDate: 0, applicationsWithoutDate: 0, noSource: 0, noPartner: 0, noUniversity: 0,
+    filledFromStage: 0, paymentsWithoutDate: 0, visasWithoutDate: 0, applicationsWithoutDate: 0,
   };
   const chase = [];
   const chaseCounts = new Map();
@@ -221,16 +222,11 @@ function buildDashboard(workbook, { sheetId = '', includeHidden = false, today =
       if (net > 0) { if (s.deposited >= net) pay.full += 1; else pay.partly += 1; } else pay.unknown += 1;
     }
 
-    const source = text(row['STUDENT SOURCE']);
-    if (!source) quality.noSource += 1;
-    const partner = text(row['UNIVERSITY PARTNER']);
-    if (!partner) quality.noPartner += 1;
-    const uni = text(row['UNIVERSITY NAME']);
-    if (!uni) quality.noUniversity += 1;
-    bump(sources, source || 'Not recorded', p, s.left);
-    bump(partners, partner || 'Not recorded', p, s.left);
-    bump(universities, uni || 'Not recorded', p, s.left);
-    bump(courses, text(row['COURSE NAME']) || 'Not recorded', p, s.left);
+    // Only what has been recorded is counted; a student with nothing there is simply not in that chart.
+    // The source column is not shown on the Sep Intake 2026 sheet, so nothing in it is counted either.
+    const source = SOURCE_HIDDEN(s.sheet.name) ? '' : text(row['STUDENT SOURCE']);
+    [[sources, source], [partners, text(row['UNIVERSITY PARTNER'])], [universities, text(row['UNIVERSITY NAME'])], [courses, text(row['COURSE NAME'])]]
+      .forEach(([map, label]) => { if (label) bump(map, label, p, s.left); });
 
     const addTo = (map, month, by = 1) => { if (map.has(month)) map.set(month, map.get(month) + by); };
     addTo(monthly.applications, monthOf(row['APPLICATION SUBMISSION DATE']));
@@ -258,7 +254,7 @@ function buildDashboard(workbook, { sheetId = '', includeHidden = false, today =
     st.fromPrevious = i ? pct(st.count, steps[i - 1].count) : 100;
   });
   const decided = reachedCount.visa + k.rejected;
-  const sourceList = [...sources.entries()].filter(([label, v]) => v.count || SOURCES.includes(label)).map(([label, v]) => ({ label, ...v }));
+  const sourceList = [...sources.entries()].map(([label, v]) => ({ label, ...v })).sort((a, b) => b.count - a.count || a.label.localeCompare(b.label));
   chase.sort((a, b) => b.days - a.days);
 
   return {
