@@ -4,6 +4,7 @@ const path = require('path');
 const {
   sendJSON, send, SECURITY_HEADERS, createAuth, createStaticServer, readJSONBody, writeFileAtomic, snapshotDaily,
 } = require('../shared/server-utils');
+const crypto = require('crypto');
 const {
   blankWorkbook, ensureRowIds, migrateWorkbook, isValidWorkbook, mergeWorkbooks, createHistory,
 } = require('./workbook');
@@ -180,6 +181,32 @@ function handleEvents(req, res) {
 }
 setInterval(() => streams.forEach((res) => { try { res.write(': ping\n\n'); } catch (e) { /* ignore */ } }), 15000).unref();
 
+// Password for "View hidden sheet". Checked here rather than in the page, so it can't be read from
+// the page's code. Set HIDDEN_SHEET_PASSWORD to change it; otherwise this SHA-256 hash is used.
+const HIDDEN_SHEET_PASSWORD_HASH = process.env.HIDDEN_SHEET_PASSWORD
+  ? sha256(process.env.HIDDEN_SHEET_PASSWORD)
+  : '500de7ce06ac37c52b422c3a7e8662c27a56253faa2ac9bd875a95e7d08c2089';
+
+function sha256(s) {
+  return crypto.createHash('sha256').update(String(s)).digest('hex');
+}
+
+async function handleUnlockHidden(req, res) {
+  let body;
+  try {
+    body = await readJSONBody(req, 1024);
+  } catch (e) {
+    return sendJSON(res, e.statusCode || 400, { error: e.message });
+  }
+  const ok = crypto.timingSafeEqual(
+    Buffer.from(sha256(body && body.password), 'hex'),
+    Buffer.from(HIDDEN_SHEET_PASSWORD_HASH, 'hex'),
+  );
+  if (ok) return sendJSON(res, 200, { ok: true });
+  // A short pause on a wrong guess makes trying many passwords slow.
+  setTimeout(() => sendJSON(res, 403, { ok: false }), 800);
+}
+
 async function handlePresence(req, res) {
   let body;
   try {
@@ -209,6 +236,10 @@ const server = http.createServer((req, res) => {
     if (urlPath === '/api/events' && req.method === 'GET') return handleEvents(req, res);
     if (urlPath === '/api/presence') {
       if (req.method === 'POST') return handlePresence(req, res);
+      return send(res, 405, 'Method not allowed');
+    }
+    if (urlPath === '/api/unlock-hidden') {
+      if (req.method === 'POST') return handleUnlockHidden(req, res);
       return send(res, 405, 'Method not allowed');
     }
     if (urlPath === '/api/data' || urlPath === '/api/revision') {
