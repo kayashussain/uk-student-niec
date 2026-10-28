@@ -85,10 +85,24 @@ function describeDevice(userAgent) {
   return `${browser ? browser[1] : 'Browser'} on ${os ? os[1] : 'unknown system'}`;
 }
 
-// The activity record (Users & activity → Activity): one JSON line per login, logout or change, only ever added
-// to. Both apps write to the same file in the Student Details data folder.
+// The activity record (Activity page): one JSON line per login, logout or change, only ever added to.
+// Both apps write to the same file in the Student Details data folder.
+//
+// Each entry has a category, used by the page's filter: logins (logged in or out), security (failed
+// logins, refused changes, wrong hidden-sheet password, hidden sheets opened), changes (cell and sheet
+// edits) and accounts (people added, access changed, passwords and settings).
+const SECURITY_ACTIONS = new Set(['Failed login', 'Change refused', 'Wrong hidden-sheet password', 'Opened hidden sheets', 'Test email failed']);
+function activityCategory(action) {
+  if (action === 'Logged in' || action === 'Logged out') return 'logins';
+  if (SECURITY_ACTIONS.has(action)) return 'security';
+  if (action === 'Changed') return 'changes';
+  return 'accounts';
+}
+
 function createActivityLog(dir) {
   const file = path.join(dir, 'activity.jsonl');
+  let cache = null; // { mtimeMs, size, events } the whole record, oldest first, parsed once per change
+
   function record(req, user, action, details = {}) {
     const entry = {
       time: new Date().toISOString(),
@@ -106,20 +120,104 @@ function createActivityLog(dir) {
       console.error('[activity]', e.message);
     }
   }
+
+  function events() {
+    let stat;
+    try { stat = fs.statSync(file); } catch (e) { return []; }
+    if (cache && cache.mtimeMs === stat.mtimeMs && cache.size === stat.size) return cache.events;
+    const parsed = [];
+    fs.readFileSync(file, 'utf8').split('\n').forEach((line) => {
+      if (!line) return;
+      try {
+        const e = JSON.parse(line);
+        e.category = activityCategory(e.action);
+        parsed.push(e);
+      } catch (e) { /* a damaged line is skipped */ }
+    });
+    cache = { mtimeMs: stat.mtimeMs, size: stat.size, events: parsed };
+    return parsed;
+  }
+
   // The newest `limit` entries, newest first.
   function latest(limit = 2000) {
-    let text = '';
-    try { text = fs.readFileSync(file, 'utf8'); } catch (e) { return []; }
-    const lines = text.split('\n').filter(Boolean);
-    return lines.slice(-limit).reverse().map((line) => {
-      try { return JSON.parse(line); } catch (e) { return null; }
-    }).filter(Boolean);
+    return events().slice(-limit).reverse();
   }
-  return { record, latest };
+
+  // Filtered, paged entries (newest first) plus counts for the summary cards.
+  //   account  exactly this person's label      category  logins | security | changes | accounts
+  //   from, to ISO times (inclusive)            q         words to find anywhere in the entry
+  function query({ account = '', category = '', from = '', to = '', q = '', limit = 100, offset = 0 } = {}) {
+    const all = events();
+    const lower = String(q).trim().toLowerCase();
+    const fromMs = from ? Date.parse(from) : -Infinity;
+    const toMs = to ? Date.parse(to) : Infinity;
+    const matches = [];
+    for (let i = all.length - 1; i >= 0; i -= 1) {
+      const e = all[i];
+      if (account && e.account !== account) continue;
+      if (category && e.category !== category) continue;
+      const t = Date.parse(e.time);
+      if (t < fromMs || t > toMs) continue;
+      if (lower && !`${e.account} ${e.action} ${e.app || ''} ${e.device} ${e.note || ''} ${(e.changes || []).join(' ')}`.toLowerCase().includes(lower)) continue;
+      matches.push(e);
+    }
+    return {
+      total: matches.length,
+      events: matches.slice(offset, offset + limit),
+      people: [...new Set(all.map((e) => e.account))].sort(),
+      summary: summarize(all),
+    };
+  }
+
+  // Counts for "today" (office time) and the last 7 days, over the whole record.
+  function summarize(all) {
+    const today = localDate();
+    const weekAgo = Date.now() - 7 * 24 * 3600 * 1000;
+    const out = { today: { logins: 0, failedLogins: 0, changes: 0, people: 0 }, week: { logins: 0, failedLogins: 0, changes: 0 } };
+    const people = new Set();
+    for (let i = all.length - 1; i >= 0; i -= 1) {
+      const e = all[i];
+      const t = Date.parse(e.time);
+      if (t < weekAgo - 24 * 3600 * 1000) break; // the record is in time order: nothing older matters
+      const isToday = localDate(new Date(t)) === today;
+      const login = e.action === 'Logged in';
+      const failed = e.action === 'Failed login';
+      const change = e.action === 'Changed';
+      if (t >= weekAgo) {
+        if (login) out.week.logins += 1;
+        if (failed) out.week.failedLogins += 1;
+        if (change) out.week.changes += 1;
+      }
+      if (isToday) {
+        if (login) out.today.logins += 1;
+        if (failed) out.today.failedLogins += 1;
+        if (change) out.today.changes += 1;
+        if (e.accountId) people.add(e.accountId);
+      }
+    }
+    out.today.people = people.size;
+    return out;
+  }
+
+  return { record, latest, query };
 }
 
 // Serves only the files listed in publicFiles ({ '/name': contentType }), so data files and server
 // code sitting next to them are never reachable.
+// The files in shared/ that pages load, and their types. One list for both apps, so a new shared file
+// is added in one place. Public (no login needed): only the login page and the logo.
+const SHARED_FILES = {
+  '/edit-guard.js': 'text/javascript; charset=utf-8',
+  '/session.js': 'text/javascript; charset=utf-8',
+  '/patch.js': 'text/javascript; charset=utf-8',
+  '/teams.js': 'text/javascript; charset=utf-8',
+  '/header.js': 'text/javascript; charset=utf-8',
+  '/header.css': 'text/css; charset=utf-8',
+  '/niec-logo.png': 'image/png',
+  '/login.html': 'text/html; charset=utf-8',
+};
+const PUBLIC_SHARED = new Set(['/niec-logo.png', '/login.html']);
+
 // Each file is read and compressed once, then kept in memory (the files only change with a deploy,
 // which restarts the server). The browser keeps its copy and only checks it's still current: an
 // unchanged file is answered "304 Not Modified" with no body at all.
@@ -224,8 +322,11 @@ module.exports = {
   safeEqual,
   clientIp,
   createActivityLog,
+  activityCategory,
   describeDevice,
   createStaticServer,
+  SHARED_FILES,
+  PUBLIC_SHARED,
   readJSONBody,
   writeFileAtomic,
   snapshotDaily,

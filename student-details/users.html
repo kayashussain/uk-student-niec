@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex, nofollow" />
+<title>Users · UK Student NIEC</title>
+<link rel="icon" type="image/png" href="favicon.png" />
+<link rel="stylesheet" href="header.css" />
+<link rel="stylesheet" href="admin.css" />
+</head>
+<body>
+  <header class="niec-header" data-page="users"></header>
+
+  <main class="page">
+    <div class="page-head">
+      <div>
+        <h1>Users</h1>
+        <p>Who can log in, what each person can do, and where they are logged in.</p>
+      </div>
+    </div>
+
+    <div class="tabs" role="tablist" aria-label="Sections">
+      <button role="tab" id="tab-people" aria-controls="panel-people" aria-selected="true">People <span class="count" id="peopleCount"></span></button>
+      <button role="tab" id="tab-devices" aria-controls="panel-devices" aria-selected="false">Logged-in devices <span class="count" id="devicesCount"></span></button>
+      <button role="tab" id="tab-settings" aria-controls="panel-settings" aria-selected="false">Settings</button>
+    </div>
+
+    <section id="panel-people" role="tabpanel" aria-labelledby="tab-people">
+      <div class="card">
+        <h2>Add a person</h2>
+        <p>They get an email with a link and a temporary password. At their first login they choose their own password and link an authenticator app on their phone.</p>
+        <form id="addForm" autocomplete="off">
+          <div class="form">
+            <label>Full name <input id="addName" required maxlength="60" placeholder="e.g. Sita Sharma" /></label>
+            <label>Username <input id="addUsername" required maxlength="60" autocapitalize="off" spellcheck="false" placeholder="e.g. sita" /></label>
+            <label>Email address <input id="addEmail" type="email" maxlength="254" placeholder="e.g. sita@niecedu.com.np" /></label>
+          </div>
+          <div id="addAccess"></div>
+          <div class="form-actions">
+            <button class="btn btn-primary" type="submit">Add person</button>
+            <span class="hint">Usernames are not case sensitive. Admin is the owner account and cannot be given to anyone.</span>
+          </div>
+        </form>
+        <div class="msg" id="addMsg" role="status"></div>
+        <div class="notice" id="tempBox" hidden></div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h2>People</h2></div>
+        <p>When someone leaves, click <b>Disable</b>. They are logged out of every device at once and cannot log in again.</p>
+        <table>
+          <thead><tr><th>Person</th><th>Access</th><th>Status</th><th>Last login</th><th>Devices</th><th></th></tr></thead>
+          <tbody id="users"><tr><td class="muted">Loading...</td></tr></tbody>
+        </table>
+        <div class="msg" id="usersMsg" role="status"></div>
+      </div>
+    </section>
+
+    <section id="panel-devices" role="tabpanel" aria-labelledby="tab-devices" hidden>
+      <div class="card">
+        <div class="card-head">
+          <h2>Logged-in devices</h2>
+          <button class="btn btn-danger" type="button" id="endOthers">Log everyone else out</button>
+        </div>
+        <p>Every device logged in right now. Logins end by themselves after 12 hours.</p>
+        <table>
+          <thead><tr><th>Person</th><th>Device</th><th>IP address</th><th>Logged in</th><th>Last active</th><th></th></tr></thead>
+          <tbody id="sessions"><tr><td class="muted">Loading...</td></tr></tbody>
+        </table>
+        <div class="msg" id="sessionsMsg" role="status"></div>
+      </div>
+    </section>
+
+    <section id="panel-settings" role="tabpanel" aria-labelledby="tab-settings" hidden>
+      <div class="card">
+        <div class="card-head"><h2>Email</h2><span class="pill" id="emailState"></span></div>
+        <p>The system sends setup emails through your own mail server, so they come from your company address. Ask your email provider for the outgoing (SMTP) server name, port and the mailbox login.</p>
+        <form id="emailForm" autocomplete="off">
+          <div class="form">
+            <label>Mail server <input id="mHost" required placeholder="e.g. smtp.yourprovider.com" autocapitalize="off" spellcheck="false" /></label>
+            <label>Port <input id="mPort" required inputmode="numeric" placeholder="465" /></label>
+            <label>Security
+              <select id="mSecurity">
+                <option value="ssl">SSL (port 465)</option>
+                <option value="starttls">STARTTLS (port 587)</option>
+              </select>
+            </label>
+            <label>Mailbox login <input id="mUser" placeholder="e.g. system@niecedu.com.np" autocapitalize="off" spellcheck="false" /></label>
+            <label>Mailbox password <input id="mPass" type="password" placeholder="Leave empty to keep the saved one" autocomplete="new-password" /></label>
+            <label>Send emails from <input id="mFrom" type="email" required placeholder="e.g. system@niecedu.com.np" /></label>
+            <label>Sender name <input id="mFromName" maxlength="80" placeholder="UK Student NIEC" /></label>
+            <label>Website address <input id="mSite" placeholder="https://niec.duckdns.org" autocapitalize="off" spellcheck="false" /></label>
+          </div>
+          <div class="form-actions"><button class="btn btn-primary" type="submit">Save email settings</button></div>
+        </form>
+        <div class="msg" id="emailMsg" role="status"></div>
+        <form id="testForm" class="form test-form">
+          <label>Send a test email to <input id="testTo" type="email" required placeholder="your own email address" /></label>
+          <button class="btn" type="submit">Send test email</button>
+        </form>
+        <div class="msg" id="testMsg" role="status"></div>
+      </div>
+
+      <div class="card">
+        <h2>Hidden-sheet password</h2>
+        <p>Asked for before a hidden sheet is shown. Change it whenever someone who knew it leaves.</p>
+        <form class="form" id="hiddenForm">
+          <label>New hidden-sheet password <input id="hiddenPw" type="password" minlength="6" required autocomplete="new-password" /></label>
+          <button class="btn" type="submit">Change password</button>
+        </form>
+        <div class="msg" id="hiddenMsg" role="status"></div>
+      </div>
+    </section>
+  </main>
+
+  <dialog id="editDialog">
+    <form method="dialog" id="editForm" autocomplete="off">
+      <h2>Edit person</h2>
+      <div class="form">
+        <label>Full name <input id="editName" required maxlength="60" /></label>
+        <label>Email address <input id="editEmail" type="email" maxlength="254" /></label>
+      </div>
+      <div id="editAccess"></div>
+      <p class="hint" id="editNote"></p>
+      <div class="dialog-actions">
+        <button class="btn" type="button" id="editCancel">Cancel</button>
+        <button class="btn btn-primary" type="submit">Save</button>
+      </div>
+    </form>
+  </dialog>
+
+<script src="session.js"></script>
+<script src="header.js"></script>
+<script src="users.js"></script>
+</body>
+</html>

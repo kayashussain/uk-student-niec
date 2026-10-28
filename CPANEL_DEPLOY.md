@@ -3,7 +3,7 @@
 This is one of two supported ways to host the apps; the other is Render (`DEPLOY.md`). Pick one.
 
 cPanel's "Setup Node.js App" runs each app as its own independent process (via
-Passenger), so — unlike the Render setup — **each app is created separately in cPanel**,
+Passenger), so, unlike the Render setup, **each app is created separately in cPanel**,
 both under the same domain, at different URL paths. No custom gateway needed here.
 
 - `student-details` → `https://niec.duckdns.org/`
@@ -46,7 +46,7 @@ In cPanel → **Setup Node.js App** → **Create Application**:
 | Node.js version | Latest available (18+) |
 | Application mode | Production |
 | Application root | `uk-student-niec/student-details` |
-| Application URL | `niec.duckdns.org` (leave the path blank — this is the root) |
+| Application URL | `niec.duckdns.org` (leave the path blank, this is the root) |
 | Application startup file | `server.js` |
 
 Click **Create**. Then scroll to **Environment Variables** on the same page and add:
@@ -66,7 +66,7 @@ Same screen, **Create Application** again:
 | Node.js version | same as above |
 | Application mode | Production |
 | Application root | `uk-student-niec/counselor-incentive` |
-| Application URL | `niec.duckdns.org` with path `/commission` (any path works — just match it below) |
+| Application URL | `niec.duckdns.org` with path `/commission` (any path works, just match it below) |
 | Application startup file | `server.js` |
 
 Environment variables for this one:
@@ -74,12 +74,12 @@ Environment variables for this one:
 | Name | Value |
 |---|---|
 | `COUNSELOR_DATA_DIR` | `/home/YOUR_CPANEL_USERNAME/niec_data/counselor-incentive` |
-| `STUDENT_DETAILS_DATA_DIR` | **exact same value** as in step 2 — this is how it finds the student data |
+| `STUDENT_DETAILS_DATA_DIR` | **exact same value** as in step 2, this is how it finds the student data |
 | `BASE_PATH` | **must exactly match the path above**, e.g. `/commission` (or `/incentive` if that's what you used) |
 
 `BASE_PATH` matters: this host doesn't strip the sub-path prefix before handing the
 request to the app, so the app needs to be told what its own mount path is (both server
-and client-side routing account for it — but only if this env var matches what you put
+and client-side routing account for it, but only if this env var matches what you put
 in Application URL above).
 
 Save → **Run NPM Install** → **Restart**.
@@ -92,27 +92,32 @@ Authenticator), so a password alone, or one someone shared, isn't enough. A logi
   in the app's log and saves it in `first-admin-code.txt` in the Student Details data folder. The
   login page asks for it to create the first Admin account; you then choose your own password and
   link your phone, and the code is deleted. Do this straight after deploying.
-- **Hidden sheets** can't be opened until Admin sets the hidden-sheet password (Users & activity → Settings).
-- **Adding people:** Admin → **Users & activity** (in the header) → *Add a person*. They get a temporary
-  password, shown once; at their first login they choose their own password and link their phone.
-- **When someone leaves:** Users & activity → **Disable**. They're logged out of every device at once and can't
+- **Hidden sheets** can't be opened until Admin sets the hidden-sheet password (Users → Settings).
+- **Adding people:** Admin → **Users** → *Add a person*: name, username (not case sensitive), email, and
+  what they can do. Tick one or more teams, or choose CEO. They are emailed a link and a temporary
+  password (see **Email** below); at their first login they choose their own password and link their
+  phone. Admin is the owner account: nobody else can ever be made Admin.
+- **When someone leaves:** Users → **Disable**. They're logged out of every device at once and can't
   log in again. Change the hidden-sheet password there too if they knew it.
-- **Lost phone / forgotten password:** another Admin uses *Reset authenticator* or *Reset password*.
+- **Lost phone / forgotten password:** Admin uses *Reset authenticator* or *Reset password* (the new
+  temporary password is emailed to the person).
   If no Admin can log in, run on the server
   `STUDENT_DETAILS_DATA_DIR=<the data folder> node scripts/reset-login.js <username>`.
 
 The accounts (`users.json`, passwords stored only as salted scrypt hashes), logged-in devices
 (`sessions.json`) and settings live in the Student Details data folder, never in git and never
 served. Every login, failed login, logout and change is recorded in `activity.jsonl` there; Admin sees
-it under **Users & activity → Activity**. After 20 wrong tries from one address, or 8 for one account, within 15
+it on the **Activity** page, which can be filtered by person, type, dates and words. After 20 wrong tries from one address, or 8 for one account, within 15
 minutes, further tries are refused until the 15 minutes are up. No environment variables are needed.
 
-**What each team sees** (rules in `shared/teams.js`, enforced by the server; the server only ever
-sends a team its own students):
+**What each account sees** (rules in `shared/teams.js`, enforced by the server; the server only ever
+sends an account its own students). A person can work in **several teams at once**: they get the
+students, columns and moves of every team they hold.
 
 | Account | Sees | Can change |
 |---|---|---|
-| Admin | everything, both pages | everything |
+| Admin (the owner) | everything, all pages | everything |
+| CEO | the **Dashboard** and every student on the visible sheets, view only | nothing; no Incentive page |
 | Application Team | students at *Application Stage* | columns up to NOC Number; can move a student to *Mock Stage* (warned about anything still blank) |
 | Mock Team | students at *Mock Stage* | Remarks and the mock columns up to Pre-CAS Interview; can move to *Payment Stage* only once those are all filled |
 | Follow-up Team | *Inquiry*, *Defer* and *Withdrawn* students | Remarks only |
@@ -126,6 +131,24 @@ The Incentive app sends people to Student Details' `/login` page and reads the a
 Student Details data folder, which is why its `STUDENT_DETAILS_DATA_DIR` must match. `APP_USERNAME`,
 `APP_PASSWORD` and `REQUIRE_PASSWORD` are no longer used; you can delete them from both apps.
 
+## Email (setup details for new people)
+
+Open **Users → Settings → Email** and fill in your outgoing mail server (SMTP): server name, port
+(465 with SSL, or 587 with STARTTLS), the mailbox login and password, the address to send from, and
+the website address people should open. Press **Send test email** to check it. From then on, adding a
+person (or resetting a password) emails them their link, username and temporary password. If email is
+not set up, or a message cannot be sent, the temporary password is shown to Admin instead so it can be
+given in person. The mail password is saved only in `settings.json` in the Student Details data
+folder (never in git) and is never shown on a page again. The web server must be allowed to reach your
+mail server on that port; if it is blocked, the test email says so.
+
+## Dashboard
+
+Admin and the CEO have a **Dashboard** with the totals: students, applications submitted, offers
+received, mock interviews, payments and visas, a funnel of how far students have got, month by month
+trends, and breakdowns by source, university partner and university. It can be filtered by intake and
+updates itself every 30 seconds. The CEO's numbers leave out hidden sheets.
+
 Optional for both apps: `APP_TIMEZONE` (default `Asia/Kathmandu`) sets which calendar day daily
 backups and "today's" exchange rate follow.
 
@@ -134,7 +157,7 @@ rest of the 15 minutes. This relies on the host passing the visitor's address in
 `X-Forwarded-For`; if it doesn't, a lockout applies to everyone at once until it runs out.
 
 (Replace `YOUR_CPANEL_USERNAME` with your actual cPanel username, visible at the top of
-the Node.js App screen or in "Application root" once created — cPanel shows the full
+the Node.js App screen or in "Application root" once created, cPanel shows the full
 absolute path there.)
 
 ## 4. Seed your existing data

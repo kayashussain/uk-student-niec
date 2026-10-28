@@ -1,4 +1,4 @@
-// "Do you really want to make this change?" — asked before any edit is saved, in both apps, like
+// "Do you really want to make this change?" is asked before any edit is saved, in both apps, like
 // Google Sheets' warning on a protected range. Ticking "Don't ask again for 5 minutes" skips the
 // question for that long in this browser (both apps share it, as they're on the same site).
 // Served to both pages as /edit-guard.js; loaded as window.EditGuard.

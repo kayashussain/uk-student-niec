@@ -2,9 +2,15 @@
 // the server can end at any moment (disabling a person logs them out everywhere at once).
 //
 // Files, all in the Student Details data folder (`dir`), never served:
-//   users.json     people: username, name, role, scrypt password hash, authenticator secret, disabled
+//   users.json     people: username, name, email, role (admin, ceo or staff), departments, scrypt password
+//                  hash, authenticator secret, disabled
 //   sessions.json  logged-in devices, keyed by a SHA-256 of the cookie token (the token itself is never stored)
-//   settings.json  the hidden-sheet password hash
+//   settings.json  the hidden-sheet password hash and the mail server settings (the mail password is never
+//                  sent to a page)
+//
+// Access: the first Admin is the owner and nobody else can ever be made Admin. Everyone else is the CEO
+// (dashboard and view-only Student Details) or a staff member in one or more departments (Application,
+// Mock, Follow-up, any mix). See shared/teams.js for what each can see and change.
 //   first-admin-code.txt  only until the first Admin exists (see below)
 //
 // Logging in: username + password, then the 6-digit code from the person's authenticator app. A new
@@ -21,13 +27,11 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const { send, sendJSON, safeEqual, clientIp, readJSONBody, writeFileAtomic, describeDevice } = require('./server-utils');
+const Teams = require('./teams');
+const defaultMailer = require('./mailer');
 
-const ROLES = {
-  admin: 'Admin',
-  application: 'Application Team',
-  mock: 'Mock Team',
-  followup: 'Follow-up Team',
-};
+const DEPARTMENTS = Object.fromEntries(Object.entries(Teams.DEPARTMENTS).map(([id, d]) => [id, d.label]));
+const GRANTABLE_ROLES = ['staff', 'ceo']; // Admin is never grantable
 
 const SESSION_COOKIE = 'niec_session';
 const SESSION_MS = 12 * 60 * 60 * 1000; // a login lasts one working day
@@ -136,7 +140,7 @@ function matchTotp(secretBase32, code, nowMs, lastStep = -1) {
 // JSON files, re-read only when they change on disk (the other app may have written them).
 // ---------------------------------------------------------------------------------------------
 
-function createStore(file, fallback) {
+function createStore(file, fallback, transform = (d) => d) {
   let cache = null; // { mtimeMs, size, data }
   return {
     read() {
@@ -147,7 +151,7 @@ function createStore(file, fallback) {
         return fallback();
       }
       if (cache && cache.mtimeMs === stat.mtimeMs && cache.size === stat.size) return cache.data;
-      const data = JSON.parse(fs.readFileSync(file, 'utf8'));
+      const data = transform(JSON.parse(fs.readFileSync(file, 'utf8')));
       cache = { mtimeMs: stat.mtimeMs, size: stat.size, data };
       return data;
     },
@@ -173,26 +177,69 @@ const isHttps = (req) => Boolean((req.socket && req.socket.encrypted)
   || String(req.headers['x-forwarded-proto'] || '').split(',')[0].trim() === 'https');
 const sha256 = (s) => crypto.createHash('sha256').update(String(s)).digest('hex');
 
+// Accounts saved before departments existed had one team as their role (role: 'mock'): that becomes a
+// staff member in that one department.
+function normalizeUser(u) {
+  if (DEPARTMENTS[u.role]) return { ...u, role: 'staff', departments: [u.role] };
+  if (u.role === 'staff') return { ...u, departments: (u.departments || []).filter((d) => DEPARTMENTS[d]) };
+  return { ...u, departments: [] };
+}
+
+// What a person can do, in words: "Admin", "CEO", or their teams joined with a plus.
+function accessLabel(u) {
+  if (u.role === 'admin') return 'Admin';
+  if (u.role === 'ceo') return 'CEO';
+  return (u.departments || []).map((d) => DEPARTMENTS[d]).join(' + ') || 'No team';
+}
+
 // Who a user is, for pages and the activity record. Never includes the password or secret.
 function publicUser(u) {
   return {
     id: u.id,
     username: u.username,
     name: u.name,
+    email: u.email || '',
     role: u.role,
-    roleLabel: ROLES[u.role] || u.role,
-    label: `${u.name} (${ROLES[u.role] || u.role})`,
+    departments: u.departments || [],
+    roleLabel: accessLabel(u),
+    label: `${u.name} (${accessLabel(u)})`,
   };
+}
+
+// Checks the access chosen for a person: the CEO, or staff in one or more departments. Admin can't be
+// chosen, whatever is sent. { role, departments } or { error }.
+function parseAccess(body) {
+  let role = String(body.role || '');
+  let departments = Array.isArray(body.departments) ? body.departments.map(String) : [];
+  if (DEPARTMENTS[role]) { departments = [role]; role = 'staff'; } // the older single-team form
+  if (role === 'admin') return { error: "Admin access can't be given to anyone. The Admin account belongs to the owner only." };
+  if (!GRANTABLE_ROLES.includes(role)) return { error: 'Please choose what this person can do.' };
+  if (role === 'ceo') return { role, departments: [] };
+  departments = [...new Set(departments)];
+  if (!departments.length) return { error: 'Choose at least one team for this person.' };
+  if (departments.some((d) => !DEPARTMENTS[d])) return { error: 'That team does not exist.' };
+  return { role, departments };
+}
+
+const USERNAME_RULE = /^[a-z0-9._@-]{3,60}$/;
+const USERNAME_HELP = 'Usernames use 3 to 60 letters, numbers, dots, dashes or @. Capital letters are fine; they are not case sensitive.';
+const cleanUsername = (s) => String(s || '').trim().toLowerCase();
+// '' for no email, null when it isn't an email address, else the address in lower case.
+function cleanEmail(s) {
+  const e = String(s || '').trim().toLowerCase();
+  if (!e) return '';
+  return defaultMailer.isAddress(e) ? e : null;
 }
 
 // ---------------------------------------------------------------------------------------------
 
 function createAccounts({
-  dir, homePath = (req) => req.url, activity = null, writable = true, now = Date.now,
+  dir, homePath = (req) => req.url, activity = null, writable = true, now = Date.now, mailer = defaultMailer,
   maxFailures = 20, maxUserFailures = 8, windowMs = 15 * 60 * 1000,
 }) {
   fs.mkdirSync(dir, { recursive: true });
-  const usersStore = createStore(path.join(dir, 'users.json'), () => ({ users: [] }));
+  const usersStore = createStore(path.join(dir, 'users.json'), () => ({ users: [] }),
+    (data) => ({ ...data, users: (data.users || []).map(normalizeUser) }));
   const sessionsStore = createStore(path.join(dir, 'sessions.json'), () => ({ sessions: {} }));
   const settingsStore = createStore(path.join(dir, 'settings.json'), () => ({}));
   const record = (req, user, action, details) => { if (activity) activity.record(req, user, action, details); };
@@ -322,12 +369,49 @@ function createAccounts({
   const TOO_MANY = 'Too many wrong tries. Please wait 15 minutes and try again.';
 
   // ---- hidden-sheet password ----
-  // Until Admin sets one under Users & activity → Settings, hidden sheets can't be opened at all.
+  // Until Admin sets one under Users → Settings, hidden sheets can't be opened at all.
   const hasHiddenPassword = () => Boolean(settingsStore.read().hiddenSheetPassword);
   function hiddenPasswordMatches(password) {
     const stored = settingsStore.read().hiddenSheetPassword;
     return Boolean(stored) && verifyPassword(String(password || '').trim(), stored);
   }
+
+  // ---- email (setup details for new people, test messages) ----
+  const emailSettings = () => settingsStore.read().email || {};
+  // The mail server settings, or null until Admin has filled in the needed ones.
+  function emailConfig() {
+    const e = emailSettings();
+    return e.host && e.port && e.from ? e : null;
+  }
+  // The address this request came to, e.g. https://niec.duckdns.org
+  function detectedSiteUrl(req) {
+    const host = /^[A-Za-z0-9.-]+(:\d+)?$/.test(String(req.headers.host || '')) ? req.headers.host : 'localhost';
+    return `${isHttps(req) ? 'https' : 'http'}://${host}`;
+  }
+  // The address people open to log in: set in the email settings, else the address this request came to.
+  const siteUrlFor = (req) => emailSettings().siteUrl || detectedSiteUrl(req);
+  // Emails a person their login details. status: sent | no-address | not-configured | failed.
+  async function sendSetupEmail(req, user, temp, kind) {
+    if (!user.email) return { status: 'no-address' };
+    const cfg = emailConfig();
+    if (!cfg) return { status: 'not-configured', to: user.email };
+    const message = mailer.setupEmail({
+      name: user.name, username: user.username, temporaryPassword: temp, access: accessLabel(user), siteUrl: siteUrlFor(req), kind,
+    });
+    try {
+      await mailer.sendMail(cfg, { to: user.email, ...message });
+      return { status: 'sent', to: user.email };
+    } catch (e) {
+      return { status: 'failed', to: user.email, error: e.message };
+    }
+  }
+  // One line for the activity record (never includes the password).
+  const mailNote = (m) => ({
+    sent: `Emailed the login details to ${m.to}`,
+    'no-address': 'No email address, so nothing was emailed',
+    'not-configured': 'Email is not set up yet, so nothing was emailed',
+    failed: `Could not email ${m.to}: ${m.error}`,
+  }[m.status]);
 
   // ---- the login steps and Admin's pages (Student Details only) ----
   const ok = (res, extra = {}) => sendJSON(res, 200, { ok: true, ...extra });
@@ -369,6 +453,7 @@ function createAccounts({
     const devices = Object.values(map).filter((s) => s.userId === u.id && s.stage === 'full' && s.expires > now());
     return {
       ...publicUser(u),
+      accessLabel: accessLabel(u),
       disabled: Boolean(u.disabled),
       authenticatorLinked: Boolean(u.totpSecret),
       mustChangePassword: Boolean(u.mustChangePassword),
@@ -402,12 +487,12 @@ function createAccounts({
         bad(res, 401, 'Wrong setup code.');
         return true;
       }
-      const username = String(body.username || '').trim().toLowerCase();
+      const username = cleanUsername(body.username);
       const name = String(body.name || '').trim().slice(0, 60);
-      if (!/^[a-z0-9._@-]{3,60}$/.test(username)) { bad(res, 400, 'Usernames use 3–60 letters, numbers, dots, dashes or @.'); return true; }
+      if (!USERNAME_RULE.test(username)) { bad(res, 400, USERNAME_HELP); return true; }
       if (!name) { bad(res, 400, 'Please enter your name.'); return true; }
       const user = {
-        id: crypto.randomBytes(8).toString('hex'), username, name, role: 'admin',
+        id: crypto.randomBytes(8).toString('hex'), username, name, role: 'admin', departments: [],
         passwordHash: DUMMY_HASH, mustChangePassword: true, totpSecret: null, totpLastStep: -1,
         disabled: false, createdAt: new Date(now()).toISOString(),
       };
@@ -422,7 +507,7 @@ function createAccounts({
     }
 
     if (urlPath === '/api/login' && method === 'POST') {
-      const username = String(body.username || '').trim().toLowerCase();
+      const username = cleanUsername(body.username); // not case sensitive
       if (blocked(ipFailures, ip, maxFailures) || blocked(userFailures, username, maxUserFailures)) {
         bad(res, 429, TOO_MANY);
         return true;
@@ -533,22 +618,26 @@ function createAccounts({
     }
 
     if (urlPath === '/api/users' && method === 'POST') {
-      const username = String(body.username || '').trim().toLowerCase();
+      const username = cleanUsername(body.username);
       const name = String(body.name || '').trim().slice(0, 60);
-      const role = String(body.role || '');
-      if (!/^[a-z0-9._@-]{3,60}$/.test(username)) { bad(res, 400, 'Usernames use 3–60 letters, numbers, dots, dashes or @.'); return true; }
+      const email = cleanEmail(body.email);
+      if (!USERNAME_RULE.test(username)) { bad(res, 400, USERNAME_HELP); return true; }
       if (!name) { bad(res, 400, "Please enter the person's name."); return true; }
-      if (!ROLES[role]) { bad(res, 400, 'Please choose a team.'); return true; }
+      if (email === null) { bad(res, 400, 'That email address does not look right.'); return true; }
+      const access = parseAccess(body);
+      if (access.error) { bad(res, 400, access.error); return true; }
       if (users().some((u) => u.username === username)) { bad(res, 409, 'That username is already taken.'); return true; }
       const temp = temporaryPassword();
       const user = {
-        id: crypto.randomBytes(8).toString('hex'), username, name, role,
+        id: crypto.randomBytes(8).toString('hex'), username, name, email, role: access.role, departments: access.departments,
         passwordHash: hashPassword(temp), mustChangePassword: true, totpSecret: null, totpLastStep: -1,
         disabled: false, createdAt: new Date(now()).toISOString(),
       };
       saveUsers([...users(), user]);
-      record(req, req.user, 'Added user', { changes: [`Added ${name} (${username}) to ${ROLES[role]}`] });
-      sendJSON(res, 200, { user: adminView(user), temporaryPassword: temp });
+      const mail = await sendSetupEmail(req, user, temp, 'new');
+      record(req, req.user, 'Added user', { changes: [`Added ${name} (${username}) as ${accessLabel(user)}`, mailNote(mail)] });
+      // The temporary password is shown to Admin only when it could not be emailed.
+      sendJSON(res, 200, { user: adminView(user), email: mail, ...(mail.status === 'sent' ? {} : { temporaryPassword: temp }) });
       return true;
     }
 
@@ -572,24 +661,45 @@ function createAccounts({
         updateUser(target.id, { disabled: false });
         record(req, req.user, 'Enabled user', { changes: [`Enabled ${who}`] });
       } else if (action === 'reset-password') {
-        if (self) { bad(res, 400, 'To change your own password, ask another Admin to reset it.'); return true; }
+        if (self) { bad(res, 400, 'To change your own password, use the reset-login script on the server.'); return true; }
         const temp = temporaryPassword();
-        updateUser(target.id, { passwordHash: hashPassword(temp), mustChangePassword: true });
+        const updated = updateUser(target.id, { passwordHash: hashPassword(temp), mustChangePassword: true });
         endAll();
-        record(req, req.user, 'Reset password', { changes: [`Gave ${who} a new temporary password and logged them out`] });
-        sendJSON(res, 200, { ok: true, temporaryPassword: temp });
+        const mail = await sendSetupEmail(req, updated, temp, 'reset');
+        record(req, req.user, 'Reset password', { changes: [`Gave ${who} a new temporary password and logged them out`, mailNote(mail)] });
+        sendJSON(res, 200, { ok: true, email: mail, ...(mail.status === 'sent' ? {} : { temporaryPassword: temp }) });
         return true;
       } else if (action === 'reset-authenticator') {
         if (self) { bad(res, 400, 'Ask another Admin to reset your authenticator.'); return true; }
         updateUser(target.id, { totpSecret: null, totpLastStep: -1 });
         endAll();
         record(req, req.user, 'Reset authenticator', { changes: [`Unlinked ${who}'s authenticator app; they link a new one at their next login`] });
-      } else if (action === 'change-role') {
-        if (!ROLES[body.role]) { bad(res, 400, 'Please choose a team.'); return true; }
-        if (self && body.role !== 'admin') { bad(res, 400, "You can't take Admin away from yourself."); return true; }
-        updateUser(target.id, { role: body.role });
-        endAll(); // their pages pick up the new role on the next login
-        record(req, req.user, 'Changed team', { changes: [`Moved ${who} from ${ROLES[target.role]} to ${ROLES[body.role]}`] });
+      } else if (action === 'update-person') {
+        // Name, email and access. The Admin account keeps its access (and is the only one with it).
+        const change = {};
+        const notes = [];
+        if (body.name !== undefined) {
+          const name = String(body.name || '').trim().slice(0, 60);
+          if (!name) { bad(res, 400, "Please enter the person's name."); return true; }
+          if (name !== target.name) { change.name = name; notes.push(`name to ${name}`); }
+        }
+        if (body.email !== undefined) {
+          const email = cleanEmail(body.email);
+          if (email === null) { bad(res, 400, 'That email address does not look right.'); return true; }
+          if (email !== (target.email || '')) { change.email = email; notes.push(`email to ${email || 'none'}`); }
+        }
+        if (body.role !== undefined || body.departments !== undefined) {
+          if (target.role === 'admin') { bad(res, 400, "The Admin account's access can't be changed."); return true; }
+          const access = parseAccess(body);
+          if (access.error) { bad(res, 400, access.error); return true; }
+          const next = { ...target, ...access };
+          if (accessLabel(next) !== accessLabel(target)) { Object.assign(change, access); notes.push(`access from ${accessLabel(target)} to ${accessLabel(next)}`); }
+        }
+        if (notes.length) {
+          updateUser(target.id, change);
+          if (change.role) endAll(); // their pages pick up the new access when they log in again
+          record(req, req.user, change.role ? 'Changed access' : 'Updated person', { changes: [`Changed ${who}: ${notes.join(', ')}`] });
+        }
       } else if (action === 'logout-everywhere') {
         const n = endAll();
         record(req, req.user, 'Ended sessions', { changes: [`Logged ${who} out of ${n} device${n === 1 ? '' : 's'}`] });
@@ -630,6 +740,56 @@ function createAccounts({
       return true;
     }
 
+    if (urlPath === '/api/settings/email' && method === 'GET') {
+      const e = emailSettings();
+      sendJSON(res, 200, {
+        configured: Boolean(emailConfig()),
+        host: e.host || '', port: e.port || '', security: e.security || 'ssl', user: e.user || '',
+        from: e.from || '', fromName: e.fromName || '', siteUrl: e.siteUrl || '', passwordSet: Boolean(e.pass),
+        detectedSiteUrl: detectedSiteUrl(req),
+      });
+      return true;
+    }
+
+    if (urlPath === '/api/settings/email' && method === 'POST') {
+      const old = emailSettings();
+      const next = {
+        host: String(body.host || '').trim().toLowerCase(),
+        port: Number(body.port),
+        security: String(body.security || ''),
+        user: String(body.user || '').trim(),
+        pass: body.pass ? String(body.pass) : (old.pass || ''), // blank keeps the saved password
+        from: String(body.from || '').trim().toLowerCase(),
+        fromName: String(body.fromName || '').replace(/[\r\n"]/g, ' ').trim().slice(0, 80),
+        siteUrl: String(body.siteUrl || '').trim().replace(/\/+$/, ''),
+      };
+      if (!/^[a-z0-9.-]{3,100}$/.test(next.host)) { bad(res, 400, 'Enter the mail server name, for example smtp.yourprovider.com.'); return true; }
+      if (!Number.isInteger(next.port) || next.port < 1 || next.port > 65535) { bad(res, 400, 'The port must be a number, usually 465 or 587.'); return true; }
+      if (!['ssl', 'starttls'].includes(next.security)) { bad(res, 400, 'Choose how the connection is secured.'); return true; }
+      if (!defaultMailer.isAddress(next.from)) { bad(res, 400, 'The "send from" address does not look right.'); return true; }
+      if (next.siteUrl && !/^https?:\/\/[A-Za-z0-9.-]+(:\d+)?$/.test(next.siteUrl)) { bad(res, 400, 'The website address should look like https://example.com'); return true; }
+      settingsStore.write({ ...settingsStore.read(), email: next });
+      record(req, req.user, 'Changed email settings', { changes: [`Mail server ${next.host}:${next.port}, sending as ${next.from}`] });
+      ok(res);
+      return true;
+    }
+
+    if (urlPath === '/api/settings/email/test' && method === 'POST') {
+      const cfg = emailConfig();
+      if (!cfg) { bad(res, 400, 'Save the mail server settings first.'); return true; }
+      const to = cleanEmail(body.to);
+      if (!to) { bad(res, 400, 'Enter the email address to send the test to.'); return true; }
+      try {
+        await mailer.sendMail(cfg, { to, ...mailer.testEmail() });
+        record(req, req.user, 'Sent test email', { changes: [`Test email to ${to}`] });
+        ok(res);
+      } catch (e) {
+        record(req, req.user, 'Test email failed', { changes: [`Test email to ${to} failed: ${e.message}`] });
+        bad(res, 502, e.message);
+      }
+      return true;
+    }
+
     if (urlPath === '/api/settings/hidden-password' && method === 'POST') {
       const pw = String(body.password || '').trim();
       if (pw.length < 6) { bad(res, 400, 'The hidden-sheet password needs at least 6 characters.'); return true; }
@@ -647,7 +807,9 @@ function createAccounts({
 }
 
 module.exports = {
-  ROLES,
+  DEPARTMENTS,
+  accessLabel,
+  parseAccess,
   createAccounts,
   hashPassword,
   verifyPassword,

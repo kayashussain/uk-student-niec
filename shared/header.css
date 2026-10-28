@@ -24,12 +24,10 @@
   .niec-header { --h-text: #e5e7eb; --h-dim: #9ca3af; --h-bg: #161c26; --h-hover: #1f2a38; --h-border: #2b3544; --h-blue-text: #6fd0f7; }
 }
 .niec-brand { display: flex; align-items: center; gap: 10px; text-decoration: none; color: inherit; flex: 0 0 auto; }
-.niec-mark {
-  display: grid; place-items: center; height: 32px; padding: 0 7px; border-radius: 8px;
-  background: var(--h-blue); color: #fff; font-weight: 800; font-size: 11px; letter-spacing: .04em;
-}
-.niec-brand-name { font-weight: 700; font-size: 15px; color: var(--h-blue-text); line-height: 1.15; }
-.niec-brand-sub { font-size: 11px; color: var(--h-dim); line-height: 1.2; }
+.niec-logo { display: block; height: 38px; width: auto; }
+.niec-brand-text { padding-left: 12px; border-left: 1px solid var(--h-border); line-height: 1.2; }
+.niec-brand-name { display: block; font-weight: 700; font-size: 15px; color: var(--h-text); }
+.niec-brand-sub { display: block; font-size: 11px; color: var(--h-dim); }
 
 .niec-nav { display: flex; align-items: stretch; gap: 2px; align-self: stretch; min-width: 0; }
 .niec-nav a {
@@ -75,7 +73,8 @@
   .niec-header { gap: 10px; padding: 0 10px; min-height: 48px; }
   .niec-brand-sub, .niec-account-text, .niec-caret { display: none; }
   .niec-brand-name { font-size: 14px; }
+  .niec-logo { height: 32px; }
   .niec-nav { overflow-x: auto; scrollbar-width: none; }
   .niec-nav a { padding: 0 8px; font-size: 12px; }
 }
-@media (max-width: 420px) { .niec-brand-name { display: none; } }
+@media (max-width: 520px) { .niec-brand-text { display: none; } }

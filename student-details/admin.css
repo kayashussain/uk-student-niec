@@ -66,6 +66,7 @@ input, select {
 input:focus, select:focus { outline: 2px solid var(--blue); outline-offset: 1px; border-color: transparent; }
 .form { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; align-items: end; }
 .form label { display: flex; flex-direction: column; gap: 5px; font-size: 12px; font-weight: 600; color: var(--dim); }
+.form > .btn { justify-self: start; }
 
 .msg { min-height: 1.3em; margin-top: 10px; font-size: 13px; }
 .msg.error { color: var(--danger); }
@@ -122,3 +123,43 @@ td[data-label="Last login"], td[data-label="Logged in"], td[data-label="Last act
 .activity-changes { margin: 6px 0 0; padding-left: 18px; font-size: 13px; }
 .activity-changes li { margin: 2px 0; overflow-wrap: anywhere; }
 .activity-more { margin-top: 12px; }
+
+/* Access chooser (add and edit person), chips, dialog */
+.form-actions { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-top: 14px; }
+.hint { color: var(--dim); font-size: 12px; margin: 0; }
+.access { margin: 16px 0 0; padding: 0; border: none; }
+.access legend { padding: 0; margin-bottom: 8px; font-size: 12px; font-weight: 700; color: var(--dim); }
+.radio, .check { display: flex; gap: 10px; align-items: flex-start; padding: 8px 10px; border: 1px solid var(--border); border-radius: 10px; cursor: pointer; margin-bottom: 6px; }
+.radio:hover, .check:hover { background: var(--blue-tint); }
+.radio input, .check input { margin-top: 3px; width: 16px; height: 16px; accent-color: var(--orange); flex: 0 0 auto; }
+.radio span, .check span { display: flex; flex-direction: column; }
+.radio small, .check small { color: var(--dim); font-size: 12px; }
+.check-group { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 0 8px; margin: 0 0 6px 26px; }
+.check-group.off { opacity: .45; }
+.chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.chip { padding: 2px 9px; border-radius: 999px; font-size: 12px; font-weight: 600; white-space: nowrap; background: var(--bg); color: var(--text); border: 1px solid var(--border); }
+.chip-admin { background: var(--orange-tint); color: #c2410c; border-color: transparent; }
+.chip-ceo { background: var(--wait-bg); color: var(--wait); border-color: transparent; }
+.chip-application, .chip-mock, .chip-followup { background: var(--blue-tint); color: var(--blue-text); border-color: transparent; }
+.test-form { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--border); }
+dialog { width: min(560px, calc(100vw - 24px)); padding: 20px; border: 1px solid var(--border); border-radius: 14px; background: var(--panel); color: var(--text); box-shadow: 0 24px 60px rgba(15, 23, 42, .3); }
+dialog::backdrop { background: rgba(15, 23, 42, .45); }
+dialog h2 { margin: 0 0 12px; font-size: 17px; }
+.dialog-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; }
+
+/* Activity page: summary tiles and filters */
+.summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; margin-bottom: 16px; }
+.tile { display: flex; flex-direction: column; gap: 2px; padding: 14px 16px; background: var(--panel); border: 1px solid var(--border); border-radius: 12px; border-left: 4px solid var(--blue); }
+.tile-value { font-size: 30px; font-weight: 700; line-height: 1.1; }
+.tile-label { font-size: 13px; font-weight: 600; }
+.tile-sub { font-size: 12px; color: var(--dim); }
+.tile.alert { border-left-color: var(--danger); }
+.tile.alert .tile-value { color: var(--danger); }
+.filters { padding: 14px 18px; }
+.filter-row { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; }
+.filter-row label { display: flex; flex-direction: column; gap: 5px; font-size: 12px; font-weight: 600; color: var(--dim); }
+.filter-row label.grow { flex: 1 1 220px; }
+.filter-row.presets { margin-top: 12px; align-items: center; gap: 8px; }
+.filter-row .spacer { flex: 1; }
+.cat-security { background: var(--bad-bg); color: var(--bad); }
+.cat-accounts { background: var(--wait-bg); color: var(--wait); }

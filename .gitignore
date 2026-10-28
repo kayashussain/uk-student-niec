@@ -1,6 +1,6 @@
 node_modules/
 
-# Real student & financial data never goes in git — it lives on the host's persistent
+# Real student & financial data never goes in git. It lives on the host's persistent
 # disk (or your local machine) only.
 student-details/data.json
 student-details/data.backup*.json

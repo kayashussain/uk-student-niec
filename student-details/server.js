@@ -3,11 +3,13 @@ const fs = require('fs');
 const path = require('path');
 const zlib = require('zlib');
 const {
-  sendJSON, send, SECURITY_HEADERS, createActivityLog, createStaticServer, readJSONBody, writeFileAtomic, snapshotDaily,
+  sendJSON, send, SECURITY_HEADERS, createActivityLog, createStaticServer, SHARED_FILES, PUBLIC_SHARED, readJSONBody,
+  writeFileAtomic, snapshotDaily,
 } = require('../shared/server-utils');
 const { createAccounts } = require('../shared/accounts');
 const { makePatch, applyPatch } = require('../shared/patch');
-const { teamOf, viewFor, teamChanges } = require('../shared/teams');
+const { isAdmin, isReadOnly, teamOf, viewKey, viewFor, teamChanges } = require('../shared/teams');
+const { buildDashboard } = require('./dashboard-stats');
 const {
   blankWorkbook, ensureRowIds, migrateWorkbook, isValidWorkbook, mergeWorkbooks, createHistory, describeChanges,
 } = require('./workbook');
@@ -15,7 +17,7 @@ const {
 const PORT = process.env.PORT || 4173;
 const ROOT = __dirname;
 // DATA_DIR lets a host's persistent disk (mounted anywhere) hold data.json instead of
-// the app folder itself — unset locally, so local behavior is unchanged.
+// the app folder itself. Unset locally, so local behavior is unchanged.
 const DATA_DIR = process.env.STUDENT_DETAILS_DATA_DIR || ROOT;
 const DATA_FILE = path.join(DATA_DIR, 'data.json');
 const BACKUP_FILE = path.join(DATA_DIR, 'data.backup.json');
@@ -26,8 +28,13 @@ fs.mkdirSync(DATA_DIR, { recursive: true });
 const serveStatic = createStaticServer(ROOT, {
   '/index.html': 'text/html; charset=utf-8',
   '/app.js': 'text/javascript; charset=utf-8',
-  '/admin.html': 'text/html; charset=utf-8',
-  '/admin.js': 'text/javascript; charset=utf-8',
+  '/users.html': 'text/html; charset=utf-8',
+  '/users.js': 'text/javascript; charset=utf-8',
+  '/activity.html': 'text/html; charset=utf-8',
+  '/activity.js': 'text/javascript; charset=utf-8',
+  '/dashboard.html': 'text/html; charset=utf-8',
+  '/dashboard.js': 'text/javascript; charset=utf-8',
+  '/dashboard.css': 'text/css; charset=utf-8',
   '/admin.css': 'text/css; charset=utf-8',
   '/calc.js': 'text/javascript; charset=utf-8',
   '/style.css': 'text/css; charset=utf-8',
@@ -35,19 +42,11 @@ const serveStatic = createStaticServer(ROOT, {
   '/apple-touch-icon.png': 'image/png',
 });
 
-// Files shared with the other app: the "Do you really want to make this change?" box, the login
-// session helper and the login page (this app answers /login for both, as it sits at the site's root).
-const serveShared = createStaticServer(path.join(__dirname, '..', 'shared'), {
-  '/edit-guard.js': 'text/javascript; charset=utf-8',
-  '/session.js': 'text/javascript; charset=utf-8',
-  '/patch.js': 'text/javascript; charset=utf-8',
-  '/header.js': 'text/javascript; charset=utf-8',
-  '/header.css': 'text/css; charset=utf-8',
-  '/teams.js': 'text/javascript; charset=utf-8',
-  '/login.html': 'text/html; charset=utf-8',
-});
+// Files shared with the other app (header, login page, logo, ...). This app answers /login for both,
+// as it sits at the site's root.
+const serveShared = createStaticServer(path.join(__dirname, '..', 'shared'), SHARED_FILES);
 
-// Every login, logout and change, for Users & activity → Activity (Admin only). Kept next to the data, where
+// Every login, logout and change, for Activity page (Admin only). Kept next to the data, where
 // the Incentive app adds its changes too.
 const activity = createActivityLog(DATA_DIR);
 
@@ -100,15 +99,15 @@ function writeWorkbook(workbook) {
   broadcast();
 }
 
-// What each account sees: Admin the whole workbook, a team only its students (shared/teams.js).
-const viewKey = (role) => (teamOf(role) ? role : 'admin');
+// What each account sees: Admin the whole workbook, the CEO every student on the visible sheets, staff
+// only their departments' students (shared/teams.js). Accounts with the same access share one view.
 
 // What GET /api/data sends, made once per revision and view (as text and gzip-compressed), not per request.
 const served = new Map(); // view -> { json, gz }
-function servedWorkbook(role) {
-  const key = viewKey(role);
+function servedWorkbook(user) {
+  const key = viewKey(user);
   if (!served.has(key)) {
-    const json = JSON.stringify(viewFor(role, current));
+    const json = JSON.stringify(viewFor(user, current));
     served.set(key, { json, gz: zlib.gzipSync(json, { level: 6 }) });
   }
   return served.get(key);
@@ -118,17 +117,31 @@ function servedWorkbook(role) {
 // every open screen asks for the same thing, so each answer is made once. null if that revision is
 // no longer remembered (the screen then gets the whole workbook).
 const patches = new Map(); // "view:since" -> { json, gz }
-function servedPatch(role, since) {
-  const key = `${viewKey(role)}:${since}`;
+function servedPatch(user, since) {
+  const key = `${viewKey(user)}:${since}`;
   if (patches.has(key)) return patches.get(key);
   const base = since === current.revision ? current : history.get(since);
   if (!base) return null;
-  const patch = makePatch(viewFor(role, base), viewFor(role, current));
+  const patch = makePatch(viewFor(user, base), viewFor(user, current));
   if (!patch) return null;
   const json = JSON.stringify({ revision: current.revision, patch });
   const entry = { json, gz: json.length > 1024 ? zlib.gzipSync(json) : null };
   patches.set(key, entry);
   return entry;
+}
+
+// The dashboard numbers, made once per revision, view and intake (they are the same for everyone with
+// the same access, and cheap to hold).
+const dashboards = new Map();
+function servedDashboard(user, intake) {
+  const key = `${isAdmin(user) ? 'admin' : 'ceo'}:${intake}`;
+  const hit = dashboards.get(key);
+  if (hit && hit.revision === current.revision && Date.now() - hit.at < 60000) return hit.json;
+  if (dashboards.size > 200) dashboards.clear();
+  // Admin's totals include hidden sheets; the CEO's do not, like the student list.
+  const json = JSON.stringify(buildDashboard(current, { sheetId: intake, includeHidden: isAdmin(user) }));
+  dashboards.set(key, { revision: current.revision, at: Date.now(), json });
+  return json;
 }
 
 const CALCULATED_COLUMNS = ['FEE AFTER SCHOLARSHIP', 'REMAINING TUITION FEE'];
@@ -140,7 +153,7 @@ const CALCULATED_COLUMNS = ['FEE AFTER SCHOLARSHIP', 'REMAINING TUITION FEE'];
 function handleTeamSave(req, res, parsed) {
   const base = current && (parsed.baseRevision === current.revision ? current : history.get(parsed.baseRevision));
   if (!base) return sendJSON(res, 409, { error: 'conflict', revision: current ? current.revision : 0 });
-  const baseView = viewFor(req.user.role, base);
+  const baseView = viewFor(req.user, base);
   let mineView;
   try {
     mineView = parsed.patch ? applyPatch(baseView, parsed.patch) : { sheets: parsed.sheets };
@@ -148,7 +161,7 @@ function handleTeamSave(req, res, parsed) {
     return sendJSON(res, 409, { error: 'conflict', revision: current.revision });
   }
   if (!mineView || !Array.isArray(mineView.sheets)) return sendJSON(res, 400, { error: 'invalid payload' });
-  const { changes, adds, errors } = teamChanges(req.user.role, baseView, mineView, CALCULATED_COLUMNS);
+  const { changes, adds, errors } = teamChanges(req.user, baseView, mineView, CALCULATED_COLUMNS);
   if (errors.length) {
     activity.record(req, req.user, 'Change refused', { app: 'Student Details', changes: errors });
     return sendJSON(res, 403, { error: errors.join(' ') });
@@ -161,7 +174,7 @@ function handleTeamSave(req, res, parsed) {
   for (const c of changes) {
     const key = `${c.sheetId}\u0000${c.rowId}`;
     const row = rowsNow.get(key);
-    if (!row || !viewFor(req.user.role, { sheets: [{ rows: [row] }] }).sheets[0].rows.length) {
+    if (!row || !viewFor(req.user, { sheets: [{ rows: [row] }] }).sheets[0].rows.length) {
       return sendJSON(res, 409, { error: 'conflict', revision: current.revision });
     }
     updates.set(key, { ...(updates.get(key) || {}), [c.col]: c.value });
@@ -212,7 +225,8 @@ async function handleSave(req, res) {
   } catch (e) {
     return sendJSON(res, e.statusCode || 400, { error: e.message });
   }
-  if (teamOf(req.user.role)) return handleTeamSave(req, res, parsed || {});
+  if (isReadOnly(req.user)) return sendJSON(res, 403, { error: 'Your account can only view students.' });
+  if (teamOf(req.user)) return handleTeamSave(req, res, parsed || {});
   // Usually just the changes since the revision the page has; rebuilt into the whole workbook here.
   // If that revision is gone (e.g. after a restart) the page is told to send the whole workbook.
   if (parsed && parsed.patch && current) {
@@ -322,7 +336,7 @@ function handleEvents(req, res) {
 setInterval(() => streams.forEach((res) => { try { res.write(': ping\n\n'); } catch (e) { /* ignore */ } }), 15000).unref();
 
 // Password for "View hidden sheet". Checked here rather than in the page, so it can't be read from
-// the page's code. Admin changes it under Users & activity → Settings (see accounts.hiddenPasswordMatches).
+// the page's code. Admin changes it under Users → Settings (see accounts.hiddenPasswordMatches).
 async function handleUnlockHidden(req, res) {
   let body;
   try {
@@ -331,7 +345,7 @@ async function handleUnlockHidden(req, res) {
     return sendJSON(res, e.statusCode || 400, { error: e.message });
   }
   if (!accounts.hasHiddenPassword()) {
-    return sendJSON(res, 409, { error: "Admin hasn't set a hidden-sheet password yet (Users & activity → Settings)." });
+    return sendJSON(res, 409, { error: "Admin hasn't set a hidden-sheet password yet (Users → Settings)." });
   }
   if (accounts.hiddenPasswordMatches(body && body.password)) {
     activity.record(req, req.user, 'Opened hidden sheets', { app: 'Student Details' });
@@ -373,17 +387,38 @@ const server = http.createServer(async (req, res) => {
       return serveShared(req, res);
     }
     if (urlPath === '/favicon.png') return serveStatic(req, res);
+    if (PUBLIC_SHARED.has(urlPath)) return serveShared(req, res); // the logo, for the login page
     // Logging in, the login steps, /api/me, and Admin's people/devices/settings.
     if (await accounts.handleApi(req, res, urlPath)) return;
     if (!requireAuth(req, res)) return;
-    if (urlPath === '/admin' && req.method === 'GET') {
-      if (req.user.role !== 'admin') return send(res, 302, '', { Location: '/' });
-      req.url = '/admin.html';
-      return serveStatic(req, res);
+
+    // The pages. The CEO lands on the dashboard; Admin-only pages send anyone else back home.
+    const home = req.user.role === 'ceo' ? '/dashboard' : '/students';
+    if (req.method === 'GET') {
+      const page = { '/students': 'index.html', '/dashboard': 'dashboard.html', '/users': 'users.html', '/activity': 'activity.html' }[urlPath];
+      if (urlPath === '/') return req.user.role === 'ceo' ? send(res, 302, '', { Location: '/dashboard' }) : serveStatic(req, res);
+      if (urlPath === '/admin') return send(res, 302, '', { Location: isAdmin(req.user) ? '/users' : home }); // the old address
+      if (page) {
+        const allowed = urlPath === '/students' || (urlPath === '/dashboard' ? (isAdmin(req.user) || isReadOnly(req.user)) : isAdmin(req.user));
+        if (!allowed) return send(res, 302, '', { Location: home });
+        req.url = '/' + page;
+        return serveStatic(req, res);
+      }
+    }
+    if (urlPath === '/api/dashboard' && req.method === 'GET') {
+      if (!isAdmin(req.user) && !isReadOnly(req.user)) return sendJSON(res, 403, { error: 'The dashboard is for Admin and the CEO.' });
+      if (!current) return sendJSON(res, 500, { error: 'Could not read the data file' });
+      const intake = new URL(req.url, 'http://x').searchParams.get('intake') || 'all';
+      return send(res, 200, servedDashboard(req.user, intake), JSON_HEADERS);
     }
     if (urlPath === '/api/activity' && req.method === 'GET') {
-      if (req.user.role !== 'admin') return sendJSON(res, 403, { error: 'Only Admin can see the activity.' });
-      return sendJSON(res, 200, activity.latest());
+      if (!isAdmin(req.user)) return sendJSON(res, 403, { error: 'Only Admin can see the activity.' });
+      const q = new URL(req.url, 'http://x').searchParams;
+      const num = (name, fallback) => (Number.isInteger(Number(q.get(name))) && q.get(name) !== null ? Number(q.get(name)) : fallback);
+      return sendJSON(res, 200, activity.query({
+        account: q.get('account') || '', category: q.get('category') || '', from: q.get('from') || '', to: q.get('to') || '',
+        q: (q.get('q') || '').slice(0, 100), limit: Math.min(Math.max(num('limit', 100), 1), 500), offset: Math.max(num('offset', 0), 0),
+      }));
     }
     if (urlPath === '/api/events' && req.method === 'GET') return handleEvents(req, res);
     if (urlPath === '/api/presence') {
@@ -391,7 +426,7 @@ const server = http.createServer(async (req, res) => {
       return send(res, 405, 'Method not allowed');
     }
     if (urlPath === '/api/unlock-hidden') {
-      if (teamOf(req.user.role)) return sendJSON(res, 403, { error: 'Only Admin can open hidden sheets.' });
+      if (teamOf(req.user)) return sendJSON(res, 403, { error: 'Only Admin can open hidden sheets.' });
       if (req.method === 'POST') return handleUnlockHidden(req, res);
       return send(res, 405, 'Method not allowed');
     }
@@ -400,16 +435,15 @@ const server = http.createServer(async (req, res) => {
         if (!current) return sendJSON(res, 500, { error: 'Could not read the data file' });
         if (urlPath === '/api/revision') return sendJSON(res, 200, { revision: current.revision });
         const since = Number(new URL(req.url, 'http://x').searchParams.get('since'));
-        const patch = Number.isInteger(since) && since > 0 ? servedPatch(req.user.role, since) : null;
+        const patch = Number.isInteger(since) && since > 0 ? servedPatch(req.user, since) : null;
         if (patch) return send(res, 200, patch.json, JSON_HEADERS, patch.gz);
-        const full = servedWorkbook(req.user.role);
+        const full = servedWorkbook(req.user);
         return send(res, 200, full.json, JSON_HEADERS, full.gz);
       }
       if (req.method === 'POST' && urlPath === '/api/data') return handleSave(req, res);
       return send(res, 405, 'Method not allowed');
     }
-    if (urlPath === '/edit-guard.js' || urlPath === '/session.js' || urlPath === '/patch.js'
-      || urlPath === '/teams.js' || urlPath === '/header.js' || urlPath === '/header.css') return serveShared(req, res);
+    if (SHARED_FILES[urlPath]) return serveShared(req, res);
     serveStatic(req, res);
   } catch (e) {
     console.error(e);
