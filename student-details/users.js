@@ -93,7 +93,7 @@
         failed: `The email could not be sent: ${esc(mail.error)}`,
       }[mail.status] || 'The email was not sent.';
       html = `${why}<br>Temporary password for <b>${esc(person)}</b>: <code>${esc(result.temporaryPassword)}</code><br>`
-        + 'Give it to them in person, not by chat. It works once: at their first login they choose their own password and link an authenticator app. It is not shown again.';
+        + 'Give it to them in person, not by chat. It works once: at their first login they choose their own password. It is not shown again.';
     }
     box.innerHTML = html;
     box.hidden = false;
@@ -130,7 +130,7 @@
         <div class="actions">
           <button class="btn btn-sm" data-act="edit" data-id="${u.id}">Edit</button>
           <button class="btn btn-sm" data-act="reset-password" data-id="${u.id}">${notSetUp ? 'Resend setup email' : 'Reset password'}</button>
-          <button class="btn btn-sm" data-act="reset-authenticator" data-id="${u.id}">Reset authenticator</button>
+          ${u.authenticatorRequired ? `<button class="btn btn-sm" data-act="reset-authenticator" data-id="${u.id}">Reset authenticator</button>` : ''}
           <button class="btn btn-sm" data-act="logout-everywhere" data-id="${u.id}">Log out everywhere</button>
           ${u.disabled
     ? `<button class="btn btn-sm" data-act="enable" data-id="${u.id}">Enable</button>`

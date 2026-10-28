@@ -90,7 +90,7 @@ test('passwords are salted and checked; weak ones are refused', () => {
 test('the first Admin is created with the server\'s one-time setup code, only while no accounts exist', async () => {
   const clock = { t: Date.parse('2026-10-28T09:00:00Z') };
   const dir = tmpDir();
-  const accounts = createAccounts({ dir, now: () => clock.t });
+  const accounts = createAccounts({ dir, now: () => clock.t , requireAuthenticator: true });
   const code = setupCodeIn(dir);
   assert.match(code, /^[A-Z2-9]{4}-[A-Z2-9]{4}-[A-Z2-9]{4}$/);
   // The Incentive app (read-only) never makes its own code.
@@ -111,7 +111,7 @@ test('the first Admin is created with the server\'s one-time setup code, only wh
 test('a new person sets their own password and authenticator, then logs in with password + code', async () => {
   const clock = { t: Date.parse('2026-10-28T09:00:00Z') };
   const dir = tmpDir();
-  const accounts = createAccounts({ dir, now: () => clock.t });
+  const accounts = createAccounts({ dir, now: () => clock.t , requireAuthenticator: true });
   const { b: admin } = await setUpAdmin(accounts, clock, dir);
   const added = await admin.call('POST', '/api/users', { name: 'Sita', username: 'sita', role: 'mock' });
   const temp = added.json.temporaryPassword;
@@ -154,8 +154,8 @@ test('a new person sets their own password and authenticator, then logs in with 
 test('disabling someone logs them out everywhere and stops them logging in', async () => {
   const clock = { t: Date.parse('2026-10-28T09:00:00Z') };
   const dir = tmpDir();
-  const accounts = createAccounts({ dir, now: () => clock.t });
-  const incentive = createAccounts({ dir, now: () => clock.t, writable: false }); // the other app
+  const accounts = createAccounts({ dir, now: () => clock.t , requireAuthenticator: true });
+  const incentive = createAccounts({ dir, now: () => clock.t, writable: false , requireAuthenticator: true }); // the other app
   const { b: admin } = await setUpAdmin(accounts, clock, dir);
   const { user, temporaryPassword } = (await admin.call('POST', '/api/users', { name: 'Ram', username: 'ram', role: 'followup' })).json;
   const ram = browser(accounts);
@@ -183,7 +183,7 @@ test('disabling someone logs them out everywhere and stops them logging in', asy
 test('too many wrong passwords lock the account for a while, even with the right password', async () => {
   const clock = { t: Date.parse('2026-10-28T09:00:00Z') };
   const dir = tmpDir();
-  const accounts = createAccounts({ dir, now: () => clock.t, maxUserFailures: 3 });
+  const accounts = createAccounts({ dir, now: () => clock.t, maxUserFailures: 3 , requireAuthenticator: true });
   await setUpAdmin(accounts, clock, dir);
   for (let i = 0; i < 3; i += 1) {
     const r = await browser(accounts, { ip: `198.51.100.${i}` }).call('POST', '/api/login', { username: 'kayas', password: 'guess' + i });
@@ -199,7 +199,7 @@ test('too many wrong passwords lock the account for a while, even with the right
 test('requests made from another website are refused', async () => {
   const clock = { t: Date.parse('2026-10-28T09:00:00Z') };
   const dir = tmpDir();
-  const accounts = createAccounts({ dir, now: () => clock.t });
+  const accounts = createAccounts({ dir, now: () => clock.t , requireAuthenticator: true });
   const { b } = await setUpAdmin(accounts, clock, dir);
   const req = { method: 'POST', url: '/api/data', headers: { cookie: b.cookie, 'sec-fetch-site': 'cross-site' }, socket: {} };
   const res = { setHeader() {}, writeHead(s) { this.status = s; }, end() {} };
@@ -210,7 +210,7 @@ test('requests made from another website are refused', async () => {
 test('the account files never hold a password or cookie in plain text', async () => {
   const clock = { t: Date.parse('2026-10-28T09:00:00Z') };
   const dir = tmpDir();
-  const accounts = createAccounts({ dir, now: () => clock.t });
+  const accounts = createAccounts({ dir, now: () => clock.t , requireAuthenticator: true });
   const { b } = await setUpAdmin(accounts, clock, dir);
   const files = ['users.json', 'sessions.json'].map((f) => fs.readFileSync(path.join(dir, f), 'utf8')).join('\n');
   assert.ok(!files.includes('a long admin password'));
@@ -220,7 +220,7 @@ test('the account files never hold a password or cookie in plain text', async ()
 test('an unfinished first-Admin setup can be started again with the same code', async () => {
   const clock = { t: Date.parse('2026-10-28T09:00:00Z') };
   const dir = tmpDir();
-  const accounts = createAccounts({ dir, now: () => clock.t });
+  const accounts = createAccounts({ dir, now: () => clock.t , requireAuthenticator: true });
   const code = setupCodeIn(dir);
   const first = browser(accounts);
   await first.call('POST', '/api/login/first-admin', { setupCode: code, name: 'Kayas', username: 'kayas' });

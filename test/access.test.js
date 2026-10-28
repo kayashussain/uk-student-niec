@@ -46,7 +46,7 @@ function fakeMailer({ fail = null } = {}) {
 
 async function setUp({ mailer = fakeMailer(), clock = { t: Date.parse('2026-10-28T09:00:00Z') } } = {}) {
   const dir = tmpDir();
-  const accounts = createAccounts({ dir, now: () => clock.t, mailer, activity: createActivityLog(dir) });
+  const accounts = createAccounts({ dir, now: () => clock.t, mailer, activity: createActivityLog(dir), requireAuthenticator: true });
   const b = browser(accounts);
   await b.call('POST', '/api/login/first-admin', { setupCode: fs.readFileSync(path.join(dir, 'first-admin-code.txt'), 'utf8'), name: 'Kayas', username: 'KAYAS' });
   await b.call('POST', '/api/login/new-password', { password: 'a long admin password' });
@@ -373,7 +373,7 @@ test('an account saved with the older CEO role is a Manager now', async () => {
   const saved = JSON.parse(fs.readFileSync(file, 'utf8'));
   saved.users.find((u) => u.username === 'oldceo').role = 'ceo';
   fs.writeFileSync(file, JSON.stringify(saved));
-  const fresh = createAccounts({ dir, activity: createActivityLog(dir) });
+  const fresh = createAccounts({ dir, activity: createActivityLog(dir), requireAuthenticator: true });
   const b = browser(fresh);
   await b.call('POST', '/api/login', { username: 'kayas', password: 'a long admin password' }); // reads the file anew
   assert.strictEqual(made.json.user.roleLabel, 'Manager');
@@ -514,4 +514,44 @@ test('a branch person sees and changes everything about their own branch student
   assert.deepStrictEqual(ids(Teams.viewFor(both, wb())), ['p1']); // Pokhara students, plus Application Stage ones (none here)
   assert.deepStrictEqual(Teams.addableDepartments(both), ['pokhara', 'application']);
   assert.strictEqual(Teams.newStudentStatus(both, 'pokhara'), 'Inquiry');
+});
+
+// ---- password only (the default): no authenticator step ----
+
+test('by default a login is just username and password: no authenticator step for the Admin or anyone added', async () => {
+  const dir = tmpDir();
+  const accounts = createAccounts({ dir, activity: createActivityLog(dir), mailer: fakeMailer() });
+  const admin = browser(accounts);
+  const code = fs.readFileSync(path.join(dir, 'first-admin-code.txt'), 'utf8');
+  assert.strictEqual((await admin.call('POST', '/api/login/first-admin', { setupCode: code, name: 'Kayas', username: 'kayas' })).json.stage, 'new-password');
+  assert.strictEqual((await admin.call('POST', '/api/login/new-password', { password: 'a long admin password' })).json.stage, 'done');
+  assert.strictEqual((await admin.call('GET', '/api/me')).status, 200);
+
+  const made = await admin.call('POST', '/api/users', { name: 'Sita', username: 'sita', role: 'staff', departments: ['mock'] });
+  const temp = made.json.temporaryPassword;
+  const sita = browser(accounts);
+  assert.strictEqual((await sita.call('POST', '/api/login', { username: 'SITA', password: temp })).json.stage, 'new-password');
+  assert.strictEqual((await sita.call('GET', '/api/me')).status, 401, 'not logged in until she has chosen her own password');
+  assert.strictEqual((await sita.call('POST', '/api/login/new-password', { password: 'my own long password' })).json.stage, 'done');
+  assert.strictEqual((await sita.call('GET', '/api/me')).status, 200);
+
+  // the next time: the right password is the whole login, a wrong one is refused
+  const again = browser(accounts);
+  assert.strictEqual((await again.call('POST', '/api/login', { username: 'sita', password: 'wrong password here' })).status, 401);
+  assert.strictEqual((await again.call('POST', '/api/login', { username: 'sita', password: 'my own long password' })).json.stage, 'done');
+  assert.strictEqual((await again.call('GET', '/api/me')).status, 200);
+  // the Users page does not show anyone as waiting for an authenticator
+  const people = (await admin.call('GET', '/api/users')).json;
+  assert.ok(people.every((u) => u.authenticatorLinked && u.authenticatorRequired === false));
+});
+
+test('too many wrong passwords still lock the account when no authenticator is used', async () => {
+  const dir = tmpDir();
+  const accounts = createAccounts({ dir, activity: createActivityLog(dir), mailer: fakeMailer(), maxUserFailures: 3 });
+  const admin = browser(accounts);
+  await admin.call('POST', '/api/login/first-admin', { setupCode: fs.readFileSync(path.join(dir, 'first-admin-code.txt'), 'utf8'), name: 'Kayas', username: 'kayas' });
+  await admin.call('POST', '/api/login/new-password', { password: 'a long admin password' });
+  const other = browser(accounts);
+  for (let i = 0; i < 3; i += 1) await other.call('POST', '/api/login', { username: 'kayas', password: 'nope nope nope' });
+  assert.strictEqual((await other.call('POST', '/api/login', { username: 'kayas', password: 'a long admin password' })).status, 429);
 });
