@@ -316,7 +316,7 @@ function createAccounts({
   const TOO_MANY = 'Too many wrong tries. Please wait 15 minutes and try again.';
 
   // ---- hidden-sheet password ----
-  // Until Admin sets one on the Users page, hidden sheets can't be opened at all.
+  // Until Admin sets one under Users & activity → Settings, hidden sheets can't be opened at all.
   const hasHiddenPassword = () => Boolean(settingsStore.read().hiddenSheetPassword);
   function hiddenPasswordMatches(password) {
     const stored = settingsStore.read().hiddenSheetPassword;

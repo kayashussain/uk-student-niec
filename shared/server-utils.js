@@ -85,7 +85,7 @@ function describeDevice(userAgent) {
   return `${browser ? browser[1] : 'Browser'} on ${os ? os[1] : 'unknown system'}`;
 }
 
-// The activity record ("Check activity"): one JSON line per login, logout or change, only ever added
+// The activity record (Users & activity → Activity): one JSON line per login, logout or change, only ever added
 // to. Both apps write to the same file in the Student Details data folder.
 function createActivityLog(dir) {
   const file = path.join(dir, 'activity.jsonl');

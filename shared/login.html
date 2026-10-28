@@ -53,7 +53,12 @@
   }
   form { display: flex; flex-direction: column; gap: 6px; }
   form[hidden] { display: none; }
-  h1 { margin: 0; font-size: 20px; color: var(--niec-blue-text); }
+  .brand { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; }
+  .mark { display: grid; place-items: center; height: 42px; padding: 0 10px; border-radius: 10px; background: var(--niec-blue);
+    color: #fff; font-weight: 800; font-size: 13px; letter-spacing: .04em; flex: 0 0 auto; }
+  .company { font-size: 12px; color: var(--text-dim); }
+  h1 { margin: 0; font-size: 19px; color: var(--niec-blue-text); }
+  .footnote { margin: 18px 0 0; padding-top: 14px; border-top: 1px solid var(--border); font-size: 12px; color: var(--text-dim); text-align: center; }
   @media (prefers-color-scheme: dark) { h1 { color: var(--niec-blue); } }
   .sub { margin: 2px 0 12px; color: var(--text-dim); }
   .note { margin: 0 0 6px; padding: 10px 12px; border-radius: 8px; background: var(--note-bg); font-size: 13px; }
@@ -94,7 +99,10 @@
 </head>
 <body>
 <div class="card">
-  <h1>UK Student NIEC</h1>
+  <div class="brand">
+    <span class="mark" aria-hidden="true">NIEC</span>
+    <div><h1>UK Student NIEC</h1><div class="company">Nepal International Education Consultancy</div></div>
+  </div>
   <p class="sub" id="subtitle">Log in to continue</p>
 
   <!-- First start only: no accounts exist yet. -->
@@ -154,6 +162,7 @@
   </form>
 
   <p class="error" id="error" role="alert" hidden></p>
+  <p class="footnote">🔒 Staff only. Every login needs your password and the code from your phone.</p>
 </div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script>

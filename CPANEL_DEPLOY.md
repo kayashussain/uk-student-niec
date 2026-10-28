@@ -92,10 +92,10 @@ Authenticator), so a password alone, or one someone shared, isn't enough. A logi
   in the app's log and saves it in `first-admin-code.txt` in the Student Details data folder. The
   login page asks for it to create the first Admin account; you then choose your own password and
   link your phone, and the code is deleted. Do this straight after deploying.
-- **Hidden sheets** can't be opened until Admin sets the hidden-sheet password on the Users page.
-- **Adding people:** Admin → **Users** (top of Student Details) → *Add a person*. They get a temporary
+- **Hidden sheets** can't be opened until Admin sets the hidden-sheet password (Users & activity → Settings).
+- **Adding people:** Admin → **Users & activity** (in the header) → *Add a person*. They get a temporary
   password, shown once; at their first login they choose their own password and link their phone.
-- **When someone leaves:** Users → **Disable**. They're logged out of every device at once and can't
+- **When someone leaves:** Users & activity → **Disable**. They're logged out of every device at once and can't
   log in again. Change the hidden-sheet password there too if they knew it.
 - **Lost phone / forgotten password:** another Admin uses *Reset authenticator* or *Reset password*.
   If no Admin can log in, run on the server
@@ -104,7 +104,7 @@ Authenticator), so a password alone, or one someone shared, isn't enough. A logi
 The accounts (`users.json`, passwords stored only as salted scrypt hashes), logged-in devices
 (`sessions.json`) and settings live in the Student Details data folder, never in git and never
 served. Every login, failed login, logout and change is recorded in `activity.jsonl` there; Admin sees
-it with **Check activity**. After 20 wrong tries from one address, or 8 for one account, within 15
+it under **Users & activity → Activity**. After 20 wrong tries from one address, or 8 for one account, within 15
 minutes, further tries are refused until the 15 minutes are up. No environment variables are needed.
 
 **What each team sees** (rules in `shared/teams.js`, enforced by the server; the server only ever
@@ -117,7 +117,7 @@ sends a team its own students):
 | Mock Team | students at *Mock Stage* | Remarks and the mock columns up to Pre-CAS Interview; can move to *Payment Stage* only once those are all filled |
 | Follow-up Team | *Inquiry*, *Defer* and *Withdrawn* students | Remarks only |
 
-Every team can add a new student with **+ Row**: it starts at the team's own stage (Application Stage,
+Every team can add a new student with **+ Add student**: it starts at the team's own stage (Application Stage,
 Mock Stage or Inquiry), and the team can also fill in its name, email, contact number and student
 source (on students it added itself). Deleting students, sheets, hidden sheets, Export Excel and the
 Incentive page are Admin only.

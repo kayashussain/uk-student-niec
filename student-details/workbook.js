@@ -243,7 +243,7 @@ function mergeWorkbooks(base, theirs, mine) {
   return { sheets, activeSheetId };
 }
 
-// What a save changed, as short lines for the activity record ("Check activity"): sheets added,
+// What a save changed, as short lines for the activity record (Users & activity → Activity): sheets added,
 // removed, renamed or hidden, students added or removed, and each cell's old and new value.
 // Internal fields (starting with "_") are left out. At most `limit` lines, then a count of the rest.
 function describeChanges(before, after, limit = 300) {

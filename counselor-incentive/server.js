@@ -61,6 +61,8 @@ const serveStatic = createStaticServer(ROOT, {
 const serveShared = createStaticServer(path.join(__dirname, '..', 'shared'), {
   '/edit-guard.js': 'text/javascript; charset=utf-8',
   '/session.js': 'text/javascript; charset=utf-8',
+  '/header.js': 'text/javascript; charset=utf-8',
+  '/header.css': 'text/css; charset=utf-8',
 });
 
 // Changes made here go into the same activity record as Student Details ("Check activity").
@@ -334,7 +336,7 @@ const server = http.createServer(async (req, res) => {
       return sendJSON(res, 404, { error: 'Not found' });
     }
 
-    if (urlPath === '/edit-guard.js' || urlPath === '/session.js') return serveShared(req, res);
+    if (['/edit-guard.js', '/session.js', '/header.js', '/header.css'].includes(urlPath)) return serveShared(req, res);
     serveStatic(req, res);
   } catch (e) {
     const status = e.statusCode || (e instanceof URIError ? 400 : 500);
