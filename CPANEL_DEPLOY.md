@@ -151,6 +151,14 @@ The web server must be allowed to reach the mail server on that port. You can al
 variables `MAIL_HOST`, `MAIL_PORT`, `MAIL_SECURITY`, `MAIL_USER`, `MAIL_PASSWORD`, `MAIL_FROM`,
 `MAIL_FROM_NAME` and `SITE_URL` instead of the file.
 
+## Fact File
+
+Every account has a **Fact File** page: a list of universities, and for each one a page with its entry
+requirements, language test, courses, location, intakes (with their own requirements and courses) and the
+application process step by step. Anyone can read it and use **Print or save as PDF** to get a clean A4
+copy. Only Admin can add, edit or delete a university. It is stored in `fact-file.json` in the Student
+Details data folder (never in git; back it up with the rest of the data folder).
+
 ## Dashboard
 
 Admin and the Manager have a **Dashboard** made for planning intakes: the student journey from inquiry to

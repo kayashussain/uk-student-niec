@@ -3,8 +3,8 @@
 // is dashboard, sheet, incentive, users or activity), loads header.css and this file (after
 // session.js), and the header fills itself in.
 //
-// Navigation depends on the account: Admin sees every page, the Manager sees the Dashboard and Student
-// Details, and staff see no menu (they work on Student Details alone).
+// Navigation depends on the account: Admin sees every page, the Manager the Dashboard, Student Details and
+// Fact File, and the teams Student Details and Fact File.
 (function () {
   const header = document.querySelector('.niec-header');
   if (!header) return;
@@ -21,8 +21,9 @@
 
   const LINKS = {
     admin: [['dashboard', '/dashboard', 'Dashboard'], ['sheet', '/students', 'Student Details'], ['incentive', '/commission/', 'Incentive'],
-      ['users', '/users', 'Users'], ['activity', '/activity', 'Activity']],
-    manager: [['dashboard', '/dashboard', 'Dashboard'], ['sheet', '/students', 'Student Details']],
+      ['users', '/users', 'Users'], ['activity', '/activity', 'Activity'], ['factfile', '/fact-file', 'Fact File']],
+    manager: [['dashboard', '/dashboard', 'Dashboard'], ['sheet', '/students', 'Student Details'], ['factfile', '/fact-file', 'Fact File']],
+    staff: [['sheet', '/students', 'Student Details'], ['factfile', '/fact-file', 'Fact File']],
   };
 
   function render(me) {

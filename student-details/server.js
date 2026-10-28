@@ -10,6 +10,7 @@ const { createAccounts } = require('../shared/accounts');
 const { makePatch, applyPatch } = require('../shared/patch');
 const { isAdmin, isManager, isReadOnly, teamOf, viewKey, viewFor, teamChanges } = require('../shared/teams');
 const { buildDashboard } = require('./dashboard-stats');
+const { createFacts } = require('./facts');
 const {
   blankWorkbook, ensureRowIds, migrateWorkbook, isValidWorkbook, mergeWorkbooks, createHistory, describeChanges,
 } = require('./workbook');
@@ -36,6 +37,11 @@ const serveStatic = createStaticServer(ROOT, {
   '/dashboard.js': 'text/javascript; charset=utf-8',
   '/dashboard.css': 'text/css; charset=utf-8',
   '/admin.css': 'text/css; charset=utf-8',
+  '/fact-file.html': 'text/html; charset=utf-8',
+  '/fact-university.html': 'text/html; charset=utf-8',
+  '/fact-file.js': 'text/javascript; charset=utf-8',
+  '/fact-university.js': 'text/javascript; charset=utf-8',
+  '/fact-file.css': 'text/css; charset=utf-8',
   '/calc.js': 'text/javascript; charset=utf-8',
   '/style.css': 'text/css; charset=utf-8',
   '/favicon.png': 'image/png',
@@ -54,6 +60,7 @@ const activity = createActivityLog(DATA_DIR);
 // The account files live next to the data, where the Incentive app reads them too.
 const accounts = createAccounts({ dir: DATA_DIR, activity });
 const { requireAuth } = accounts;
+const facts = createFacts(DATA_DIR);
 
 function recordChanges(req, before, after) {
   const changes = describeChanges(before, after);
@@ -346,6 +353,40 @@ async function handlePresence(req, res) {
   return sendJSON(res, 200, stateFor(body.id));
 }
 
+// The Fact File: everyone reads it, only Admin changes it.
+async function handleFacts(req, res, urlPath) {
+  const id = (urlPath.match(/^\/api\/facts\/([a-f0-9]{12})/) || [])[1];
+  if (req.method === 'GET') {
+    if (!id) return sendJSON(res, 200, facts.list());
+    const uni = facts.get(id);
+    return uni ? sendJSON(res, 200, uni) : sendJSON(res, 404, { error: 'No such university.' });
+  }
+  if (req.method !== 'POST') return send(res, 405, 'Method not allowed');
+  if (!isAdmin(req.user)) return sendJSON(res, 403, { error: 'Only Admin can change the Fact File.' });
+  let body;
+  try {
+    body = await readJSONBody(req, 1024 * 1024);
+  } catch (e) {
+    return sendJSON(res, e.statusCode || 400, { error: e.message });
+  }
+  if (!id) {
+    const made = facts.create(body && body.name, req.user.label);
+    if (made.error) return sendJSON(res, 400, { error: made.error });
+    activity.record(req, req.user, 'Edited fact file', { app: 'Student Details', changes: [`Added ${made.university.name} to the Fact File`] });
+    return sendJSON(res, 200, made.university);
+  }
+  if (urlPath.endsWith('/delete')) {
+    const gone = facts.remove(id);
+    if (gone.error) return sendJSON(res, 404, { error: gone.error });
+    activity.record(req, req.user, 'Edited fact file', { app: 'Student Details', changes: [`Removed ${gone.removed.name} from the Fact File`] });
+    return sendJSON(res, 200, { ok: true });
+  }
+  const saved = facts.update(id, body || {}, req.user.label);
+  if (saved.error) return sendJSON(res, 400, { error: saved.error });
+  activity.record(req, req.user, 'Edited fact file', { app: 'Student Details', changes: [`Updated the Fact File page for ${saved.university.name}`] });
+  return sendJSON(res, 200, saved.university);
+}
+
 function num(v) {
   return Number.isInteger(v) ? v : 0;
 }
@@ -375,6 +416,10 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'GET') {
       const page = { '/students': 'index.html', '/dashboard': 'dashboard.html', '/users': 'users.html', '/activity': 'activity.html' }[urlPath];
       if (urlPath === '/') return req.user.role === 'manager' ? send(res, 302, '', { Location: '/dashboard' }) : serveStatic(req, res);
+      if (urlPath === '/fact-file') { // the list, or one university's page (?u=...); every account may read
+        req.url = new URL(req.url, 'http://x').searchParams.get('u') ? '/fact-university.html' : '/fact-file.html';
+        return serveStatic(req, res);
+      }
       if (urlPath === '/admin') return send(res, 302, '', { Location: isAdmin(req.user) ? '/users' : home }); // the old address
       if (page) {
         const allowed = urlPath === '/students' || (urlPath === '/dashboard' ? (isAdmin(req.user) || isManager(req.user)) : isAdmin(req.user));
@@ -404,6 +449,7 @@ const server = http.createServer(async (req, res) => {
       activity.record(req, req.user, 'Cleared activity', { changes: ['Deleted the saved activity; the record starts again from here'] });
       return sendJSON(res, 200, { ok: true });
     }
+    if (urlPath === '/api/facts' || /^\/api\/facts\/[a-f0-9]{12}(\/delete)?$/.test(urlPath)) return handleFacts(req, res, urlPath);
     if (urlPath === '/api/events' && req.method === 'GET') return handleEvents(req, res);
     if (urlPath === '/api/presence') {
       if (req.method === 'POST') return handlePresence(req, res);

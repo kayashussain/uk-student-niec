@@ -95,7 +95,7 @@ const SECURITY_ACTIONS = new Set(['Failed login', 'Change refused', 'Wrong hidde
 function activityCategory(action) {
   if (action === 'Logged in' || action === 'Logged out') return 'logins';
   if (SECURITY_ACTIONS.has(action)) return 'security';
-  if (action === 'Changed') return 'changes';
+  if (action === 'Changed' || action === 'Edited fact file') return 'changes';
   return 'accounts';
 }
 
