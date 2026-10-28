@@ -228,3 +228,22 @@ test('the account files never hold a password or cookie in plain text', async ()
   assert.ok(!files.includes('a long admin password'));
   assert.ok(!files.includes(b.cookie.split('=')[1]));
 });
+
+test('an unfinished first-Admin setup can be started again with the same code', async () => {
+  const clock = { t: Date.parse('2026-10-28T09:00:00Z') };
+  const dir = tmpDir();
+  const accounts = createAccounts({ dir, now: () => clock.t });
+  const code = setupCodeIn(dir);
+  const first = browser(accounts);
+  await first.call('POST', '/api/login/first-admin', { setupCode: code, name: 'Kayas', username: 'kayas' });
+  // Setup abandoned (browser closed / the 10 minutes ran out) before choosing a password.
+  clock.t += 11 * 60 * 1000;
+  const later = browser(accounts);
+  assert.strictEqual((await later.call('GET', '/api/login/state')).json.stage, 'first-admin');
+  assert.strictEqual((await later.call('POST', '/api/login', { username: 'kayas', password: 'anything at all' })).status, 401);
+  assert.strictEqual(setupCodeIn(dir), code); // still there
+  const { b } = await setUpAdmin(accounts, clock, dir); // starts again with the same code and finishes
+  assert.strictEqual((await b.call('GET', '/api/me')).json.username, 'kayas');
+  assert.ok(!fs.existsSync(path.join(dir, 'first-admin-code.txt')));
+  assert.strictEqual((await browser(accounts).call('GET', '/api/login/state')).json.stage, 'password');
+});
