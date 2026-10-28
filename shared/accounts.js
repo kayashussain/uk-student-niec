@@ -9,9 +9,11 @@
 //
 // Logging in: username + password, then the 6-digit code from the person's authenticator app. A new
 // person (or one whose password/authenticator Admin reset) first sets their own password and links the
-// app. While no accounts exist, the server makes a random one-time setup code, saves it in
-// first-admin-code.txt next to the data and prints it in its log; whoever has it (so: has access to the
-// server) creates the first Admin account, and the code is deleted. No password is built into the code.
+// app. Until an Admin has finished setting up (own password + authenticator), the server keeps a random
+// one-time setup code in first-admin-code.txt next to the data and prints it in its log; whoever has it
+// (so: has access to the server) creates the first Admin account. If that setup is left unfinished
+// (e.g. the browser was closed), the setup screen and the same code stay available to start again.
+// The code is deleted once an Admin has finished. No password is built into the code.
 // The Student Details server answers all of this (handleApi); the Incentive server only checks
 // sessions (requireAuth), reading the same files.
 
@@ -201,8 +203,12 @@ function createAccounts({
   const findUser = (id) => users().find((u) => u.id === id);
 
   // The one-time code for creating the first Admin: made (and printed) only while no accounts exist.
+  // Someone who can log in: their own password and authenticator are set.
+  const isSetUp = (u) => !u.disabled && !u.mustChangePassword && Boolean(u.totpSecret);
+  const hasReadyAdmin = () => users().some((u) => u.role === 'admin' && isSetUp(u));
+
   function setupCode() {
-    if (users().length) return null;
+    if (hasReadyAdmin()) return null;
     try {
       return fs.readFileSync(setupCodeFile, 'utf8').trim();
     } catch (e) {
@@ -329,8 +335,9 @@ function createAccounts({
 
   // What the login page should show next for this browser.
   function loginState(req) {
-    if (!users().length) return { stage: 'first-admin' };
     const found = currentSession(req);
+    // No Admin can log in yet: first-time setup (unless this browser is in the middle of it).
+    if (!hasReadyAdmin() && !(found && found.session.stage === 'setup')) return { stage: 'first-admin' };
     if (!found) return { stage: 'password' };
     const { session, user } = found;
     if (session.stage === 'full') return { stage: 'done' };
@@ -343,6 +350,7 @@ function createAccounts({
   // Signs the person in fully once their password and authenticator are both set.
   function finishSetupIfDone(req, res, user) {
     if (user.mustChangePassword || !user.totpSecret) return ok(res, loginState(req));
+    if (user.role === 'admin') { try { fs.unlinkSync(setupCodeFile); } catch (e) { /* already gone */ } }
     startSession(req, res, user, 'full');
     record(req, publicUser(user), 'Logged in', { note: 'after setting up their login' });
     return ok(res, { stage: 'done' });
@@ -384,7 +392,7 @@ function createAccounts({
     if (urlPath === '/api/login/state' && method === 'GET') { sendJSON(res, 200, loginState(req)); return true; }
 
     if (urlPath === '/api/login/first-admin' && method === 'POST') {
-      if (users().length) { bad(res, 409, 'The first Admin account already exists. Please log in.'); return true; }
+      if (hasReadyAdmin()) { bad(res, 409, 'The first Admin account already exists. Please log in.'); return true; }
       if (blocked(ipFailures, ip, maxFailures)) { bad(res, 429, TOO_MANY); return true; }
       const code = setupCode();
       const given = String(body.setupCode || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
@@ -403,8 +411,10 @@ function createAccounts({
         passwordHash: DUMMY_HASH, mustChangePassword: true, totpSecret: null, totpLastStep: -1,
         disabled: false, createdAt: new Date(now()).toISOString(),
       };
-      saveUsers([user]);
-      try { fs.unlinkSync(setupCodeFile); } catch (e) { /* already gone */ }
+      // An earlier, unfinished setup is replaced (its account could never log in).
+      const unfinished = users().filter((u) => !isSetUp(u)).map((u) => u.id);
+      endSessions((sess) => unfinished.includes(sess.userId));
+      saveUsers([...users().filter((u) => isSetUp(u) && u.username !== username), user]);
       record(req, publicUser(user), 'Added user', { changes: [`Created the first Admin account: ${name} (${username})`] });
       startSession(req, res, user, 'setup');
       ok(res, { stage: 'new-password', name });
