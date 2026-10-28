@@ -290,8 +290,8 @@ test('the dashboard counts students, milestones, months and groups', () => {
   assert.strictEqual(d.partners[0].label, 'Navitas');
   assert.strictEqual(d.partners[0].visas, 1);
   assert.deepStrictEqual(d.intakes.map((i) => i.id), ['a']); // hidden sheets are left out unless asked for
-  assert.strictEqual(buildDashboard(wb, { today, includeHidden: true }).kpis.students, 4);
-  assert.strictEqual(buildDashboard(wb, { today, sheetId: 'zzz' }).selected, 'all'); // unknown intake falls back to all
+  assert.strictEqual(buildDashboard(wb, { today, includeHidden: true, sheetId: 'h' }).kpis.students, 1);
+  assert.strictEqual(buildDashboard(wb, { today, sheetId: 'zzz' }).selected, 'a'); // no such intake: the newest one
 });
 
 test('the dashboard never shows a visa without the steps before it, and says how many were filled in this way', () => {
@@ -311,8 +311,9 @@ test('the dashboard never shows a visa without the steps before it, and says how
   assert.strictEqual(d.quality.filledFromStage, 7);
   assert.strictEqual(d.kpis.visaSuccessRate, 83.3); // 5 issued, 1 rejected
   assert.deepStrictEqual(d.intakes.map((i) => i.name), ['Sep Intake 2026', 'Jan Intake 2027']);
-  assert.ok(d.forecast.expectedVisas >= 5);
-  assert.ok(buildDashboard(wb, { includeHidden: true }).kpis.students === 10);
+  assert.strictEqual(buildDashboard(wb, { includeHidden: true }).selected, 'jan'); // starts on the newest intake
+  assert.strictEqual(d.forecast, undefined);
+  assert.strictEqual(buildDashboard(wb, { includeHidden: true }).kpis.students, 2);
 });
 
 // ---- the activity record ----

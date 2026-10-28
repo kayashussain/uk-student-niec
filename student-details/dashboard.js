@@ -6,7 +6,7 @@
   const REFRESH_MS = 30000;
   const SERIES_COLOR = { applications: 'var(--s1)', payments: 'var(--s2)', visas: 'var(--s3)' };
   let data = null;
-  let selected = decodeURIComponent(location.hash.slice(1)) || 'all';
+  let selected = decodeURIComponent(location.hash.slice(1)); // empty: the newest intake
   const hiddenSeries = new Set(); // lines switched off in the legend (colours stay with their line)
   const asTable = new Set(); // charts shown as a table instead
 
@@ -108,9 +108,7 @@
   function renderKpis(d) {
     const k = d.kpis;
     $('heroValue').textContent = num(k.students);
-    $('heroSub').textContent = d.selected === 'all'
-      ? `Across ${d.intakes.length} intake${d.intakes.length === 1 ? '' : 's'}`
-      : (d.intakes.find((i) => i.id === d.selected) || {}).name || '';
+    $('heroSub').textContent = (d.intakes.find((i) => i.id === d.selected) || {}).name || '';
     tiles($('kpis'), [
       ['Applications submitted', num(k.applicationsSubmitted), `${pct(k.applicationsSubmitted, k.students)} of students`],
       ['Offers received', num(k.offersReceived), `${pct(k.offersReceived, k.students)} of students`],
@@ -121,7 +119,6 @@
     tiles($('kpis2'), [
       ['Visa success', rate(k.visaSuccessRate), 'visas issued out of visas decided'],
       ['Students in progress', num(k.active), 'still moving through the stages'],
-      ['Left the pipeline', num(k.left), `${num(k.rejected)} visa rejected, ${num(k.left - k.rejected)} deferred or withdrawn`],
     ]);
   }
 
@@ -147,27 +144,7 @@
     }
   }
 
-  // ---- the forecast and the speed of each step ----
-  function renderForecast(d) {
-    const f = d.forecast;
-    const c = $('forecast');
-    c.replaceChildren();
-    if (!f.active) { empty(c, 'No students in progress.'); return; }
-    const grid = el('div', 'fc-grid');
-    [
-      ['Visas expected', f.expectedVisas, `${num(d.kpis.visaIssued)} issued so far`],
-      ['Payments expected', f.expectedPayments, `${num(d.kpis.paymentsMade)} made so far`],
-    ].forEach(([label, value, sub]) => {
-      const t = el('div', 'fc');
-      t.append(el('span', 'fc-label', label), el('span', 'fc-value', num(Math.round(value))), el('span', 'kpi-sub', sub));
-      grid.append(t);
-    });
-    c.append(grid);
-    c.append(el('p', 'method', `${f.reliable
-      ? `Worked out from how ${num(f.settledStudents)} earlier students ended up (visa, rejected, deferred or withdrawn), applied to ${num(f.active)} students still in progress.`
-      : `Only ${num(f.settledStudents)} students have finished so far, so this leans on typical agency figures until more have. Treat it as a rough guide.`}`));
-  }
-
+  // ---- how long each step takes ----
   function renderSpeed(d) {
     const c = $('speed');
     c.replaceChildren();
@@ -371,7 +348,6 @@
     const d0 = data;
     renderKpis(d0);
     renderAttention(d0);
-    renderForecast(d0);
     renderStages(d0);
     renderMilestones(d0);
     renderSpeed(d0);
@@ -386,7 +362,7 @@
 
   function fillIntakes(d0) {
     const sel = $('intake');
-    sel.length = 1;
+    sel.length = 0;
     d0.intakes.forEach((i) => sel.add(new Option(i.name, i.id)));
     sel.value = d0.selected;
   }
@@ -411,7 +387,7 @@
 
   $('intake').addEventListener('change', () => {
     selected = $('intake').value;
-    try { history.replaceState(null, '', selected === 'all' ? location.pathname : '#' + encodeURIComponent(selected)); } catch (e) { /* not important */ }
+    try { history.replaceState(null, '', '#' + encodeURIComponent(selected)); } catch (e) { /* not important */ }
     load();
   });
   document.querySelectorAll('.toggle').forEach((b) => b.addEventListener('click', () => {
