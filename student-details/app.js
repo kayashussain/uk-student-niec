@@ -118,7 +118,7 @@
   const Teams = window.TeamRules;
   let myRole = null;
   const isTeam = () => Boolean(Teams.teamOf(myRole));
-  const canEditCol = (col) => Teams.canEdit(myRole, col);
+  const canEditCol = (col, row = null) => Teams.canEdit(myRole, col, row); // row: a student the team added can have its basics filled in
   let saving = false;
   let saveQueued = false;
   let changeCount = 0;
@@ -314,7 +314,7 @@
     const tr = td.parentElement;
     const rowIdx = Number(tr.dataset.rowIdx);
     const col = columns[Number(td.dataset.colIndex)];
-    if (!canEditCol(col)) return null;
+    if (!canEditCol(col, rows[rowIdx])) return null;
     const original = toISODate(rows[rowIdx][col] || '');
     const input = document.createElement('input');
     input.type = 'date';
@@ -427,7 +427,7 @@
       if (value === choice) o.selected = true;
       select.appendChild(o);
     });
-    select.disabled = !canEditCol(col);
+    select.disabled = !canEditCol(col, rows[rowIdx]);
     select.addEventListener('click', (e) => e.stopPropagation());
     select.addEventListener('change', () => {
       if (select.value === choice) return;
@@ -454,7 +454,7 @@
     input.className = 'date-input';
     input.value = toISODate(val);
     input.title = 'Test date';
-    input.disabled = !canEditCol(col);
+    input.disabled = !canEditCol(col, rows[rowIdx]);
     input.addEventListener('click', (e) => {
       e.stopPropagation();
       if (input.showPicker) { try { input.showPicker(); } catch (err) { /* unsupported */ } }
@@ -1441,7 +1441,7 @@
         // the other dropdowns outside its columns.
         const isStatus = col === 'APPLICATION STATUS';
         const choices = isStatus ? Teams.statusChoices(myRole, val, SELECT_COLS[col]) : SELECT_COLS[col];
-        if (isStatus ? choices.length < 2 && isTeam() : !canEditCol(col)) {
+        if (isStatus ? choices.length < 2 && isTeam() : !canEditCol(col, rows[rowIdx])) {
           select.disabled = true;
           select.title = 'Your team can\'t change this';
         }
@@ -1515,7 +1515,7 @@
         }
       }
       // Added last: the calculated-cell branch above replaces className wholesale.
-      if (!CALC_COLS[col] && col !== 'APPLICATION STATUS' && !canEditCol(col)) td.classList.add('locked');
+      if (!CALC_COLS[col] && col !== 'APPLICATION STATUS' && !canEditCol(col, rows[rowIdx])) td.classList.add('locked');
       if (activeCell && activeCell.rowIdx === rowIdx && activeCell.col === col) td.classList.add('active-cell');
       tr.appendChild(td);
     });
@@ -1736,7 +1736,7 @@
     revealRow(rowIdx);
     const td = cellTd(rowIdx, col);
     if (!td || !rows[rowIdx] || CALC_COLS[col]) return;
-    if (!canEditCol(col) && col !== 'APPLICATION STATUS') { flashStatus("Your team can't change this column"); return; }
+    if (!canEditCol(col, rows[rowIdx]) && col !== 'APPLICATION STATUS') { flashStatus("Your team can't change this column"); return; }
     const busy = peerOnCell(rowIdx, col, isTextCell(col));
     if (busy) { warnPeerOnCell(busy); return; }
     if (!isTextCell(col)) {
@@ -1805,7 +1805,7 @@
   // as one undo step. The rows themselves stay: the "Delete rows" button removes rows. Calculated fee
   // cells can't be cleared: they're worked out from the others.
   function clearSelectedCells() {
-    const cells = selectedCells().filter(({ rowIdx, col }) => rows[rowIdx] && !CALC_COLS[col] && canEditCol(col)
+    const cells = selectedCells().filter(({ rowIdx, col }) => rows[rowIdx] && !CALC_COLS[col] && canEditCol(col, rows[rowIdx])
       && (rows[rowIdx][col] || ''));
     if (!cells.length) return;
     confirmChange(() => {
@@ -1859,7 +1859,7 @@
           val = match;
         }
         const rowIdx = indices[r.top + dr];
-        if (!canEditCol(col)) continue; // not this team's column
+        if (!canEditCol(col, rows[rowIdx])) continue; // not this team's column
         if ((rows[rowIdx][col] || '') !== val) changes.push({ rowIdx, col, val });
       }
     }
@@ -2146,8 +2146,14 @@
     pushUndo();
     const blank = { _id: makeRowId() };
     columns.forEach((c) => (blank[c] = ''));
+    // A team's new student starts at its own stage (so it stays in the team's list) and is marked as
+    // added by the team, which lets the team fill in the student's basics (the server checks both).
+    if (isTeam()) {
+      blank['APPLICATION STATUS'] = Teams.newStudentStatus(myRole);
+      blank._addedByTeam = myRole;
+    }
     rows.push(blank);
-    const startCol = columns.find(isTextCell) || columns[0];
+    const startCol = columns.find((c) => isTextCell(c) && canEditCol(c, blank)) || columns[0];
     selRanges = [singleRange(rows.length - 1, startCol)];
     rowSelectMode = false;
     markDirty();
@@ -2247,7 +2253,7 @@
     URL.revokeObjectURL(url);
   }
 
-  $('#addRow').addEventListener('click', () => { if (!isTeam()) addRow(); });
+  $('#addRow').addEventListener('click', addRow);
   $('#delRow').addEventListener('click', () => { if (!isTeam()) deleteRow(); });
   $('#exportExcel').addEventListener('click', exportExcel);
   $('#addSheet').addEventListener('click', () => { if (!isTeam()) addSheet(); });
@@ -2596,7 +2602,7 @@
   function applyState(info) {
     peers = info.peers || [];
     renderPeers();
-    if (Number.isInteger(info.revision) && info.revision !== revision) checkForRemoteChanges();
+    if ((Number.isInteger(info.revision) && info.revision !== revision) || reloadWanted) checkForRemoteChanges();
   }
 
   // The server pushes every change over this connection (reconnects by itself); the 5-second request

@@ -146,12 +146,12 @@ function handleTeamSave(req, res, parsed) {
     return sendJSON(res, 409, { error: 'conflict', revision: current.revision });
   }
   if (!mineView || !Array.isArray(mineView.sheets)) return sendJSON(res, 400, { error: 'invalid payload' });
-  const { changes, errors } = teamChanges(req.user.role, baseView, mineView, CALCULATED_COLUMNS);
+  const { changes, adds, errors } = teamChanges(req.user.role, baseView, mineView, CALCULATED_COLUMNS);
   if (errors.length) {
     activity.record(req, req.user, 'Change refused', { app: 'Student Details', changes: errors });
     return sendJSON(res, 403, { error: errors.join(' ') });
   }
-  if (!changes.length) return sendJSON(res, 200, { ok: true, revision: current.revision });
+  if (!changes.length && !adds.length) return sendJSON(res, 200, { ok: true, revision: current.revision });
   // Every changed student must still be one this team sees now (someone may have moved them meanwhile).
   const rowsNow = new Map();
   current.sheets.forEach((s) => s.rows.forEach((r) => rowsNow.set(`${s.id}\u0000${r._id}`, r)));
@@ -164,23 +164,38 @@ function handleTeamSave(req, res, parsed) {
     }
     updates.set(key, { ...(updates.get(key) || {}), [c.col]: c.value });
   }
+  // New students go at the end of their (visible) sheet, with an id no other student has.
+  const allIds = new Set(current.sheets.flatMap((s) => s.rows.map((r) => r._id)));
+  const added = new Map(); // sheet id -> [rows]
+  for (const a of adds) {
+    const sheet = current.sheets.find((s) => s.id === a.sheetId);
+    if (!sheet || sheet.hidden || allIds.has(a.row._id) || !/^[\w-]{1,64}$/.test(a.row._id || '')) {
+      return sendJSON(res, 409, { error: 'conflict', revision: current.revision });
+    }
+    allIds.add(a.row._id);
+    added.set(a.sheetId, [...(added.get(a.sheetId) || []), a.row]);
+  }
   const before = current;
   const next = {
     ...current,
     revision: current.revision + 1,
     sheets: current.sheets.map((s) => ({
       ...s,
-      rows: s.rows.map((r) => {
-        const u = updates.get(`${s.id}\u0000${r._id}`);
-        return u ? { ...r, ...u } : r;
-      }),
+      rows: [
+        ...s.rows.map((r) => {
+          const u = updates.get(`${s.id}\u0000${r._id}`);
+          return u ? { ...r, ...u } : r;
+        }),
+        ...(added.get(s.id) || []),
+      ],
     })),
   };
   writeWorkbook(next);
   recordChanges(req, before, next);
-  // A student moved to another stage leaves this team's view: the page fetches its fresh view.
-  const moved = changes.some((c) => c.col === 'APPLICATION STATUS');
-  return sendJSON(res, 200, { ok: true, revision: next.revision, reload: moved });
+  // A student moved to another stage leaves this team's view, and a new one is stored as the server
+  // checked it: either way the page fetches its fresh view.
+  const reload = adds.length > 0 || changes.some((c) => c.col === 'APPLICATION STATUS');
+  return sendJSON(res, 200, { ok: true, revision: next.revision, reload });
 }
 
 const JSON_HEADERS = { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' };
