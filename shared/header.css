@@ -1,0 +1,81 @@
+/* The header every page shares (shared/header.js fills in the navigation and the account menu).
+   Self-contained, so it looks the same on Student Details, Incentive and Users & activity. */
+.niec-header {
+  --h-blue: #00adef;
+  --h-blue-text: #0077a8;
+  --h-text: #1c2126;
+  --h-dim: #6b7280;
+  --h-bg: #ffffff;
+  --h-hover: #eef6fb;
+  --h-border: #dfe3e8;
+  position: relative;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  min-height: 52px;
+  padding: 0 18px;
+  background: var(--h-bg);
+  border-bottom: 3px solid var(--h-blue);
+  font: 13px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  color: var(--h-text);
+}
+@media (prefers-color-scheme: dark) {
+  .niec-header { --h-text: #e5e7eb; --h-dim: #9ca3af; --h-bg: #161c26; --h-hover: #1f2a38; --h-border: #2b3544; --h-blue-text: #6fd0f7; }
+}
+.niec-brand { display: flex; align-items: center; gap: 10px; text-decoration: none; color: inherit; flex: 0 0 auto; }
+.niec-mark {
+  display: grid; place-items: center; height: 32px; padding: 0 7px; border-radius: 8px;
+  background: var(--h-blue); color: #fff; font-weight: 800; font-size: 11px; letter-spacing: .04em;
+}
+.niec-brand-name { font-weight: 700; font-size: 15px; color: var(--h-blue-text); line-height: 1.15; }
+.niec-brand-sub { font-size: 11px; color: var(--h-dim); line-height: 1.2; }
+
+.niec-nav { display: flex; align-items: stretch; gap: 2px; align-self: stretch; min-width: 0; }
+.niec-nav a {
+  display: flex; align-items: center; padding: 0 12px; margin-bottom: -3px;
+  color: var(--h-dim); text-decoration: none; font-weight: 600; white-space: nowrap;
+  border-bottom: 3px solid transparent;
+}
+.niec-nav a:hover { color: var(--h-text); background: var(--h-hover); }
+.niec-nav a[aria-current="page"] { color: var(--h-blue-text); border-bottom-color: #fc6e1f; }
+
+.niec-account { margin-left: auto; position: relative; flex: 0 0 auto; padding-left: 6px; }
+.niec-account-btn {
+  display: flex; align-items: center; gap: 8px; padding: 4px 8px 4px 4px; border: 1px solid transparent;
+  border-radius: 999px; background: none; color: inherit; font: inherit; cursor: pointer;
+}
+.niec-account-btn:hover, .niec-account-btn[aria-expanded="true"] { background: var(--h-hover); border-color: var(--h-border); }
+.niec-avatar {
+  display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%;
+  background: #fff0e5; color: #c2410c; font-weight: 700; font-size: 12px;
+}
+.niec-account-text { display: flex; flex-direction: column; align-items: flex-start; line-height: 1.15; }
+.niec-account-name { font-weight: 600; white-space: nowrap; }
+.niec-account-role { font-size: 11px; color: var(--h-dim); white-space: nowrap; }
+.niec-caret { color: var(--h-dim); font-size: 10px; }
+.niec-menu {
+  position: absolute; right: 0; top: calc(100% + 6px); min-width: 220px; padding: 6px;
+  background: var(--h-bg); border: 1px solid var(--h-border); border-radius: 10px;
+  box-shadow: 0 12px 32px rgba(15, 23, 42, .16);
+}
+.niec-menu[hidden] { display: none; }
+.niec-menu-head { padding: 8px 10px 10px; border-bottom: 1px solid var(--h-border); margin-bottom: 4px; }
+.niec-menu-head b { display: block; }
+.niec-menu-head span { font-size: 12px; color: var(--h-dim); }
+.niec-menu a, .niec-menu button {
+  display: block; width: 100%; padding: 8px 10px; border: none; border-radius: 6px; background: none;
+  color: inherit; font: inherit; text-align: left; text-decoration: none; cursor: pointer;
+}
+.niec-menu a:hover, .niec-menu button:hover { background: var(--h-hover); }
+.niec-menu .niec-logout { color: #dc2626; }
+
+/* Phones: the company line and the account text make way; navigation scrolls if it must. */
+@media (max-width: 760px) {
+  .niec-header { gap: 10px; padding: 0 10px; min-height: 48px; }
+  .niec-brand-sub, .niec-account-text, .niec-caret { display: none; }
+  .niec-brand-name { font-size: 14px; }
+  .niec-nav { overflow-x: auto; scrollbar-width: none; }
+  .niec-nav a { padding: 0 8px; font-size: 12px; }
+}
+@media (max-width: 420px) { .niec-brand-name { display: none; } }

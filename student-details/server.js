@@ -26,9 +26,9 @@ fs.mkdirSync(DATA_DIR, { recursive: true });
 const serveStatic = createStaticServer(ROOT, {
   '/index.html': 'text/html; charset=utf-8',
   '/app.js': 'text/javascript; charset=utf-8',
-  '/activity.js': 'text/javascript; charset=utf-8',
   '/admin.html': 'text/html; charset=utf-8',
   '/admin.js': 'text/javascript; charset=utf-8',
+  '/admin.css': 'text/css; charset=utf-8',
   '/calc.js': 'text/javascript; charset=utf-8',
   '/style.css': 'text/css; charset=utf-8',
   '/favicon.png': 'image/png',
@@ -41,11 +41,13 @@ const serveShared = createStaticServer(path.join(__dirname, '..', 'shared'), {
   '/edit-guard.js': 'text/javascript; charset=utf-8',
   '/session.js': 'text/javascript; charset=utf-8',
   '/patch.js': 'text/javascript; charset=utf-8',
+  '/header.js': 'text/javascript; charset=utf-8',
+  '/header.css': 'text/css; charset=utf-8',
   '/teams.js': 'text/javascript; charset=utf-8',
   '/login.html': 'text/html; charset=utf-8',
 });
 
-// Every login, logout and change, for "Check activity" (Admin only). Kept next to the data, where
+// Every login, logout and change, for Users & activity → Activity (Admin only). Kept next to the data, where
 // the Incentive app adds its changes too.
 const activity = createActivityLog(DATA_DIR);
 
@@ -320,7 +322,7 @@ function handleEvents(req, res) {
 setInterval(() => streams.forEach((res) => { try { res.write(': ping\n\n'); } catch (e) { /* ignore */ } }), 15000).unref();
 
 // Password for "View hidden sheet". Checked here rather than in the page, so it can't be read from
-// the page's code. Admin changes it on the Users page (see accounts.hiddenPasswordMatches).
+// the page's code. Admin changes it under Users & activity → Settings (see accounts.hiddenPasswordMatches).
 async function handleUnlockHidden(req, res) {
   let body;
   try {
@@ -329,7 +331,7 @@ async function handleUnlockHidden(req, res) {
     return sendJSON(res, e.statusCode || 400, { error: e.message });
   }
   if (!accounts.hasHiddenPassword()) {
-    return sendJSON(res, 409, { error: "Admin hasn't set a hidden-sheet password yet (Users page)." });
+    return sendJSON(res, 409, { error: "Admin hasn't set a hidden-sheet password yet (Users & activity → Settings)." });
   }
   if (accounts.hiddenPasswordMatches(body && body.password)) {
     activity.record(req, req.user, 'Opened hidden sheets', { app: 'Student Details' });
@@ -407,7 +409,7 @@ const server = http.createServer(async (req, res) => {
       return send(res, 405, 'Method not allowed');
     }
     if (urlPath === '/edit-guard.js' || urlPath === '/session.js' || urlPath === '/patch.js'
-      || urlPath === '/teams.js') return serveShared(req, res);
+      || urlPath === '/teams.js' || urlPath === '/header.js' || urlPath === '/header.css') return serveShared(req, res);
     serveStatic(req, res);
   } catch (e) {
     console.error(e);

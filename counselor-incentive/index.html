@@ -3,9 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Incentive</title>
+<title>Incentive · UK Student NIEC</title>
 <link rel="icon" type="image/png" href="favicon.png" />
 <link rel="apple-touch-icon" href="apple-touch-icon.png" />
+<link rel="stylesheet" href="header.css" />
 <style>
   :root {
     --bg: #f6f7f9;
@@ -69,8 +70,8 @@
   .brand { display: flex; align-items: center; gap: 10px; }
   .brand h1 { font-size: 16px; margin: 0; text-transform: uppercase; letter-spacing: 0.02em; }
 
-  /* NIEC brand header, matching the Student Details page: white with a light-blue line. */
-  header.top { background: var(--panel); border-bottom: 3px solid #00adef; padding: 8px 18px; }
+  /* The page's toolbar under the shared header (shared/header.css), matching Student Details. */
+  header.top { background: var(--panel); border-bottom: 1px solid var(--border); padding: 8px 18px; }
   header.top .brand h1 { color: #0077a8; font-size: 16px; font-weight: 700; text-transform: none; letter-spacing: .01em; }
   header.top .subtitle { color: var(--text-dim); font-size: 11px; }
   .btn:hover { background: #e8f7fe; border-color: #00adef; }
@@ -210,13 +211,14 @@
 </style>
 </head>
 <body>
+<header class="niec-header" data-page="incentive"></header>
 <div class="wrap">
 
   <header class="top">
     <div class="brand">
       <div>
         <h1>Incentive History</h1>
-        <div class="subtitle">Nepal International Education Consultancy</div>
+        <div class="subtitle">Counselor commissions and company earnings</div>
       </div>
     </div>
     <div class="toolbar">
@@ -225,7 +227,6 @@
       <button class="btn" id="redoBtn" title="Redo (Ctrl+Y)" disabled>↷ Redo</button>
       <button class="btn" id="exportExcelBtn" hidden>Export Excel</button>
       <span class="live"><span class="dot" id="liveDot"></span><span id="liveText">connecting…</span></span>
-      <button class="btn" id="logoutBtn" type="button" onclick="NiecSession.logout()">Log out</button>
     </div>
   </header>
 
@@ -324,6 +325,7 @@
 
 <script src="calc.js"></script>
 <script src="session.js"></script>
+<script src="header.js"></script>
 <script>
 // Exporting everything is for Admin only. /api/me is answered by Student Details (at the site's root).
 fetch('/api/me', { cache: 'no-store' }).then((r) => (r.ok ? r.json() : null)).then((me) => {
