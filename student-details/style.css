@@ -289,7 +289,7 @@ th.col-idx, td.col-idx {
   text-overflow: clip !important; /* never "…" on a row number */
 }
 td.col-idx { background: var(--panel); color: var(--text-dim); font-variant-numeric: tabular-nums; }
-tbody tr:nth-child(even) td.col-idx { background: var(--row-alt); }
+tbody tr.alt td.col-idx { background: var(--row-alt); }
 thead th.col-idx { z-index: 4; }
 
 td {
@@ -300,7 +300,10 @@ td {
   min-width: 52px;
 }
 
-tbody tr:nth-child(even) td { background: var(--row-alt); }
+tbody tr.alt td { background: var(--row-alt); }
+/* Stand-ins for the rows above and below the screen that aren't drawn (see renderWindow in app.js). */
+tbody tr.pad-row td { padding: 0; border: none; background: none; height: 0; }
+tbody tr.pad-row:hover td { background: none; }
 tbody tr:hover td { background: var(--row-hover); }
 tbody tr.selected td { background: var(--focus-dim); }
 
@@ -779,3 +782,12 @@ body:not([data-role="admin"]) #exportExcel { display: none; }
 .activity-device { margin-top: 2px; color: var(--text-dim); font-size: 12px; }
 .activity-changes { margin: 6px 0 0; padding-left: 18px; font-size: 12.5px; }
 .activity-changes li { margin: 2px 0; overflow-wrap: anywhere; }
+
+/* Teams: cells outside their own columns are read-only, and the sheet-wide tools are Admin's. */
+td.locked { color: var(--text-dim); cursor: default; }
+select.status-select:disabled { opacity: 0.85; cursor: default; }
+body:not([data-role="admin"]) #addRow,
+body:not([data-role="admin"]) #delRow,
+body:not([data-role="admin"]) #addSheet,
+body:not([data-role="admin"]) #allSheetsBtn,
+body:not([data-role="admin"]) .sheet-tab-menu-btn { display: none; }

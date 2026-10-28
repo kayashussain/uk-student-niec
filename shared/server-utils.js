@@ -3,6 +3,7 @@
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const zlib = require('zlib');
 
 // Calendar dates (daily backups, "today's" exchange rate) follow the office's clock, not UTC.
 const TIME_ZONE = process.env.APP_TIMEZONE || 'Asia/Kathmandu';
@@ -22,8 +23,25 @@ const SECURITY_HEADERS = {
   'Referrer-Policy': 'same-origin',
 };
 
-function send(res, status, body, headers = {}) {
-  res.writeHead(status, { ...SECURITY_HEADERS, ...headers });
+// Text bigger than this is sent gzip-compressed to browsers that accept it (all do): JSON and pages
+// shrink to a fifth or less, which is most of the waiting on a slow connection.
+const COMPRESS_FROM_BYTES = 1024;
+const acceptsGzip = (res) => Boolean(res.req && /\bgzip\b/.test(String(res.req.headers['accept-encoding'] || '')));
+
+// `gzipped`: the body already compressed (a cached copy), used when the browser accepts gzip.
+function send(res, status, body, headers = {}, gzipped = null) {
+  const out = { ...SECURITY_HEADERS, ...headers };
+  if (body != null && !out['Content-Encoding'] && acceptsGzip(res)) {
+    if (gzipped) {
+      body = gzipped;
+      out['Content-Encoding'] = 'gzip';
+    } else if (Buffer.byteLength(body) >= COMPRESS_FROM_BYTES && /json|text|javascript|svg/.test(String(out['Content-Type']))) {
+      body = zlib.gzipSync(body, { level: 6 });
+      out['Content-Encoding'] = 'gzip';
+    }
+    if (out['Content-Encoding']) out.Vary = 'Accept-Encoding';
+  }
+  res.writeHead(status, out);
   res.end(body);
 }
 
@@ -102,17 +120,37 @@ function createActivityLog(dir) {
 
 // Serves only the files listed in publicFiles ({ '/name': contentType }), so data files and server
 // code sitting next to them are never reachable.
+// Each file is read and compressed once, then kept in memory (the files only change with a deploy,
+// which restarts the server). The browser keeps its copy and only checks it's still current: an
+// unchanged file is answered "304 Not Modified" with no body at all.
 function createStaticServer(root, publicFiles) {
+  const cache = new Map(); // name -> { data, gz, etag }
+  function load(name) {
+    if (cache.has(name)) return cache.get(name);
+    const data = fs.readFileSync(path.join(root, name.slice(1)));
+    const entry = {
+      data,
+      gz: /text|javascript|svg/.test(publicFiles[name]) ? zlib.gzipSync(data, { level: 9 }) : null,
+      etag: '"' + crypto.createHash('sha1').update(data).digest('base64url').slice(0, 20) + '"',
+    };
+    cache.set(name, entry);
+    return entry;
+  }
   return function serveStatic(req, res) {
     const urlPath = req.url.split('?')[0];
     const name = urlPath === '/' ? '/index.html' : urlPath;
     const type = publicFiles[name];
     if (!type) return send(res, 404, 'Not found');
-    fs.readFile(path.join(root, name.slice(1)), (err, data) => {
-      if (err) return send(res, 404, 'Not found');
-      // no-cache: the browser checks for a newer copy every time, so a deploy shows up on a normal reload.
-      send(res, 200, data, { 'Content-Type': type, 'Cache-Control': 'no-cache' });
-    });
+    let file;
+    try {
+      file = load(name);
+    } catch (e) {
+      return send(res, 404, 'Not found');
+    }
+    // no-cache: the browser checks for a newer copy every time, so a deploy shows up on a normal reload.
+    const headers = { 'Content-Type': type, 'Cache-Control': 'no-cache', ETag: file.etag };
+    if (req.headers['if-none-match'] === file.etag) return send(res, 304, null, headers);
+    send(res, 200, file.data, headers, file.gz);
   };
 }
 

@@ -21,5 +21,21 @@
     location.href = '/login';
   }
 
-  root.NiecSession = { logout };
+  // The Excel library is big (about 1 MB), so it's only downloaded the first time someone exports.
+  let excel = null;
+  function loadExcel() {
+    if (root.ExcelJS) return Promise.resolve(root.ExcelJS);
+    if (!excel) {
+      excel = new Promise((resolve, reject) => {
+        const s = document.createElement('script');
+        s.src = 'https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js';
+        s.onload = () => resolve(root.ExcelJS);
+        s.onerror = () => { excel = null; reject(new Error('Excel library failed to load')); };
+        document.head.appendChild(s);
+      });
+    }
+    return excel;
+  }
+
+  root.NiecSession = { logout, loadExcel };
 })(this);

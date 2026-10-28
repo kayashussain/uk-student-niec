@@ -93,7 +93,8 @@ function studentName(rowId) {
     const workbook = JSON.parse(fs.readFileSync(STUDENT_DETAILS_DATA, 'utf-8'));
     for (const sheet of workbook.sheets || []) {
       const row = (sheet.rows || []).find((r) => r._id === rowId);
-      if (row) return `${sheet.name} › ${String(row['STUDENT NAME'] || '').trim() || 'a student with no name'}`;
+      const name = [row && row['FIRST NAME'], row && row['LAST NAME']].map((v) => String(v || '').trim()).filter(Boolean).join(' ');
+      if (row) return `${sheet.name} › ${name || 'a student with no name'}`;
     }
   } catch (e) { /* fall back to the id */ }
   return `Student ${rowId}`;
@@ -257,6 +258,11 @@ const server = http.createServer(async (req, res) => {
     }
     if (!requireAuth(req, res)) return;
     const urlPath = req.url.split('?')[0];
+    // Commissions and company earnings are for Admin only; teams go back to Student Details.
+    if (req.user.role !== 'admin') {
+      if (urlPath.startsWith('/api/')) return sendJSON(res, 403, { error: 'Only Admin can see the Incentive page.' });
+      return send(res, 302, '', { Location: '/' });
+    }
 
     if (urlPath === '/api/live' && req.method === 'GET') return handleLive(req, res);
 

@@ -1,10 +1,13 @@
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
+const zlib = require('zlib');
 const {
   sendJSON, send, SECURITY_HEADERS, createActivityLog, createStaticServer, readJSONBody, writeFileAtomic, snapshotDaily,
 } = require('../shared/server-utils');
 const { createAccounts } = require('../shared/accounts');
+const { makePatch, applyPatch } = require('../shared/patch');
+const { teamOf, viewFor, teamChanges } = require('../shared/teams');
 const {
   blankWorkbook, ensureRowIds, migrateWorkbook, isValidWorkbook, mergeWorkbooks, createHistory, describeChanges,
 } = require('./workbook');
@@ -37,6 +40,8 @@ const serveStatic = createStaticServer(ROOT, {
 const serveShared = createStaticServer(path.join(__dirname, '..', 'shared'), {
   '/edit-guard.js': 'text/javascript; charset=utf-8',
   '/session.js': 'text/javascript; charset=utf-8',
+  '/patch.js': 'text/javascript; charset=utf-8',
+  '/teams.js': 'text/javascript; charset=utf-8',
   '/login.html': 'text/html; charset=utf-8',
 });
 
@@ -57,19 +62,24 @@ function recordChanges(req, before, after) {
 // Recent revisions, so a save based on one of them can be merged instead of refused.
 const history = createHistory();
 
+// The workbook lives in memory: read from data.json once at start, and every save writes it back
+// (the file is what survives a restart, and what the Incentive app reads). Nothing re-reads the file
+// per request. null if data.json exists but can't be read; the next save then replaces it.
+let current = null;
+
 // Reads data.json, creating a blank workbook on a fresh disk. Throws if the file exists but can't be read.
-function readWorkbook() {
+function loadWorkbook() {
   let text;
   try {
     text = fs.readFileSync(DATA_FILE, 'utf8');
   } catch (e) {
     if (e.code !== 'ENOENT') throw e;
     const fresh = blankWorkbook();
-    writeFileAtomic(DATA_FILE, JSON.stringify(fresh, null, 2));
+    writeFileAtomic(DATA_FILE, JSON.stringify(fresh));
     return fresh;
   }
   const workbook = migrateWorkbook(JSON.parse(text));
-  const json = JSON.stringify(workbook, null, 2);
+  const json = JSON.stringify(workbook);
   // Persist the migration once so future reads/writes are already in the new shape.
   if (json !== text) {
     try { writeFileAtomic(DATA_FILE, json); } catch (e) { /* non-fatal */ }
@@ -80,10 +90,100 @@ function readWorkbook() {
 function writeWorkbook(workbook) {
   snapshotDaily(DATA_FILE, DATA_DIR, 'data');
   if (fs.existsSync(DATA_FILE)) fs.copyFileSync(DATA_FILE, BACKUP_FILE); // rolling backup of the previous version
-  writeFileAtomic(DATA_FILE, JSON.stringify(workbook, null, 2));
+  writeFileAtomic(DATA_FILE, JSON.stringify(workbook));
+  current = workbook;
+  served.clear();
+  patches.clear();
   history.remember(workbook);
   broadcast();
 }
+
+// What each account sees: Admin the whole workbook, a team only its students (shared/teams.js).
+const viewKey = (role) => (teamOf(role) ? role : 'admin');
+
+// What GET /api/data sends, made once per revision and view (as text and gzip-compressed), not per request.
+const served = new Map(); // view -> { json, gz }
+function servedWorkbook(role) {
+  const key = viewKey(role);
+  if (!served.has(key)) {
+    const json = JSON.stringify(viewFor(role, current));
+    served.set(key, { json, gz: zlib.gzipSync(json, { level: 6 }) });
+  }
+  return served.get(key);
+}
+
+// Just the changes since an earlier revision, for screens that already have that one. After a save,
+// every open screen asks for the same thing, so each answer is made once. null if that revision is
+// no longer remembered (the screen then gets the whole workbook).
+const patches = new Map(); // "view:since" -> { json, gz }
+function servedPatch(role, since) {
+  const key = `${viewKey(role)}:${since}`;
+  if (patches.has(key)) return patches.get(key);
+  const base = since === current.revision ? current : history.get(since);
+  if (!base) return null;
+  const patch = makePatch(viewFor(role, base), viewFor(role, current));
+  if (!patch) return null;
+  const json = JSON.stringify({ revision: current.revision, patch });
+  const entry = { json, gz: json.length > 1024 ? zlib.gzipSync(json) : null };
+  patches.set(key, entry);
+  return entry;
+}
+
+const CALCULATED_COLUMNS = ['FEE AFTER SCHOLARSHIP', 'REMAINING TUITION FEE'];
+
+// A team's save: its copy only holds its own students, so instead of merging whole workbooks, each
+// cell it changed is checked against its rules and written onto the current workbook. Anything
+// outside the rules refuses the whole save (the page never offers it, so that means tampering or a
+// stale page).
+function handleTeamSave(req, res, parsed) {
+  const base = current && (parsed.baseRevision === current.revision ? current : history.get(parsed.baseRevision));
+  if (!base) return sendJSON(res, 409, { error: 'conflict', revision: current ? current.revision : 0 });
+  const baseView = viewFor(req.user.role, base);
+  let mineView;
+  try {
+    mineView = parsed.patch ? applyPatch(baseView, parsed.patch) : { sheets: parsed.sheets };
+  } catch (e) {
+    return sendJSON(res, 409, { error: 'conflict', revision: current.revision });
+  }
+  if (!mineView || !Array.isArray(mineView.sheets)) return sendJSON(res, 400, { error: 'invalid payload' });
+  const { changes, errors } = teamChanges(req.user.role, baseView, mineView, CALCULATED_COLUMNS);
+  if (errors.length) {
+    activity.record(req, req.user, 'Change refused', { app: 'Student Details', changes: errors });
+    return sendJSON(res, 403, { error: errors.join(' ') });
+  }
+  if (!changes.length) return sendJSON(res, 200, { ok: true, revision: current.revision });
+  // Every changed student must still be one this team sees now (someone may have moved them meanwhile).
+  const rowsNow = new Map();
+  current.sheets.forEach((s) => s.rows.forEach((r) => rowsNow.set(`${s.id}\u0000${r._id}`, r)));
+  const updates = new Map(); // "sheet\0row" -> { col: value }
+  for (const c of changes) {
+    const key = `${c.sheetId}\u0000${c.rowId}`;
+    const row = rowsNow.get(key);
+    if (!row || !viewFor(req.user.role, { sheets: [{ rows: [row] }] }).sheets[0].rows.length) {
+      return sendJSON(res, 409, { error: 'conflict', revision: current.revision });
+    }
+    updates.set(key, { ...(updates.get(key) || {}), [c.col]: c.value });
+  }
+  const before = current;
+  const next = {
+    ...current,
+    revision: current.revision + 1,
+    sheets: current.sheets.map((s) => ({
+      ...s,
+      rows: s.rows.map((r) => {
+        const u = updates.get(`${s.id}\u0000${r._id}`);
+        return u ? { ...r, ...u } : r;
+      }),
+    })),
+  };
+  writeWorkbook(next);
+  recordChanges(req, before, next);
+  // A student moved to another stage leaves this team's view: the page fetches its fresh view.
+  const moved = changes.some((c) => c.col === 'APPLICATION STATUS');
+  return sendJSON(res, 200, { ok: true, revision: next.revision, reload: moved });
+}
+
+const JSON_HEADERS = { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' };
 
 // Every save says which revision it was based on. If someone else saved since (another tab or device),
 // the two are merged cell by cell against that revision and the merged workbook is sent back. Only if
@@ -95,29 +195,36 @@ async function handleSave(req, res) {
   } catch (e) {
     return sendJSON(res, e.statusCode || 400, { error: e.message });
   }
+  if (teamOf(req.user.role)) return handleTeamSave(req, res, parsed || {});
+  // Usually just the changes since the revision the page has; rebuilt into the whole workbook here.
+  // If that revision is gone (e.g. after a restart) the page is told to send the whole workbook.
+  if (parsed && parsed.patch && current) {
+    const base = parsed.baseRevision === current.revision ? current : history.get(parsed.baseRevision);
+    let full = null;
+    try {
+      full = base && applyPatch(base, parsed.patch);
+    } catch (e) { /* doesn't fit: ask for the whole workbook */ }
+    if (!full) return sendJSON(res, 412, { error: 'send-full' });
+    parsed = { sheets: full.sheets, activeSheetId: full.activeSheetId, baseRevision: parsed.baseRevision };
+  }
   if (!isValidWorkbook(parsed)) return sendJSON(res, 400, { error: 'invalid payload' });
   // A tab opened before a column rename still sends the old names.
   const mine = migrateWorkbook({ sheets: parsed.sheets, activeSheetId: parsed.activeSheetId });
   try {
-    let current;
-    try {
-      current = readWorkbook();
-    } catch (e) {
-      // The file on disk is unreadable: let this save replace it.
-      current = null;
-    }
     if (!current || parsed.baseRevision === current.revision) {
+      const before = current;
       const revision = (current ? current.revision : num(parsed.baseRevision)) + 1;
       const next = ensureRowIds({ revision, sheets: mine.sheets, activeSheetId: mine.activeSheetId });
       writeWorkbook(next);
-      recordChanges(req, current, next);
+      recordChanges(req, before, next);
       return sendJSON(res, 200, { ok: true, revision });
     }
     const base = history.get(parsed.baseRevision);
     if (!base) return sendJSON(res, 409, { error: 'conflict', revision: current.revision });
+    const before = current;
     const merged = { revision: current.revision + 1, ...mergeWorkbooks(base, current, mine) };
     writeWorkbook(merged);
-    recordChanges(req, current, merged);
+    recordChanges(req, before, merged);
     return sendJSON(res, 200, { ok: true, revision: merged.revision, merged: true, workbook: merged });
   } catch (e) {
     console.error('[save]', e);
@@ -125,15 +232,14 @@ async function handleSave(req, res) {
   }
 }
 
-// Who is looking at which cell. Everyone shares one login, so people are told apart by a per-tab id
-// the page makes up, and shown as "User N" with a colour — never by the login name. Kept in memory
-// only: a peer that stops reporting for PRESENCE_TTL_MS simply disappears.
+// Who is looking at which cell, shown by their name and a colour (each browser tab has its own id the
+// page makes up). Kept in memory only: a peer that stops reporting for PRESENCE_TTL_MS disappears.
 const PRESENCE_TTL_MS = 15000;
 const PEER_COLORS = ['#e8710a', '#188038', '#9334e6', '#d93025', '#0b8a8a', '#c2185b', '#7b5e00', '#1a73e8'];
 const peers = new Map(); // id -> { n, seen, sheetId, rowId, col, editing }
 let nextPeerNumber = 1;
 
-function recordPresence(body) {
+function recordPresence(body, user) {
   const id = typeof body.id === 'string' ? body.id.slice(0, 40) : '';
   if (!id) return;
   const now = Date.now();
@@ -145,6 +251,7 @@ function recordPresence(body) {
     rowId: typeof body.rowId === 'string' ? body.rowId : null,
     col: typeof body.col === 'string' ? body.col : null,
     editing: Boolean(body.editing),
+    name: user ? user.name : null,
   });
   peers.set(id, peer);
 }
@@ -154,7 +261,7 @@ function othersThan(id) {
   peers.forEach((p, key) => {
     if (key === id) return;
     out.push({
-      id: key, name: 'User ' + p.n, color: PEER_COLORS[(p.n - 1) % PEER_COLORS.length],
+      id: key, name: p.name || 'User ' + p.n, color: PEER_COLORS[(p.n - 1) % PEER_COLORS.length],
       sheetId: p.sheetId, rowId: p.rowId, col: p.col, editing: p.editing,
     });
   });
@@ -166,9 +273,7 @@ function othersThan(id) {
 const streams = new Map(); // id -> res
 
 function stateFor(id) {
-  let revision = null;
-  try { revision = readWorkbook().revision; } catch (e) { /* none yet */ }
-  return { revision, peers: othersThan(id) };
+  return { revision: current ? current.revision : null, peers: othersThan(id) };
 }
 
 function broadcast() {
@@ -227,7 +332,7 @@ async function handlePresence(req, res) {
   } catch (e) {
     return sendJSON(res, e.statusCode || 400, { error: e.message });
   }
-  recordPresence(body);
+  recordPresence(body, req.user);
   broadcast();
   return sendJSON(res, 200, stateFor(body.id));
 }
@@ -237,7 +342,8 @@ function num(v) {
 }
 
 try {
-  history.remember(readWorkbook());
+  current = loadWorkbook();
+  history.remember(current);
 } catch (e) {
   console.error('[startup] could not read', DATA_FILE, '-', e.message);
 }
@@ -268,24 +374,25 @@ const server = http.createServer(async (req, res) => {
       return send(res, 405, 'Method not allowed');
     }
     if (urlPath === '/api/unlock-hidden') {
+      if (teamOf(req.user.role)) return sendJSON(res, 403, { error: 'Only Admin can open hidden sheets.' });
       if (req.method === 'POST') return handleUnlockHidden(req, res);
       return send(res, 405, 'Method not allowed');
     }
     if (urlPath === '/api/data' || urlPath === '/api/revision') {
       if (req.method === 'GET') {
-        let workbook;
-        try {
-          workbook = readWorkbook();
-        } catch (e) {
-          console.error('[read]', e);
-          return sendJSON(res, 500, { error: 'Could not read the data file' });
-        }
-        return sendJSON(res, 200, urlPath === '/api/revision' ? { revision: workbook.revision } : workbook);
+        if (!current) return sendJSON(res, 500, { error: 'Could not read the data file' });
+        if (urlPath === '/api/revision') return sendJSON(res, 200, { revision: current.revision });
+        const since = Number(new URL(req.url, 'http://x').searchParams.get('since'));
+        const patch = Number.isInteger(since) && since > 0 ? servedPatch(req.user.role, since) : null;
+        if (patch) return send(res, 200, patch.json, JSON_HEADERS, patch.gz);
+        const full = servedWorkbook(req.user.role);
+        return send(res, 200, full.json, JSON_HEADERS, full.gz);
       }
       if (req.method === 'POST' && urlPath === '/api/data') return handleSave(req, res);
       return send(res, 405, 'Method not allowed');
     }
-    if (urlPath === '/edit-guard.js' || urlPath === '/session.js') return serveShared(req, res);
+    if (urlPath === '/edit-guard.js' || urlPath === '/session.js' || urlPath === '/patch.js'
+      || urlPath === '/teams.js') return serveShared(req, res);
     serveStatic(req, res);
   } catch (e) {
     console.error(e);
