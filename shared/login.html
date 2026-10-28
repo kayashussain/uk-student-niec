@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex, nofollow" />
 <title>Log in · UK Student NIEC</title>
 <link rel="icon" type="image/png" href="/favicon.png" />
 <style>
@@ -16,6 +17,7 @@
     --text: #1c2126;
     --text-dim: #6b7280;
     --danger: #dc2626;
+    --note-bg: #eef7fc;
   }
   @media (prefers-color-scheme: dark) {
     :root {
@@ -25,6 +27,7 @@
       --text: #e5e7eb;
       --text-dim: #9ca3af;
       --danger: #f87171;
+      --note-bg: #16303f;
     }
   }
   * { box-sizing: border-box; }
@@ -39,23 +42,24 @@
     color: var(--text);
     font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif;
   }
-  form {
+  .card {
     width: 100%;
-    max-width: 360px;
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
+    max-width: 380px;
     padding: 28px 24px 24px;
     background: var(--panel);
     border-radius: 12px;
     border-top: 4px solid var(--niec-blue);
     box-shadow: 0 12px 36px rgba(15, 23, 42, 0.12);
   }
+  form { display: flex; flex-direction: column; gap: 6px; }
+  form[hidden] { display: none; }
   h1 { margin: 0; font-size: 20px; color: var(--niec-blue-text); }
   @media (prefers-color-scheme: dark) { h1 { color: var(--niec-blue); } }
-  .sub { margin: 0 0 14px; color: var(--text-dim); }
+  .sub { margin: 2px 0 12px; color: var(--text-dim); }
+  .note { margin: 0 0 6px; padding: 10px 12px; border-radius: 8px; background: var(--note-bg); font-size: 13px; }
+  .note ol { margin: 4px 0 0; padding-left: 18px; }
   label { margin-top: 8px; font-size: 12px; font-weight: 600; color: var(--text-dim); }
-  input, select {
+  input {
     font: inherit;
     padding: 9px 11px;
     border: 1px solid var(--border);
@@ -63,13 +67,17 @@
     background: var(--panel);
     color: var(--text);
   }
-  .password-field { display: flex; flex-direction: column; gap: 6px; }
-  .password-field[hidden] { display: none; }
-  input:focus, select:focus { outline: 2px solid var(--niec-blue); outline-offset: 1px; border-color: transparent; }
+  input.code { font-size: 22px; letter-spacing: 0.3em; text-align: center; font-variant-numeric: tabular-nums; }
+  input:focus { outline: 2px solid var(--niec-blue); outline-offset: 1px; border-color: transparent; }
+  .hint { margin: 2px 0 0; color: var(--text-dim); font-size: 12px; }
+  .qr { display: flex; justify-content: center; margin: 10px 0 4px; }
+  .qr canvas, .qr img { padding: 8px; background: #fff; border-radius: 8px; }
+  .secret { font: 600 13px/1.4 ui-monospace, Menlo, Consolas, monospace; word-break: break-all; text-align: center;
+    padding: 6px; border: 1px dashed var(--border); border-radius: 6px; user-select: all; }
   .error { margin: 8px 0 0; color: var(--danger); font-size: 13px; }
   .error[hidden] { display: none; }
   button {
-    margin-top: 18px;
+    margin-top: 16px;
     padding: 10px;
     border: none;
     border-radius: 7px;
@@ -80,72 +88,168 @@
     cursor: pointer;
   }
   button:disabled { opacity: 0.6; cursor: default; }
+  .link { margin-top: 10px; padding: 0; background: none; color: var(--niec-blue-text); font-weight: 500; font-size: 13px; }
+  @media (prefers-color-scheme: dark) { .link { color: var(--niec-blue); } }
 </style>
 </head>
 <body>
-<form id="loginForm">
+<div class="card">
   <h1>UK Student NIEC</h1>
-  <p class="sub">Log in to continue</p>
-  <label for="account">Account</label>
-  <select id="account" required autofocus>
-    <option value="" selected disabled>Choose your account…</option>
-  </select>
-  <div class="password-field" id="passwordField" hidden>
+  <p class="sub" id="subtitle">Log in to continue</p>
+
+  <!-- First start only: no accounts exist yet. -->
+  <form id="step-first-admin" hidden>
+    <p class="note">First-time setup: create your own Admin account. The setup code is on the server, in the file <b>first-admin-code.txt</b> in the Student Details data folder (and in the app's log). It works once.</p>
+    <label for="fa-name">Your name</label>
+    <input id="fa-name" autocomplete="name" required maxlength="60" />
+    <label for="fa-username">Choose a username</label>
+    <input id="fa-username" autocomplete="username" autocapitalize="off" spellcheck="false" required maxlength="60" />
+    <label for="fa-setup">Setup code</label>
+    <input id="fa-setup" autocomplete="off" autocapitalize="characters" spellcheck="false" required placeholder="XXXX-XXXX-XXXX" />
+    <button type="submit">Continue</button>
+  </form>
+
+  <form id="step-password" hidden>
+    <label for="username">Username</label>
+    <input id="username" autocomplete="username" autocapitalize="off" spellcheck="false" required />
     <label for="password">Password</label>
-    <input id="password" type="password" autocomplete="current-password" autocapitalize="off" spellcheck="false" required />
-  </div>
-  <p class="error" id="error" hidden></p>
-  <button type="submit" id="submit">Log in</button>
-</form>
+    <input id="password" type="password" autocomplete="current-password" required />
+    <button type="submit">Log in</button>
+  </form>
+
+  <form id="step-code" hidden>
+    <p class="note">Open the authenticator app on your phone and type the 6-digit code shown for <b>UK Student NIEC</b>.</p>
+    <label for="code">Code</label>
+    <input id="code" class="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9 ]*" maxlength="7" required />
+    <button type="submit">Log in</button>
+    <button type="button" class="link" data-restart>Use a different account</button>
+  </form>
+
+  <form id="step-new-password" hidden>
+    <p class="note">Choose your own password. Only you should know it — never share it, not even with your team.</p>
+    <label for="new-password">New password</label>
+    <input id="new-password" type="password" autocomplete="new-password" minlength="10" required />
+    <p class="hint">At least 10 characters. A short sentence is easy to remember and hard to guess.</p>
+    <label for="new-password-2">Type it again</label>
+    <input id="new-password-2" type="password" autocomplete="new-password" required />
+    <button type="submit">Save password</button>
+    <button type="button" class="link" data-restart>Cancel</button>
+  </form>
+
+  <form id="step-authenticator" hidden>
+    <div class="note">
+      Link an authenticator app on <b>your own phone</b>. You'll need a code from it every time you log in.
+      <ol>
+        <li>Install <b>Google Authenticator</b> or <b>Microsoft Authenticator</b> from your phone's app store.</li>
+        <li>In the app, tap <b>+</b> and scan this code (or choose "enter a setup key" and type the key below).</li>
+        <li>Type the 6-digit code the app shows.</li>
+      </ol>
+    </div>
+    <div class="qr" id="qr"></div>
+    <div class="secret" id="secret" title="Setup key"></div>
+    <label for="first-code">Code from the app</label>
+    <input id="first-code" class="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9 ]*" maxlength="7" required />
+    <button type="submit">Finish</button>
+    <button type="button" class="link" data-restart>Cancel</button>
+  </form>
+
+  <p class="error" id="error" role="alert" hidden></p>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script>
 (function () {
-  const form = document.getElementById('loginForm');
-  const error = document.getElementById('error');
-  const submit = document.getElementById('submit');
-  const account = document.getElementById('account');
-  const passwordField = document.getElementById('passwordField');
-  const password = document.getElementById('password');
-
-  // The accounts come from the server (shared/server-utils.js), so this list never goes out of date.
-  fetch('/api/accounts', { cache: 'no-store' })
-    .then((res) => res.json())
-    .then((list) => list.forEach((a) => account.add(new Option(a.label, a.id))))
-    .catch(() => {
-      error.textContent = 'Could not load the accounts. Please reload the page.';
-      error.hidden = false;
-    });
-
-  // The password box appears once an account is picked.
-  account.addEventListener('change', () => {
-    passwordField.hidden = false;
-    error.hidden = true;
-    password.value = '';
-    password.focus();
-  });
+  const $ = (id) => document.getElementById(id);
+  const error = $('error');
   // Only a path on this site, so the link can't send someone elsewhere after logging in.
   const next = new URLSearchParams(location.search).get('next') || '/';
   const target = /^\/(?![\/\\])/.test(next) ? next : '/';
+  const subtitles = {
+    'first-admin': 'First-time setup',
+    password: 'Log in to continue',
+    code: 'Step 2 of 2',
+    'new-password': 'Set up your login',
+    authenticator: 'Set up your login',
+  };
 
-  form.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    submit.disabled = true;
-    error.hidden = true;
+  function showError(text) {
+    error.textContent = text;
+    error.hidden = !text;
+  }
+
+  async function post(url, body) {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body || {}),
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(json.error || `Something went wrong (server error ${res.status}).`);
+    return json;
+  }
+
+  function show(state) {
+    if (state.stage === 'done') { location.replace(target); return; }
+    document.querySelectorAll('form').forEach((f) => { f.hidden = f.id !== 'step-' + state.stage; });
+    $('subtitle').textContent = (state.name ? `Hi ${state.name} — ` : '') + (subtitles[state.stage] || '');
+    const form = $('step-' + state.stage);
+    if (!form) return;
+    form.reset();
+    if (state.stage === 'authenticator') startAuthenticator();
+    const first = form.querySelector('input');
+    if (first) first.focus();
+  }
+
+  async function startAuthenticator() {
+    $('qr').innerHTML = '';
+    $('secret').textContent = '…';
     try {
-      const res = await fetch('/api/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ account: account.value, password: password.value }),
-      });
-      if (res.ok) { location.replace(target); return; }
-      const json = await res.json().catch(() => ({}));
-      error.textContent = json.error || `Could not log in (server error ${res.status}).`;
-    } catch (err) {
-      error.textContent = 'Could not reach the server. Check your connection and try again.';
+      const { secret, uri } = await post('/api/login/authenticator', {});
+      $('secret').textContent = secret.replace(/(.{4})/g, '$1 ').trim();
+      if (window.QRCode) new window.QRCode($('qr'), { text: uri, width: 180, height: 180 });
+    } catch (e) {
+      showError(e.message);
     }
-    error.hidden = false;
-    submit.disabled = false;
-    password.select();
+  }
+
+  function bind(stage, handler) {
+    const form = $('step-' + stage);
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const buttons = form.querySelectorAll('button');
+      buttons.forEach((b) => { b.disabled = true; });
+      showError('');
+      try {
+        show(await handler());
+      } catch (err) {
+        showError(err.message || 'Could not reach the server. Check your connection and try again.');
+        const pw = form.querySelector('input[type=password], input.code');
+        if (pw) pw.select();
+      }
+      buttons.forEach((b) => { b.disabled = false; });
+    });
+  }
+
+  bind('first-admin', () => post('/api/login/first-admin', {
+    name: $('fa-name').value, username: $('fa-username').value, setupCode: $('fa-setup').value,
+  }));
+  bind('password', () => post('/api/login', { username: $('username').value, password: $('password').value }));
+  bind('code', () => post('/api/login/code', { code: $('code').value }));
+  bind('new-password', () => {
+    if ($('new-password').value !== $('new-password-2').value) throw new Error("The two passwords don't match.");
+    return post('/api/login/new-password', { password: $('new-password').value });
   });
+  bind('authenticator', () => post('/api/login/authenticator', { code: $('first-code').value }));
+
+  document.querySelectorAll('[data-restart]').forEach((b) => b.addEventListener('click', async () => {
+    showError('');
+    await fetch('/api/logout', { method: 'POST' }).catch(() => {});
+    show({ stage: 'password' });
+  }));
+
+  fetch('/api/login/state', { cache: 'no-store' })
+    .then((res) => res.json())
+    .then(show)
+    .catch(() => { show({ stage: 'password' }); showError('Could not reach the server. Please reload the page.'); });
 })();
 </script>
 </body>

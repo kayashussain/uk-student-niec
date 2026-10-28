@@ -84,20 +84,30 @@ in Application URL above).
 
 Save → **Run NPM Install** → **Restart**.
 
-Both apps load shared code from the repo's `shared/` folder, so keep the whole repo on the server
-(as cloned above), not just the two app folders.
+Everyone has **their own account**; there are no shared logins. Logging in takes the person's
+password **and** the 6-digit code from the authenticator app on their own phone (Google or Microsoft
+Authenticator), so a password alone, or one someone shared, isn't enough. A login lasts 12 hours.
 
-Both apps always open a **login page** (`/login`) that asks you to pick your account and enter its password. There are
-four accounts (Admin, Application Team, Mock Team, Follow-up Team), each with its
-own password, set in `shared/server-utils.js` (`ACCOUNTS`; only a scrambled copy of each password is
-kept there, and the comment shows how to make a new one). After logging in
-you stay logged in on that device for 30 days, or until **Log out** (top right). No environment
-variables are needed for it.
+- **First start:** while there are no accounts, the server makes a one-time **setup code**, prints it
+  in the app's log and saves it in `first-admin-code.txt` in the Student Details data folder. The
+  login page asks for it to create the first Admin account; you then choose your own password and
+  link your phone, and the code is deleted. Do this straight after deploying.
+- **Hidden sheets** can't be opened until Admin sets the hidden-sheet password on the Users page.
+- **Adding people:** Admin → **Users** (top of Student Details) → *Add a person*. They get a temporary
+  password, shown once; at their first login they choose their own password and link their phone.
+- **When someone leaves:** Users → **Disable**. They're logged out of every device at once and can't
+  log in again. Change the hidden-sheet password there too if they knew it.
+- **Lost phone / forgotten password:** another Admin uses *Reset authenticator* or *Reset password*.
+  If no Admin can log in, run on the server
+  `STUDENT_DETAILS_DATA_DIR=<the data folder> node scripts/reset-login.js <username>`.
 
-Every login (account, device, time) and every change is recorded in `activity.jsonl` in the Student
-Details data folder. Admin sees it with **Check activity** at the top of Student Details.
+The accounts (`users.json`, passwords stored only as salted scrypt hashes), logged-in devices
+(`sessions.json`) and settings live in the Student Details data folder, never in git and never
+served. Every login, failed login, logout and change is recorded in `activity.jsonl` there; Admin sees
+it with **Check activity**. After 20 wrong tries from one address, or 8 for one account, within 15
+minutes, further tries are refused until the 15 minutes are up. No environment variables are needed.
 
-The Incentive app sends people to Student Details' `/login` page and reads the login key from the
+The Incentive app sends people to Student Details' `/login` page and reads the accounts and logins from the
 Student Details data folder, which is why its `STUDENT_DETAILS_DATA_DIR` must match. `APP_USERNAME`,
 `APP_PASSWORD` and `REQUIRE_PASSWORD` are no longer used; you can delete them from both apps.
 
@@ -114,25 +124,9 @@ absolute path there.)
 
 ## 4. Seed your existing data
 
-The new data folder starts empty. From your own machine, upload your current
-`student-details/data.json`. The first command logs in and keeps the login in `cookies.txt`; the
-second uploads with it:
-
-```bash
-curl -c cookies.txt -X POST https://niec.duckdns.org/api/login \
-  -H "Content-Type: application/json" -d '{"account":"admin","password":"ADMIN_PASSWORD"}'
-```
-
-```bash
-node -e "const d=require('./data.json'); d.baseRevision=0; process.stdout.write(JSON.stringify(d))" \
-  | curl -X POST https://niec.duckdns.org/api/data \
-    -b cookies.txt \
-    -H "Content-Type: application/json" \
-    --data-binary @-
-```
-
-(`baseRevision: 0` tells the server this save is based on the blank tracker the new folder starts
-with. Without it, the server refuses the upload as a conflict.)
+Copy your current `student-details/data.json` into `~/niec_data/student-details` (cPanel **File Manager** → Upload) **before the app's first start**
+(or stop the app, copy it, and start it again). The app reads it from there. (Uploading through the
+site isn't possible any more, since every login needs a code from a phone.)
 
 ## 5. Check it
 

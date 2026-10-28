@@ -921,6 +921,7 @@
       okBtn.disabled = true;
       error.hidden = true;
       let status = 0;
+      let message = '';
       try {
         const res = await fetch('/api/unlock-hidden', {
           method: 'POST',
@@ -928,14 +929,15 @@
           body: JSON.stringify({ password: input.value }),
         });
         status = res.status;
+        message = (await res.json().catch(() => ({}))).error || '';
       } catch (err) { /* no answer from the server */ }
       okBtn.disabled = false;
       if (status !== 200) {
-        // 403 is a wrong password; anything else means the server couldn't check it (e.g. it is
-        // still running a version from before this feature and needs restarting).
+        // 403 is a wrong password; otherwise the server says why (e.g. no password set yet), or
+        // couldn't check it (e.g. it is still running an older version and needs restarting).
         error.textContent = status === 403
           ? 'Wrong password. Please try again.'
-          : `Couldn't check the password (server error ${status || 'no response'}). The server may need restarting.`;
+          : message || `Couldn't check the password (server error ${status || 'no response'}). The server may need restarting.`;
         error.hidden = false;
         input.select();
         return;
@@ -991,7 +993,9 @@
     const items = [
       { label: 'Rename', action: () => startInlineRename(sheet, tab) },
       { label: 'Duplicate', action: () => duplicateSheet(sheet.id) },
-      { label: 'Copy to clipboard', action: () => copySheetToClipboard(sheet.id) },
+      // Copying a whole sheet out is for Admin only, like Export Excel.
+      ...(document.body.dataset.role === 'admin'
+        ? [{ label: 'Copy to clipboard', action: () => copySheetToClipboard(sheet.id) }] : []),
       { label: 'Delete', action: () => deleteSheet(sheet.id), danger: true },
     ];
     items.forEach(({ label, action, danger }) => {
