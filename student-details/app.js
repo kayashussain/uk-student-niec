@@ -52,10 +52,13 @@
   };
   let sheets = [];
   let activeSheetId = null;
-  // Sheets not shown on this page at all (no tab, never opened). Their data stays in the file, so
-  // the Incentive page still reads them. Matched by sheet name, e.g. "Sep Intake 2026".
+  // Sheets not shown on this page (no tab, never opened) until someone picks "Hidden sheet → View
+  // hidden sheet" and enters the password; a reload hides them again. Their data stays in the file,
+  // so the Incentive page still reads them. Matched by sheet name, e.g. "Sep Intake 2026".
   const isHiddenSheet = (sheet) => /\bsep/i.test(sheet.name || '') && /2026/.test(sheet.name || '');
+  let hiddenUnlocked = false;
   const shownSheets = () => {
+    if (hiddenUnlocked) return sheets;
     const shown = sheets.filter((s) => !isHiddenSheet(s));
     return shown.length ? shown : sheets;
   };
@@ -139,6 +142,7 @@
   const rowCountEl = $('#rowCount');
   const searchEl = $('#search');
   const sheetTabsList = $('#sheetTabsList');
+  const hiddenSheetsBtn = $('#hiddenSheetsBtn');
   const statusSummaryEl = $('#statusSummary');
   const undoBtn = $('#undoBtn');
   const redoBtn = $('#redoBtn');
@@ -767,6 +771,96 @@
 
       sheetTabsList.appendChild(tab);
     });
+    hiddenSheetsBtn.hidden = !sheets.some(isHiddenSheet);
+  }
+
+  function openHiddenSheetsMenu() {
+    if (openSheetMenu && openSheetMenu.dataset.sheetId === 'hidden') { closeSheetMenu(); return; }
+    closeSheetMenu();
+    const menu = document.createElement('div');
+    menu.className = 'sheet-menu';
+    menu.dataset.sheetId = 'hidden';
+    const item = document.createElement('div');
+    item.className = 'sheet-menu-item';
+    item.textContent = hiddenUnlocked ? 'Hide sheet again' : 'View hidden sheet';
+    item.addEventListener('click', () => {
+      closeSheetMenu();
+      if (hiddenUnlocked) hideHiddenSheets();
+      else askHiddenSheetPassword();
+    });
+    menu.appendChild(item);
+    document.body.appendChild(menu);
+    const rect = hiddenSheetsBtn.getBoundingClientRect();
+    menu.style.left = Math.min(rect.left, window.innerWidth - menu.offsetWidth - 8) + 'px';
+    menu.style.top = (rect.top - menu.offsetHeight - 4) + 'px';
+    openSheetMenu = menu;
+    setTimeout(() => document.addEventListener('mousedown', onSheetMenuDocClick, true), 0);
+  }
+
+  function hideHiddenSheets() {
+    hiddenUnlocked = false;
+    const active = getActiveSheet();
+    if (active && isHiddenSheet(active)) switchSheet(newestSheet(shownSheets()).id);
+    else renderSheetTabs();
+  }
+
+  let passwordBoxOpen = false;
+
+  function askHiddenSheetPassword() {
+    if (passwordBoxOpen) return;
+    passwordBoxOpen = true;
+    const overlay = document.createElement('div');
+    overlay.className = 'pw-overlay';
+    overlay.innerHTML = `
+      <form class="pw-box" role="dialog" aria-modal="true" aria-labelledby="pw-title">
+        <h2 id="pw-title">View hidden sheet</h2>
+        <label for="pw-input">Password</label>
+        <input id="pw-input" type="password" autocomplete="off" required>
+        <p class="pw-error" hidden>Wrong password. Please try again.</p>
+        <div class="pw-actions">
+          <button type="button" class="pw-cancel">Cancel</button>
+          <button type="submit" class="pw-ok">Open</button>
+        </div>
+      </form>`;
+    const form = overlay.querySelector('form');
+    const input = overlay.querySelector('#pw-input');
+    const error = overlay.querySelector('.pw-error');
+    const okBtn = overlay.querySelector('.pw-ok');
+    const close = () => { passwordBoxOpen = false; overlay.remove(); };
+
+    overlay.querySelector('.pw-cancel').addEventListener('click', close);
+    overlay.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') { e.preventDefault(); close(); }
+      e.stopPropagation(); // typing here never reaches the sheet underneath
+    });
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      okBtn.disabled = true;
+      error.hidden = true;
+      let ok = false;
+      try {
+        const res = await fetch('/api/unlock-hidden', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password: input.value }),
+        });
+        ok = res.ok;
+      } catch (err) { /* treated as a failed attempt */ }
+      okBtn.disabled = false;
+      if (!ok) {
+        error.hidden = false;
+        input.select();
+        return;
+      }
+      close();
+      hiddenUnlocked = true;
+      const hidden = sheets.filter(isHiddenSheet);
+      if (hidden.length) switchSheet(newestSheet(hidden).id);
+      renderSheetTabs();
+    });
+
+    document.body.appendChild(overlay);
+    input.focus();
   }
 
   function startInlineRename(sheet, tab) {
@@ -1736,7 +1830,8 @@
 
   // Keeps an open tab current when someone else saves. Never runs over unsaved or in-progress work.
   function busyEditing() {
-    return Boolean(editing || dragMode || openFilterMenu || openSheetMenu || (window.EditGuard && window.EditGuard.isOpen()));
+    return Boolean(editing || dragMode || openFilterMenu || openSheetMenu || passwordBoxOpen
+      || (window.EditGuard && window.EditGuard.isOpen()));
   }
 
   async function checkForRemoteChanges() {
@@ -1864,6 +1959,7 @@
   $('#delRow').addEventListener('click', deleteRow);
   $('#exportExcel').addEventListener('click', exportExcel);
   $('#addSheet').addEventListener('click', addSheet);
+  hiddenSheetsBtn.addEventListener('click', openHiddenSheetsMenu);
   if (undoBtn) undoBtn.addEventListener('click', undo);
   if (redoBtn) redoBtn.addEventListener('click', redo);
   // Redraw once typing pauses rather than on every letter, so the search box never lags behind.
