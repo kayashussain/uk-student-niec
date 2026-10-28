@@ -1736,25 +1736,8 @@
     const totalCard = card(indices.length, 'Total Students');
     totalCard.classList.add('stat-total');
 
-    if (columns.includes(SOURCE_COL)) {
-      const sourceCards = group('Student Source');
-      sourceCards.appendChild(totalCard);
-      SOURCE_OPTIONS.forEach((source) => {
-        let count = 0;
-        let visas = 0;
-        indices.forEach((i) => {
-          if (rows[i][SOURCE_COL] !== source) return;
-          count += 1;
-          if (rows[i]['APPLICATION STATUS'] === 'Visa Issued') visas += 1;
-        });
-        const el = card(count, source, `<span class="stat-visa">${visas} Visa</span>`, `${count} ${source}, ${visas} with Visa Issued`);
-        el.classList.add('source-card');
-        sourceCards.appendChild(el);
-      });
-    }
-
     const statusCards = group('Application Status');
-    if (!columns.includes(SOURCE_COL)) statusCards.appendChild(totalCard);
+    statusCards.appendChild(totalCard);
     statusOptions.forEach((status) => statusCards.appendChild(card(countStatus(status), status)));
     const visaIssuedCount = countStatus('Visa Issued');
     const conversionRate = indices.length ? (visaIssuedCount / indices.length) * 100 : 0;
