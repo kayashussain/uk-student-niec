@@ -224,7 +224,7 @@
       <input id="search" class="search" type="text" placeholder="Search student, university…">
       <button class="btn" id="undoBtn" title="Undo (Ctrl+Z)" disabled>↶ Undo</button>
       <button class="btn" id="redoBtn" title="Redo (Ctrl+Y)" disabled>↷ Redo</button>
-      <button class="btn" id="exportExcelBtn">Export Excel</button>
+      <button class="btn" id="exportExcelBtn" hidden>Export Excel</button>
       <span class="live"><span class="dot" id="liveDot"></span><span id="liveText">connecting…</span></span>
       <button class="btn" id="logoutBtn" type="button" onclick="NiecSession.logout()">Log out</button>
     </div>
@@ -325,6 +325,12 @@
 
 <script src="calc.js"></script>
 <script src="session.js"></script>
+<script>
+// Exporting everything is for Admin only. /api/me is answered by Student Details (at the site's root).
+fetch('/api/me', { cache: 'no-store' }).then((r) => (r.ok ? r.json() : null)).then((me) => {
+  if (me && me.role === 'admin') document.getElementById('exportExcelBtn').hidden = false;
+}).catch(() => {});
+</script>
 <script src="edit-guard.js"></script>
 <script>
 // This page may be mounted at a sub-path (e.g. /incentive) rather than a domain's root —

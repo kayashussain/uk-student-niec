@@ -10,6 +10,13 @@ counselor-incentive/advances.json
 counselor-incentive/advances.backup*.json
 counselor-incentive/exchange-rate-cache.json
 **/backups/
+
+# Accounts, logins, settings and the activity record: private, kept with the data only.
+student-details/users.json
+student-details/sessions.json
+student-details/settings.json
+student-details/session-secret
+student-details/activity.jsonl
 *.tmp
 
 # Per-machine Claude Code session config, not part of the app.

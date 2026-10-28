@@ -1,16 +1,21 @@
-// "Logged in as …" in the toolbar, and the "Check activity" screen (Admin only): every login, logout
-// and change, newest first, as recorded by the server (see createActivityLog in shared/server-utils.js).
+// "Logged in as …" in the toolbar, Admin's buttons (Check activity, Users), and the "Check activity"
+// screen: every login, logout and change, newest first, as recorded by the server (see
+// createActivityLog in shared/server-utils.js). The page's role goes on <body data-role>, which also
+// shows Export Excel only to Admin (see style.css).
 (function () {
   const userLabel = document.getElementById('userLabel');
   const activityBtn = document.getElementById('activityBtn');
+  const usersBtn = document.getElementById('usersBtn');
 
   fetch('/api/me', { cache: 'no-store' })
     .then((res) => (res.ok ? res.json() : null))
     .then((user) => {
       if (!user) return;
+      document.body.dataset.role = user.role;
       userLabel.textContent = user.label;
       userLabel.hidden = false;
-      activityBtn.hidden = user.id !== 'admin';
+      activityBtn.hidden = user.role !== 'admin';
+      usersBtn.hidden = user.role !== 'admin';
     })
     .catch(() => { /* the label just stays hidden */ });
 
@@ -22,7 +27,7 @@
   });
 
   function render(list, body, filter) {
-    const shown = list.filter((e) => !filter || e.accountId === filter);
+    const shown = list.filter((e) => !filter || e.account === filter);
     if (!shown.length) {
       body.innerHTML = '<p class="activity-empty">Nothing recorded yet.</p>';
       return;
@@ -36,6 +41,7 @@
           <span class="activity-time">${esc(when(e.time))}</span>
         </div>
         <div class="activity-device">${esc(e.device)}${e.ip ? ` · ${esc(e.ip)}` : ''}</div>
+        ${e.note ? `<div class="activity-note">${esc(e.note)}</div>` : ''}
         ${Array.isArray(e.changes) && e.changes.length
     ? `<ul class="activity-changes">${e.changes.map((c) => `<li>${esc(c)}</li>`).join('')}</ul>` : ''}
       </div>`).join('');
@@ -74,6 +80,12 @@
         const res = await fetch('/api/activity', { cache: 'no-store' });
         if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || 'HTTP ' + res.status);
         list = await res.json();
+        // One choice per person (and "Unknown" for failed logins), keeping the current pick.
+        const picked = filter.value;
+        const people = [...new Set(list.map((e) => e.account))].sort();
+        filter.length = 1;
+        people.forEach((p) => filter.add(new Option(p, p)));
+        filter.value = people.includes(picked) ? picked : '';
       } catch (err) {
         body.innerHTML = `<p class="activity-empty">Could not load the activity: ${esc(err.message)}</p>`;
         return;
@@ -82,14 +94,11 @@
     }
     overlay.querySelector('.activity-refresh').addEventListener('click', load);
 
-    fetch('/api/accounts').then((r) => r.json())
-      .then((accounts) => accounts.forEach((a) => filter.add(new Option(a.label, a.id))))
-      .catch(() => {});
-
     document.body.appendChild(overlay);
     overlay.querySelector('.activity-close').focus();
     load();
   }
 
   activityBtn.addEventListener('click', openActivity);
+  usersBtn.addEventListener('click', () => { location.href = '/admin'; });
 })();

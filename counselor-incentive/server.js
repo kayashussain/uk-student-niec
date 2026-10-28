@@ -17,9 +17,10 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const {
-  send, sendJSON, createAuth, createActivityLog, createStaticServer, readJSONBody, writeFileAtomic, snapshotDaily,
+  send, sendJSON, createActivityLog, createStaticServer, readJSONBody, writeFileAtomic, snapshotDaily,
   localDate,
 } = require('../shared/server-utils');
+const { createAccounts } = require('../shared/accounts');
 const { advancesByName, setAdvance } = require('./advances');
 const { round2, groupByUniversity, displayDate } = require('./calc');
 // Student Details' own fee math, so the tuition fee shown here always matches what's shown over there.
@@ -62,15 +63,18 @@ const serveShared = createStaticServer(path.join(__dirname, '..', 'shared'), {
   '/session.js': 'text/javascript; charset=utf-8',
 });
 
-// Same login as Student Details, which shows the login page at /login (it sits at the site's root).
-// The cookie's signing key is read from the Student Details data folder, so one login covers both.
-const { requireAuth } = createAuth({
-  secretDir: path.dirname(STUDENT_DETAILS_DATA),
-  homePath: () => (BASE_PATH || '/commission') + '/',
-});
-
 // Changes made here go into the same activity record as Student Details ("Check activity").
 const activity = createActivityLog(path.dirname(STUDENT_DETAILS_DATA));
+
+// Same personal accounts as Student Details, which shows the login page at /login (it sits at the
+// site's root). The account and session files are read from the Student Details data folder, so one
+// login covers both, and disabling someone there logs them out here too. Only Student Details writes them.
+const { requireAuth } = createAccounts({
+  dir: path.dirname(STUDENT_DETAILS_DATA),
+  homePath: () => (BASE_PATH || '/commission') + '/',
+  activity,
+  writable: false,
+});
 
 // One line per field that changed, e.g. "Ram Thapa › Enrollment Commission: 100 → 150".
 function recordChanges(req, what, before, after, fields) {

@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex, nofollow" />
+<title>Users & security · UK Student NIEC</title>
+<link rel="icon" type="image/png" href="favicon.png" />
+<link rel="stylesheet" href="style.css" />
+<style>
+  body { overflow: auto; height: auto; min-height: 100vh; background: var(--bg); }
+  .admin-wrap { max-width: 1100px; margin: 0 auto; padding: 16px; display: flex; flex-direction: column; gap: 16px; }
+  .admin-card { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 16px; }
+  .admin-card h2 { margin: 0 0 4px; font-size: 16px; }
+  .admin-card > p { margin: 0 0 12px; color: var(--text-dim); font-size: 13px; }
+  .admin-table-wrap { overflow-x: auto; }
+  table.admin-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .admin-table th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: .03em; color: var(--text-dim);
+    padding: 6px 8px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  .admin-table td { padding: 8px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+  .admin-table tr:last-child td { border-bottom: none; }
+  .admin-table tr.is-disabled td { color: var(--text-dim); }
+  .pill { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; white-space: nowrap; }
+  .pill-ok { background: #dcfce7; color: #166534; }
+  .pill-wait { background: #fef3c7; color: #92400e; }
+  .pill-off { background: #fee2e2; color: #991b1b; }
+  .actions { display: flex; flex-wrap: wrap; gap: 4px; min-width: 340px; }
+  .actions .btn, .actions select { font-size: 12px; padding: 3px 8px; }
+  .admin-form { display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-end; }
+  .admin-form label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; font-weight: 600; color: var(--text-dim); }
+  .admin-form input, .admin-form select, .actions select {
+    font: inherit; font-size: 13px; padding: 6px 8px; border: 1px solid var(--border-strong); border-radius: 6px;
+    background: var(--panel); color: var(--text);
+  }
+  .temp-box { margin-top: 12px; padding: 12px; border-radius: 8px; background: var(--niec-blue-tint); font-size: 13px; }
+  .temp-box[hidden] { display: none; }
+  .temp-box code { font-size: 16px; font-weight: 700; user-select: all; }
+  .admin-msg { min-height: 1.2em; margin-top: 8px; font-size: 13px; }
+  .admin-msg.error { color: var(--danger); }
+  .muted { color: var(--text-dim); }
+</style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <div>
+        <h1>Users &amp; security</h1>
+        <div class="subtitle">Who can log in to UK Student NIEC</div>
+      </div>
+    </div>
+    <div class="toolbar">
+      <a class="btn" href="/">← Back to Student Details</a>
+      <button class="btn" type="button" onclick="NiecSession.logout()">Log out</button>
+    </div>
+  </header>
+
+  <main class="admin-wrap">
+    <section class="admin-card">
+      <h2>People</h2>
+      <p>Everyone has their own login. When someone leaves, click <b>Disable</b>: they're logged out of every device at once and can't log in again.</p>
+      <div class="admin-table-wrap">
+        <table class="admin-table">
+          <thead><tr><th>Name</th><th>Username</th><th>Team</th><th>Status</th><th>Last login</th><th>Devices</th><th></th></tr></thead>
+          <tbody id="users"><tr><td colspan="7" class="muted">Loading…</td></tr></tbody>
+        </table>
+      </div>
+      <div class="admin-msg" id="usersMsg"></div>
+      <div class="temp-box" id="tempBox" hidden></div>
+    </section>
+
+    <section class="admin-card">
+      <h2>Add a person</h2>
+      <p>They get a temporary password (shown once). Give it to them in person. At their first login they choose their own password and link an authenticator app on their phone.</p>
+      <form class="admin-form" id="addForm">
+        <label>Name <input id="addName" required maxlength="60" placeholder="e.g. Sita Sharma" /></label>
+        <label>Username <input id="addUsername" required maxlength="60" autocapitalize="off" spellcheck="false" placeholder="e.g. sita" /></label>
+        <label>Team <select id="addRole" required></select></label>
+        <button class="btn btn-primary" type="submit">Add person</button>
+      </form>
+      <div class="admin-msg" id="addMsg"></div>
+    </section>
+
+    <section class="admin-card">
+      <h2>Logged-in devices</h2>
+      <p>Every device logged in right now. Logins end by themselves after 12 hours.</p>
+      <div class="admin-table-wrap">
+        <table class="admin-table">
+          <thead><tr><th>Person</th><th>Device</th><th>IP address</th><th>Logged in</th><th>Last active</th><th></th></tr></thead>
+          <tbody id="sessions"><tr><td colspan="6" class="muted">Loading…</td></tr></tbody>
+        </table>
+      </div>
+      <button class="btn btn-danger" type="button" id="endOthers" style="margin-top:10px">Log everyone else out</button>
+      <div class="admin-msg" id="sessionsMsg"></div>
+    </section>
+
+    <section class="admin-card">
+      <h2>Hidden-sheet password</h2>
+      <p>The password asked for before a hidden sheet is shown. Change it whenever someone who knew it leaves.</p>
+      <form class="admin-form" id="hiddenForm">
+        <label>New hidden-sheet password <input id="hiddenPw" type="password" minlength="6" required autocomplete="new-password" /></label>
+        <button class="btn" type="submit">Change password</button>
+      </form>
+      <div class="admin-msg" id="hiddenMsg"></div>
+    </section>
+  </main>
+
+<script src="session.js"></script>
+<script src="admin.js"></script>
+</body>
+</html>

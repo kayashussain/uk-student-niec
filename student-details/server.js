@@ -2,10 +2,9 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const {
-  sendJSON, send, SECURITY_HEADERS, createAuth, createActivityLog, createStaticServer, readJSONBody, writeFileAtomic,
-  snapshotDaily,
+  sendJSON, send, SECURITY_HEADERS, createActivityLog, createStaticServer, readJSONBody, writeFileAtomic, snapshotDaily,
 } = require('../shared/server-utils');
-const crypto = require('crypto');
+const { createAccounts } = require('../shared/accounts');
 const {
   blankWorkbook, ensureRowIds, migrateWorkbook, isValidWorkbook, mergeWorkbooks, createHistory, describeChanges,
 } = require('./workbook');
@@ -25,6 +24,8 @@ const serveStatic = createStaticServer(ROOT, {
   '/index.html': 'text/html; charset=utf-8',
   '/app.js': 'text/javascript; charset=utf-8',
   '/activity.js': 'text/javascript; charset=utf-8',
+  '/admin.html': 'text/html; charset=utf-8',
+  '/admin.js': 'text/javascript; charset=utf-8',
   '/calc.js': 'text/javascript; charset=utf-8',
   '/style.css': 'text/css; charset=utf-8',
   '/favicon.png': 'image/png',
@@ -43,13 +44,10 @@ const serveShared = createStaticServer(path.join(__dirname, '..', 'shared'), {
 // the Incentive app adds its changes too.
 const activity = createActivityLog(DATA_DIR);
 
-// Everything except the login page itself needs a login (see shared/server-utils.js). The cookie's
-// signing key lives next to the data, where the Incentive app reads it too.
-const { requireAuth, handleLogin, handleLogout, listAccounts } = createAuth({
-  secretDir: DATA_DIR,
-  onLogin: (req, user) => activity.record(req, user, 'Logged in'),
-  onLogout: (req, user) => activity.record(req, user, 'Logged out'),
-});
+// One account per person (see shared/accounts.js). Everything except the login page needs a login.
+// The account files live next to the data, where the Incentive app reads them too.
+const accounts = createAccounts({ dir: DATA_DIR, activity });
+const { requireAuth } = accounts;
 
 function recordChanges(req, before, after) {
   const changes = describeChanges(before, after);
@@ -202,15 +200,7 @@ function handleEvents(req, res) {
 setInterval(() => streams.forEach((res) => { try { res.write(': ping\n\n'); } catch (e) { /* ignore */ } }), 15000).unref();
 
 // Password for "View hidden sheet". Checked here rather than in the page, so it can't be read from
-// the page's code. Set HIDDEN_SHEET_PASSWORD to change it; otherwise this SHA-256 hash is used.
-const HIDDEN_SHEET_PASSWORD_HASH = process.env.HIDDEN_SHEET_PASSWORD
-  ? sha256(process.env.HIDDEN_SHEET_PASSWORD)
-  : '500de7ce06ac37c52b422c3a7e8662c27a56253faa2ac9bd875a95e7d08c2089';
-
-function sha256(s) {
-  return crypto.createHash('sha256').update(String(s)).digest('hex');
-}
-
+// the page's code. Admin changes it on the Users page (see accounts.hiddenPasswordMatches).
 async function handleUnlockHidden(req, res) {
   let body;
   try {
@@ -218,14 +208,14 @@ async function handleUnlockHidden(req, res) {
   } catch (e) {
     return sendJSON(res, e.statusCode || 400, { error: e.message });
   }
-  const ok = crypto.timingSafeEqual(
-    Buffer.from(sha256(String((body && body.password) || '').trim()), 'hex'),
-    Buffer.from(HIDDEN_SHEET_PASSWORD_HASH, 'hex'),
-  );
-  if (ok) {
+  if (!accounts.hasHiddenPassword()) {
+    return sendJSON(res, 409, { error: "Admin hasn't set a hidden-sheet password yet (Users page)." });
+  }
+  if (accounts.hiddenPasswordMatches(body && body.password)) {
     activity.record(req, req.user, 'Opened hidden sheets', { app: 'Student Details' });
     return sendJSON(res, 200, { ok: true });
   }
+  activity.record(req, req.user, 'Wrong hidden-sheet password', { app: 'Student Details' });
   // A short pause on a wrong guess makes trying many passwords slow.
   setTimeout(() => sendJSON(res, 403, { ok: false }), 800);
 }
@@ -252,21 +242,24 @@ try {
   console.error('[startup] could not read', DATA_FILE, '-', e.message);
 }
 
-const server = http.createServer((req, res) => {
+const server = http.createServer(async (req, res) => {
   try {
     const urlPath = req.url.split('?')[0];
     if (urlPath === '/login' && req.method === 'GET') {
       req.url = '/login.html';
       return serveShared(req, res);
     }
-    if (urlPath === '/api/login' && req.method === 'POST') return handleLogin(req, res);
-    if (urlPath === '/api/logout' && req.method === 'POST') return handleLogout(req, res);
-    if (urlPath === '/api/accounts' && req.method === 'GET') return sendJSON(res, 200, listAccounts());
     if (urlPath === '/favicon.png') return serveStatic(req, res);
+    // Logging in, the login steps, /api/me, and Admin's people/devices/settings.
+    if (await accounts.handleApi(req, res, urlPath)) return;
     if (!requireAuth(req, res)) return;
-    if (urlPath === '/api/me' && req.method === 'GET') return sendJSON(res, 200, req.user);
+    if (urlPath === '/admin' && req.method === 'GET') {
+      if (req.user.role !== 'admin') return send(res, 302, '', { Location: '/' });
+      req.url = '/admin.html';
+      return serveStatic(req, res);
+    }
     if (urlPath === '/api/activity' && req.method === 'GET') {
-      if (req.user.id !== 'admin') return sendJSON(res, 403, { error: 'Only Admin can see the activity.' });
+      if (req.user.role !== 'admin') return sendJSON(res, 403, { error: 'Only Admin can see the activity.' });
       return sendJSON(res, 200, activity.latest());
     }
     if (urlPath === '/api/events' && req.method === 'GET') return handleEvents(req, res);
