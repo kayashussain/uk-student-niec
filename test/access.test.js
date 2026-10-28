@@ -475,3 +475,43 @@ test('the dashboard lists only what is recorded: no "Not recorded" rows, and no 
   assert.deepStrictEqual(jan.courses, []);
   assert.ok(!JSON.stringify([sep, jan]).includes('Not recorded'));
 });
+
+// ---- branches ----
+
+test('a branch person sees and changes everything about their own branch students, and nothing of anyone elses', () => {
+  const src = 'STUDENT SOURCE';
+  const wb = () => ({ sheets: [
+    { id: 'sheet-1', name: 'Old', columns: [], rows: [{ _id: 'o', [S]: 'Inquiry', [src]: 'Chitwan Branch' }] },
+    { id: 'sheet-mjzzzzzzaaaaa', name: 'New', columns: [], rows: [
+      { _id: 'c1', [S]: 'Visa Issued', [src]: 'Chitwan Branch', 'GROSS FEE': '1000' },
+      { _id: 'c2', [S]: 'Mock Stage', [src]: 'Chitwan Branch' },
+      { _id: 'p1', [S]: 'Mock Stage', [src]: 'Pokhara Branch' },
+      { _id: 'v1', [S]: 'Inquiry', [src]: 'Visitor' },
+    ] },
+  ] });
+  const ch = { role: 'staff', departments: ['chitwan'] };
+  assert.deepStrictEqual(ids(Teams.viewFor(ch, wb())), ['c1', 'c2']); // the current intake, their branch, every stage
+  assert.strictEqual(Teams.teamOf(ch).readOnly, false);
+  assert.ok(Teams.canEdit(ch, 'GROSS FEE', { [src]: 'Chitwan Branch' }) && Teams.canEdit(ch, 'MOCK SCHEDULE 1', { [src]: 'Chitwan Branch' }));
+  assert.ok(!Teams.canEdit(ch, src, { [src]: 'Chitwan Branch' }), 'the source is what makes the student theirs');
+  assert.ok(!Teams.canEdit(ch, 'GROSS FEE', { [src]: 'Pokhara Branch' }));
+
+  const base = Teams.viewFor(ch, wb());
+  const copy = () => JSON.parse(JSON.stringify(base));
+  const edit = (id, col, value) => { const m = copy(); m.sheets[0].rows.find((r) => r._id === id)[col] = value; return Teams.teamChanges(ch, base, m); };
+  assert.deepStrictEqual(edit('c1', 'GROSS FEE', '2000').errors, []);
+  assert.deepStrictEqual(edit('c2', S, 'Payment Stage').errors, []);                 // any stage move
+  assert.deepStrictEqual(edit('c1', S, 'Inquiry').errors, []);
+  assert.ok(edit('c1', src, 'Pokhara Branch').errors.length, 'cannot hand a student to another branch');
+
+  const added = copy();
+  added.sheets[0].rows.push({ _id: 'n1', [S]: 'Inquiry', _addedByTeam: 'chitwan', 'FIRST NAME': 'Nabin', [src]: 'Pokhara Branch' });
+  const out = Teams.teamChanges(ch, base, added);
+  assert.deepStrictEqual(out.errors, []);
+  assert.strictEqual(out.adds[0].row[src], 'Chitwan Branch', 'a new student is always tagged with the branch');
+
+  const both = { role: 'staff', departments: ['pokhara', 'application'] };
+  assert.deepStrictEqual(ids(Teams.viewFor(both, wb())), ['p1']); // Pokhara students, plus Application Stage ones (none here)
+  assert.deepStrictEqual(Teams.addableDepartments(both), ['pokhara', 'application']);
+  assert.strictEqual(Teams.newStudentStatus(both, 'pokhara'), 'Inquiry');
+});
