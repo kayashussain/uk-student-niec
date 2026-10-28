@@ -23,7 +23,7 @@
   const BOTTOM_STATUSES = new Set(['Inquiry']);
   const isBottomRow = (row) => BOTTOM_STATUSES.has(row['APPLICATION STATUS']);
   const SOURCE_COL = 'STUDENT SOURCE';
-  const SOURCE_OPTIONS = ['Visitor', 'Reference', 'Branch', 'Agents', 'Events', 'Social Media'];
+  const SOURCE_OPTIONS = ['Visitor', 'Reference', 'Chitwan Branch', 'Pokhara Branch', 'Agents', 'Events', 'Social Media'];
   const SELECT_COLS = {
     'APPLICATION STATUS': [
       'Inquiry', 'Application Stage', 'Mock Stage', 'Payment Stage',
