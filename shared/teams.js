@@ -1,9 +1,9 @@
 // What each account sees and may change on Student Details.
 //
 //   Admin  sees and changes everything (the owner; nobody else can be given this).
-//   CEO    sees every student on the visible sheets, and can change nothing.
-//   Staff  work in one or more departments (Application, Mock, Follow-up, any mix). A person gets the
-//          students, the editable columns and the stage moves of every department they hold.
+//   Manager sees every student on every sheet (earlier intakes too), and can change nothing.
+//   Staff  work in one or more departments (Application, Mock, Follow-up, any mix), in the current (newest)
+//          intake only. A person gets the students, the editable columns and the stage moves of every department they hold.
 //
 // The page uses these rules to show the right students and lock the other cells; the server uses the
 // same rules to send each account only its students and to refuse any other change. Used by the page
@@ -66,23 +66,24 @@
   const isBlank = (v) => String(v ?? '').trim() === '';
   const label = (col) => col.toLowerCase().replace(/(^|\s)\S/g, (c) => c.toUpperCase());
 
-  // Normalises "who" into { role: 'admin' | 'ceo' | 'staff', departments: [known department names] }.
+  // Normalises "who" into { role: 'admin' | 'manager' | 'staff', departments: [known department names] }.
   function who(x) {
     if (!x) return { role: 'staff', departments: [] };
-    const role = typeof x === 'string' ? x : x.role;
-    if (role === 'admin' || role === 'ceo') return { role, departments: [] };
+    let role = typeof x === 'string' ? x : x.role;
+    if (role === 'ceo') role = 'manager'; // the Manager role was first called CEO
+    if (role === 'admin' || role === 'manager') return { role, departments: [] };
     const listed = typeof x === 'object' && Array.isArray(x.departments) ? x.departments : (DEPARTMENTS[role] ? [role] : []);
     return { role: 'staff', departments: [...new Set(listed.filter((d) => DEPARTMENTS[d]))] };
   }
 
   const isAdmin = (x) => who(x).role === 'admin';
-  const isReadOnly = (x) => who(x).role === 'ceo';
+  const isReadOnly = (x) => who(x).role === 'manager';
 
   // null for Admin (no limits); otherwise what this account may see and do.
   function teamOf(x) {
     const w = who(x);
     if (w.role === 'admin') return null;
-    if (w.role === 'ceo') return { role: 'ceo', readOnly: true, departments: [], statuses: null, editable: new Set() };
+    if (w.role === 'manager') return { role: 'manager', readOnly: true, departments: [], statuses: null, editable: new Set() };
     const depts = w.departments.map((d) => DEPARTMENTS[d]);
     return {
       role: 'staff',
@@ -101,7 +102,7 @@
 
   function seesRow(x, row) {
     const team = teamOf(x);
-    if (!team || !team.statuses) return true; // Admin and CEO see every student
+    if (!team || !team.statuses) return true; // Admin and Manager see every student
     return team.statuses.has(String((row && row[STATUS]) || '').trim());
   }
 
@@ -161,14 +162,29 @@
     return { ok: true };
   }
 
-  // The part of a workbook an account gets: Admin everything; the CEO every student on the visible
-  // sheets; staff their departments' students on the visible sheets.
+  // The most recently created sheet. Sheet ids start with their creation time (see makeSheetId on the
+  // page); older ids without one (like "sheet-1") count as oldest, and ties go to the sheet further right.
+  function newestSheet(list) {
+    const createdAt = (sheet) => {
+      const m = /^sheet-([0-9a-z]{8})/.exec(sheet.id);
+      return m ? parseInt(m[1], 36) : 0;
+    };
+    return list.reduce((best, sheet) => (!best || createdAt(sheet) >= createdAt(best) ? sheet : best), null);
+  }
+
+  // The part of a workbook an account gets. Admin: everything. Manager: every sheet (the earlier intakes
+  // too, hidden or not), all students, view only. Staff: only the current intake, which is the newest
+  // visible sheet, and only their departments' students in it. When a newer intake is started, the
+  // earlier one drops out of their view by itself.
   function viewFor(x, workbook) {
-    if (!teamOf(x)) return workbook;
+    const team = teamOf(x);
+    if (!team) return workbook;
+    if (team.readOnly) return { ...workbook, sheets: workbook.sheets.map((s) => ({ ...s, hidden: false })) };
+    const current = newestSheet(workbook.sheets.filter((s) => !s.hidden));
     return {
       ...workbook,
       sheets: workbook.sheets
-        .filter((s) => !s.hidden)
+        .filter((s) => s === current)
         .map((s) => ({ ...s, rows: s.rows.filter((r) => seesRow(x, r)) })),
     };
   }
@@ -235,6 +251,6 @@
   return {
     DEPARTMENTS, MOVES, STATUS, NEW_STUDENT_COLUMNS,
     who, isAdmin, isReadOnly, teamOf, viewKey, seesRow, canEdit, addableDepartments, newStudentStatus,
-    statusChoices, checkMove, viewFor, teamChanges,
+    statusChoices, checkMove, newestSheet, viewFor, teamChanges,
   };
 });

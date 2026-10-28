@@ -381,9 +381,6 @@ td.lang-test .date-input { width: auto; margin-left: 6px; }
 .lang-test-flag.expiring { background: var(--amber-bg); color: var(--amber-fg); }
 .lang-test-flag.expired { background: var(--red-bg); color: var(--red-fg); }
 
-/* Offer received a week or more ago but still before Payment Stage (see offerStuck in calc.js). */
-tr.offer-stuck-row td { background: #fff9c4 !important; color: #1c2126; }
-tbody tr.offer-stuck-row.row-picked td { background: var(--focus-strong) !important; }
 tr.defer-warning-row td { background: var(--red-bg) !important; }
 .defer-warning-flag {
   display: inline-block;
@@ -646,7 +643,6 @@ tr.defer-warning-row td { background: var(--red-bg) !important; }
 .legend > span { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
 .legend .key { width: 12px; height: 12px; border-radius: 3px; border: 1px solid var(--border-strong); display: inline-block; }
 .legend .key-calc { background: var(--focus-dim); }
-.legend .key-stuck { background: #fff9c4; }
 .legend .key-dup { background: #fff176; }
 .legend .key-defer { background: var(--red-bg); }
 
@@ -704,8 +700,8 @@ thead .filter-btn.active { color: var(--niec-orange); }
   .btn:hover { background: #173b4d; }
 }
 
-/* Exporting the whole sheet is for Admin only. */
-body:not([data-role="admin"]) #exportExcel { display: none; }
+/* Exporting the whole sheet is for Admin and the Manager only. */
+body:not([data-role="admin"]):not([data-role="manager"]) #exportExcel { display: none; }
 
 
 
@@ -713,9 +709,9 @@ body:not([data-role="admin"]) #exportExcel { display: none; }
 td.locked { color: var(--text-dim); cursor: default; }
 select.status-select:disabled { opacity: 0.85; cursor: default; }
 body:not([data-role]) #addRow,
-body[data-role="ceo"] #addRow,
-body[data-role="ceo"] #undoBtn,
-body[data-role="ceo"] #redoBtn,
+body[data-role="manager"] #addRow,
+body[data-role="manager"] #undoBtn,
+body[data-role="manager"] #redoBtn,
 body:not([data-role="admin"]) #delRow,
 body:not([data-role="admin"]) #addSheet,
 body:not([data-role="admin"]) #allSheetsBtn,
@@ -730,7 +726,7 @@ body:not([data-role="admin"]) .sheet-tab-menu-btn { display: none; }
   .legend { display: none; } /* the colour key needs room a phone doesn't have */
 }
 
-/* The CEO's view-only note, and the menu that asks which team a new student is for. */
+/* The Manager's view-only note, and the menu that asks which team a new student is for. */
 .view-only {
   padding: 3px 10px; border-radius: 999px; background: var(--niec-blue-tint); color: var(--niec-blue-text);
   font-size: 12px; font-weight: 600; white-space: nowrap;

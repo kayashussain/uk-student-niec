@@ -9,7 +9,6 @@
   const when = (iso) => new Date(iso).toLocaleString(undefined, {
     month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit',
   });
-  const TYPE_NAMES = { logins: 'Logins and logouts', changes: 'Changes to students', security: 'Security', accounts: 'People and settings' };
   let events = []; // what is on screen
   let total = 0;
   let loading = 0; // newest request wins
@@ -103,19 +102,18 @@
     load(false);
   }));
 
-  // The entries on screen, as a spreadsheet file.
-  $('download').addEventListener('click', () => {
-    const cell = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
-    const rows = [['Time', 'Person', 'Action', 'Type', 'Where', 'Device', 'IP address', 'Details']].concat(events.map((e) => [
-      e.time, e.account, e.action, TYPE_NAMES[e.category] || e.category, e.app || '', e.device, e.ip || '',
-      [e.note, ...(e.changes || [])].filter(Boolean).join(' | '),
-    ]));
-    const blob = new Blob(['﻿' + rows.map((r) => r.map(cell).join(',')).join('\r\n')], { type: 'text/csv;charset=utf-8' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = `niec-activity-${dateInput(new Date())}.csv`;
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  // Starts the record again from zero (Admin only). The server notes who cleared it as the first entry.
+  $('clear').addEventListener('click', async () => {
+    if (!confirm('Clear all saved activity? Every login and change on record is deleted and the record starts again from zero. This cannot be undone.')) return;
+    try {
+      const res = await fetch('/api/activity/clear', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.error || `Server error ${res.status}`);
+      $('fPerson').value = '';
+      load(false);
+    } catch (err) {
+      $('list').innerHTML = `<p class="muted">Could not clear the activity: ${esc(err.message)}</p>`;
+    }
   });
 
   load(false);

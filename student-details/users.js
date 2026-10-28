@@ -34,7 +34,7 @@
   }
 
   // ---- Access chooser (used when adding and when editing) ----
-  // Team member (one or more teams) or CEO. Admin is never offered.
+  // Team member (one or more teams) or Manager. Admin is never offered.
   function accessFields(name) {
     const depts = Object.entries(DEPARTMENTS).map(([id, d]) => `
       <label class="check"><input type="checkbox" name="${name}-dept" value="${id}"><span><b>${d.label}</b><small>${d.help}</small></span></label>`).join('');
@@ -43,7 +43,7 @@
         <legend>What can this person do?</legend>
         <label class="radio"><input type="radio" name="${name}-role" value="staff" checked><span><b>Work in one or more teams</b><small>Tick every team they work in. They see and change only those teams' students.</small></span></label>
         <div class="check-group" data-for="${name}">${depts}</div>
-        <label class="radio"><input type="radio" name="${name}-role" value="ceo"><span><b>CEO</b><small>Sees the dashboard and every student, view only. No Incentive page.</small></span></label>
+        <label class="radio"><input type="radio" name="${name}-role" value="manager"><span><b>Manager</b><small>Has their own dashboard and sees every student, view only. Can export to Excel. No Incentive page.</small></span></label>
       </fieldset>`;
   }
 
@@ -64,7 +64,7 @@
   });
 
   function setAccess(container, name, person) {
-    container.querySelector(`input[name="${name}-role"][value="${person.role === 'ceo' ? 'ceo' : 'staff'}"]`).checked = true;
+    container.querySelector(`input[name="${name}-role"][value="${person.role === 'manager' ? 'manager' : 'staff'}"]`).checked = true;
     container.querySelectorAll(`input[name="${name}-dept"]`).forEach((c) => { c.checked = (person.departments || []).includes(c.value); });
     container.querySelector(`input[name="${name}-role"]:checked`).dispatchEvent(new Event('change'));
   }
@@ -116,7 +116,7 @@
 
   function accessChips(u) {
     if (u.role === 'admin') return '<span class="chip chip-admin">Admin</span>';
-    if (u.role === 'ceo') return '<span class="chip chip-ceo">CEO</span>';
+    if (u.role === 'manager') return '<span class="chip chip-manager">Manager</span>';
     return (u.departments || []).map((d) => `<span class="chip chip-${d}">${esc(DEPARTMENTS[d].label)}</span>`).join('') || '<span class="muted">No team</span>';
   }
 
@@ -141,7 +141,8 @@
           <button class="btn btn-sm" data-act="logout-everywhere" data-id="${u.id}">Log out everywhere</button>
           ${u.disabled
     ? `<button class="btn btn-sm" data-act="enable" data-id="${u.id}">Enable</button>`
-    : `<button class="btn btn-sm btn-danger" data-act="disable" data-id="${u.id}">Disable</button>`}
+    : `<button class="btn btn-sm" data-act="disable" data-id="${u.id}">Disable</button>`}
+          <button class="btn btn-sm btn-danger" data-act="remove" data-id="${u.id}">Remove</button>
         </div>`;
       return `<tr class="${u.disabled ? 'is-disabled' : ''}">
         <td><div class="who"><span class="avatar" aria-hidden="true">${esc(initials(u.name))}</span><div><b>${esc(u.name)}</b><span>${esc(u.username)}${u.email ? ' &middot; ' + esc(u.email) : ''}</span></div></div></td>
@@ -155,6 +156,7 @@
   }
 
   const CONFIRM = {
+    remove: (n) => `Remove ${n} from the team? Their login is deleted and they are logged out everywhere. Their username and password will not work again. This cannot be undone.`,
     disable: (n) => `Disable ${n}? They are logged out of every device now and cannot log in again until enabled.`,
     'reset-password': (n, p) => (p.email
       ? `Email ${n} a new temporary password? Their current password stops working and they are logged out.`
@@ -176,7 +178,7 @@
     try {
       const result = await api(`/api/users/${person.id}`, { action: btn.dataset.act });
       if (btn.dataset.act === 'reset-password') showSetupResult(person.name, result);
-      else message('usersMsg', 'Done.');
+      else message('usersMsg', btn.dataset.act === 'remove' ? `${person.name} was removed.` : 'Done.');
     } catch (err) {
       message('usersMsg', err.message, true);
     }

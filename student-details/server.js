@@ -99,8 +99,8 @@ function writeWorkbook(workbook) {
   broadcast();
 }
 
-// What each account sees: Admin the whole workbook, the CEO every student on the visible sheets, staff
-// only their departments' students (shared/teams.js). Accounts with the same access share one view.
+// What each account sees: Admin the whole workbook, the Manager every sheet (view only), staff the current intake and
+// only their departments' students in it (shared/teams.js). Accounts with the same access share one view.
 
 // What GET /api/data sends, made once per revision and view (as text and gzip-compressed), not per request.
 const served = new Map(); // view -> { json, gz }
@@ -134,12 +134,11 @@ function servedPatch(user, since) {
 // the same access, and cheap to hold).
 const dashboards = new Map();
 function servedDashboard(user, intake) {
-  const key = `${isAdmin(user) ? 'admin' : 'ceo'}:${intake}`;
+  const key = `all:${intake}`; // Admin and the Manager see the same numbers, earlier intakes included
   const hit = dashboards.get(key);
   if (hit && hit.revision === current.revision && Date.now() - hit.at < 60000) return hit.json;
   if (dashboards.size > 200) dashboards.clear();
-  // Admin's totals include hidden sheets; the CEO's do not, like the student list.
-  const json = JSON.stringify(buildDashboard(current, { sheetId: intake, includeHidden: isAdmin(user) }));
+  const json = JSON.stringify(buildDashboard(current, { sheetId: intake, includeHidden: true }));
   dashboards.set(key, { revision: current.revision, at: Date.now(), json });
   return json;
 }
@@ -392,11 +391,11 @@ const server = http.createServer(async (req, res) => {
     if (await accounts.handleApi(req, res, urlPath)) return;
     if (!requireAuth(req, res)) return;
 
-    // The pages. The CEO lands on the dashboard; Admin-only pages send anyone else back home.
-    const home = req.user.role === 'ceo' ? '/dashboard' : '/students';
+    // The pages. The Manager lands on the dashboard; Admin-only pages send anyone else back home.
+    const home = req.user.role === 'manager' ? '/dashboard' : '/students';
     if (req.method === 'GET') {
       const page = { '/students': 'index.html', '/dashboard': 'dashboard.html', '/users': 'users.html', '/activity': 'activity.html' }[urlPath];
-      if (urlPath === '/') return req.user.role === 'ceo' ? send(res, 302, '', { Location: '/dashboard' }) : serveStatic(req, res);
+      if (urlPath === '/') return req.user.role === 'manager' ? send(res, 302, '', { Location: '/dashboard' }) : serveStatic(req, res);
       if (urlPath === '/admin') return send(res, 302, '', { Location: isAdmin(req.user) ? '/users' : home }); // the old address
       if (page) {
         const allowed = urlPath === '/students' || (urlPath === '/dashboard' ? (isAdmin(req.user) || isReadOnly(req.user)) : isAdmin(req.user));
@@ -406,7 +405,7 @@ const server = http.createServer(async (req, res) => {
       }
     }
     if (urlPath === '/api/dashboard' && req.method === 'GET') {
-      if (!isAdmin(req.user) && !isReadOnly(req.user)) return sendJSON(res, 403, { error: 'The dashboard is for Admin and the CEO.' });
+      if (!isAdmin(req.user) && !isReadOnly(req.user)) return sendJSON(res, 403, { error: 'The dashboard is for Admin and the Manager.' });
       if (!current) return sendJSON(res, 500, { error: 'Could not read the data file' });
       const intake = new URL(req.url, 'http://x').searchParams.get('intake') || 'all';
       return send(res, 200, servedDashboard(req.user, intake), JSON_HEADERS);
@@ -419,6 +418,12 @@ const server = http.createServer(async (req, res) => {
         account: q.get('account') || '', category: q.get('category') || '', from: q.get('from') || '', to: q.get('to') || '',
         q: (q.get('q') || '').slice(0, 100), limit: Math.min(Math.max(num('limit', 100), 1), 500), offset: Math.max(num('offset', 0), 0),
       }));
+    }
+    if (urlPath === '/api/activity/clear' && req.method === 'POST') {
+      if (!isAdmin(req.user)) return sendJSON(res, 403, { error: 'Only Admin can clear the activity.' });
+      activity.clear();
+      activity.record(req, req.user, 'Cleared activity', { changes: ['Deleted the saved activity; the record starts again from here'] });
+      return sendJSON(res, 200, { ok: true });
     }
     if (urlPath === '/api/events' && req.method === 'GET') return handleEvents(req, res);
     if (urlPath === '/api/presence') {

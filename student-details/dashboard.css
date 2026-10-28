@@ -67,6 +67,8 @@ body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.45 syst
 
 .grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin-bottom: 16px; }
 .grid-3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.grid-2 > .card { min-width: 0; }
+section.grid-2:last-of-type { margin-bottom: 0; }
 figcaption { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; padding: 16px 18px 6px; }
 figcaption h2 { margin: 0; font-size: 15px; }
 figcaption p { margin: 2px 0 0; font-size: 12px; color: var(--ink-3); }
@@ -124,3 +126,19 @@ table.data tr:last-child td { border-bottom: none; }
   .grid-2, .grid-3 { grid-template-columns: 1fr; }
   .hero-value { font-size: 52px; }
 }
+
+/* Money row, looking ahead, needs attention, notes */
+.kpis-money { margin-bottom: 16px; }
+.kpis-money .kpi { border-left: 4px solid var(--s3); }
+.alerts { display: flex; flex-direction: column; gap: 8px; }
+.alerts .alert { align-items: center; }
+.fc-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px; margin-top: 4px; }
+.fc { display: flex; flex-direction: column; gap: 2px; padding: 12px 14px; border-radius: 12px; background: var(--bg); }
+.fc-label { font-size: 12px; font-weight: 600; color: var(--ink-2); }
+.fc-value { font-size: 28px; font-weight: 700; line-height: 1.15; }
+.method { margin: 12px 0 0; font-size: 12px; color: var(--ink-3); }
+details.rates { margin-top: 10px; font-size: 13px; }
+details.rates summary { cursor: pointer; color: var(--brand-text); font-weight: 600; padding: 4px 0; }
+.notes { margin: 18px 2px 0; font-size: 12px; color: var(--ink-3); max-width: 90ch; }
+.notes:empty { display: none; }
+#attention table.data td { white-space: normal; }

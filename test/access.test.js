@@ -55,7 +55,7 @@ async function setUp({ mailer = fakeMailer(), clock = { t: Date.parse('2026-10-2
   return { dir, accounts, admin: b, mailer, clock };
 }
 
-// ---- access: departments, CEO, never Admin ----
+// ---- access: departments, Manager, never Admin ----
 
 test('one person can work in several teams, and Admin can never be given', async () => {
   const { admin } = await setUp();
@@ -66,9 +66,9 @@ test('one person can work in several teams, and Admin can never be given', async
   assert.strictEqual((await admin.call('POST', '/api/users', { name: 'X', username: 'xxx', role: 'admin' })).status, 400);
   assert.strictEqual((await admin.call('POST', '/api/users', { name: 'X', username: 'xxx', role: 'staff', departments: [] })).status, 400);
   assert.strictEqual((await admin.call('POST', '/api/users', { name: 'X', username: 'xxx', role: 'staff', departments: ['finance'] })).status, 400);
-  const ceo = await admin.call('POST', '/api/users', { name: 'Chief', username: 'chief', role: 'ceo' });
-  assert.strictEqual(ceo.json.user.accessLabel, 'CEO');
-  assert.deepStrictEqual(ceo.json.user.departments, []);
+  const manager = await admin.call('POST', '/api/users', { name: 'Chief', username: 'chief', role: 'manager' });
+  assert.strictEqual(manager.json.user.accessLabel, 'Manager');
+  assert.deepStrictEqual(manager.json.user.departments, []);
 });
 
 test('access can be changed later, never to Admin, and the Admin account itself is untouchable', async () => {
@@ -99,8 +99,8 @@ test('accounts saved with one team as their role become staff in that team', asy
 
 test('usernames are not case sensitive, when adding and when logging in', async () => {
   const { accounts, admin, clock } = await setUp();
-  assert.strictEqual((await admin.call('POST', '/api/users', { name: 'Pema', username: 'PEMA.Lama', role: 'ceo' })).json.user.username, 'pema.lama');
-  assert.strictEqual((await admin.call('POST', '/api/users', { name: 'Dup', username: 'pema.LAMA', role: 'ceo' })).status, 409);
+  assert.strictEqual((await admin.call('POST', '/api/users', { name: 'Pema', username: 'PEMA.Lama', role: 'manager' })).json.user.username, 'pema.lama');
+  assert.strictEqual((await admin.call('POST', '/api/users', { name: 'Dup', username: 'pema.LAMA', role: 'manager' })).status, 409);
   const again = browser(accounts);
   assert.strictEqual((await again.call('POST', '/api/login', { username: ' KAYAS ', password: 'a long admin password' })).json.stage, 'code');
   void clock;
@@ -131,15 +131,15 @@ test('adding a person emails their login details, and the password is not shown 
 test('when the email cannot be sent, Admin gets the temporary password and the reason', async () => {
   const failing = fakeMailer({ fail: 'The mail server refused the username or password.' });
   const { admin, dir } = await setUp({ mailer: failing });
-  let r = await admin.call('POST', '/api/users', { name: 'A', username: 'aaa', email: 'a@x.org', role: 'ceo' });
+  let r = await admin.call('POST', '/api/users', { name: 'A', username: 'aaa', email: 'a@x.org', role: 'manager' });
   assert.strictEqual(r.json.email.status, 'not-configured'); // no mail server saved yet
   assert.ok(r.json.temporaryPassword);
   await admin.call('POST', '/api/settings/email', { host: 'smtp.example.org', port: 587, security: 'starttls', from: 'system@niecedu.com.np' });
-  r = await admin.call('POST', '/api/users', { name: 'B', username: 'bbb', email: 'b@x.org', role: 'ceo' });
+  r = await admin.call('POST', '/api/users', { name: 'B', username: 'bbb', email: 'b@x.org', role: 'manager' });
   assert.strictEqual(r.json.email.status, 'failed');
   assert.match(r.json.email.error, /refused the username/);
   assert.ok(r.json.temporaryPassword);
-  r = await admin.call('POST', '/api/users', { name: 'C', username: 'ccc', role: 'ceo' });
+  r = await admin.call('POST', '/api/users', { name: 'C', username: 'ccc', role: 'manager' });
   assert.strictEqual(r.json.email.status, 'no-address');
   // A mail password is never sent back to a page.
   await admin.call('POST', '/api/settings/email', { host: 'smtp.example.org', port: 587, security: 'starttls', pass: 'hunter2 hunter2', from: 'system@niecedu.com.np' });
@@ -196,7 +196,7 @@ test('the mail client logs in, sends a UTF-8 message and dot-stuffs it', async (
   const want = Buffer.from('\0mailer\0pw').toString('base64');
   const { server, port, received } = await smtpServer({ authOk: (l) => l === `AUTH PLAIN ${want}` });
   try {
-    const mail = setupEmail({ name: 'Sita र', username: 'sita', temporaryPassword: 'abc', access: 'CEO', siteUrl: 'https://x.org' });
+    const mail = setupEmail({ name: 'Sita र', username: 'sita', temporaryPassword: 'abc', access: 'Manager', siteUrl: 'https://x.org' });
     await sendMail({ host: '127.0.0.1', port, security: 'none', user: 'mailer', pass: 'pw', from: 'system@niecedu.com.np', fromName: 'UK Student NIEC' }, { to: 'sita@x.org', ...mail });
     assert.deepStrictEqual(received.commands.slice(0, 5), ['EHLO niecedu.com.np', 'AUTH PLAIN <hidden>', 'MAIL FROM:<system@niecedu.com.np>', 'RCPT TO:<sita@x.org>', 'DATA']);
     assert.match(received.data, /Subject: Set up your UK Student NIEC account/);
@@ -236,16 +236,17 @@ test('someone in two teams sees both teams students and may use both teams moves
   assert.strictEqual(Teams.viewKey({ role: 'staff', departments: ['mock', 'application'] }), Teams.viewKey(both));
 });
 
-test('the CEO sees every student on visible sheets and can change nothing', () => {
-  const ceo = { role: 'ceo', departments: [] };
-  assert.deepStrictEqual(ids(Teams.viewFor(ceo, book())), ['1', '2', '3', '4']);
-  assert.ok(!Teams.canEdit(ceo, 'REMARKS'));
-  assert.deepStrictEqual(Teams.statusChoices(ceo, 'Mock Stage', []), ['Mock Stage']);
-  assert.ok(!Teams.checkMove(ceo, { [S]: 'Mock Stage' }, 'Payment Stage').ok);
-  const view = Teams.viewFor(ceo, book());
+test('the Manager sees every student on every sheet, hidden or earlier, and can change nothing', () => {
+  const manager = { role: 'manager', departments: [] };
+  assert.deepStrictEqual(ids(Teams.viewFor(manager, book())), ['1', '2', '3', '4', '5']);
+  assert.ok(Teams.viewFor(manager, book()).sheets.every((s) => !s.hidden), 'no sheet is hidden from the Manager');
+  assert.ok(!Teams.canEdit(manager, 'REMARKS'));
+  assert.deepStrictEqual(Teams.statusChoices(manager, 'Mock Stage', []), ['Mock Stage']);
+  assert.ok(!Teams.checkMove(manager, { [S]: 'Mock Stage' }, 'Payment Stage').ok);
+  const view = Teams.viewFor(manager, book());
   const edited = JSON.parse(JSON.stringify(view));
   edited.sheets[0].rows[0].REMARKS = 'x';
-  assert.match(Teams.teamChanges(ceo, view, edited).errors[0], /only view/);
+  assert.match(Teams.teamChanges(manager, view, edited).errors[0], /only view/);
 });
 
 test('a person in several teams says which team a new student is for', () => {
@@ -282,7 +283,7 @@ test('the dashboard counts students, milestones, months and groups', () => {
   assert.strictEqual(d.kpis.depositsGbp, 1500);
   assert.strictEqual(d.kpis.visaIssued, 1);
   assert.strictEqual(d.kpis.conversionRate, 33.3);
-  assert.strictEqual(d.kpis.mockStageUnscheduled, 1);
+  assert.deepStrictEqual(d.attention.map((a) => [a.key, a.count]), [['mockUnscheduled', 1]]);
   assert.deepStrictEqual(d.stages.find((s) => s.label === 'Mock Stage'), { label: 'Mock Stage', count: 1 });
   assert.strictEqual(d.left.find((s) => s.label === 'Defer').count, 1);
   assert.deepStrictEqual(d.monthly.months.slice(-3), ['2026-08', '2026-09', '2026-10']);
@@ -290,9 +291,31 @@ test('the dashboard counts students, milestones, months and groups', () => {
   assert.deepStrictEqual(d.monthly.series[1].values.slice(-3), [0, 1, 0]); // payments, entered as 9/5/2026 (month first)
   assert.strictEqual(d.partners[0].label, 'Navitas');
   assert.strictEqual(d.partners[0].visas, 1);
-  assert.deepStrictEqual(d.intakes.map((i) => i.id), ['a']); // the CEO's view leaves the hidden sheet out
+  assert.deepStrictEqual(d.intakes.map((i) => i.id), ['a']); // hidden sheets are left out unless asked for
   assert.strictEqual(buildDashboard(wb, { today, includeHidden: true }).kpis.students, 4);
   assert.strictEqual(buildDashboard(wb, { today, sheetId: 'zzz' }).selected, 'all'); // unknown intake falls back to all
+});
+
+test('the dashboard never shows a visa without the steps before it, and says how many were filled in this way', () => {
+  const row = (extra) => ({ _id: Math.random().toString(36), 'FIRST NAME': 'A', 'LAST NAME': 'B', ...extra });
+  const wb = { sheets: [
+    { id: 'sep', name: 'Sep Intake 2026', hidden: true, rows: [
+      // built before the columns were tracked: only the status was entered
+      ...Array.from({ length: 5 }, () => row({ [S]: 'Visa Issued' })),
+      row({ [S]: 'Visa Rejected' }), row({ [S]: 'Payment Stage' }), row({ [S]: 'Withdrawn' }),
+    ] },
+    { id: 'jan', name: 'Jan Intake 2027', rows: [row({ [S]: 'Application Stage', 'APPLICATION SUBMISSION DATE': '2026-10-01' }), row({ [S]: 'Inquiry' })] },
+  ] };
+  const d = buildDashboard(wb, { includeHidden: true, sheetId: 'sep', today: new Date('2026-10-28T00:00:00') });
+  const by = Object.fromEntries(d.milestones.map((m) => [m.key, m.count]));
+  assert.deepStrictEqual([by.students, by.applied, by.offer, by.mock, by.paid, by.cas, by.lodged, by.visa], [8, 7, 7, 7, 7, 6, 6, 5]);
+  d.milestones.forEach((m, i) => { if (i) assert.ok(m.count <= d.milestones[i - 1].count, `${m.label} is no more than the step before`); });
+  assert.strictEqual(d.quality.filledFromStage, 7);
+  assert.strictEqual(d.kpis.visaSuccessRate, 83.3); // 5 issued, 1 rejected
+  assert.deepStrictEqual(d.intakes.map((i) => i.name), ['Sep Intake 2026', 'Jan Intake 2027']);
+  assert.strictEqual(d.intakeCompare.length, 2); // the earlier intake stays comparable
+  assert.ok(d.forecast.expectedVisas >= 5);
+  assert.ok(buildDashboard(wb, { includeHidden: true }).kpis.students === 10);
 });
 
 // ---- the activity record ----
@@ -317,5 +340,83 @@ test('the activity record filters by person, type, dates and words, and counts t
   assert.strictEqual(log.query({ from: new Date(Date.now() + 3600e3).toISOString() }).total, 0);
   assert.strictEqual(log.query({ limit: 2, offset: 3 }).events.length, 1);
   assert.deepStrictEqual(all.summary.today, { logins: 1, failedLogins: 2, changes: 1, people: 2 });
-  assert.deepStrictEqual(all.people, ['Ram (Follow-up Team)', 'Sita (Mock Team)', 'Unknown']);
+  assert.deepStrictEqual(all.people, ['Ram (Follow-up Team)', 'Sita (Mock Team)']);
+});
+
+// ---- removing a person, the older CEO role, clearing the activity ----
+
+test('removing a person deletes their login: they are logged out and cannot log in again', async () => {
+  const { admin, accounts, clock } = await setUp();
+  const made = await admin.call('POST', '/api/users', { name: 'Leaver', username: 'leaver', role: 'staff', departments: ['mock'] });
+  const temp = made.json.temporaryPassword;
+  const her = browser(accounts);
+  await her.call('POST', '/api/login', { username: 'leaver', password: temp });
+  await her.call('POST', '/api/login/new-password', { password: 'my own long password' });
+  const { secret } = (await her.call('POST', '/api/login/authenticator', {})).json;
+  await her.call('POST', '/api/login/authenticator', { code: codeFor(secret, clock.t) });
+  assert.strictEqual((await her.call('GET', '/api/me')).status, 200);
+
+  const id = made.json.user.id;
+  assert.strictEqual((await admin.call('POST', `/api/users/${id}`, { action: 'remove' })).status, 200);
+  assert.notStrictEqual((await her.call('GET', '/api/me')).status, 200, 'her open session is ended');
+  const again = await browser(accounts).call('POST', '/api/login', { username: 'leaver', password: 'my own long password' });
+  assert.strictEqual(again.status, 401);
+  assert.ok(!(await admin.call('GET', '/api/users')).json.some((u) => u.username === 'leaver'));
+  // The Admin account and one's own account cannot be removed.
+  const people = (await admin.call('GET', '/api/users')).json;
+  const owner = people.find((u) => u.role === 'admin');
+  assert.strictEqual((await admin.call('POST', `/api/users/${owner.id}`, { action: 'remove' })).status, 400);
+});
+
+test('an account saved with the older CEO role is a Manager now', async () => {
+  const { admin, dir, accounts } = await setUp();
+  const made = await admin.call('POST', '/api/users', { name: 'Old', username: 'oldceo', role: 'manager' });
+  const file = path.join(dir, 'users.json');
+  const saved = JSON.parse(fs.readFileSync(file, 'utf8'));
+  saved.users.find((u) => u.username === 'oldceo').role = 'ceo';
+  fs.writeFileSync(file, JSON.stringify(saved));
+  const fresh = createAccounts({ dir, activity: createActivityLog(dir) });
+  const b = browser(fresh);
+  await b.call('POST', '/api/login', { username: 'kayas', password: 'a long admin password' }); // reads the file anew
+  assert.strictEqual(made.json.user.roleLabel, 'Manager');
+  assert.strictEqual(Teams.teamOf({ role: 'ceo' }).role, 'manager');
+});
+
+test('clearing the activity empties the record, and failed logins by unknown names are not a person to filter by', () => {
+  const dir = tmpDir();
+  const log = createActivityLog(dir);
+  const req = { headers: { 'user-agent': 'Chrome/120 Windows' }, socket: { remoteAddress: '203.0.113.9' } };
+  log.record(req, null, 'Failed login', { note: 'wrong username or password' });
+  log.record(req, { id: 'a', label: 'Ram (Mock Team)' }, 'Logged in');
+  const before = log.query({});
+  assert.strictEqual(before.total, 2);
+  assert.deepStrictEqual(before.people, ['Ram (Mock Team)']);
+  log.clear();
+  assert.strictEqual(log.query({}).total, 0);
+  log.record(req, { id: 'a', label: 'Ram (Mock Team)' }, 'Logged in');
+  assert.strictEqual(log.query({}).total, 1);
+});
+
+test('teams only see the newest intake, and an older one drops away when a newer sheet is made', () => {
+  const rows = (id) => [{ _id: id, [S]: 'Application Stage' }];
+  const book2 = () => ({ sheets: [
+    { id: 'sheet-1', name: 'Sep Intake 2026', hidden: true, columns: [], rows: rows('old') },
+    { id: 'sheet-mjzzzzzzaaaaa', name: 'Jan Intake 2027', columns: [], rows: rows('jan') },
+  ] });
+  const staff = { role: 'staff', departments: ['application'] };
+  assert.deepStrictEqual(ids(Teams.viewFor(staff, book2())), ['jan']);
+  const later = book2();
+  later.sheets.push({ id: 'sheet-mk000000bbbbb', name: 'May Intake 2027', columns: [], rows: rows('may') });
+  assert.deepStrictEqual(ids(Teams.viewFor(staff, later)), ['may']);
+  assert.deepStrictEqual(ids(Teams.viewFor({ role: 'manager' }, later)), ['old', 'jan', 'may']);
+  assert.deepStrictEqual(ids(Teams.viewFor({ role: 'admin' }, later)), ['old', 'jan', 'may']);
+});
+
+test('the 3rd installment is taken off the remaining tuition fee, and old sheets get the column', () => {
+  const { remainingTuitionFee } = require('../student-details/calc');
+  const row = { 'FEE AFTER SCHOLARSHIP': '10000', 'TUITION FEE DEPOSIT(1st Installment)': '3000', 'TUITION FEE DEPOSIT(2nd Installment)': '2000', 'TUITION FEE DEPOSIT(3rd Installment)': '1500' };
+  assert.strictEqual(remainingTuitionFee(row), 3500);
+  const { migrateWorkbook } = require('../student-details/workbook');
+  const wb = migrateWorkbook({ revision: 1, activeSheetId: 's', sheets: [{ id: 's', name: 'Old', columns: ['FIRST NAME', 'TUITION FEE DEPOSIT(2nd Installment)', 'REMAINING TUITION FEE'], rows: [] }] });
+  assert.deepStrictEqual(wb.sheets[0].columns.slice(-3), ['TUITION FEE DEPOSIT(2nd Installment)', 'TUITION FEE DEPOSIT(3rd Installment)', 'REMAINING TUITION FEE']);
 });

@@ -138,6 +138,12 @@ function createActivityLog(dir) {
     return parsed;
   }
 
+  // Deletes the whole record; the next entry (who cleared it) starts it again.
+  function clear() {
+    try { fs.writeFileSync(file, ''); } catch (e) { console.error('[activity]', e.message); }
+    cache = null;
+  }
+
   // The newest `limit` entries, newest first.
   function latest(limit = 2000) {
     return events().slice(-limit).reverse();
@@ -164,7 +170,7 @@ function createActivityLog(dir) {
     return {
       total: matches.length,
       events: matches.slice(offset, offset + limit),
-      people: [...new Set(all.map((e) => e.account))].sort(),
+      people: [...new Set(all.map((e) => e.account))].filter((a) => a !== 'Unknown').sort(), // not the failed logins by names nobody has
       summary: summarize(all),
     };
   }
@@ -199,7 +205,7 @@ function createActivityLog(dir) {
     return out;
   }
 
-  return { record, latest, query };
+  return { record, latest, query, clear };
 }
 
 // Serves only the files listed in publicFiles ({ '/name': contentType }), so data files and server

@@ -16,7 +16,7 @@ const DEFAULT_COLUMNS = [
   'MOCK SCHEDULE 3', 'FEEDBACK 3', 'MOCK SCHEDULE 4', 'FEEDBACK 4',
   'PRE CAS INTERVIEW', 'MEDICAL REPORT', 'GROSS FEE', 'SCHOLARSHIP', 'FEE AFTER SCHOLARSHIP',
   'EARLY BIRD DISCOUNT', 'ADDITIONAL DISCOUNT', 'TUITION FEE DEPOSIT(1st Installment)',
-  'TUITION FEE DEPOSIT(2nd Installment)', 'REMAINING TUITION FEE', 'PAYMENT DATE', 'CAS REQUESTED DATE',
+  'TUITION FEE DEPOSIT(2nd Installment)', 'TUITION FEE DEPOSIT(3rd Installment)', 'REMAINING TUITION FEE', 'PAYMENT DATE', 'CAS REQUESTED DATE',
   'CAS RECEIVED DATE', 'VISA LODGE DATE', 'VFS ATTENDED DATE', 'VISA RECEIVED DATE',
   'E-VISA', 'UK CONTACT NUMBER',
 ];
@@ -78,6 +78,7 @@ const AFTER_LANGUAGE_TEST_COLUMNS = [
   'STUDENT ID', 'NOC', 'NOC NUMBER', ...MOCK_SCHEDULE_COLUMNS, 'PRE CAS INTERVIEW', 'MEDICAL REPORT',
 ];
 const COLUMN_ORDER_VERSION = 2;
+const THIRD_INSTALLMENT = 'TUITION FEE DEPOSIT(3rd Installment)';
 
 function addMissingColumns(workbook) {
   (workbook.sheets || []).forEach((sheet) => {
@@ -107,6 +108,11 @@ function addMissingColumns(workbook) {
       if (i === -1) sheet.columns.splice(at, 0, name);
       at = (i === -1 ? at : i) + 1;
     });
+    // Sheets saved before the 3rd installment existed get it right after the 2nd.
+    if (!sheet.columns.includes(THIRD_INSTALLMENT)) {
+      const second = sheet.columns.indexOf('TUITION FEE DEPOSIT(2nd Installment)');
+      if (second !== -1) sheet.columns.splice(second + 1, 0, THIRD_INSTALLMENT);
+    }
     if ((sheet.columnOrderVersion || 0) < COLUMN_ORDER_VERSION) {
       const anchor = sheet.columns.includes('LANGUAGE TEST DATE') ? 'LANGUAGE TEST DATE' : 'STUDENT ID';
       const block = AFTER_LANGUAGE_TEST_COLUMNS.filter((c) => c !== anchor && sheet.columns.includes(c));

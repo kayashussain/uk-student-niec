@@ -74,18 +74,18 @@
     container.append(list);
   }
 
-  function table(container, headers, rows) {
+  function table(container, headers, rows, plain = false) {
     const wrap = el('div', 'scroll-x');
     const t = el('table', 'data');
     const head = el('tr');
-    headers.forEach((h, i) => head.append(el('th', i ? 'num' : '', h)));
+    headers.forEach((h, i) => head.append(el('th', i && !plain ? 'num' : '', h)));
     const thead = el('thead');
     thead.append(head);
     t.append(thead);
     const body = el('tbody');
     rows.forEach((r) => {
       const tr = el('tr');
-      r.forEach((cell, i) => tr.append(el('td', i ? 'num' : '', cell)));
+      r.forEach((cell, i) => tr.append(el('td', i && !plain ? 'num' : '', cell)));
       body.append(tr);
     });
     t.append(body);
@@ -96,40 +96,107 @@
   const empty = (container, text) => container.append(el('p', 'empty', text));
 
   // ---- the headline numbers ----
-  function renderKpis(d) {
-    const k = d.kpis;
-    $('heroValue').textContent = num(k.students);
-    $('heroSub').textContent = d.selected === 'all'
-      ? `Across ${d.intakes.length} intake${d.intakes.length === 1 ? '' : 's'}`
-      : (d.intakes.find((i) => i.id === d.selected) || {}).name || '';
-    const tiles = [
-      ['Applications submitted', num(k.applicationsSubmitted), `${pct(k.applicationsSubmitted, k.students)} of students`],
-      ['Offers received', num(k.offersReceived), `${pct(k.offersReceived, k.students)} of students`],
-      ['Mock interviews held', num(k.mocksHeld), `${num(k.mockInterviews)} interviews in total`],
-      ['Payments made', num(k.paymentsMade), `£${compact(k.depositsGbp)} in tuition deposits`],
-      ['Visas issued', num(k.visaIssued), `${k.conversionRate}% of students`],
-    ];
-    $('kpis').replaceChildren(...tiles.map(([label, value, sub]) => {
+  const gbp = (v) => (v === null || v === undefined ? 'n/a' : `£${num(v)}`);
+  const rate = (v) => (v === null || v === undefined ? 'n/a' : `${v}%`);
+  function tiles(container, list) {
+    container.replaceChildren(...list.map(([label, value, sub]) => {
       const t = el('div', 'kpi');
       t.append(el('span', 'kpi-label', label), el('span', 'kpi-value', value), el('span', 'kpi-sub', sub));
       return t;
     }));
   }
 
-  function renderAttention(d) {
+  function renderKpis(d) {
     const k = d.kpis;
-    const rejected = (d.left.find((l) => l.label === 'Visa Rejected') || {}).count || 0;
-    const items = [
-      [k.offersWaiting, 'offers received over a week ago, student not yet at Payment Stage'],
-      [k.mockStageUnscheduled, 'students at Mock Stage with no mock interview scheduled'],
-      [k.preCasFailed, 'students who failed the Pre-CAS interview'],
-      [rejected, 'visa applications rejected'],
-    ].filter(([count]) => count > 0);
-    $('attention').replaceChildren(...(items.length ? items.map(([count, text]) => {
+    const m = d.money;
+    $('heroValue').textContent = num(k.students);
+    $('heroSub').textContent = d.selected === 'all'
+      ? `Across ${d.intakes.length} intake${d.intakes.length === 1 ? '' : 's'}`
+      : (d.intakes.find((i) => i.id === d.selected) || {}).name || '';
+    tiles($('kpis'), [
+      ['Applications submitted', num(k.applicationsSubmitted), `${pct(k.applicationsSubmitted, k.students)} of students`],
+      ['Offers received', num(k.offersReceived), `${pct(k.offersReceived, k.students)} of students`],
+      ['Mock interviews held', num(k.mocksHeld), `${num(k.mockInterviews)} interviews in total`],
+      ['Payments made', num(k.paymentsMade), `${pct(k.paymentsMade, k.students)} of students paid`],
+      ['Visas issued', num(k.visaIssued), `${k.conversionRate}% of students`],
+    ]);
+    tiles($('kpis2'), [
+      ['Deposits received', gbp(k.depositsGbp), `${gbp(m.averageFeeGbp)} average tuition fee`],
+      ['Still to collect', gbp(m.outstandingGbp), `from students who have paid a deposit`],
+      ['Collected so far', rate(m.collectionRate), `of the ${gbp(m.committedGbp)} agreed`],
+      ['Visa success', rate(k.visaSuccessRate), 'visas issued out of visas decided'],
+      ['Students in progress', num(k.active), `${num(k.left)} have left (${rate(k.attritionRate)} deferred or withdrawn)`],
+    ]);
+  }
+
+  function renderAttention(d) {
+    const c = $('attention');
+    c.replaceChildren();
+    if (!d.attention.length) {
+      const a = el('div', 'alert ok');
+      a.append(el('span', 'icon', '✓'), el('span', '', 'Nothing needs attention right now.'));
+      c.append(a);
+      return;
+    }
+    const list = el('div', 'alerts');
+    d.attention.forEach((x) => {
       const a = el('div', 'alert');
-      a.append(el('span', 'icon', '⚠'), el('b', '', num(count)), el('span', '', text));
-      return a;
-    }) : [(() => { const a = el('div', 'alert ok'); a.append(el('span', 'icon', '✓'), el('span', '', 'Nothing needs attention right now.')); return a; })()]));
+      a.append(el('span', 'icon', '⚠'), el('b', '', num(x.count)), el('span', '', x.text));
+      list.append(a);
+    });
+    c.append(list);
+    if (d.chase.length) {
+      c.append(el('div', 'group-title', 'Longest waiting'));
+      table(c, ['Student', 'Waiting', 'Stage', 'What is missing'], d.chase.map((x) => [x.name, x.days ? `${x.days} days` : '', x.stage, x.reason]), true);
+    }
+  }
+
+  // ---- the forecast and the speed of each step ----
+  function renderForecast(d) {
+    const f = d.forecast;
+    const c = $('forecast');
+    c.replaceChildren();
+    if (!f.active) { empty(c, 'No students in progress.'); return; }
+    const grid = el('div', 'fc-grid');
+    [
+      ['Visas expected', f.expectedVisas, `${num(d.kpis.visaIssued)} issued so far`],
+      ['Payments expected', f.expectedPayments, `${num(d.kpis.paymentsMade)} made so far`],
+      ['Deposits still to come', gbp(f.expectedDepositsGbp), 'at the average deposit paid so far'],
+    ].forEach(([label, value, sub]) => {
+      const t = el('div', 'fc');
+      t.append(el('span', 'fc-label', label), el('span', 'fc-value', typeof value === 'number' ? num(Math.round(value)) : value), el('span', 'kpi-sub', sub));
+      grid.append(t);
+    });
+    c.append(grid);
+    c.append(el('p', 'method', `${f.reliable
+      ? `Worked out from how ${num(f.settledStudents)} earlier students ended up (visa, rejected, deferred or withdrawn), applied to ${num(f.active)} students still in progress.`
+      : `Only ${num(f.settledStudents)} students have finished so far, so this leans on typical agency figures until more have. Treat it as a rough guide.`}`));
+    const open = el('details', 'rates');
+    open.append(el('summary', '', 'Chance of a visa from each step'));
+    table(open, ['Furthest step', 'Students finished', 'Chance of payment', 'Chance of visa'], f.rates.map((r) => [r.step, num(r.n), `${r.pay}%`, `${r.visa}%`]));
+    c.append(open);
+  }
+
+  function renderSpeed(d) {
+    const c = $('speed');
+    c.replaceChildren();
+    const rows = d.speed.map((s) => [
+      s.label,
+      s.samples >= 3 ? `${Math.round(s.median)} days` : 'not enough dates',
+      s.samples >= 3 ? `${Math.round(s.average)} days` : '',
+      num(s.samples),
+    ]);
+    table(c, ['Step', 'Typical (median)', 'Average', 'Students'], rows);
+    c.append(el('p', 'method', 'Typical is the middle value, so one very slow student does not distort it. Only students with both dates entered are counted.'));
+  }
+
+  function renderCompare(d) {
+    const c = $('compare');
+    c.replaceChildren();
+    if (!d.intakeCompare.length) { empty(c, 'No intakes yet.'); return; }
+    table(c, ['Intake', 'Students', 'Paid', 'Visas', 'Left', 'Visa rate', 'Deposits'], d.intakeCompare.map((i) => [
+      i.name, num(i.students), `${num(i.paid)} (${i.payRate}%)`, num(i.visas), num(i.left), `${i.visaRate}%`, gbp(i.depositsGbp),
+    ]));
   }
 
   // ---- stages and milestones ----
@@ -156,12 +223,12 @@
     c.replaceChildren();
     if (!d.kpis.students) { empty(c, 'No students yet.'); return; }
     if (asTable.has('milestones')) {
-      table(c, ['Step', 'Students', 'Share'], d.milestones.map((m) => [m.label, num(m.count), `${m.percent}%`]));
+      table(c, ['Step', 'Students', 'Share of all', 'Of the step before'], d.milestones.map((m) => [m.label, num(m.count), `${m.percent}%`, `${m.fromPrevious}%`]));
       return;
     }
-    bars(c, d.milestones.map((m) => ({
-      label: m.label, value: m.percent, text: num(m.count), small: `${m.percent}%`,
-      tip: { title: m.label, rows: [{ name: 'Students', value: num(m.count) }, { name: 'Share of all students', value: `${m.percent}%` }] },
+    bars(c, d.milestones.map((m, i) => ({
+      label: m.label, value: m.percent, text: num(m.count), small: i ? `${m.fromPrevious}% of the step before` : '',
+      tip: { title: m.label, rows: [{ name: 'Students', value: num(m.count) }, { name: 'Share of all students', value: `${m.percent}%` }, { name: 'Of the step before', value: `${m.fromPrevious}%` }] },
     })), 100);
   }
 
@@ -171,18 +238,75 @@
     c.replaceChildren();
     if (!list.length || !data.kpis.students) { empty(c, 'Nothing recorded yet.'); return; }
     const total = data.kpis.students;
+    const visaRate = (g) => (g.count ? `${Math.round((g.visas / g.count) * 1000) / 10}%` : '0%');
     if (asTable.has(key)) {
-      table(c, [headerName, 'Students', 'Visas issued'], list.map((g) => [g.label, num(g.count), num(g.visas)]));
+      table(c, [headerName, 'Students', 'Paid', 'Visas', 'Visa rate', 'Deposits'], list.map((g) => [g.label, num(g.count), num(g.paid), num(g.visas), visaRate(g), gbp(g.depositsGbp)]));
       return;
     }
     const scale = Math.max(1, ...list.map((g) => g.count));
     bars(c, list.map((g) => ({
-      label: g.label, value: g.count, text: num(g.count), small: g.visas ? `${g.visas} visa${g.visas === 1 ? '' : 's'}` : '', quiet: Boolean(g.other),
+      label: g.label, value: g.count, text: num(g.count), small: `${g.paid} paid, ${g.visas} visa${g.visas === 1 ? '' : 's'}`, quiet: Boolean(g.other),
       tip: { title: g.label, rows: [
-        { name: 'Students', value: num(g.count) }, { name: 'Share of all students', value: pct(g.count, total) }, { name: 'Visas issued', value: num(g.visas) },
+        { name: 'Students', value: num(g.count) }, { name: 'Share of all students', value: pct(g.count, total) },
+        { name: 'Paid', value: num(g.paid) }, { name: 'Visas issued', value: num(g.visas) }, { name: 'Visa rate', value: visaRate(g) },
+        { name: 'Deposits received', value: gbp(g.depositsGbp) },
       ] },
     })), scale);
   }
+
+  function renderCollections(d) {
+    const c = $('chartCollections');
+    c.replaceChildren();
+    const m = d.monthly;
+    if (!m.deposits.some((v) => v > 0)) { empty(c, 'No payment dates with deposits in the last 12 months.'); return; }
+    if (asTable.has('collections')) {
+      table(c, ['Month', 'Deposits'], m.months.map((mo, i) => [monthName(mo, true), gbp(m.deposits[i])]));
+      return;
+    }
+    const scale = Math.max(1, ...m.deposits);
+    bars(c, m.months.map((mo, i) => ({
+      label: monthName(mo, true), value: m.deposits[i], text: gbp(m.deposits[i]),
+      tip: { title: monthName(mo, true), rows: [{ name: 'Deposits received', value: gbp(m.deposits[i]) }] },
+    })), scale);
+  }
+
+  function renderMock(d) {
+    const c = $('mockBody');
+    c.replaceChildren();
+    const m = d.mock;
+    if (!m.held) { empty(c, 'No mock interviews yet.'); return; }
+    const grid = el('div', 'fc-grid');
+    [
+      ['Students interviewed', num(m.held), `${num(m.interviews)} interviews in total`],
+      ['Interviews each', m.perStudent === null ? 'n/a' : String(m.perStudent), 'on average'],
+      ['Pre-CAS pass rate', rate(m.passRate), 'passed out of passed and failed'],
+    ].forEach(([label, value, sub]) => {
+      const t = el('div', 'fc');
+      t.append(el('span', 'fc-label', label), el('span', 'fc-value', value), el('span', 'kpi-sub', sub));
+      grid.append(t);
+    });
+    c.append(grid);
+  }
+
+  // What was filled in by the dashboard and what is missing, in plain words, so nothing looks hidden.
+  function renderNotes(d) {
+    const q = d.quality;
+    const parts = [];
+    if (q.filledFromStage) parts.push(`${num(q.filledFromStage)} student${q.filledFromStage === 1 ? ' is' : 's are'} counted at earlier steps because of their current stage (for example, a student at Visa Issued has applied, had an offer and paid), even where those dates were never typed in.`);
+    const undated = [];
+    if (q.applicationsWithoutDate) undated.push(`${num(q.applicationsWithoutDate)} applications`);
+    if (q.paymentsWithoutDate) undated.push(`${num(q.paymentsWithoutDate)} payments`);
+    if (q.visasWithoutDate) undated.push(`${num(q.visasWithoutDate)} visas`);
+    if (undated.length) parts.push(`${undated.join(', ')} have no date entered, so they are in the totals but not on the month charts or the timing figures.`);
+    if (d.money.paidWithoutFee) parts.push(`${num(d.money.paidWithoutFee)} paying student${d.money.paidWithoutFee === 1 ? ' has' : 's have'} no Gross Fee entered, so they are not in the fee totals.`);
+    const missing = [];
+    if (q.noSource) missing.push(`${num(q.noSource)} without a source`);
+    if (q.noPartner) missing.push(`${num(q.noPartner)} without a university partner`);
+    if (q.noUniversity) missing.push(`${num(q.noUniversity)} without a university`);
+    if (missing.length) parts.push(`Students ${missing.join(', ')}.`);
+    $('notes').textContent = parts.length ? 'About these numbers: ' + parts.join(' ') : '';
+  }
+
   // ---- the month by month line chart ----
   const niceTop = (max) => {
     const steps = [1, 2, 5];
@@ -302,19 +426,26 @@
     const d0 = data;
     renderKpis(d0);
     renderAttention(d0);
+    renderForecast(d0);
     renderStages(d0);
     renderMilestones(d0);
+    renderSpeed(d0);
+    renderCompare(d0);
     renderMonthly(d0);
+    renderCollections(d0);
     renderGroups('chartSources', 'sources', 'Source', d0.sources);
     renderGroups('chartPartners', 'partners', 'Partner', d0.partners);
     renderGroups('chartUniversities', 'universities', 'University', d0.universities);
+    renderGroups('chartCourses', 'courses', 'Course', d0.courses);
+    renderMock(d0);
+    renderNotes(d0);
     document.querySelectorAll('.toggle').forEach((b) => b.setAttribute('aria-pressed', String(asTable.has(b.dataset.table))));
   }
 
   function fillIntakes(d0) {
     const sel = $('intake');
     sel.length = 1;
-    d0.intakes.forEach((i) => sel.add(new Option(`${i.name}${i.hidden ? ' (hidden)' : ''}  ·  ${i.students}`, i.id)));
+    d0.intakes.forEach((i) => sel.add(new Option(i.name, i.id)));
     sel.value = d0.selected;
   }
 
