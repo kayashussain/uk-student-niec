@@ -208,7 +208,6 @@
   }
   .adv-input:focus { outline: 2px solid var(--focus); outline-offset: -1px; }
 </style>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
 </head>
 <body>
 <div class="wrap">
@@ -1331,7 +1330,10 @@ function addExcelSummaryRow(ws, label, value, opts = {}) {
 }
 
 $('#exportExcelBtn').addEventListener('click', async () => {
-  if (typeof ExcelJS === 'undefined') {
+  let ExcelJS;
+  try {
+    ExcelJS = await NiecSession.loadExcel();
+  } catch (e) {
     alert('The Excel export library failed to load (check your internet connection). Try again.');
     return;
   }

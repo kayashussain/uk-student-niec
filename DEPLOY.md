@@ -50,6 +50,18 @@ served. Every login, failed login, logout and change is recorded in `activity.js
 it with **Check activity**. After 20 wrong tries from one address, or 8 for one account, within 15
 minutes, further tries are refused until the 15 minutes are up. No environment variables are needed.
 
+**What each team sees** (rules in `shared/teams.js`, enforced by the server; the server only ever
+sends a team its own students):
+
+| Account | Sees | Can change |
+|---|---|---|
+| Admin | everything, both pages | everything |
+| Application Team | students at *Application Stage* | columns up to NOC Number; can move a student to *Mock Stage* (warned about anything still blank) |
+| Mock Team | students at *Mock Stage* | Remarks and the mock columns up to Pre-CAS Interview; can move to *Payment Stage* only once those are all filled |
+| Follow-up Team | *Inquiry*, *Defer* and *Withdrawn* students | Remarks only |
+
+Adding or deleting students and sheets, hidden sheets, Export Excel and the Incentive page are Admin only.
+
 
 ## Seeding your existing data (one time)
 

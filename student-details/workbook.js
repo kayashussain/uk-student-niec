@@ -249,7 +249,8 @@ function mergeWorkbooks(base, theirs, mine) {
 function describeChanges(before, after, limit = 300) {
   const lines = [];
   const show = (v) => (v === undefined || v === null || v === '' ? '(blank)' : `"${String(v).slice(0, 120)}"`);
-  const studentName = (row) => String((row && row['STUDENT NAME']) || '').trim() || 'a student with no name';
+  const studentName = (row) => [row && row['FIRST NAME'], row && row['LAST NAME']]
+    .map((v) => String(v || '').trim()).filter(Boolean).join(' ') || 'a student with no name';
   const beforeSheets = new Map(((before && before.sheets) || []).map((s) => [s.id, s]));
   const afterSheets = new Map(((after && after.sheets) || []).map((s) => [s.id, s]));
 

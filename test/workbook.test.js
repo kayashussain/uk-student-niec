@@ -160,17 +160,17 @@ test('history keeps only the most recent revisions', () => {
 test('describeChanges lists cell edits, added and removed students, and sheet changes', () => {
   const { describeChanges } = require('../student-details/workbook');
   const before = { sheets: [
-    { id: 's1', name: 'Jan 2026', columns: [], rows: [{ _id: 'a', 'STUDENT NAME': 'Ram', STATUS: 'Inquiry' }, { _id: 'b', 'STUDENT NAME': 'Sita' }] },
+    { id: 's1', name: 'Jan 2026', columns: [], rows: [{ _id: 'a', 'FIRST NAME': 'Ram', STATUS: 'Inquiry' }, { _id: 'b', 'FIRST NAME': 'Sita', 'LAST NAME': 'Rai' }] },
     { id: 's2', name: 'Sep 2026', columns: [], rows: [] },
   ] };
   const after = { sheets: [
-    { id: 's1', name: 'Jan 2026', columns: [], rows: [{ _id: 'a', 'STUDENT NAME': 'Ram', STATUS: 'CAS Issued', _deferredInto: 'x' }, { _id: 'c', 'STUDENT NAME': '' }] },
+    { id: 's1', name: 'Jan 2026', columns: [], rows: [{ _id: 'a', 'FIRST NAME': 'Ram', STATUS: 'CAS Issued', _deferredInto: 'x' }, { _id: 'c', 'FIRST NAME': '' }] },
     { id: 's2', name: 'Sep Intake 2026', columns: [], rows: [], hidden: true },
   ] };
   assert.deepStrictEqual(describeChanges(before, after), [
     'Jan 2026 › Ram › STATUS: "Inquiry" → "CAS Issued"',
     'Jan 2026: added a student with no name',
-    'Jan 2026: removed Sita',
+    'Jan 2026: removed Sita Rai',
     'Renamed sheet "Sep 2026" to "Sep Intake 2026"',
     'Hid sheet "Sep Intake 2026"',
   ]);

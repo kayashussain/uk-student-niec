@@ -91,9 +91,10 @@
   const KEEP_CAPS = new Set(['CAS', 'NOC', 'UK', 'VFS', 'ID']);
   const columnLabel = (col) => COLUMN_LABELS[col] || col.split(' ')
     .map((w) => (KEEP_CAPS.has(w) ? w : w.charAt(0) + w.slice(1).toLowerCase())).join(' ');
+  // A team always sees the columns it fills in, even where Admin's view hides them.
   const visibleColumns = (sheet) => {
     const hidden = new Set(HIDDEN_COLUMNS_BY_SHEET.filter((h) => h.matches(sheet.name || '')).flatMap((h) => h.columns));
-    return sheet.columns.filter((c) => !hidden.has(c));
+    return sheet.columns.filter((c) => !hidden.has(c) || (isTeam() && canEditCol(c)));
   };
   let columns = []; // the active sheet's shown columns (see visibleColumns)
   let rows = [];    // reference to the active sheet's rows array
@@ -106,6 +107,18 @@
   // device saved first), the server merges the two cell by cell. Only if it can't (it no longer knows
   // that revision, e.g. after a restart) does it refuse with 409 instead of overwriting that work.
   let revision = 0;
+  // What the server has (at `revision`), as a WorkbookPatch snapshot: saves send only what differs
+  // from it, and updates from others arrive as just what changed (shared/patch.js).
+  let synced = null;
+  let sendFull = false; // the server asked for the whole workbook once (it no longer had our revision)
+  let reloadWanted = false; // fetch the whole (team) view next time, e.g. after moving a student on
+  const Patch = window.WorkbookPatch;
+  // Who is logged in. Admin works on everything; a team sees only the students at its stage and can
+  // change only its own columns (shared/teams.js — the server enforces the same rules).
+  const Teams = window.TeamRules;
+  let myRole = null;
+  const isTeam = () => Boolean(Teams.teamOf(myRole));
+  const canEditCol = (col) => Teams.canEdit(myRole, col);
   let saving = false;
   let saveQueued = false;
   let changeCount = 0;
@@ -120,7 +133,7 @@
   let editing = null;    // { td, rowIdx, col, original, typed }
   let rowSelectMode = false;
   let skipRefocus = false;
-  let rowEls = new Map(); // rowIdx -> its <tr>, for the rows currently shown
+  let rowEls = new Map(); // rowIdx -> its <tr>, for the rows currently drawn (see renderWindow)
   let marked = { trs: new Set(), tds: new Set() }; // elements carrying selection classes right now
 
   // Multi-cell selection, like Sheets: one or more rectangles, each running from where it started
@@ -184,8 +197,10 @@
 
   // Every change asks "Do you really want to make this change?" first (see shared/edit-guard.js):
   // apply() runs once it's confirmed, revert() puts the cell back if it's cancelled.
+  // Admin is asked before each change. Teams can only touch their own columns (and everything they do
+  // is in the activity record), so they work without the extra question.
   function confirmChange(apply, revert) {
-    if (window.EditGuard) window.EditGuard.confirmChange(apply, revert);
+    if (window.EditGuard && !isTeam()) window.EditGuard.confirmChange(apply, revert);
     else apply();
   }
 
@@ -299,6 +314,7 @@
     const tr = td.parentElement;
     const rowIdx = Number(tr.dataset.rowIdx);
     const col = columns[Number(td.dataset.colIndex)];
+    if (!canEditCol(col)) return null;
     const original = toISODate(rows[rowIdx][col] || '');
     const input = document.createElement('input');
     input.type = 'date';
@@ -328,9 +344,10 @@
     return 'badge-gray';
   }
 
+  const MONEY = new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); // made once: slow to create
   function formatNum(n) {
     if (n === 0) return '0.00';
-    return n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    return MONEY.format(n);
   }
 
   function toISODate(v) {
@@ -410,6 +427,7 @@
       if (value === choice) o.selected = true;
       select.appendChild(o);
     });
+    select.disabled = !canEditCol(col);
     select.addEventListener('click', (e) => e.stopPropagation());
     select.addEventListener('change', () => {
       if (select.value === choice) return;
@@ -436,6 +454,7 @@
     input.className = 'date-input';
     input.value = toISODate(val);
     input.title = 'Test date';
+    input.disabled = !canEditCol(col);
     input.addEventListener('click', (e) => {
       e.stopPropagation();
       if (input.showPicker) { try { input.showPicker(); } catch (err) { /* unsupported */ } }
@@ -477,7 +496,7 @@
   // A student who arrived here by being deferred stays put; once their status is changed
   // the marker goes, so deferring them again (setting Defer later) moves them on as usual.
   function autoMoveDeferredRows() {
-    if (!columns.includes('APPLICATION STATUS')) return;
+    if (!columns.includes('APPLICATION STATUS') || isTeam()) return; // moving rows between sheets is Admin's
     rows.forEach((r) => {
       if (r._deferredInto && (r['APPLICATION STATUS'] !== 'Defer' || r._deferredInto !== activeSheetId)) {
         delete r._deferredInto;
@@ -561,8 +580,15 @@
   async function loadData() {
     let json;
     try {
-      const res = await fetch('/api/data', { cache: 'no-store' });
-      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const [res, me] = await Promise.all([
+        fetch('/api/data', { cache: 'no-store' }),
+        myRole ? null : fetch('/api/me', { cache: 'no-store' }).then((r) => (r.ok ? r.json() : null)),
+      ]);
+      if (me) {
+        myRole = me.role;
+        document.body.dataset.role = me.role;
+      }
+      if (!res.ok || !myRole) throw new Error('HTTP ' + res.status);
       json = await res.json();
       if (!Array.isArray(json.sheets) || !json.sheets.length) throw new Error('no sheets');
     } catch (e) {
@@ -573,6 +599,7 @@
     }
     sheets = json.sheets;
     revision = json.revision || 0;
+    synced = Patch.snapshot({ sheets });
     activeSheetId = newestSheet(shownSheets()).id; // a reload always opens the latest intake
     statusEl.textContent = 'All changes saved';
     statusEl.className = 'save-status';
@@ -775,7 +802,7 @@
       tab.appendChild(menuBtn);
 
       tab.addEventListener('click', () => switchSheet(sheet.id));
-      tab.addEventListener('dblclick', () => startInlineRename(sheet, tab));
+      tab.addEventListener('dblclick', () => { if (!isTeam()) startInlineRename(sheet, tab); });
 
       sheetTabsList.appendChild(tab);
     });
@@ -1189,6 +1216,8 @@
   function getFilteredSortedIndices() {
     const q = searchEl.value.trim().toLowerCase();
     let indices = rows.map((_, i) => i);
+    // A team sees only its stage's students (a student it just moved on drops out of its list).
+    if (isTeam()) indices = indices.filter((i) => Teams.seesRow(myRole, rows[i]));
     if (q) {
       indices = indices.filter((i) => columns.some((c) => (rows[i][c] || '').toLowerCase().includes(q)));
     }
@@ -1212,27 +1241,133 @@
     return indices;
   }
 
+  // Only the rows on screen (plus a margin either side) are drawn; empty spacer rows above and below
+  // stand in for the rest, so the scrollbar still covers the whole sheet. Scrolling draws the next rows
+  // as they come into view. A sheet of hundreds of students opens and redraws in a few milliseconds,
+  // where drawing every row took seconds.
+  const ROW_MARGIN = 20; // rows drawn beyond each edge of the screen
+  let viewIndices = []; // the rows shown (after search, filters, sorting), in order
+  let viewPos = new Map(); // rowIdx -> its position in viewIndices
+  let viewDupPhones = new Set();
+  let winStart = 0; // positions in viewIndices currently drawn: [winStart, winEnd)
+  let winEnd = 0;
+  let rowHeight = 0; // measured from the drawn rows
+  const padRow = () => {
+    const tr = document.createElement('tr');
+    tr.className = 'pad-row';
+    tr.setAttribute('aria-hidden', 'true');
+    tr.appendChild(document.createElement('td'));
+    return tr;
+  };
+  const topPad = padRow();
+  const bottomPad = padRow();
+
+  // The fee columns are worked out for every row up front (sorting, search and Excel use the values),
+  // not only for the rows that happen to be drawn.
+  function updateCalculated() {
+    const calcCols = columns.filter((c) => CALC_COLS[c]);
+    if (!calcCols.length) return;
+    rows.forEach((row) => {
+      const hasFee = String(row['GROSS FEE'] || '').trim() !== '';
+      calcCols.forEach((c) => { row[c] = hasFee ? formatNum(CALC_COLS[c](row)) : ''; });
+    });
+  }
+
   function renderBody() {
     autoMoveDeferredRows();
     autoGroupRows();
+    updateCalculated();
     // Rebuilding the table drops focus. Put it back on the cell cursor afterwards, but only if focus
     // was in the table (or nowhere): a search-box keystroke also re-renders and must keep the box.
     const ae = document.activeElement;
     const hadGridFocus = !ae || ae === document.body || body.contains(ae);
-    body.innerHTML = '';
+    viewIndices = getFilteredSortedIndices();
+    viewPos = new Map(viewIndices.map((rowIdx, p) => [rowIdx, p]));
+    viewDupPhones = duplicatePhones(rows, WHATSAPP_COL); // across the whole sheet, not just the filtered rows
+    body.textContent = '';
     rowEls = new Map();
     marked = { trs: new Set(), tds: new Set() };
-    const indices = getFilteredSortedIndices();
-    const dupPhones = duplicatePhones(rows, WHATSAPP_COL); // across the whole sheet, not just the filtered rows
-    // Built off-screen and inserted in one go, so the browser lays the table out once, not once per row.
-    const frag = document.createDocumentFragment();
-    indices.forEach((rowIdx, displayIdx) => frag.appendChild(buildRow(rowIdx, displayIdx, dupPhones)));
-    body.appendChild(frag);
-    applySelectionClasses(indices);
+    winStart = 0;
+    winEnd = 0;
+    topPad.firstChild.colSpan = columns.length + 1;
+    bottomPad.firstChild.colSpan = columns.length + 1;
+    body.append(topPad, bottomPad);
+    renderWindow(true);
+    applySelectionClasses(viewIndices);
     renderPeers();
     renderStatusSummary();
     if (hadGridFocus && !editing && !skipRefocus) focusActiveCell({ scroll: false });
   }
+
+  // Draws the rows that should be on screen now and removes the ones that scrolled well away.
+  // Returns true if it changed anything.
+  function renderWindow(force = false) {
+    const n = viewIndices.length;
+    const h = rowHeight || 34;
+    const top = tableWrap.scrollTop;
+    const needFirst = Math.max(0, Math.floor(top / h) - 3);
+    const needLast = Math.min(n, Math.ceil((top + tableWrap.clientHeight) / h) + 3);
+    if (!force && needFirst >= winStart && needLast <= winEnd) return false;
+    const start = Math.max(0, needFirst - ROW_MARGIN);
+    const end = Math.min(n, needLast + ROW_MARGIN);
+    // A cell being typed in that's about to scroll away is saved first, like clicking elsewhere.
+    if (editing && viewPos.has(editing.rowIdx)) {
+      const p = viewPos.get(editing.rowIdx);
+      if (p < start || p >= end) commitEdit({ refocus: false });
+    }
+    for (let p = winStart; p < winEnd; p += 1) {
+      if (p >= start && p < end) continue;
+      const tr = rowEls.get(viewIndices[p]);
+      if (tr) tr.remove();
+      rowEls.delete(viewIndices[p]);
+    }
+    const keepStart = Math.max(start, winStart);
+    const keepEnd = Math.min(end, winEnd);
+    const overlap = keepStart < keepEnd;
+    const before = document.createDocumentFragment();
+    for (let p = start; p < (overlap ? keepStart : end); p += 1) before.appendChild(buildRow(viewIndices[p], p, viewDupPhones));
+    topPad.after(before);
+    if (overlap) {
+      const after = document.createDocumentFragment();
+      for (let p = keepEnd; p < end; p += 1) after.appendChild(buildRow(viewIndices[p], p, viewDupPhones));
+      bottomPad.before(after);
+    }
+    winStart = start;
+    winEnd = end;
+    if (!rowHeight && end > start) {
+      const first = rowEls.get(viewIndices[start]);
+      const last = rowEls.get(viewIndices[end - 1]);
+      const measured = (last.getBoundingClientRect().bottom - first.getBoundingClientRect().top) / (end - start);
+      if (measured > 10) rowHeight = measured;
+    }
+    const rh = rowHeight || h;
+    topPad.firstChild.style.height = start * rh + 'px';
+    bottomPad.firstChild.style.height = (n - end) * rh + 'px';
+    return true;
+  }
+
+  // Scrolls just enough to bring a row on screen and makes sure it's drawn (for the cell cursor).
+  function revealRow(rowIdx) {
+    const p = viewPos.get(rowIdx);
+    if (p === undefined) return;
+    const h = rowHeight || 34;
+    const head = (headerRow && headerRow.offsetHeight) || 0;
+    const rowTop = p * h;
+    if (rowTop < tableWrap.scrollTop) tableWrap.scrollTop = rowTop;
+    else if (rowTop + h > tableWrap.scrollTop + tableWrap.clientHeight - head) {
+      tableWrap.scrollTop = rowTop + h - tableWrap.clientHeight + head;
+    }
+    if (renderWindow()) afterWindowChange();
+  }
+
+  // Newly drawn rows get the selection highlight and other people's cursors.
+  function afterWindowChange() {
+    applySelectionClasses(viewIndices);
+    renderPeers();
+  }
+
+  tableWrap.addEventListener('scroll', () => { if (renderWindow()) afterWindowChange(); }, { passive: true });
+  window.addEventListener('resize', () => { if (renderWindow()) afterWindowChange(); });
 
   // Redraws one student's row in place after an edit to it — far quicker than rebuilding the whole
   // table. Falls back to a full redraw when the edit can move rows or hide/show them, or affects
@@ -1242,8 +1377,9 @@
     const old = rowEls.get(rowIdx);
     const affectsOtherRows = col === sortCol || columnFilters[col] || searchEl.value.trim()
       || col === PARTNER_COL || col === 'APPLICATION STATUS' || col === WHATSAPP_COL;
-    if (!old || affectsOtherRows) { renderBody(); return; }
-    const tr = buildRow(rowIdx, Number(old.dataset.displayIdx), duplicatePhones(rows, WHATSAPP_COL));
+    if (affectsOtherRows || (!old && !viewPos.has(rowIdx))) { renderBody(); return; }
+    if (!old) return; // scrolled out of view: it's drawn from the data when it comes back
+    const tr = buildRow(rowIdx, Number(old.dataset.displayIdx), viewDupPhones);
     old.replaceWith(tr);
     applySelectionClasses();
     renderPeers();
@@ -1253,6 +1389,7 @@
     const tr = document.createElement('tr');
     tr.dataset.rowIdx = rowIdx;
     tr.dataset.displayIdx = displayIdx;
+    if (displayIdx % 2) tr.className = 'alt'; // striped by position (spacer rows would upset :nth-child)
     rowEls.set(rowIdx, tr);
     if (columns.includes('OFFER RECEIVED DATE') && offerStuck(rows[rowIdx])) {
       tr.classList.add('offer-stuck-row');
@@ -1300,12 +1437,20 @@
           });
         };
         addOptions(val ? [val] : []);
+        // A team picks only from its own moves (e.g. Application Stage → Mock Stage), and can't touch
+        // the other dropdowns outside its columns.
+        const isStatus = col === 'APPLICATION STATUS';
+        const choices = isStatus ? Teams.statusChoices(myRole, val, SELECT_COLS[col]) : SELECT_COLS[col];
+        if (isStatus ? choices.length < 2 && isTeam() : !canEditCol(col)) {
+          select.disabled = true;
+          select.title = 'Your team can\'t change this';
+        }
         let filled = false;
         const fill = () => {
           if (filled) return;
           filled = true;
           const current = select.value;
-          addOptions(val && !SELECT_COLS[col].includes(val) ? [...SELECT_COLS[col], val] : SELECT_COLS[col]);
+          addOptions(val && !choices.includes(val) ? [...choices, val] : choices);
           select.value = current;
         };
         select.addEventListener('focus', fill);
@@ -1319,6 +1464,11 @@
         });
         select.addEventListener('change', () => {
           const newVal = select.value;
+          if (isStatus && isTeam()) {
+            const check = Teams.checkMove(myRole, rows[rowIdx], newVal);
+            if (!check.ok) { alert(check.message); select.value = val; return; }
+            if (check.confirm && !confirm(check.confirm)) { select.value = val; return; }
+          }
           confirmChange(() => {
             pushUndo();
             rows[rowIdx][col] = newVal;
@@ -1365,6 +1515,7 @@
         }
       }
       // Added last: the calculated-cell branch above replaces className wholesale.
+      if (!CALC_COLS[col] && col !== 'APPLICATION STATUS' && !canEditCol(col)) td.classList.add('locked');
       if (activeCell && activeCell.rowIdx === rowIdx && activeCell.col === col) td.classList.add('active-cell');
       tr.appendChild(td);
     });
@@ -1481,6 +1632,7 @@
     p = Math.max(0, Math.min(indices.length - 1, p + dRow));
     c = rowSelectMode ? columns.length - 1 : Math.max(0, Math.min(columns.length - 1, c + dCol));
     last.focus = { rowIdx: indices[p], col: columns[c] };
+    revealRow(last.focus.rowIdx);
     applySelectionClasses(indices);
     const td = cellTd(last.focus.rowIdx, last.focus.col);
     if (td) td.scrollIntoView({ block: 'nearest', inline: 'nearest' });
@@ -1526,6 +1678,7 @@
 
   function focusActiveCell({ scroll = true } = {}) {
     if (!activeCell) return;
+    if (scroll) revealRow(activeCell.rowIdx);
     const td = cellTd(activeCell.rowIdx, activeCell.col);
     if (!td) return;
     td.focus({ preventScroll: true });
@@ -1580,8 +1733,10 @@
   function startEdit({ replaceWith = null } = {}) {
     if (!activeCell || editing) return;
     const { rowIdx, col } = activeCell;
+    revealRow(rowIdx);
     const td = cellTd(rowIdx, col);
     if (!td || !rows[rowIdx] || CALC_COLS[col]) return;
+    if (!canEditCol(col) && col !== 'APPLICATION STATUS') { flashStatus("Your team can't change this column"); return; }
     const busy = peerOnCell(rowIdx, col, isTextCell(col));
     if (busy) { warnPeerOnCell(busy); return; }
     if (!isTextCell(col)) {
@@ -1650,7 +1805,8 @@
   // as one undo step. The rows themselves stay: the "Delete rows" button removes rows. Calculated fee
   // cells can't be cleared: they're worked out from the others.
   function clearSelectedCells() {
-    const cells = selectedCells().filter(({ rowIdx, col }) => rows[rowIdx] && !CALC_COLS[col] && (rows[rowIdx][col] || ''));
+    const cells = selectedCells().filter(({ rowIdx, col }) => rows[rowIdx] && !CALC_COLS[col] && canEditCol(col)
+      && (rows[rowIdx][col] || ''));
     if (!cells.length) return;
     confirmChange(() => {
       pushUndo();
@@ -1703,6 +1859,7 @@
           val = match;
         }
         const rowIdx = indices[r.top + dr];
+        if (!canEditCol(col)) continue; // not this team's column
         if ((rows[rowIdx][col] || '') !== val) changes.push({ rowIdx, col, val });
       }
     }
@@ -1821,17 +1978,33 @@
     saving = true;
     const savedChange = changeCount;
     try {
+      // Just the rows that changed since the server's copy (a few hundred bytes for one cell), or the
+      // whole workbook when the server asked for it.
+      const { patch, snapshot: sentSnap } = Patch.diff(sendFull ? null : synced, { sheets, activeSheetId });
+      if (patch && Patch.isEmpty(patch, { sheets }) && synced) {
+        if (changeCount === savedChange) {
+          dirty = false;
+          statusEl.textContent = 'All changes saved';
+          statusEl.className = 'save-status';
+        }
+        return;
+      }
       const res = await fetch('/api/data', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sheets, activeSheetId, baseRevision: revision }),
+        body: JSON.stringify(patch ? { patch, baseRevision: revision } : { sheets, activeSheetId, baseRevision: revision }),
       });
+      if (res.status === 412) { sendFull = true; saveQueued = true; return; }
       if (res.status === 409) { showConflict(); return; }
+      if (res.status === 403) { showRefused((await res.json().catch(() => ({}))).error); return; }
       if (!res.ok) throw new Error('save failed');
+      sendFull = false;
       const result = await res.json();
       const caughtUp = changeCount === savedChange;
       if (!result.merged) {
         revision = result.revision;
+        synced = sentSnap;
+        if (result.reload) reloadWanted = true;
       } else if (caughtUp && !busyEditing()) {
         // Someone else saved meanwhile and the server merged both: show the combined version.
         applyRemoteWorkbook(result.workbook);
@@ -1844,6 +2017,7 @@
         statusEl.textContent = 'All changes saved';
         statusEl.className = 'save-status';
       }
+      if (reloadWanted) setTimeout(checkForRemoteChanges, 0);
     } catch (e) {
       statusEl.textContent = 'Save failed — retrying…';
       statusEl.className = 'save-status error';
@@ -1852,6 +2026,14 @@
       saving = false;
       if (saveQueued) { saveQueued = false; saveData(); }
     }
+  }
+
+  // The server refused the change (it's outside what this account may change). Nothing was saved;
+  // reloading shows the sheet as it really is.
+  function showRefused(message) {
+    showConflict();
+    const text = conflictBanner.querySelector('span');
+    if (text) text.textContent = (message || "That change isn't allowed for your account.") + ' Nothing was saved. Reload to continue.';
   }
 
   function showConflict() {
@@ -1864,7 +2046,8 @@
 
   // Another tab or device saved: take its version, keeping this tab's sheet, search, filters, sort,
   // cursor and scroll position. Undo history is dropped, since undoing now would overwrite their work.
-  function applyRemoteWorkbook(json) {
+  // syncedOverride: what the server has, when that isn't simply `json` (see checkForRemoteChanges).
+  function applyRemoteWorkbook(json, syncedOverride = null) {
     const rowId = (idx) => (rows[idx] ? rows[idx]._id : null);
     const keep = {
       sheetId: activeSheetId,
@@ -1884,6 +2067,7 @@
 
     sheets = json.sheets;
     revision = json.revision || 0;
+    synced = syncedOverride || Patch.snapshot({ sheets });
     const sameSheet = shownSheets().some((s) => s.id === keep.sheetId);
     activeSheetId = sameSheet ? keep.sheetId : shownSheets()[0].id;
     syncActiveSheet();
@@ -1913,6 +2097,7 @@
     if (sameSheet) {
       tableWrap.scrollTop = keep.scrollTop;
       tableWrap.scrollLeft = keep.scrollLeft;
+      if (renderWindow()) afterWindowChange();
     }
     flashStatus('Updated with the latest changes');
   }
@@ -1930,11 +2115,25 @@
       const res = await fetch('/api/revision', { cache: 'no-store' });
       if (!res.ok) return;
       const latest = (await res.json()).revision;
-      if (latest === revision) return;
-      const dataRes = await fetch('/api/data', { cache: 'no-store' });
+      if (latest === revision && !reloadWanted) return;
+      // Just what changed since our revision (or the whole workbook if the server can't tell).
+      const dataRes = await fetch(reloadWanted ? '/api/data' : '/api/data?since=' + revision, { cache: 'no-store' });
       if (!dataRes.ok) return;
       const json = await dataRes.json();
-      if (busy() || !Array.isArray(json.sheets) || !json.sheets.length) return; // the user started something meanwhile
+      if (busy()) return; // the user started something meanwhile
+      if (json.patch) {
+        let next;
+        try {
+          next = Patch.applyPatch({ sheets, activeSheetId }, json.patch);
+        } catch (e) {
+          revision = -1; // our copy doesn't fit: fetch the whole workbook next time
+          return;
+        }
+        applyRemoteWorkbook({ sheets: next.sheets, revision: json.revision }, Patch.advance(synced, json.patch));
+        return;
+      }
+      if (!Array.isArray(json.sheets) || !json.sheets.length) return;
+      reloadWanted = false;
       applyRemoteWorkbook(json);
     } catch (e) { /* offline for a moment: try again next time */ }
   }
@@ -1953,7 +2152,8 @@
     rowSelectMode = false;
     markDirty();
     renderBody();
-    document.querySelector('.table-wrap').scrollTop = 1e9;
+    tableWrap.scrollTop = 1e9;
+    if (renderWindow()) afterWindowChange();
     // Ready to type straight into the new row.
     setActiveCell(rows.length - 1, startCol, { scroll: false });
   }
@@ -1983,7 +2183,10 @@
   }
 
   async function exportExcel() {
-    if (typeof ExcelJS === 'undefined') {
+    let ExcelJS;
+    try {
+      ExcelJS = await NiecSession.loadExcel();
+    } catch (e) {
       alert('The Excel export library failed to load (check your internet connection) — try again.');
       return;
     }
@@ -2044,10 +2247,10 @@
     URL.revokeObjectURL(url);
   }
 
-  $('#addRow').addEventListener('click', addRow);
-  $('#delRow').addEventListener('click', deleteRow);
+  $('#addRow').addEventListener('click', () => { if (!isTeam()) addRow(); });
+  $('#delRow').addEventListener('click', () => { if (!isTeam()) deleteRow(); });
   $('#exportExcel').addEventListener('click', exportExcel);
-  $('#addSheet').addEventListener('click', addSheet);
+  $('#addSheet').addEventListener('click', () => { if (!isTeam()) addSheet(); });
   allSheetsBtn.addEventListener('click', openAllSheetsMenu);
   if (undoBtn) undoBtn.addEventListener('click', undo);
   if (redoBtn) redoBtn.addEventListener('click', redo);
@@ -2077,7 +2280,7 @@
   body.addEventListener('mousedown', (e) => {
     if (e.button !== 0) return;
     const td = e.target.closest('td');
-    if (!td || !body.contains(td)) return;
+    if (!td || !body.contains(td) || td.parentElement.classList.contains('pad-row')) return;
     if (editing && editing.td === td) return; // clicking inside the cell being typed in moves the caret
     const rowIdx = Number(td.parentElement.dataset.rowIdx);
     const onControl = Boolean(e.target.closest('select, input'));
@@ -2116,6 +2319,7 @@
       const busy = peerOnCell(rowIdx, col, false);
       if (busy) { warnPeerOnCell(busy); return; }
       const input = openDateCell(td);
+      if (!input) return; // not this team's column
       input.focus();
       if (input.showPicker) { try { input.showPicker(); } catch (err) { /* opens on the next click */ } }
       return;
@@ -2148,7 +2352,7 @@
 
   // Dragging with the button held stretches the latest range to the cell under the pointer.
   function extendDragTo(td) {
-    if (!td || !body.contains(td) || !selRanges.length) return;
+    if (!td || !body.contains(td) || !selRanges.length || td.parentElement.classList.contains('pad-row')) return;
     const rowIdx = Number(td.parentElement.dataset.rowIdx);
     const last = selRanges[selRanges.length - 1];
     const col = dragMode === 'rows'
@@ -2214,6 +2418,7 @@
     const beforeLeft = tableWrap.scrollLeft;
     tableWrap.scrollTop += dy;
     tableWrap.scrollLeft += dx;
+    if (renderWindow()) afterWindowChange();
     extendDragToPointer();
     if (tableWrap.scrollTop === beforeTop && tableWrap.scrollLeft === beforeLeft) return; // hit the end
     autoScrollFrame = requestAnimationFrame(autoScrollStep);
@@ -2273,7 +2478,8 @@
 
   body.addEventListener('dblclick', (e) => {
     const td = e.target.closest('td');
-    if (!td || !body.contains(td) || td.classList.contains('col-idx') || e.target.closest('select, input')) return;
+    if (!td || !body.contains(td) || td.classList.contains('col-idx') || e.target.closest('select, input')
+      || td.parentElement.classList.contains('pad-row')) return;
     const rowIdx = Number(td.parentElement.dataset.rowIdx);
     const col = columns[Number(td.dataset.colIndex)];
     if (col === undefined || !isTextCell(col)) return;
@@ -2349,7 +2555,9 @@
     // is designed to survive that, so use it to flush any pending debounced save.
     if (!conflicted) {
       try {
-        const blob = new Blob([JSON.stringify({ sheets, activeSheetId, baseRevision: revision })], { type: 'application/json' });
+        const { patch } = Patch.diff(sendFull ? null : synced, { sheets, activeSheetId });
+        const body = patch ? { patch, baseRevision: revision } : { sheets, activeSheetId, baseRevision: revision };
+        const blob = new Blob([JSON.stringify(body)], { type: 'application/json' });
         navigator.sendBeacon('/api/data', blob);
       } catch (err) { /* best effort */ }
     }
