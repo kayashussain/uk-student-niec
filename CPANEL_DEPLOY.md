@@ -92,13 +92,13 @@ Authenticator), so a password alone, or one someone shared, isn't enough. A logi
   in the app's log and saves it in `first-admin-code.txt` in the Student Details data folder. The
   login page asks for it to create the first Admin account; you then choose your own password and
   link your phone, and the code is deleted. Do this straight after deploying.
-- **Hidden sheets** can't be opened until Admin sets the hidden-sheet password (Users → Settings).
+- **Intakes:** Admin and the Manager see every intake sheet. The Application, Mock and Follow-up teams see only the newest sheet, so when you start a new intake the earlier one leaves their screens by itself. There is no sheet password.
 - **Adding people:** Admin → **Users** → *Add a person*: name, username (not case sensitive), email, and
-  what they can do. Tick one or more teams, or choose Manager. They are emailed a link and a temporary
+  what they can do. Tick any mix of Application, Mock, Follow-up and Manager (a Manager who also ticks a team can change that team's students in the current intake). They are emailed a link and a temporary
   password (see **Email** below); at their first login they choose their own password and link their
   phone. Admin is the owner account: nobody else can ever be made Admin.
-- **When someone leaves:** Users → **Disable**. They're logged out of every device at once and can't
-  log in again. Change the hidden-sheet password there too if they knew it.
+- **When someone leaves:** Users → **Remove**. Their login is deleted and they're logged out of every device at once; they can't
+  log in again. **Disable** pauses a login without deleting it.
 - **Lost phone / forgotten password:** Admin uses *Reset authenticator* or *Reset password* (the new
   temporary password is emailed to the person).
   If no Admin can log in, run on the server
@@ -124,8 +124,8 @@ students, columns and moves of every team they hold.
 
 Every team can add a new student with **+ Add student**: it starts at the team's own stage (Application Stage,
 Mock Stage or Inquiry), and the team can also fill in its name, email, contact number and student
-source (on students it added itself). Deleting students, sheets, hidden sheets, Export Excel and the
-Incentive page are Admin only.
+source (on students it added itself). Deleting students and sheets, and the
+Incentive page, are Admin only. Export Excel is for Admin and the Manager.
 
 The Incentive app sends people to Student Details' `/login` page and reads the accounts and logins from the
 Student Details data folder, which is why its `STUDENT_DETAILS_DATA_DIR` must match. `APP_USERNAME`,
@@ -133,14 +133,23 @@ Student Details data folder, which is why its `STUDENT_DETAILS_DATA_DIR` must ma
 
 ## Email (setup details for new people)
 
-Open **Users → Settings → Email** and fill in your outgoing mail server (SMTP): server name, port
-(465 with SSL, or 587 with STARTTLS), the mailbox login and password, the address to send from, and
-the website address people should open. Press **Send test email** to check it. From then on, adding a
-person (or resetting a password) emails them their link, username and temporary password. If email is
-not set up, or a message cannot be sent, the temporary password is shown to Admin instead so it can be
-given in person. The mail password is saved only in `settings.json` in the Student Details data
-folder (never in git) and is never shown on a page again. The web server must be allowed to reach your
-mail server on that port; if it is blocked, the test email says so.
+Email is set up on the server, not on a web page. Run these in the project folder (use the same
+`STUDENT_DETAILS_DATA_DIR` as the app if you set one):
+
+```
+node scripts/email.js setup
+node scripts/email.js test someone@example.com
+```
+
+`setup` asks for the mailbox (for example `kayas@niecedu.com.np`) and its password, and saves them in
+`mail.json` in the Student Details data folder (never in git, never served, private to the server user).
+The mail server defaults to `mail.niecedu.com.np` on port 465 with SSL; change it when asked (587 means
+STARTTLS). `test` sends a message and says what went wrong if it fails. From then on, adding a person (or
+resetting a password) emails them their link, username and temporary password. If email is not set up, or a
+message cannot be sent, the temporary password is shown to Admin instead so it can be given in person.
+The web server must be allowed to reach the mail server on that port. You can also use the environment
+variables `MAIL_HOST`, `MAIL_PORT`, `MAIL_SECURITY`, `MAIL_USER`, `MAIL_PASSWORD`, `MAIL_FROM`,
+`MAIL_FROM_NAME` and `SITE_URL` instead of the file.
 
 ## Dashboard
 

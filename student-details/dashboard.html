@@ -16,7 +16,7 @@
     <div class="page-head">
       <div>
         <h1>Dashboard</h1>
-        <p>How the UK department is performing: the pipeline, the money, the timing and what to expect next.</p>
+        <p>How the UK department is performing: where students are, how long steps take and what to expect next.</p>
       </div>
       <div class="filters" role="group" aria-label="Filter">
         <label>Intake <select id="intake"><option value="all">All intakes</option></select></label>
@@ -32,7 +32,7 @@
       </div>
       <div class="kpis" id="kpis"></div>
     </section>
-    <section class="kpis kpis-money" id="kpis2" aria-label="Money and conversion"></section>
+    <section class="kpis kpis-money" id="kpis2" aria-label="Outcomes"></section>
 
     <section class="grid-2 chase-row">
       <figure class="card" id="cardChase">
@@ -61,9 +61,9 @@
         <figcaption><div><h2>How long each step takes</h2><p>Days between dates entered for the same student</p></div></figcaption>
         <div class="body" id="speed"></div>
       </figure>
-      <figure class="card" id="cardCompare">
-        <figcaption><div><h2>Intake by intake</h2><p>Every intake side by side, the earlier ones too</p></div></figcaption>
-        <div class="body" id="compare"></div>
+      <figure class="card" id="cardSources">
+        <figcaption><div><h2>Where students come from</h2><p>Students by source, and how many paid and got a visa</p></div><button class="toggle" type="button" data-table="sources">Table</button></figcaption>
+        <div class="body" id="chartSources"></div>
       </figure>
     </section>
 
@@ -73,15 +73,7 @@
       <div class="body line-body" id="chartMonthly"></div>
     </figure>
 
-    <section class="grid-2">
-      <figure class="card" id="cardCollections">
-        <figcaption><div><h2>Tuition deposits by month</h2><p>Deposits received, by payment date</p></div><button class="toggle" type="button" data-table="collections">Table</button></figcaption>
-        <div class="body" id="chartCollections"></div>
-      </figure>
-      <figure class="card" id="cardSources">
-        <figcaption><div><h2>Where students come from</h2><p>Students by source, and how many paid and got a visa</p></div><button class="toggle" type="button" data-table="sources">Table</button></figcaption>
-        <div class="body" id="chartSources"></div>
-      </figure>
+    <section class="grid-3">
       <figure class="card" id="cardPartners">
         <figcaption><div><h2>University partners</h2><p>Students by partner</p></div><button class="toggle" type="button" data-table="partners">Table</button></figcaption>
         <div class="body" id="chartPartners"></div>
@@ -93,10 +85,6 @@
       <figure class="card" id="cardCourses">
         <figcaption><div><h2>Courses</h2><p>Most chosen courses</p></div><button class="toggle" type="button" data-table="courses">Table</button></figcaption>
         <div class="body" id="chartCourses"></div>
-      </figure>
-      <figure class="card" id="cardMock">
-        <figcaption><div><h2>Mock interviews</h2><p>How the practice interviews are going</p></div></figcaption>
-        <div class="body" id="mockBody"></div>
       </figure>
     </section>
 

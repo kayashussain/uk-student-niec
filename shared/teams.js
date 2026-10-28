@@ -1,7 +1,8 @@
 // What each account sees and may change on Student Details.
 //
 //   Admin  sees and changes everything (the owner; nobody else can be given this).
-//   Manager sees every student on every sheet (earlier intakes too), and can change nothing.
+//   Manager sees every student on every sheet (earlier intakes too), and can change nothing, unless they
+//          also work in teams: then they change those teams' students in the current intake only.
 //   Staff  work in one or more departments (Application, Mock, Follow-up, any mix), in the current (newest)
 //          intake only. A person gets the students, the editable columns and the stage moves of every department they hold.
 //
@@ -71,22 +72,26 @@
     if (!x) return { role: 'staff', departments: [] };
     let role = typeof x === 'string' ? x : x.role;
     if (role === 'ceo') role = 'manager'; // the Manager role was first called CEO
-    if (role === 'admin' || role === 'manager') return { role, departments: [] };
+    if (role === 'admin') return { role, departments: [] };
     const listed = typeof x === 'object' && Array.isArray(x.departments) ? x.departments : (DEPARTMENTS[role] ? [role] : []);
-    return { role: 'staff', departments: [...new Set(listed.filter((d) => DEPARTMENTS[d]))] };
+    // A Manager can also work in teams (then they can change those teams' students in the current intake).
+    return { role: role === 'manager' ? 'manager' : 'staff', departments: [...new Set(listed.filter((d) => DEPARTMENTS[d]))] };
   }
 
   const isAdmin = (x) => who(x).role === 'admin';
-  const isReadOnly = (x) => who(x).role === 'manager';
+  const isManager = (x) => who(x).role === 'manager';
+  // A Manager who works in no team can only view.
+  const isReadOnly = (x) => isManager(x) && !who(x).departments.length;
 
   // null for Admin (no limits); otherwise what this account may see and do.
   function teamOf(x) {
     const w = who(x);
     if (w.role === 'admin') return null;
-    if (w.role === 'manager') return { role: 'manager', readOnly: true, departments: [], statuses: null, editable: new Set() };
+    if (w.role === 'manager' && !w.departments.length) return { role: 'manager', manager: true, readOnly: true, departments: [], statuses: null, editable: new Set() };
     const depts = w.departments.map((d) => DEPARTMENTS[d]);
     return {
-      role: 'staff',
+      role: w.role,
+      manager: w.role === 'manager',
       readOnly: false,
       departments: w.departments,
       statuses: new Set(depts.flatMap((d) => d.statuses)),
@@ -97,12 +102,12 @@
   // A short key for "the same view": accounts with the same key are sent the same data.
   function viewKey(x) {
     const w = who(x);
-    return w.role === 'staff' ? 'staff:' + [...w.departments].sort().join('+') : w.role;
+    return w.role === 'admin' ? 'admin' : `${w.role}:${[...w.departments].sort().join('+')}`;
   }
 
   function seesRow(x, row) {
     const team = teamOf(x);
-    if (!team || !team.statuses) return true; // Admin and Manager see every student
+    if (!team || !team.statuses || team.manager) return true; // Admin and Manager see every student
     return team.statuses.has(String((row && row[STATUS]) || '').trim());
   }
 
@@ -111,6 +116,8 @@
     const team = teamOf(x);
     if (!team) return true;
     if (team.readOnly) return false;
+    // A Manager who also works in a team changes only that team's students (the rest are view only).
+    if (team.manager && row && !team.statuses.has(String(row[STATUS] || '').trim())) return false;
     if (team.editable.has(col)) return true;
     return Boolean(row && team.departments.includes(row._addedByTeam) && NEW_STUDENT_COLUMNS.includes(col));
   }
@@ -179,7 +186,7 @@
   function viewFor(x, workbook) {
     const team = teamOf(x);
     if (!team) return workbook;
-    if (team.readOnly) return { ...workbook, sheets: workbook.sheets.map((s) => ({ ...s, hidden: false })) };
+    if (team.manager) return { ...workbook, sheets: workbook.sheets.map((s) => ({ ...s, hidden: false })) };
     const current = newestSheet(workbook.sheets.filter((s) => !s.hidden));
     return {
       ...workbook,
@@ -245,12 +252,18 @@
       });
       base.rows.forEach((r) => { if (!mineRowIds.has(r._id)) errors.push('Only Admin can delete students.'); });
     });
+    if (team && team.manager) {
+      const current = newestSheet(baseView.sheets);
+      if (changes.some((c) => c.sheetId !== (current && current.id)) || adds.some((a) => a.sheetId !== (current && current.id))) {
+        errors.push('You can only change students in the current intake.');
+      }
+    }
     return { changes, adds, errors: [...new Set(errors)] };
   }
 
   return {
     DEPARTMENTS, MOVES, STATUS, NEW_STUDENT_COLUMNS,
-    who, isAdmin, isReadOnly, teamOf, viewKey, seesRow, canEdit, addableDepartments, newStudentStatus,
+    who, isAdmin, isManager, isReadOnly, teamOf, viewKey, seesRow, canEdit, addableDepartments, newStudentStatus,
     statusChoices, checkMove, newestSheet, viewFor, teamChanges,
   };
 });

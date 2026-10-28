@@ -96,7 +96,6 @@
   const empty = (container, text) => container.append(el('p', 'empty', text));
 
   // ---- the headline numbers ----
-  const gbp = (v) => (v === null || v === undefined ? 'n/a' : `£${num(v)}`);
   const rate = (v) => (v === null || v === undefined ? 'n/a' : `${v}%`);
   function tiles(container, list) {
     container.replaceChildren(...list.map(([label, value, sub]) => {
@@ -108,7 +107,6 @@
 
   function renderKpis(d) {
     const k = d.kpis;
-    const m = d.money;
     $('heroValue').textContent = num(k.students);
     $('heroSub').textContent = d.selected === 'all'
       ? `Across ${d.intakes.length} intake${d.intakes.length === 1 ? '' : 's'}`
@@ -117,15 +115,13 @@
       ['Applications submitted', num(k.applicationsSubmitted), `${pct(k.applicationsSubmitted, k.students)} of students`],
       ['Offers received', num(k.offersReceived), `${pct(k.offersReceived, k.students)} of students`],
       ['Mock interviews held', num(k.mocksHeld), `${num(k.mockInterviews)} interviews in total`],
-      ['Payments made', num(k.paymentsMade), `${pct(k.paymentsMade, k.students)} of students paid`],
+      ['Payments made', num(k.paymentsMade), d.paidInFull || d.partlyPaid ? `${num(d.paidInFull)} in full, ${num(d.partlyPaid)} part paid` : `${pct(k.paymentsMade, k.students)} of students paid`],
       ['Visas issued', num(k.visaIssued), `${k.conversionRate}% of students`],
     ]);
     tiles($('kpis2'), [
-      ['Deposits received', gbp(k.depositsGbp), `${gbp(m.averageFeeGbp)} average tuition fee`],
-      ['Still to collect', gbp(m.outstandingGbp), `from students who have paid a deposit`],
-      ['Collected so far', rate(m.collectionRate), `of the ${gbp(m.committedGbp)} agreed`],
       ['Visa success', rate(k.visaSuccessRate), 'visas issued out of visas decided'],
-      ['Students in progress', num(k.active), `${num(k.left)} have left (${rate(k.attritionRate)} deferred or withdrawn)`],
+      ['Students in progress', num(k.active), 'still moving through the stages'],
+      ['Left the pipeline', num(k.left), `${num(k.rejected)} visa rejected, ${num(k.left - k.rejected)} deferred or withdrawn`],
     ]);
   }
 
@@ -161,20 +157,15 @@
     [
       ['Visas expected', f.expectedVisas, `${num(d.kpis.visaIssued)} issued so far`],
       ['Payments expected', f.expectedPayments, `${num(d.kpis.paymentsMade)} made so far`],
-      ['Deposits still to come', gbp(f.expectedDepositsGbp), 'at the average deposit paid so far'],
     ].forEach(([label, value, sub]) => {
       const t = el('div', 'fc');
-      t.append(el('span', 'fc-label', label), el('span', 'fc-value', typeof value === 'number' ? num(Math.round(value)) : value), el('span', 'kpi-sub', sub));
+      t.append(el('span', 'fc-label', label), el('span', 'fc-value', num(Math.round(value))), el('span', 'kpi-sub', sub));
       grid.append(t);
     });
     c.append(grid);
     c.append(el('p', 'method', `${f.reliable
       ? `Worked out from how ${num(f.settledStudents)} earlier students ended up (visa, rejected, deferred or withdrawn), applied to ${num(f.active)} students still in progress.`
       : `Only ${num(f.settledStudents)} students have finished so far, so this leans on typical agency figures until more have. Treat it as a rough guide.`}`));
-    const open = el('details', 'rates');
-    open.append(el('summary', '', 'Chance of a visa from each step'));
-    table(open, ['Furthest step', 'Students finished', 'Chance of payment', 'Chance of visa'], f.rates.map((r) => [r.step, num(r.n), `${r.pay}%`, `${r.visa}%`]));
-    c.append(open);
   }
 
   function renderSpeed(d) {
@@ -182,21 +173,11 @@
     c.replaceChildren();
     const rows = d.speed.map((s) => [
       s.label,
-      s.samples >= 3 ? `${Math.round(s.median)} days` : 'not enough dates',
-      s.samples >= 3 ? `${Math.round(s.average)} days` : '',
+      s.samples >= 3 ? `${Math.round(s.median)} days` : 'not enough dates yet',
       num(s.samples),
     ]);
-    table(c, ['Step', 'Typical (median)', 'Average', 'Students'], rows);
-    c.append(el('p', 'method', 'Typical is the middle value, so one very slow student does not distort it. Only students with both dates entered are counted.'));
-  }
-
-  function renderCompare(d) {
-    const c = $('compare');
-    c.replaceChildren();
-    if (!d.intakeCompare.length) { empty(c, 'No intakes yet.'); return; }
-    table(c, ['Intake', 'Students', 'Paid', 'Visas', 'Left', 'Visa rate', 'Deposits'], d.intakeCompare.map((i) => [
-      i.name, num(i.students), `${num(i.paid)} (${i.payRate}%)`, num(i.visas), num(i.left), `${i.visaRate}%`, gbp(i.depositsGbp),
-    ]));
+    table(c, ['Step', 'Typical time', 'Students counted'], rows);
+    c.append(el('p', 'method', 'Typical time is the middle value, so one very slow student does not distort it. Only students with both dates entered are counted.'));
   }
 
   // ---- stages and milestones ----
@@ -240,7 +221,7 @@
     const total = data.kpis.students;
     const visaRate = (g) => (g.count ? `${Math.round((g.visas / g.count) * 1000) / 10}%` : '0%');
     if (asTable.has(key)) {
-      table(c, [headerName, 'Students', 'Paid', 'Visas', 'Visa rate', 'Deposits'], list.map((g) => [g.label, num(g.count), num(g.paid), num(g.visas), visaRate(g), gbp(g.depositsGbp)]));
+      table(c, [headerName, 'Students', 'Paid', 'Visas', 'Visa rate'], list.map((g) => [g.label, num(g.count), num(g.paid), num(g.visas), visaRate(g)]));
       return;
     }
     const scale = Math.max(1, ...list.map((g) => g.count));
@@ -249,43 +230,8 @@
       tip: { title: g.label, rows: [
         { name: 'Students', value: num(g.count) }, { name: 'Share of all students', value: pct(g.count, total) },
         { name: 'Paid', value: num(g.paid) }, { name: 'Visas issued', value: num(g.visas) }, { name: 'Visa rate', value: visaRate(g) },
-        { name: 'Deposits received', value: gbp(g.depositsGbp) },
       ] },
     })), scale);
-  }
-
-  function renderCollections(d) {
-    const c = $('chartCollections');
-    c.replaceChildren();
-    const m = d.monthly;
-    if (!m.deposits.some((v) => v > 0)) { empty(c, 'No payment dates with deposits in the last 12 months.'); return; }
-    if (asTable.has('collections')) {
-      table(c, ['Month', 'Deposits'], m.months.map((mo, i) => [monthName(mo, true), gbp(m.deposits[i])]));
-      return;
-    }
-    const scale = Math.max(1, ...m.deposits);
-    bars(c, m.months.map((mo, i) => ({
-      label: monthName(mo, true), value: m.deposits[i], text: gbp(m.deposits[i]),
-      tip: { title: monthName(mo, true), rows: [{ name: 'Deposits received', value: gbp(m.deposits[i]) }] },
-    })), scale);
-  }
-
-  function renderMock(d) {
-    const c = $('mockBody');
-    c.replaceChildren();
-    const m = d.mock;
-    if (!m.held) { empty(c, 'No mock interviews yet.'); return; }
-    const grid = el('div', 'fc-grid');
-    [
-      ['Students interviewed', num(m.held), `${num(m.interviews)} interviews in total`],
-      ['Interviews each', m.perStudent === null ? 'n/a' : String(m.perStudent), 'on average'],
-      ['Pre-CAS pass rate', rate(m.passRate), 'passed out of passed and failed'],
-    ].forEach(([label, value, sub]) => {
-      const t = el('div', 'fc');
-      t.append(el('span', 'fc-label', label), el('span', 'fc-value', value), el('span', 'kpi-sub', sub));
-      grid.append(t);
-    });
-    c.append(grid);
   }
 
   // What was filled in by the dashboard and what is missing, in plain words, so nothing looks hidden.
@@ -298,7 +244,6 @@
     if (q.paymentsWithoutDate) undated.push(`${num(q.paymentsWithoutDate)} payments`);
     if (q.visasWithoutDate) undated.push(`${num(q.visasWithoutDate)} visas`);
     if (undated.length) parts.push(`${undated.join(', ')} have no date entered, so they are in the totals but not on the month charts or the timing figures.`);
-    if (d.money.paidWithoutFee) parts.push(`${num(d.money.paidWithoutFee)} paying student${d.money.paidWithoutFee === 1 ? ' has' : 's have'} no Gross Fee entered, so they are not in the fee totals.`);
     const missing = [];
     if (q.noSource) missing.push(`${num(q.noSource)} without a source`);
     if (q.noPartner) missing.push(`${num(q.noPartner)} without a university partner`);
@@ -430,14 +375,11 @@
     renderStages(d0);
     renderMilestones(d0);
     renderSpeed(d0);
-    renderCompare(d0);
     renderMonthly(d0);
-    renderCollections(d0);
     renderGroups('chartSources', 'sources', 'Source', d0.sources);
     renderGroups('chartPartners', 'partners', 'Partner', d0.partners);
     renderGroups('chartUniversities', 'universities', 'University', d0.universities);
     renderGroups('chartCourses', 'courses', 'Course', d0.courses);
-    renderMock(d0);
     renderNotes(d0);
     document.querySelectorAll('.toggle').forEach((b) => b.setAttribute('aria-pressed', String(asTable.has(b.dataset.table))));
   }

@@ -15,6 +15,7 @@ counselor-incentive/exchange-rate-cache.json
 student-details/users.json
 student-details/sessions.json
 student-details/settings.json
+student-details/mail.json
 student-details/session-secret
 student-details/activity.jsonl
 *.tmp
@@ -25,3 +26,4 @@ student-details/activity.jsonl
 
 .env
 *.log
+mail.json

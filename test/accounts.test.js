@@ -207,18 +207,6 @@ test('requests made from another website are refused', async () => {
   assert.strictEqual(res.status, 403);
 });
 
-test('hidden sheets stay shut until Admin sets their password', async () => {
-  const clock = { t: Date.parse('2026-10-28T09:00:00Z') };
-  const dir = tmpDir();
-  const accounts = createAccounts({ dir, now: () => clock.t });
-  assert.strictEqual(accounts.hasHiddenPassword(), false);
-  assert.ok(!accounts.hiddenPasswordMatches(''));
-  const { b } = await setUpAdmin(accounts, clock, dir);
-  await b.call('POST', '/api/settings/hidden-password', { password: 'test hidden pw' });
-  assert.ok(accounts.hiddenPasswordMatches(' test hidden pw '));
-  assert.ok(!accounts.hiddenPasswordMatches('something else'));
-});
-
 test('the account files never hold a password or cookie in plain text', async () => {
   const clock = { t: Date.parse('2026-10-28T09:00:00Z') };
   const dir = tmpDir();
