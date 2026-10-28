@@ -2,7 +2,7 @@
   const NUM_COLS = new Set([
     'GROSS FEE', 'SCHOLARSHIP', 'FEE AFTER SCHOLARSHIP', 'EARLY BIRD DISCOUNT',
     'ADDITIONAL DISCOUNT', 'TUITION FEE DEPOSIT(1st Installment)',
-    'TUITION FEE DEPOSIT(2nd Installment)', 'REMAINING TUITION FEE',
+    'TUITION FEE DEPOSIT(2nd Installment)', 'TUITION FEE DEPOSIT(3rd Installment)', 'REMAINING TUITION FEE',
   ]);
   const DATE_COLS = new Set([
     'APPLICATION SUBMISSION DATE', 'OFFER RECEIVED DATE', 'LANGUAGE TEST DATE', 'PAYMENT DATE', 'CAS REQUESTED DATE', 'CAS RECEIVED DATE',
@@ -43,7 +43,7 @@
   const LANGUAGE_TEST_COL = 'LANGUAGE TEST DATE';
   const LANGUAGE_TEST_CHOICES = ['Waiver', 'University Internal Test', 'Test Date'];
   const LANGUAGE_TEST_NO_DATE = new Set(['Waiver', 'University Internal Test']);
-  const { parseNum, feeAfterScholarship, remainingTuitionFee, normalizePhone, duplicatePhones, offerStuck } = window.NiecCalc;
+  const { parseNum, feeAfterScholarship, remainingTuitionFee, normalizePhone, duplicatePhones } = window.NiecCalc;
   // The student's WhatsApp number. Any number that appears on more than one row of a sheet is highlighted yellow.
   const WHATSAPP_COL = 'CONTACT NUMBER';
   const CALC_COLS = {
@@ -84,6 +84,7 @@
     'ADDITIONAL DISCOUNT': 'Additional Discount (£)',
     'TUITION FEE DEPOSIT(1st Installment)': '1st Installment Paid (£)',
     'TUITION FEE DEPOSIT(2nd Installment)': '2nd Installment Paid (£)',
+    'TUITION FEE DEPOSIT(3rd Installment)': '3rd Installment Paid (£)',
     'REMAINING TUITION FEE': 'Remaining Tuition Fee (£)',
     'PRE CAS INTERVIEW': 'Pre-CAS Interview',
     'E-VISA': 'E-Visa',
@@ -113,7 +114,7 @@
   let sendFull = false; // the server asked for the whole workbook once (it no longer had our revision)
   let reloadWanted = false; // fetch the whole (team) view next time, e.g. after moving a student on
   const Patch = window.WorkbookPatch;
-  // Who is logged in (from /api/me). Admin works on everything; the CEO sees every student and changes
+  // Who is logged in (from /api/me). Admin works on everything; the Manager sees every student and changes
   // nothing; staff see the students at their departments' stages and change only those departments'
   // columns (shared/teams.js; the server enforces the same rules).
   const Teams = window.TeamRules;
@@ -330,7 +331,6 @@
       pushUndo();
       rows[rowIdx][col] = value;
       markDirty();
-      if (col === 'OFFER RECEIVED DATE') tr.classList.toggle('offer-stuck-row', offerStuck(rows[rowIdx]));
     });
     td.textContent = '';
     td.appendChild(input);
@@ -589,7 +589,7 @@
       if (who) {
         me = who;
         document.body.dataset.role = me.role;
-        $('#viewOnly').hidden = me.role !== 'ceo';
+        $('#viewOnly').hidden = me.role !== 'manager';
       }
       if (!res.ok || !me) throw new Error('HTTP ' + res.status);
       json = await res.json();
@@ -1087,7 +1087,7 @@
       label.className = 'th-label';
       label.textContent = columnLabel(col);
       if (CALC_COLS[col]) th.title = 'Worked out automatically: ' + (col === 'REMAINING TUITION FEE'
-        ? 'Fee After Scholarship − Early Bird − Additional Discount − 1st − 2nd Installment'
+        ? 'Fee After Scholarship − Early Bird − Additional Discount − 1st − 2nd − 3rd Installment'
         : 'Gross Fee − Scholarship');
       label.addEventListener('click', () => {
         if (sortCol === col) sortDir = -sortDir;
@@ -1394,10 +1394,6 @@
     tr.dataset.displayIdx = displayIdx;
     if (displayIdx % 2) tr.className = 'alt'; // striped by position (spacer rows would upset :nth-child)
     rowEls.set(rowIdx, tr);
-    if (columns.includes('OFFER RECEIVED DATE') && offerStuck(rows[rowIdx])) {
-      tr.classList.add('offer-stuck-row');
-      tr.title = 'Offer received over a week ago, but the student hasn\'t reached Payment Stage yet.';
-    }
 
     // Clicks on rows and cells are handled once, on the table body (see the grid section below).
     const idxTd = document.createElement('td');
@@ -1419,7 +1415,7 @@
         td.textContent = formatted;
         td.className = 'num calculated';
         td.title = col === 'REMAINING TUITION FEE'
-          ? 'Auto-calculated: Fee After Scholarship − Early Bird Discount − Additional Discount − 1st Installment − 2nd Installment'
+          ? 'Auto-calculated: Fee After Scholarship − Early Bird Discount − Additional Discount − 1st Installment − 2nd Installment − 3rd Installment'
           : 'Auto-calculated: Gross Fee − Scholarship (a % scholarship is taken of the Gross Fee)';
       } else if (col === LANGUAGE_TEST_COL) {
         renderLanguageTestCell(td, rowIdx);
@@ -2230,6 +2226,7 @@
   }
 
   async function exportExcel() {
+    if (!me || (me.role !== 'admin' && me.role !== 'manager')) return; // Export Excel is for Admin and the Manager
     let ExcelJS;
     try {
       ExcelJS = await NiecSession.loadExcel();

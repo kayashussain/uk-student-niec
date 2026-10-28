@@ -139,7 +139,7 @@ td[data-label="Last login"], td[data-label="Logged in"], td[data-label="Last act
 .chips { display: flex; flex-wrap: wrap; gap: 4px; }
 .chip { padding: 2px 9px; border-radius: 999px; font-size: 12px; font-weight: 600; white-space: nowrap; background: var(--bg); color: var(--text); border: 1px solid var(--border); }
 .chip-admin { background: var(--orange-tint); color: #c2410c; border-color: transparent; }
-.chip-ceo { background: var(--wait-bg); color: var(--wait); border-color: transparent; }
+.chip-manager { background: var(--wait-bg); color: var(--wait); border-color: transparent; }
 .chip-application, .chip-mock, .chip-followup { background: var(--blue-tint); color: var(--blue-text); border-color: transparent; }
 .test-form { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--border); }
 dialog { width: min(560px, calc(100vw - 24px)); padding: 20px; border: 1px solid var(--border); border-radius: 14px; background: var(--panel); color: var(--text); box-shadow: 0 24px 60px rgba(15, 23, 42, .3); }

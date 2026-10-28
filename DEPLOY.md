@@ -37,7 +37,7 @@ Authenticator), so a password alone, or one someone shared, isn't enough. A logi
   link your phone, and the code is deleted. Do this straight after deploying.
 - **Hidden sheets** can't be opened until Admin sets the hidden-sheet password (Users → Settings).
 - **Adding people:** Admin → **Users** → *Add a person*: name, username (not case sensitive), email, and
-  what they can do. Tick one or more teams, or choose CEO. They are emailed a link and a temporary
+  what they can do. Tick one or more teams, or choose Manager. They are emailed a link and a temporary
   password (see **Email** below); at their first login they choose their own password and link their
   phone. Admin is the owner account: nobody else can ever be made Admin.
 - **When someone leaves:** Users → **Disable**. They're logged out of every device at once and can't
@@ -60,8 +60,8 @@ students, columns and moves of every team they hold.
 | Account | Sees | Can change |
 |---|---|---|
 | Admin (the owner) | everything, all pages | everything |
-| CEO | the **Dashboard** and every student on the visible sheets, view only | nothing; no Incentive page |
-| Application Team | students at *Application Stage* | columns up to NOC Number; can move a student to *Mock Stage* (warned about anything still blank) |
+| Manager | the **Dashboard** and every student on every sheet, earlier intakes too, view only | nothing; can use Export Excel; no Incentive page |
+| Application Team | students at *Application Stage*, in the newest intake only | columns up to NOC Number; can move a student to *Mock Stage* (warned about anything still blank) |
 | Mock Team | students at *Mock Stage* | Remarks and the mock columns up to Pre-CAS Interview; can move to *Payment Stage* only once those are all filled |
 | Follow-up Team | *Inquiry*, *Defer* and *Withdrawn* students | Remarks only |
 
@@ -104,10 +104,13 @@ mail server on that port; if it is blocked, the test email says so.
 
 ## Dashboard
 
-Admin and the CEO have a **Dashboard** with the totals: students, applications submitted, offers
-received, mock interviews, payments and visas, a funnel of how far students have got, month by month
-trends, and breakdowns by source, university partner and university. It can be filtered by intake and
-updates itself every 30 seconds. The CEO's numbers leave out hidden sheets.
+Admin and the Manager have a **Dashboard** made for planning intakes: the student journey from inquiry to
+visa with the share that goes on at each step, money (deposits received, still to collect, average fee),
+visa success, a forecast of visas, payments and deposits still to come, how many days each step takes,
+every intake side by side, month by month trends, who needs chasing, and breakdowns by source, university
+partner, university and course. A step is counted from its own date or from any later stage (a student at
+Visa Issued has applied, had an offer and paid), and a note under the page says how many were counted that
+way. It can be filtered by intake and updates itself every 30 seconds.
 
 Daily backups and "today's" exchange rate follow Nepal time. To use a different time zone, set
 `APP_TIMEZONE` (e.g. `Europe/London`).

@@ -3,7 +3,7 @@
 // is dashboard, sheet, incentive, users or activity), loads header.css and this file (after
 // session.js), and the header fills itself in.
 //
-// Navigation depends on the account: Admin sees every page, the CEO sees the Dashboard and Student
+// Navigation depends on the account: Admin sees every page, the Manager sees the Dashboard and Student
 // Details, and staff see no menu (they work on Student Details alone).
 (function () {
   const header = document.querySelector('.niec-header');
@@ -22,15 +22,15 @@
   const LINKS = {
     admin: [['dashboard', '/dashboard', 'Dashboard'], ['sheet', '/students', 'Student Details'], ['incentive', '/commission/', 'Incentive'],
       ['users', '/users', 'Users'], ['activity', '/activity', 'Activity']],
-    ceo: [['dashboard', '/dashboard', 'Dashboard'], ['sheet', '/students', 'Student Details']],
+    manager: [['dashboard', '/dashboard', 'Dashboard'], ['sheet', '/students', 'Student Details']],
   };
 
   function render(me) {
     const links = LINKS[me.role] || [];
     header.querySelector('.niec-nav').innerHTML = links
       .map(([id, href, label]) => `<a href="${href}"${id === page ? ' aria-current="page"' : ''}>${label}</a>`).join('');
-    // The logo goes home: the dashboard for the CEO, Student Details for everyone else.
-    header.querySelector('#niecHome').setAttribute('href', me.role === 'ceo' ? '/dashboard' : '/students');
+    // The logo goes home: the dashboard for the Manager, Student Details for everyone else.
+    header.querySelector('#niecHome').setAttribute('href', me.role === 'manager' ? '/dashboard' : '/students');
     const initials = String(me.name || '?').split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase();
     const account = header.querySelector('.niec-account');
     account.innerHTML = `
@@ -41,7 +41,6 @@
       </button>
       <div class="niec-menu" role="menu" hidden>
         <div class="niec-menu-head"><b>${esc(me.name)}</b><span>${esc(me.username)} · ${esc(me.roleLabel)}</span></div>
-        ${me.role === 'admin' ? '<a role="menuitem" href="/users">Users</a><a role="menuitem" href="/activity">Activity</a>' : ''}
         <button type="button" role="menuitem" class="niec-logout">Log out</button>
       </div>`;
     const btn = account.querySelector('.niec-account-btn');

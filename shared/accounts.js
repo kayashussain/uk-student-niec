@@ -2,13 +2,13 @@
 // the server can end at any moment (disabling a person logs them out everywhere at once).
 //
 // Files, all in the Student Details data folder (`dir`), never served:
-//   users.json     people: username, name, email, role (admin, ceo or staff), departments, scrypt password
+//   users.json     people: username, name, email, role (admin, manager or staff), departments, scrypt password
 //                  hash, authenticator secret, disabled
 //   sessions.json  logged-in devices, keyed by a SHA-256 of the cookie token (the token itself is never stored)
 //   settings.json  the hidden-sheet password hash and the mail server settings (the mail password is never
 //                  sent to a page)
 //
-// Access: the first Admin is the owner and nobody else can ever be made Admin. Everyone else is the CEO
+// Access: the first Admin is the owner and nobody else can ever be made Admin. Everyone else is the Manager
 // (dashboard and view-only Student Details) or a staff member in one or more departments (Application,
 // Mock, Follow-up, any mix). See shared/teams.js for what each can see and change.
 //   first-admin-code.txt  only until the first Admin exists (see below)
@@ -31,7 +31,7 @@ const Teams = require('./teams');
 const defaultMailer = require('./mailer');
 
 const DEPARTMENTS = Object.fromEntries(Object.entries(Teams.DEPARTMENTS).map(([id, d]) => [id, d.label]));
-const GRANTABLE_ROLES = ['staff', 'ceo']; // Admin is never grantable
+const GRANTABLE_ROLES = ['staff', 'manager']; // Admin is never grantable
 
 const SESSION_COOKIE = 'niec_session';
 const SESSION_MS = 12 * 60 * 60 * 1000; // a login lasts one working day
@@ -180,15 +180,16 @@ const sha256 = (s) => crypto.createHash('sha256').update(String(s)).digest('hex'
 // Accounts saved before departments existed had one team as their role (role: 'mock'): that becomes a
 // staff member in that one department.
 function normalizeUser(u) {
+  if (u.role === 'ceo') return { ...u, role: 'manager', departments: [] }; // the Manager role was first called CEO
   if (DEPARTMENTS[u.role]) return { ...u, role: 'staff', departments: [u.role] };
   if (u.role === 'staff') return { ...u, departments: (u.departments || []).filter((d) => DEPARTMENTS[d]) };
   return { ...u, departments: [] };
 }
 
-// What a person can do, in words: "Admin", "CEO", or their teams joined with a plus.
+// What a person can do, in words: "Admin", "Manager", or their teams joined with a plus.
 function accessLabel(u) {
   if (u.role === 'admin') return 'Admin';
-  if (u.role === 'ceo') return 'CEO';
+  if (u.role === 'manager') return 'Manager';
   return (u.departments || []).map((d) => DEPARTMENTS[d]).join(' + ') || 'No team';
 }
 
@@ -206,15 +207,16 @@ function publicUser(u) {
   };
 }
 
-// Checks the access chosen for a person: the CEO, or staff in one or more departments. Admin can't be
+// Checks the access chosen for a person: the Manager, or staff in one or more departments. Admin can't be
 // chosen, whatever is sent. { role, departments } or { error }.
 function parseAccess(body) {
   let role = String(body.role || '');
+  if (role === 'ceo') role = 'manager';
   let departments = Array.isArray(body.departments) ? body.departments.map(String) : [];
   if (DEPARTMENTS[role]) { departments = [role]; role = 'staff'; } // the older single-team form
   if (role === 'admin') return { error: "Admin access can't be given to anyone. The Admin account belongs to the owner only." };
   if (!GRANTABLE_ROLES.includes(role)) return { error: 'Please choose what this person can do.' };
-  if (role === 'ceo') return { role, departments: [] };
+  if (role === 'manager') return { role, departments: [] };
   departments = [...new Set(departments)];
   if (!departments.length) return { error: 'Choose at least one team for this person.' };
   if (departments.some((d) => !DEPARTMENTS[d])) return { error: 'That team does not exist.' };
@@ -657,6 +659,15 @@ function createAccounts({
         updateUser(target.id, { disabled: true });
         const n = endAll();
         record(req, req.user, 'Disabled user', { changes: [`Disabled ${who}; logged out of ${n} device${n === 1 ? '' : 's'}`] });
+      } else if (action === 'remove') {
+        // Takes the person off completely: their login is deleted, so their username and password no longer
+        // work, and every device they were logged in on is ended. The record of what they did stays.
+        if (self) { bad(res, 400, "You can't remove your own account."); return true; }
+        if (target.role === 'admin') { bad(res, 400, "The Admin account can't be removed."); return true; }
+        const n = endAll();
+        saveUsers(list.filter((u) => u.id !== target.id));
+        userFailures.delete(target.username);
+        record(req, req.user, 'Removed user', { changes: [`Removed ${who} (${accessLabel(target)}); logged out of ${n} device${n === 1 ? '' : 's'}`] });
       } else if (action === 'enable') {
         updateUser(target.id, { disabled: false });
         record(req, req.user, 'Enabled user', { changes: [`Enabled ${who}`] });
