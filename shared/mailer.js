@@ -256,4 +256,22 @@ function testEmail() {
   };
 }
 
-module.exports = { sendMail, buildMessage, setupEmail, testEmail, isAddress, friendlyError };
+// The mail server settings for a data folder: the file mail.json (written by `node scripts/email.js setup`,
+// never served, not in git) with these environment variables on top: MAIL_HOST, MAIL_PORT, MAIL_SECURITY
+// (ssl or starttls), MAIL_USER, MAIL_PASSWORD, MAIL_FROM, MAIL_FROM_NAME and SITE_URL.
+function loadConfig(dir, env = process.env) {
+  let file = {};
+  try { file = JSON.parse(require('fs').readFileSync(require('path').join(dir, 'mail.json'), 'utf8')); } catch (e) { /* none yet */ }
+  return {
+    host: env.MAIL_HOST || file.host || 'mail.niecedu.com.np',
+    port: Number(env.MAIL_PORT || file.port || 465),
+    security: env.MAIL_SECURITY || file.security || 'ssl',
+    user: env.MAIL_USER || file.user || '',
+    pass: env.MAIL_PASSWORD || file.pass || '',
+    from: String(env.MAIL_FROM || file.from || '').toLowerCase(),
+    fromName: env.MAIL_FROM_NAME || file.fromName || 'UK Student NIEC',
+    siteUrl: String(env.SITE_URL || file.siteUrl || '').replace(/\/+$/, ''),
+  };
+}
+
+module.exports = { loadConfig, sendMail, buildMessage, setupEmail, testEmail, isAddress, friendlyError };

@@ -5,8 +5,8 @@
 //   users.json     people: username, name, email, role (admin, manager or staff), departments, scrypt password
 //                  hash, authenticator secret, disabled
 //   sessions.json  logged-in devices, keyed by a SHA-256 of the cookie token (the token itself is never stored)
-//   settings.json  the hidden-sheet password hash and the mail server settings (the mail password is never
-//                  sent to a page)
+//   mail.json      the mail server settings, written on the server by `node scripts/email.js setup` (the mail
+//                  password is never sent to a page)
 //
 // Access: the first Admin is the owner and nobody else can ever be made Admin. Everyone else is the Manager
 // (dashboard and view-only Student Details) or a staff member in one or more departments (Application,
@@ -31,7 +31,6 @@ const Teams = require('./teams');
 const defaultMailer = require('./mailer');
 
 const DEPARTMENTS = Object.fromEntries(Object.entries(Teams.DEPARTMENTS).map(([id, d]) => [id, d.label]));
-const GRANTABLE_ROLES = ['staff', 'manager']; // Admin is never grantable
 
 const SESSION_COOKIE = 'niec_session';
 const SESSION_MS = 12 * 60 * 60 * 1000; // a login lasts one working day
@@ -181,6 +180,7 @@ const sha256 = (s) => crypto.createHash('sha256').update(String(s)).digest('hex'
 // staff member in that one department.
 function normalizeUser(u) {
   if (u.role === 'ceo') return { ...u, role: 'manager', departments: [] }; // the Manager role was first called CEO
+  if (u.role === 'manager') return { ...u, departments: (u.departments || []).filter((d) => DEPARTMENTS[d]) };
   if (DEPARTMENTS[u.role]) return { ...u, role: 'staff', departments: [u.role] };
   if (u.role === 'staff') return { ...u, departments: (u.departments || []).filter((d) => DEPARTMENTS[d]) };
   return { ...u, departments: [] };
@@ -189,8 +189,9 @@ function normalizeUser(u) {
 // What a person can do, in words: "Admin", "Manager", or their teams joined with a plus.
 function accessLabel(u) {
   if (u.role === 'admin') return 'Admin';
-  if (u.role === 'manager') return 'Manager';
-  return (u.departments || []).map((d) => DEPARTMENTS[d]).join(' + ') || 'No team';
+  const teams = (u.departments || []).map((d) => DEPARTMENTS[d]);
+  if (u.role === 'manager') return ['Manager', ...teams].join(' + ');
+  return teams.join(' + ') || 'No team';
 }
 
 // Who a user is, for pages and the activity record. Never includes the password or secret.
@@ -215,12 +216,11 @@ function parseAccess(body) {
   let departments = Array.isArray(body.departments) ? body.departments.map(String) : [];
   if (DEPARTMENTS[role]) { departments = [role]; role = 'staff'; } // the older single-team form
   if (role === 'admin') return { error: "Admin access can't be given to anyone. The Admin account belongs to the owner only." };
-  if (!GRANTABLE_ROLES.includes(role)) return { error: 'Please choose what this person can do.' };
-  if (role === 'manager') return { role, departments: [] };
+  const manager = body.manager === true || role === 'manager';
   departments = [...new Set(departments)];
-  if (!departments.length) return { error: 'Choose at least one team for this person.' };
   if (departments.some((d) => !DEPARTMENTS[d])) return { error: 'That team does not exist.' };
-  return { role, departments };
+  if (!manager && !departments.length) return { error: 'Choose at least one team, or Manager, for this person.' };
+  return { role: manager ? 'manager' : 'staff', departments };
 }
 
 const USERNAME_RULE = /^[a-z0-9._@-]{3,60}$/;
@@ -243,7 +243,6 @@ function createAccounts({
   const usersStore = createStore(path.join(dir, 'users.json'), () => ({ users: [] }),
     (data) => ({ ...data, users: (data.users || []).map(normalizeUser) }));
   const sessionsStore = createStore(path.join(dir, 'sessions.json'), () => ({ sessions: {} }));
-  const settingsStore = createStore(path.join(dir, 'settings.json'), () => ({}));
   const record = (req, user, action, details) => { if (activity) activity.record(req, user, action, details); };
   const setupCodeFile = path.join(dir, 'first-admin-code.txt');
 
@@ -370,20 +369,12 @@ function createAccounts({
   }
   const TOO_MANY = 'Too many wrong tries. Please wait 15 minutes and try again.';
 
-  // ---- hidden-sheet password ----
-  // Until Admin sets one under Users → Settings, hidden sheets can't be opened at all.
-  const hasHiddenPassword = () => Boolean(settingsStore.read().hiddenSheetPassword);
-  function hiddenPasswordMatches(password) {
-    const stored = settingsStore.read().hiddenSheetPassword;
-    return Boolean(stored) && verifyPassword(String(password || '').trim(), stored);
-  }
-
   // ---- email (setup details for new people, test messages) ----
-  const emailSettings = () => settingsStore.read().email || {};
-  // The mail server settings, or null until Admin has filled in the needed ones.
+  // The mail server settings come from the server (see loadConfig in shared/mailer.js), never from a page.
+  const emailSettings = () => defaultMailer.loadConfig(dir);
   function emailConfig() {
     const e = emailSettings();
-    return e.host && e.port && e.from ? e : null;
+    return e.host && e.port && e.from && e.pass ? e : null;
   }
   // The address this request came to, e.g. https://niec.duckdns.org
   function detectedSiteUrl(req) {
@@ -470,7 +461,7 @@ function createAccounts({
     const method = req.method;
     if (!urlPath.startsWith('/api/login') && !urlPath.startsWith('/api/logout')
       && !urlPath.startsWith('/api/users') && !urlPath.startsWith('/api/sessions')
-      && !urlPath.startsWith('/api/settings') && urlPath !== '/api/me') return false;
+      && urlPath !== '/api/me') return false;
     if (crossSite(req)) { bad(res, 403, 'Blocked: this request came from another website.'); return true; }
     const body = method === 'POST' ? await readJSONBody(req, 8192).catch(() => ({})) : {};
     const ip = clientIp(req);
@@ -751,70 +742,11 @@ function createAccounts({
       return true;
     }
 
-    if (urlPath === '/api/settings/email' && method === 'GET') {
-      const e = emailSettings();
-      sendJSON(res, 200, {
-        configured: Boolean(emailConfig()),
-        host: e.host || '', port: e.port || '', security: e.security || 'ssl', user: e.user || '',
-        from: e.from || '', fromName: e.fromName || '', siteUrl: e.siteUrl || '', passwordSet: Boolean(e.pass),
-        detectedSiteUrl: detectedSiteUrl(req),
-      });
-      return true;
-    }
-
-    if (urlPath === '/api/settings/email' && method === 'POST') {
-      const old = emailSettings();
-      const next = {
-        host: String(body.host || '').trim().toLowerCase(),
-        port: Number(body.port),
-        security: String(body.security || ''),
-        user: String(body.user || '').trim(),
-        pass: body.pass ? String(body.pass) : (old.pass || ''), // blank keeps the saved password
-        from: String(body.from || '').trim().toLowerCase(),
-        fromName: String(body.fromName || '').replace(/[\r\n"]/g, ' ').trim().slice(0, 80),
-        siteUrl: String(body.siteUrl || '').trim().replace(/\/+$/, ''),
-      };
-      if (!/^[a-z0-9.-]{3,100}$/.test(next.host)) { bad(res, 400, 'Enter the mail server name, for example smtp.yourprovider.com.'); return true; }
-      if (!Number.isInteger(next.port) || next.port < 1 || next.port > 65535) { bad(res, 400, 'The port must be a number, usually 465 or 587.'); return true; }
-      if (!['ssl', 'starttls'].includes(next.security)) { bad(res, 400, 'Choose how the connection is secured.'); return true; }
-      if (!defaultMailer.isAddress(next.from)) { bad(res, 400, 'The "send from" address does not look right.'); return true; }
-      if (next.siteUrl && !/^https?:\/\/[A-Za-z0-9.-]+(:\d+)?$/.test(next.siteUrl)) { bad(res, 400, 'The website address should look like https://example.com'); return true; }
-      settingsStore.write({ ...settingsStore.read(), email: next });
-      record(req, req.user, 'Changed email settings', { changes: [`Mail server ${next.host}:${next.port}, sending as ${next.from}`] });
-      ok(res);
-      return true;
-    }
-
-    if (urlPath === '/api/settings/email/test' && method === 'POST') {
-      const cfg = emailConfig();
-      if (!cfg) { bad(res, 400, 'Save the mail server settings first.'); return true; }
-      const to = cleanEmail(body.to);
-      if (!to) { bad(res, 400, 'Enter the email address to send the test to.'); return true; }
-      try {
-        await mailer.sendMail(cfg, { to, ...mailer.testEmail() });
-        record(req, req.user, 'Sent test email', { changes: [`Test email to ${to}`] });
-        ok(res);
-      } catch (e) {
-        record(req, req.user, 'Test email failed', { changes: [`Test email to ${to} failed: ${e.message}`] });
-        bad(res, 502, e.message);
-      }
-      return true;
-    }
-
-    if (urlPath === '/api/settings/hidden-password' && method === 'POST') {
-      const pw = String(body.password || '').trim();
-      if (pw.length < 6) { bad(res, 400, 'The hidden-sheet password needs at least 6 characters.'); return true; }
-      settingsStore.write({ ...settingsStore.read(), hiddenSheetPassword: hashPassword(pw) });
-      record(req, req.user, 'Changed hidden-sheet password');
-      ok(res);
-      return true;
-    }
-
     bad(res, 404, 'Not found');
     return true;
   }
 
-  return { requireAuth, handleApi, hiddenPasswordMatches, hasHiddenPassword };
+  return { requireAuth, handleApi, emailConfig };
 }
 
 module.exports = {

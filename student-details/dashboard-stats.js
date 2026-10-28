@@ -105,26 +105,22 @@ function progressOf(row, status) {
 }
 
 function newGroup() {
-  return { count: 0, paid: 0, visas: 0, left: 0, depositsGbp: 0 };
+  return { count: 0, paid: 0, visas: 0, left: 0 };
 }
-function bump(map, label, p, isLeft, deposited) {
+function bump(map, label, p, isLeft) {
   const g = map.get(label) || map.set(label, newGroup()).get(label);
   g.count += 1;
   if (p.reached.paid) g.paid += 1;
   if (p.reached.visa) g.visas += 1;
   if (isLeft) g.left += 1;
-  g.depositsGbp += deposited;
-}
-function finishGroup(g) {
-  return { ...g, depositsGbp: Math.round(g.depositsGbp) };
 }
 // The biggest `n` groups by count, the rest folded into "Other".
 function topGroups(map, n) {
-  const list = [...map.entries()].map(([label, v]) => ({ label, ...finishGroup(v) })).sort((a, b) => b.count - a.count || a.label.localeCompare(b.label));
+  const list = [...map.entries()].map(([label, v]) => ({ label, ...v })).sort((a, b) => b.count - a.count || a.label.localeCompare(b.label));
   if (list.length <= n) return list;
   const rest = list.slice(n);
   const sum = (key) => rest.reduce((s, g) => s + g[key], 0);
-  return [...list.slice(0, n), { label: 'Other', count: sum('count'), paid: sum('paid'), visas: sum('visas'), left: sum('left'), depositsGbp: sum('depositsGbp'), other: true }];
+  return [...list.slice(0, n), { label: 'Other', count: sum('count'), paid: sum('paid'), visas: sum('visas'), left: sum('left'), other: true }];
 }
 
 // Settled students (finished one way or the other) show how likely a student at each step is to pay and to
@@ -207,7 +203,7 @@ function buildDashboard(workbook, { sheetId = 'all', includeHidden = false, toda
   const { rates, settled: settledCount } = learnRates(everyone);
 
   const months = lastMonths(today, MONTHS);
-  const monthly = { applications: new Map(), payments: new Map(), visas: new Map(), deposits: new Map() };
+  const monthly = { applications: new Map(), payments: new Map(), visas: new Map() };
   Object.values(monthly).forEach((m) => months.forEach((mo) => m.set(mo, 0)));
   const stageCounts = new Map([...PIPELINE, ...LEFT].map((s) => [s, 0]));
   const sources = new Map(SOURCES.map((s) => [s, newGroup()]));
@@ -217,16 +213,15 @@ function buildDashboard(workbook, { sheetId = 'all', includeHidden = false, toda
   const reachedCount = Object.fromEntries(STEPS.map((s) => [s.key, 0]));
   const gaps = Object.fromEntries(GAPS.map((g) => [g.key, []]));
   const k = {
-    students: students.length, depositsGbp: 0, mockInterviews: 0, preCasPassed: 0, preCasFailed: 0,
-    noStatus: 0, active: 0, left: 0, rejected: 0, medicalReceived: 0, nocSubmitted: 0,
+    students: students.length, mockInterviews: 0, noStatus: 0, active: 0, left: 0, rejected: 0,
   };
-  const money = { committedGbp: 0, scholarshipsGbp: 0, grossGbp: 0, paidWithoutFee: 0, collectedGbp: 0 };
+  const pay = { full: 0, partly: 0, unknown: 0 }; // students who have paid: the whole fee, part of it, or no fee entered to compare with
   const quality = {
     filledFromStage: 0, paymentsWithoutDate: 0, visasWithoutDate: 0, applicationsWithoutDate: 0, noSource: 0, noPartner: 0, noUniversity: 0,
   };
   const chase = [];
   const chaseCounts = new Map();
-  const forecast = { expectedVisas: 0, expectedPayments: 0, active: 0, unpaidActive: 0 };
+  const forecast = { expectedVisas: 0, expectedPayments: 0, active: 0 };
 
   for (const s of students) {
     const { row, status, p } = s;
@@ -240,26 +235,14 @@ function buildDashboard(workbook, { sheetId = 'all', includeHidden = false, toda
     if (p.reached.applied && !has(row, 'APPLICATION SUBMISSION DATE')) quality.applicationsWithoutDate += 1;
 
     for (let n = 1; n <= 4; n += 1) if (has(row, `MOCK SCHEDULE ${n}`)) k.mockInterviews += 1;
-    if (text(row['PRE CAS INTERVIEW']) === 'Passed') k.preCasPassed += 1;
-    if (text(row['PRE CAS INTERVIEW']) === 'Fail') k.preCasFailed += 1;
-    if (text(row['MEDICAL REPORT']) === 'Received') k.medicalReceived += 1;
-    if (text(row['NOC']) === 'Submitted') k.nocSubmitted += 1;
     if (status === 'Visa Rejected') k.rejected += 1;
     if (s.left) k.left += 1;
     if (s.active) k.active += 1;
-    k.depositsGbp += s.deposited;
 
-    // Money: what the paying students owe after scholarship and discounts, and what has come in.
+    // Paid in full or part? Only for students who have paid and still have a fee to compare with.
     if (p.reached.paid && !s.left) {
-      const net = netTuitionFee(row);
-      if (has(row, 'GROSS FEE') && net > 0) {
-        money.committedGbp += net;
-        money.grossGbp += parseNum(row['GROSS FEE']);
-        money.scholarshipsGbp += parseNum(row['GROSS FEE']) - netTuitionFee({ ...row, 'EARLY BIRD DISCOUNT': '', 'ADDITIONAL DISCOUNT': '' });
-        money.collectedGbp += Math.min(s.deposited, net);
-      } else {
-        money.paidWithoutFee += 1;
-      }
+      const net = has(row, 'GROSS FEE') ? netTuitionFee(row) : 0;
+      if (net > 0) { if (s.deposited >= net) pay.full += 1; else pay.partly += 1; } else pay.unknown += 1;
     }
 
     const source = text(row['STUDENT SOURCE']);
@@ -268,16 +251,15 @@ function buildDashboard(workbook, { sheetId = 'all', includeHidden = false, toda
     if (!partner) quality.noPartner += 1;
     const uni = text(row['UNIVERSITY NAME']);
     if (!uni) quality.noUniversity += 1;
-    bump(sources, source || 'Not recorded', p, s.left, s.deposited);
-    bump(partners, partner || 'Not recorded', p, s.left, s.deposited);
-    bump(universities, uni || 'Not recorded', p, s.left, s.deposited);
-    bump(courses, text(row['COURSE NAME']) || 'Not recorded', p, s.left, s.deposited);
+    bump(sources, source || 'Not recorded', p, s.left);
+    bump(partners, partner || 'Not recorded', p, s.left);
+    bump(universities, uni || 'Not recorded', p, s.left);
+    bump(courses, text(row['COURSE NAME']) || 'Not recorded', p, s.left);
 
     const addTo = (map, month, by = 1) => { if (map.has(month)) map.set(month, map.get(month) + by); };
     addTo(monthly.applications, monthOf(row['APPLICATION SUBMISSION DATE']));
     addTo(monthly.payments, monthOf(row['PAYMENT DATE']));
     addTo(monthly.visas, monthOf(row['VISA RECEIVED DATE']));
-    addTo(monthly.deposits, monthOf(row['PAYMENT DATE']), s.deposited);
 
     GAPS.forEach((g) => {
       const d = dayNumber(row[g.to]) - dayNumber(row[g.from]);
@@ -292,7 +274,7 @@ function buildDashboard(workbook, { sheetId = 'all', includeHidden = false, toda
       const rate = rates[p.furthest];
       forecast.active += 1;
       forecast.expectedVisas += rate.visa;
-      if (!p.reached.paid) { forecast.unpaidActive += 1; forecast.expectedPayments += rate.pay; }
+      if (!p.reached.paid) forecast.expectedPayments += rate.pay;
     }
   }
 
@@ -304,21 +286,7 @@ function buildDashboard(workbook, { sheetId = 'all', includeHidden = false, toda
     st.fromPrevious = i ? pct(st.count, steps[i - 1].count) : 100;
   });
   const decided = reachedCount.visa + k.rejected;
-  const avgDeposit = reachedCount.paid ? money.collectedGbp / reachedCount.paid : 0;
-  const perIntake = shown.map((sheet) => {
-    const mine = everyone.filter((s) => s.sheet.id === sheet.id);
-    const n = mine.length;
-    const count = (fn) => mine.filter(fn).length;
-    return {
-      id: sheet.id, name: sheet.name, students: n,
-      applied: count((s) => s.p.reached.applied), offers: count((s) => s.p.reached.offer),
-      paid: count((s) => s.p.reached.paid), visas: count((s) => s.p.reached.visa),
-      left: count((s) => s.left), depositsGbp: Math.round(mine.reduce((sum, s) => sum + s.deposited, 0)),
-      visaRate: n ? round1((count((s) => s.p.reached.visa) / n) * 100) : 0,
-      payRate: n ? round1((count((s) => s.p.reached.paid) / n) * 100) : 0,
-    };
-  });
-  const sourceList = [...sources.entries()].filter(([label, v]) => v.count || SOURCES.includes(label)).map(([label, v]) => ({ label, ...finishGroup(v) }));
+  const sourceList = [...sources.entries()].filter(([label, v]) => v.count || SOURCES.includes(label)).map(([label, v]) => ({ label, ...v }));
   chase.sort((a, b) => b.days - a.days);
 
   return {
@@ -327,42 +295,29 @@ function buildDashboard(workbook, { sheetId = 'all', includeHidden = false, toda
     selected,
     kpis: {
       ...k,
-      depositsGbp: Math.round(k.depositsGbp),
       applicationsSubmitted: reachedCount.applied, offersReceived: reachedCount.offer, mocksHeld: reachedCount.mock,
       paymentsMade: reachedCount.paid, casReceived: reachedCount.cas, visaLodged: reachedCount.lodged, visaIssued: reachedCount.visa,
       conversionRate: pct(reachedCount.visa),
       paymentRate: pct(reachedCount.paid),
       visaSuccessRate: decided ? round1((reachedCount.visa / decided) * 100) : null,
-      attritionRate: pct(k.left - k.rejected),
-      preCasPassRate: k.preCasPassed + k.preCasFailed ? round1((k.preCasPassed / (k.preCasPassed + k.preCasFailed)) * 100) : null,
       inquiries: stageCounts.get('Inquiry'),
     },
     stages: PIPELINE.map((label) => ({ label, count: stageCounts.get(label) })),
     left: LEFT.map((label) => ({ label, count: stageCounts.get(label) })),
     milestones: steps,
-    money: {
-      collectedGbp: Math.round(money.collectedGbp), committedGbp: Math.round(money.committedGbp),
-      outstandingGbp: Math.round(Math.max(0, money.committedGbp - money.collectedGbp)),
-      collectionRate: money.committedGbp ? round1((money.collectedGbp / money.committedGbp) * 100) : null,
-      averageFeeGbp: reachedCount.paid - money.paidWithoutFee > 0 ? Math.round(money.committedGbp / (reachedCount.paid - money.paidWithoutFee)) : null,
-      scholarshipsGbp: Math.round(money.scholarshipsGbp), paidWithoutFee: money.paidWithoutFee,
-    },
+    paidInFull: pay.full, partlyPaid: pay.partly,
     forecast: {
       active: forecast.active,
       expectedVisas: round1(reachedCount.visa + forecast.expectedVisas),
       expectedPayments: round1(reachedCount.paid + forecast.expectedPayments),
-      expectedDepositsGbp: Math.round(forecast.expectedPayments * (avgDeposit || 0)),
       settledStudents: settledCount,
-      rates: rates.map((r, i) => ({ step: i ? STEPS[i - 1].label : 'Inquiry', n: r.n, visa: round1(r.visa * 100), pay: round1(r.pay * 100) })),
       reliable: settledCount >= 30,
     },
     speed: GAPS.map((g) => ({
-      key: g.key, label: g.label, samples: gaps[g.key].length,
-      median: median(gaps[g.key]), average: gaps[g.key].length ? round1(gaps[g.key].reduce((a, b) => a + b, 0) / gaps[g.key].length) : null,
+      key: g.key, label: g.label, samples: gaps[g.key].length, median: median(gaps[g.key]),
     })),
     attention: [...chaseCounts.entries()].map(([key, count]) => ({ key, count, text: CHASE_LABELS[key] })).sort((a, b) => b.count - a.count),
     chase: chase.slice(0, 8),
-    intakeCompare: perIntake,
     monthly: {
       months,
       series: [
@@ -370,17 +325,11 @@ function buildDashboard(workbook, { sheetId = 'all', includeHidden = false, toda
         { key: 'payments', label: 'Payments made', values: months.map((m) => monthly.payments.get(m)) },
         { key: 'visas', label: 'Visas issued', values: months.map((m) => monthly.visas.get(m)) },
       ],
-      deposits: months.map((m) => Math.round(monthly.deposits.get(m))),
     },
     sources: sourceList,
     partners: topGroups(partners, TOP_N),
     universities: topGroups(universities, TOP_N),
     courses: topGroups(courses, TOP_N),
-    mock: {
-      held: reachedCount.mock, interviews: k.mockInterviews,
-      perStudent: reachedCount.mock ? round1(k.mockInterviews / reachedCount.mock) : null,
-      passRate: k.preCasPassed + k.preCasFailed ? round1((k.preCasPassed / (k.preCasPassed + k.preCasFailed)) * 100) : null,
-    },
     quality,
   };
 }

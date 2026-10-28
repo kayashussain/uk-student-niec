@@ -1,5 +1,4 @@
-// The Users page (users.html, Admin only): people and their access, logged-in devices, and settings
-// (email and the hidden-sheet password). Everything it changes is checked again by the server
+// The Users page (users.html, Admin only): people and their access, and logged-in devices. Everything it changes is checked again by the server
 // (shared/accounts.js) and recorded in the activity.
 (function () {
   const $ = (id) => document.getElementById(id);
@@ -34,53 +33,45 @@
   }
 
   // ---- Access chooser (used when adding and when editing) ----
-  // Team member (one or more teams) or Manager. Admin is never offered.
+  // Tick any mix of the three teams and Manager. Admin is never offered.
   function accessFields(name) {
-    const depts = Object.entries(DEPARTMENTS).map(([id, d]) => `
+    const boxes = Object.entries(DEPARTMENTS).map(([id, d]) => `
       <label class="check"><input type="checkbox" name="${name}-dept" value="${id}"><span><b>${d.label}</b><small>${d.help}</small></span></label>`).join('');
     return `
       <fieldset class="access">
-        <legend>What can this person do?</legend>
-        <label class="radio"><input type="radio" name="${name}-role" value="staff" checked><span><b>Work in one or more teams</b><small>Tick every team they work in. They see and change only those teams' students.</small></span></label>
-        <div class="check-group" data-for="${name}">${depts}</div>
-        <label class="radio"><input type="radio" name="${name}-role" value="manager"><span><b>Manager</b><small>Has their own dashboard and sees every student, view only. Can export to Excel. No Incentive page.</small></span></label>
+        <legend>What can this person do? Tick everything that applies.</legend>
+        <div class="check-group">
+          ${boxes}
+          <label class="check"><input type="checkbox" name="${name}-manager"><span><b>Manager</b><small>Has their own dashboard, sees every student in every intake and can export to Excel. View only, unless a team is ticked as well. No Incentive page.</small></span></label>
+        </div>
       </fieldset>`;
   }
 
   function wireAccess(container, name) {
     container.innerHTML = accessFields(name);
-    const sync = () => {
-      const staff = container.querySelector(`input[name="${name}-role"]:checked`).value === 'staff';
-      container.querySelectorAll(`input[name="${name}-dept"]`).forEach((c) => { c.disabled = !staff; });
-      container.querySelector('.check-group').classList.toggle('off', !staff);
-    };
-    container.querySelectorAll(`input[name="${name}-role"]`).forEach((r) => r.addEventListener('change', sync));
-    sync();
   }
 
   const readAccess = (container, name) => ({
-    role: container.querySelector(`input[name="${name}-role"]:checked`).value,
+    manager: container.querySelector(`input[name="${name}-manager"]`).checked,
     departments: [...container.querySelectorAll(`input[name="${name}-dept"]:checked`)].map((c) => c.value),
   });
 
   function setAccess(container, name, person) {
-    container.querySelector(`input[name="${name}-role"][value="${person.role === 'manager' ? 'manager' : 'staff'}"]`).checked = true;
+    container.querySelector(`input[name="${name}-manager"]`).checked = person.role === 'manager';
     container.querySelectorAll(`input[name="${name}-dept"]`).forEach((c) => { c.checked = (person.departments || []).includes(c.value); });
-    container.querySelector(`input[name="${name}-role"]:checked`).dispatchEvent(new Event('change'));
   }
 
   wireAccess($('addAccess'), 'add');
   wireAccess($('editAccess'), 'edit');
 
   // ---- Tabs ----
-  const tabs = ['people', 'devices', 'settings'];
+  const tabs = ['people', 'devices'];
   function showTab(name) {
     tabs.forEach((t) => {
       $('tab-' + t).setAttribute('aria-selected', String(t === name));
       $('panel-' + t).hidden = t !== name;
     });
     if (name === 'devices') loadSessions();
-    if (name === 'settings') loadEmailSettings();
     try { history.replaceState(null, '', '#' + name); } catch (e) { /* not important */ }
   }
   tabs.forEach((t) => $('tab-' + t).addEventListener('click', () => showTab(t)));
@@ -96,7 +87,7 @@
     } else {
       const why = {
         'no-address': 'No email address was entered for this person.',
-        'not-configured': 'Email is not set up yet (see the Settings tab).',
+        'not-configured': 'Email is not set up on the server yet.',
         failed: `The email could not be sent: ${esc(mail.error)}`,
       }[mail.status] || 'The email was not sent.';
       html = `${why}<br>Temporary password for <b>${esc(person)}</b>: <code>${esc(result.temporaryPassword)}</code><br>`
@@ -116,8 +107,8 @@
 
   function accessChips(u) {
     if (u.role === 'admin') return '<span class="chip chip-admin">Admin</span>';
-    if (u.role === 'manager') return '<span class="chip chip-manager">Manager</span>';
-    return (u.departments || []).map((d) => `<span class="chip chip-${d}">${esc(DEPARTMENTS[d].label)}</span>`).join('') || '<span class="muted">No team</span>';
+    const teams = (u.departments || []).map((d) => `<span class="chip chip-${d}">${esc(DEPARTMENTS[d].label)}</span>`).join('');
+    return (u.role === 'manager' ? '<span class="chip chip-manager">Manager</span>' : '') + teams || '<span class="muted">No team</span>';
   }
 
   async function loadUsers() {
@@ -272,73 +263,6 @@
       message('sessionsMsg', err.message, true);
     }
     refresh();
-  });
-
-  // ---- Settings: email ----
-  async function loadEmailSettings() {
-    let e;
-    try {
-      e = await api('/api/settings/email');
-    } catch (err) {
-      message('emailMsg', err.message, true);
-      return;
-    }
-    $('mHost').value = e.host;
-    $('mPort').value = e.port;
-    $('mSecurity').value = e.security;
-    $('mUser').value = e.user;
-    $('mPass').value = '';
-    $('mPass').placeholder = e.passwordSet ? 'Saved. Leave empty to keep it' : 'Mailbox password';
-    $('mFrom').value = e.from;
-    $('mFromName').value = e.fromName;
-    $('mSite').value = e.siteUrl;
-    $('mSite').placeholder = e.detectedSiteUrl || 'https://example.com';
-    const state = $('emailState');
-    state.textContent = e.configured ? 'Set up' : 'Not set up';
-    state.className = 'pill ' + (e.configured ? 'pill-ok' : 'pill-wait');
-  }
-
-  // Port and security usually go together: 465 is encrypted from the start, 587 starts plain.
-  $('mPort').addEventListener('change', () => {
-    if ($('mPort').value === '465') $('mSecurity').value = 'ssl';
-    if ($('mPort').value === '587') $('mSecurity').value = 'starttls';
-  });
-
-  $('emailForm').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    message('emailMsg', '');
-    try {
-      await api('/api/settings/email', {
-        host: $('mHost').value, port: $('mPort').value, security: $('mSecurity').value, user: $('mUser').value,
-        pass: $('mPass').value, from: $('mFrom').value, fromName: $('mFromName').value, siteUrl: $('mSite').value,
-      });
-      message('emailMsg', 'Email settings saved. Send a test email to check them.');
-      loadEmailSettings();
-    } catch (err) {
-      message('emailMsg', err.message, true);
-    }
-  });
-
-  $('testForm').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    message('testMsg', 'Sending...');
-    try {
-      await api('/api/settings/email/test', { to: $('testTo').value });
-      message('testMsg', `Test email sent to ${$('testTo').value}. Check the inbox (and the spam folder).`);
-    } catch (err) {
-      message('testMsg', err.message, true);
-    }
-  });
-
-  $('hiddenForm').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    try {
-      await api('/api/settings/hidden-password', { password: $('hiddenPw').value });
-      message('hiddenMsg', 'Hidden-sheet password changed.');
-      $('hiddenForm').reset();
-    } catch (err) {
-      message('hiddenMsg', err.message, true);
-    }
   });
 
   const refresh = () => Promise.all([loadUsers(), loadSessions()]);

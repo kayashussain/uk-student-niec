@@ -8,7 +8,7 @@ const {
 } = require('../shared/server-utils');
 const { createAccounts } = require('../shared/accounts');
 const { makePatch, applyPatch } = require('../shared/patch');
-const { isAdmin, isReadOnly, teamOf, viewKey, viewFor, teamChanges } = require('../shared/teams');
+const { isAdmin, isManager, isReadOnly, teamOf, viewKey, viewFor, teamChanges } = require('../shared/teams');
 const { buildDashboard } = require('./dashboard-stats');
 const {
   blankWorkbook, ensureRowIds, migrateWorkbook, isValidWorkbook, mergeWorkbooks, createHistory, describeChanges,
@@ -334,27 +334,6 @@ function handleEvents(req, res) {
 }
 setInterval(() => streams.forEach((res) => { try { res.write(': ping\n\n'); } catch (e) { /* ignore */ } }), 15000).unref();
 
-// Password for "View hidden sheet". Checked here rather than in the page, so it can't be read from
-// the page's code. Admin changes it under Users → Settings (see accounts.hiddenPasswordMatches).
-async function handleUnlockHidden(req, res) {
-  let body;
-  try {
-    body = await readJSONBody(req, 1024);
-  } catch (e) {
-    return sendJSON(res, e.statusCode || 400, { error: e.message });
-  }
-  if (!accounts.hasHiddenPassword()) {
-    return sendJSON(res, 409, { error: "Admin hasn't set a hidden-sheet password yet (Users → Settings)." });
-  }
-  if (accounts.hiddenPasswordMatches(body && body.password)) {
-    activity.record(req, req.user, 'Opened hidden sheets', { app: 'Student Details' });
-    return sendJSON(res, 200, { ok: true });
-  }
-  activity.record(req, req.user, 'Wrong hidden-sheet password', { app: 'Student Details' });
-  // A short pause on a wrong guess makes trying many passwords slow.
-  setTimeout(() => sendJSON(res, 403, { ok: false }), 800);
-}
-
 async function handlePresence(req, res) {
   let body;
   try {
@@ -398,14 +377,14 @@ const server = http.createServer(async (req, res) => {
       if (urlPath === '/') return req.user.role === 'manager' ? send(res, 302, '', { Location: '/dashboard' }) : serveStatic(req, res);
       if (urlPath === '/admin') return send(res, 302, '', { Location: isAdmin(req.user) ? '/users' : home }); // the old address
       if (page) {
-        const allowed = urlPath === '/students' || (urlPath === '/dashboard' ? (isAdmin(req.user) || isReadOnly(req.user)) : isAdmin(req.user));
+        const allowed = urlPath === '/students' || (urlPath === '/dashboard' ? (isAdmin(req.user) || isManager(req.user)) : isAdmin(req.user));
         if (!allowed) return send(res, 302, '', { Location: home });
         req.url = '/' + page;
         return serveStatic(req, res);
       }
     }
     if (urlPath === '/api/dashboard' && req.method === 'GET') {
-      if (!isAdmin(req.user) && !isReadOnly(req.user)) return sendJSON(res, 403, { error: 'The dashboard is for Admin and the Manager.' });
+      if (!isAdmin(req.user) && !isManager(req.user)) return sendJSON(res, 403, { error: 'The dashboard is for Admin and the Manager.' });
       if (!current) return sendJSON(res, 500, { error: 'Could not read the data file' });
       const intake = new URL(req.url, 'http://x').searchParams.get('intake') || 'all';
       return send(res, 200, servedDashboard(req.user, intake), JSON_HEADERS);
@@ -428,11 +407,6 @@ const server = http.createServer(async (req, res) => {
     if (urlPath === '/api/events' && req.method === 'GET') return handleEvents(req, res);
     if (urlPath === '/api/presence') {
       if (req.method === 'POST') return handlePresence(req, res);
-      return send(res, 405, 'Method not allowed');
-    }
-    if (urlPath === '/api/unlock-hidden') {
-      if (teamOf(req.user)) return sendJSON(res, 403, { error: 'Only Admin can open hidden sheets.' });
-      if (req.method === 'POST') return handleUnlockHidden(req, res);
       return send(res, 405, 'Method not allowed');
     }
     if (urlPath === '/api/data' || urlPath === '/api/revision') {

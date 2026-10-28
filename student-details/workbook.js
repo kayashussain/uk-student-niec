@@ -130,14 +130,10 @@ function addMissingColumns(workbook) {
 
 // Upgrades the legacy single-sheet {columns, rows} shape into {sheets, activeSheetId}, fixes renamed
 // columns, and makes sure there's a revision number and row ids. Already-migrated files come back unchanged.
-// Each sheet says whether it's hidden on the Student Details page (ticked in "All sheets"). Sheets
-// from before that setting existed get it once: Sep Intake 2026 starts hidden, as it already was.
+// Sheets are no longer hidden with a password: which intakes a person sees depends on their access (see
+// shared/teams.js). A sheet that an older version had hidden is shown again.
 function addHiddenFlags(workbook) {
-  workbook.sheets.forEach((sheet) => {
-    if (typeof sheet.hidden !== 'boolean') {
-      sheet.hidden = /\bsep/i.test(sheet.name || '') && /2026/.test(sheet.name || '');
-    }
-  });
+  workbook.sheets.forEach((sheet) => { sheet.hidden = false; });
   return workbook;
 }
 

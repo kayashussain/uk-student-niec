@@ -108,9 +108,14 @@ test('usernames are not case sensitive, when adding and when logging in', async 
 
 // ---- setup emails ----
 
+// The mail server settings live on the server (mail.json in the data folder), not on a page.
+const saveMail = (dir, cfg = {}) => fs.writeFileSync(path.join(dir, 'mail.json'), JSON.stringify({
+  host: 'smtp.example.org', port: 465, security: 'ssl', user: 'mailer', pass: 'secret pw', from: 'system@niecedu.com.np', fromName: 'UK Student NIEC', ...cfg,
+}));
+
 test('adding a person emails their login details, and the password is not shown to Admin', async () => {
-  const { admin, mailer, accounts } = await setUp();
-  await admin.call('POST', '/api/settings/email', { host: 'smtp.example.org', port: 465, security: 'ssl', user: 'mailer', pass: 'secret pw', from: 'system@niecedu.com.np', fromName: 'UK Student NIEC' });
+  const { admin, mailer, accounts, dir } = await setUp();
+  saveMail(dir);
   const r = await admin.call('POST', '/api/users', { name: 'Sita Sharma', username: 'sita', email: 'Sita@NIECedu.com.np', role: 'staff', departments: ['application', 'followup'] });
   assert.strictEqual(r.json.email.status, 'sent');
   assert.strictEqual(r.json.temporaryPassword, undefined);
@@ -134,33 +139,26 @@ test('when the email cannot be sent, Admin gets the temporary password and the r
   let r = await admin.call('POST', '/api/users', { name: 'A', username: 'aaa', email: 'a@x.org', role: 'manager' });
   assert.strictEqual(r.json.email.status, 'not-configured'); // no mail server saved yet
   assert.ok(r.json.temporaryPassword);
-  await admin.call('POST', '/api/settings/email', { host: 'smtp.example.org', port: 587, security: 'starttls', from: 'system@niecedu.com.np' });
+  saveMail(dir, { port: 587, security: 'starttls', pass: 'hunter2 hunter2' });
   r = await admin.call('POST', '/api/users', { name: 'B', username: 'bbb', email: 'b@x.org', role: 'manager' });
   assert.strictEqual(r.json.email.status, 'failed');
   assert.match(r.json.email.error, /refused the username/);
   assert.ok(r.json.temporaryPassword);
   r = await admin.call('POST', '/api/users', { name: 'C', username: 'ccc', role: 'manager' });
   assert.strictEqual(r.json.email.status, 'no-address');
-  // A mail password is never sent back to a page.
-  await admin.call('POST', '/api/settings/email', { host: 'smtp.example.org', port: 587, security: 'starttls', pass: 'hunter2 hunter2', from: 'system@niecedu.com.np' });
-  const shown = await admin.call('GET', '/api/settings/email');
-  assert.strictEqual(shown.json.passwordSet, true);
-  assert.ok(!shown.body.includes('hunter2'));
+  // The mail password never reaches a page or the activity record, and no page can change the settings.
+  assert.notStrictEqual((await admin.call('GET', '/api/settings/email')).status, 200);
+  assert.notStrictEqual((await admin.call('POST', '/api/settings/email', { host: 'evil.example', port: 25, security: 'ssl', from: 'a@b.co' })).status, 200);
   assert.ok(!fs.readFileSync(path.join(dir, 'activity.jsonl'), 'utf8').includes('hunter2'));
 });
 
-test('resetting a password emails the new temporary one, and only Admin can change email settings', async () => {
-  const { admin, mailer, accounts } = await setUp();
-  await admin.call('POST', '/api/settings/email', { host: 'smtp.example.org', port: 465, security: 'ssl', from: 'system@niecedu.com.np' });
+test('resetting a password emails the new temporary one', async () => {
+  const { admin, mailer, dir } = await setUp();
+  saveMail(dir);
   const { user } = (await admin.call('POST', '/api/users', { name: 'Ram', username: 'ram', email: 'ram@x.org', role: 'staff', departments: ['mock'] })).json;
   const r = await admin.call('POST', `/api/users/${user.id}`, { action: 'reset-password' });
   assert.strictEqual(r.json.email.status, 'sent');
   assert.match(mailer.sent[1].subject, /password was reset/);
-  // A staff member cannot touch the settings.
-  const temp = /Temporary password: (\S+)/.exec(mailer.sent[1].text)[1];
-  const ram = browser(accounts);
-  await ram.call('POST', '/api/login', { username: 'ram', password: temp });
-  assert.strictEqual((await ram.call('POST', '/api/settings/email', { host: 'evil.example', port: 25, security: 'ssl', from: 'a@b.co' })).status, 401);
 });
 
 // ---- the mail client, against a small SMTP server on this machine ----
@@ -280,7 +278,7 @@ test('the dashboard counts students, milestones, months and groups', () => {
   assert.strictEqual(d.kpis.students, 3);
   assert.strictEqual(d.kpis.applicationsSubmitted, 2);
   assert.strictEqual(d.kpis.paymentsMade, 1);
-  assert.strictEqual(d.kpis.depositsGbp, 1500);
+  assert.deepStrictEqual([d.paidInFull, d.partlyPaid], [0, 0]); // no Gross Fee entered, so nothing to compare the deposit with
   assert.strictEqual(d.kpis.visaIssued, 1);
   assert.strictEqual(d.kpis.conversionRate, 33.3);
   assert.deepStrictEqual(d.attention.map((a) => [a.key, a.count]), [['mockUnscheduled', 1]]);
@@ -313,7 +311,6 @@ test('the dashboard never shows a visa without the steps before it, and says how
   assert.strictEqual(d.quality.filledFromStage, 7);
   assert.strictEqual(d.kpis.visaSuccessRate, 83.3); // 5 issued, 1 rejected
   assert.deepStrictEqual(d.intakes.map((i) => i.name), ['Sep Intake 2026', 'Jan Intake 2027']);
-  assert.strictEqual(d.intakeCompare.length, 2); // the earlier intake stays comparable
   assert.ok(d.forecast.expectedVisas >= 5);
   assert.ok(buildDashboard(wb, { includeHidden: true }).kpis.students === 10);
 });
@@ -419,4 +416,45 @@ test('the 3rd installment is taken off the remaining tuition fee, and old sheets
   const { migrateWorkbook } = require('../student-details/workbook');
   const wb = migrateWorkbook({ revision: 1, activeSheetId: 's', sheets: [{ id: 's', name: 'Old', columns: ['FIRST NAME', 'TUITION FEE DEPOSIT(2nd Installment)', 'REMAINING TUITION FEE'], rows: [] }] });
   assert.deepStrictEqual(wb.sheets[0].columns.slice(-3), ['TUITION FEE DEPOSIT(2nd Installment)', 'TUITION FEE DEPOSIT(3rd Installment)', 'REMAINING TUITION FEE']);
+});
+
+// ---- Manager together with teams ----
+
+test('a Manager can also be ticked for teams, and then changes only those teams students in the current intake', async () => {
+  const { admin } = await setUp();
+  const r = await admin.call('POST', '/api/users', { name: 'Boss', username: 'boss', manager: true, departments: ['application'] });
+  assert.strictEqual(r.status, 200, r.body);
+  assert.strictEqual(r.json.user.role, 'manager');
+  assert.deepStrictEqual(r.json.user.departments, ['application']);
+  assert.strictEqual(r.json.user.accessLabel, 'Manager + Application Team');
+  assert.strictEqual((await admin.call('POST', '/api/users', { name: 'X', username: 'xxx', manager: false, departments: [] })).status, 400);
+  assert.strictEqual((await admin.call('POST', '/api/users', { name: 'Y', username: 'yyy', manager: true, role: 'admin' })).status, 400);
+
+  const both = { role: 'manager', departments: ['application'] };
+  const wb = () => ({ sheets: [
+    { id: 'sheet-1', name: 'Old', columns: [], rows: [{ _id: 'o', [S]: 'Application Stage', REMARKS: '' }] },
+    { id: 'sheet-mjzzzzzzaaaaa', name: 'New', columns: [], rows: [
+      { _id: 'a', [S]: 'Application Stage', REMARKS: '' }, { _id: 'm', [S]: 'Mock Stage', REMARKS: '' },
+    ] },
+  ] });
+  assert.deepStrictEqual(ids(Teams.viewFor(both, wb())), ['o', 'a', 'm']); // sees every student and intake
+  assert.ok(!Teams.isReadOnly(both) && Teams.isManager(both));
+  const base = Teams.viewFor(both, wb());
+  const edit = (sheet, id, col, value) => { const m = JSON.parse(JSON.stringify(base)); m.sheets[sheet].rows.find((x) => x._id === id)[col] = value; return Teams.teamChanges(both, base, m); };
+  assert.deepStrictEqual(edit(1, 'a', 'REMARKS', 'ok').errors, []);                      // their team's student, current intake
+  assert.ok(edit(1, 'm', 'REMARKS', 'no').errors.length);                                 // a Mock Stage student: view only
+  assert.match(edit(0, 'o', 'REMARKS', 'no').errors.join(' '), /current intake/);       // an earlier intake: view only
+  assert.ok(Teams.isReadOnly({ role: 'manager', departments: [] }));
+});
+
+test('the dashboard says how many paying students have paid in full and how many part', () => {
+  const row = (extra) => ({ _id: Math.random().toString(36), 'FIRST NAME': 'A', 'LAST NAME': 'B', 'APPLICATION STATUS': 'CAS Stage', 'GROSS FEE': '10000', ...extra });
+  const wb = { sheets: [{ id: 'a', name: 'Jan', rows: [
+    row({ 'TUITION FEE DEPOSIT(1st Installment)': '6000', 'TUITION FEE DEPOSIT(2nd Installment)': '4000' }), // whole fee
+    row({ 'TUITION FEE DEPOSIT(1st Installment)': '3000' }),                                               // part
+    row({ 'TUITION FEE DEPOSIT(1st Installment)': '2000', 'TUITION FEE DEPOSIT(2nd Installment)': '3000', 'TUITION FEE DEPOSIT(3rd Installment)': '5000' }), // three installments
+  ] }] };
+  const d = buildDashboard(wb, { today: new Date('2026-10-28T00:00:00') });
+  assert.deepStrictEqual([d.paidInFull, d.partlyPaid], [2, 1]);
+  assert.ok(!JSON.stringify(d).includes('depositsGbp'), 'no deposit totals on the dashboard');
 });

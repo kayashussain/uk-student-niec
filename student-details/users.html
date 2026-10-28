@@ -23,7 +23,6 @@
     <div class="tabs" role="tablist" aria-label="Sections">
       <button role="tab" id="tab-people" aria-controls="panel-people" aria-selected="true">People <span class="count" id="peopleCount"></span></button>
       <button role="tab" id="tab-devices" aria-controls="panel-devices" aria-selected="false">Logged-in devices <span class="count" id="devicesCount"></span></button>
-      <button role="tab" id="tab-settings" aria-controls="panel-settings" aria-selected="false">Settings</button>
     </div>
 
     <section id="panel-people" role="tabpanel" aria-labelledby="tab-people">
@@ -72,46 +71,6 @@
       </div>
     </section>
 
-    <section id="panel-settings" role="tabpanel" aria-labelledby="tab-settings" hidden>
-      <div class="card">
-        <div class="card-head"><h2>Email</h2><span class="pill" id="emailState"></span></div>
-        <p>The system sends setup emails through your own mail server, so they come from your company address. Ask your email provider for the outgoing (SMTP) server name, port and the mailbox login.</p>
-        <form id="emailForm" autocomplete="off">
-          <div class="form">
-            <label>Mail server <input id="mHost" required placeholder="e.g. smtp.yourprovider.com" autocapitalize="off" spellcheck="false" /></label>
-            <label>Port <input id="mPort" required inputmode="numeric" placeholder="465" /></label>
-            <label>Security
-              <select id="mSecurity">
-                <option value="ssl">SSL (port 465)</option>
-                <option value="starttls">STARTTLS (port 587)</option>
-              </select>
-            </label>
-            <label>Mailbox login <input id="mUser" placeholder="e.g. system@niecedu.com.np" autocapitalize="off" spellcheck="false" /></label>
-            <label>Mailbox password <input id="mPass" type="password" placeholder="Leave empty to keep the saved one" autocomplete="new-password" /></label>
-            <label>Send emails from <input id="mFrom" type="email" required placeholder="e.g. system@niecedu.com.np" /></label>
-            <label>Sender name <input id="mFromName" maxlength="80" placeholder="UK Student NIEC" /></label>
-            <label>Website address <input id="mSite" placeholder="https://niec.duckdns.org" autocapitalize="off" spellcheck="false" /></label>
-          </div>
-          <div class="form-actions"><button class="btn btn-primary" type="submit">Save email settings</button></div>
-        </form>
-        <div class="msg" id="emailMsg" role="status"></div>
-        <form id="testForm" class="form test-form">
-          <label>Send a test email to <input id="testTo" type="email" required placeholder="your own email address" /></label>
-          <button class="btn" type="submit">Send test email</button>
-        </form>
-        <div class="msg" id="testMsg" role="status"></div>
-      </div>
-
-      <div class="card">
-        <h2>Hidden-sheet password</h2>
-        <p>Asked for before a hidden sheet is shown. Change it whenever someone who knew it leaves.</p>
-        <form class="form" id="hiddenForm">
-          <label>New hidden-sheet password <input id="hiddenPw" type="password" minlength="6" required autocomplete="new-password" /></label>
-          <button class="btn" type="submit">Change password</button>
-        </form>
-        <div class="msg" id="hiddenMsg" role="status"></div>
-      </div>
-    </section>
   </main>
 
   <dialog id="editDialog">
