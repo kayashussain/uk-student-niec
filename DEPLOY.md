@@ -37,7 +37,7 @@ Authenticator), so a password alone, or one someone shared, isn't enough. A logi
   link your phone, and the code is deleted. Do this straight after deploying.
 - **Intakes:** Admin and the Manager see every intake sheet. The Application, Mock and Follow-up teams see only the newest sheet, so when you start a new intake the earlier one leaves their screens by itself. There is no sheet password.
 - **Adding people:** Admin → **Users** → *Add a person*: name, username (not case sensitive), email, and
-  what they can do. Tick any mix of Application, Mock, Follow-up and Manager (a Manager who also ticks a team can change that team's students in the current intake). They are emailed a link and a temporary
+  what they can do. Tick any mix of Application, Mock, Follow-up, Chitwan Branch, Pokhara Branch and Manager (a Manager who also ticks a team can change that team's students in the current intake). They are emailed a link and a temporary
   password (see **Email** below); at their first login they choose their own password and link their
   phone. Admin is the owner account: nobody else can ever be made Admin.
 - **When someone leaves:** Users → **Remove**. Their login is deleted and they're logged out of every device at once; they can't
@@ -64,6 +64,7 @@ students, columns and moves of every team they hold.
 | Application Team | students at *Application Stage*, in the newest intake only | columns up to NOC Number; can move a student to *Mock Stage* (warned about anything still blank) |
 | Mock Team | students at *Mock Stage* | Remarks and the mock columns up to Pre-CAS Interview; can move to *Payment Stage* only once those are all filled |
 | Follow-up Team | *Inquiry*, *Defer* and *Withdrawn* students | Remarks only |
+| Chitwan Branch, Pokhara Branch | the students whose *Student Source* is that branch, at any stage (current intake) | every column of those students, any stage move; can add students (tagged with the branch) |
 
 Every team can add a new student with **+ Add student**: it starts at the team's own stage (Application Stage,
 Mock Stage or Inquiry), and the team can also fill in its name, email, contact number and student

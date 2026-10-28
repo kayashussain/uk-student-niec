@@ -3,6 +3,7 @@
 //   Admin  sees and changes everything (the owner; nobody else can be given this).
 //   Manager sees every student on every sheet (earlier intakes too), and can change nothing, unless they
 //          also work in teams: then they change those teams' students in the current intake only.
+//   Branch (Chitwan, Pokhara) sees and changes every column of the students whose Student Source is that branch.
 //   Staff  work in one or more departments (Application, Mock, Follow-up, any mix), in the current (newest)
 //          intake only. A person gets the students, the editable columns and the stage moves of every department they hold.
 //
@@ -54,7 +55,13 @@
       statuses: ['Inquiry', 'Defer', 'Withdrawn'],
       editable: new Set(['REMARKS']),
     },
+    // A branch works on its own students, whatever their stage: the ones whose Student Source is the branch.
+    // They can fill in and change every column (except the Student Source itself, which is what makes the
+    // student theirs), and the students they add are tagged with the branch.
+    chitwan: { label: 'Chitwan Branch', start: 'Inquiry', statuses: [], editable: new Set(), source: 'Chitwan Branch' },
+    pokhara: { label: 'Pokhara Branch', start: 'Inquiry', statuses: [], editable: new Set(), source: 'Pokhara Branch' },
   };
+  const SOURCE = 'STUDENT SOURCE';
 
   // The stage moves a department may make. Follow-up can't move students on.
   const MOVES = [
@@ -87,7 +94,7 @@
   function teamOf(x) {
     const w = who(x);
     if (w.role === 'admin') return null;
-    if (w.role === 'manager' && !w.departments.length) return { role: 'manager', manager: true, readOnly: true, departments: [], statuses: null, editable: new Set() };
+    if (w.role === 'manager' && !w.departments.length) return { role: 'manager', manager: true, readOnly: true, departments: [], statuses: null, editable: new Set(), sources: new Set() };
     const depts = w.departments.map((d) => DEPARTMENTS[d]);
     return {
       role: w.role,
@@ -96,6 +103,7 @@
       departments: w.departments,
       statuses: new Set(depts.flatMap((d) => d.statuses)),
       editable: new Set(depts.flatMap((d) => [...d.editable])),
+      sources: new Set(depts.map((d) => d.source).filter(Boolean)), // the Student Sources this person owns (branches)
     };
   }
 
@@ -105,10 +113,13 @@
     return w.role === 'admin' ? 'admin' : `${w.role}:${[...w.departments].sort().join('+')}`;
   }
 
+  // A student whose Student Source is one of this person's branches.
+  const ownedByBranch = (team, row) => team.sources.size > 0 && team.sources.has(String((row && row[SOURCE]) || '').trim());
+
   function seesRow(x, row) {
     const team = teamOf(x);
     if (!team || !team.statuses || team.manager) return true; // Admin and Manager see every student
-    return team.statuses.has(String((row && row[STATUS]) || '').trim());
+    return team.statuses.has(String((row && row[STATUS]) || '').trim()) || ownedByBranch(team, row);
   }
 
   // `row` (optional): the student, so someone can also edit the basics of students their department added.
@@ -116,9 +127,12 @@
     const team = teamOf(x);
     if (!team) return true;
     if (team.readOnly) return false;
+    // Their own branch's students: every column but the Student Source.
+    if (row && ownedByBranch(team, row)) return col !== SOURCE;
     // A Manager who also works in a team changes only that team's students (the rest are view only).
     if (team.manager && row && !team.statuses.has(String(row[STATUS] || '').trim())) return false;
     if (team.editable.has(col)) return true;
+    if (!row && team.sources.size) return col !== SOURCE; // asked in general (not about one student)
     return Boolean(row && team.departments.includes(row._addedByTeam) && NEW_STUDENT_COLUMNS.includes(col));
   }
 
@@ -135,9 +149,10 @@
   }
 
   // The statuses this account may pick for a student currently at `status` (including staying put).
-  function statusChoices(x, status, all) {
+  function statusChoices(x, status, all, row = null) {
     const team = teamOf(x);
     if (!team) return all;
+    if (row && !team.readOnly && ownedByBranch(team, row)) return all; // a branch moves its own students freely
     const to = MOVES.filter((m) => team.departments.includes(m.dept) && m.from === status).map((m) => m.to);
     return [...new Set([status, ...to])].filter(Boolean);
   }
@@ -148,6 +163,7 @@
     const team = teamOf(x);
     if (!team) return { ok: true };
     if (team.readOnly) return { ok: false, message: 'Your account can only view students.' };
+    if (row && ownedByBranch(team, row)) return { ok: true };
     const move = MOVES.find((m) => team.departments.includes(m.dept) && m.from === from && m.to === to);
     if (!move) {
       return { ok: false, message: `Your team can't move a student from ${from || 'no status'} to ${to || 'no status'}.` };
@@ -228,9 +244,11 @@
           const start = DEPARTMENTS[dept].start;
           const status = String(row[STATUS] ?? '').trim() || start;
           if (status !== start) { errors.push(`A student your team adds starts at ${start}.`); return; }
-          const added = { _id: row._id, [STATUS]: status, _addedByTeam: dept };
+          const branchSource = DEPARTMENTS[dept].source;
+          const added = { _id: row._id, [STATUS]: status, _addedByTeam: dept, ...(branchSource ? { [SOURCE]: branchSource } : {}) };
           Object.keys(row).forEach((col) => {
             if (col.startsWith('_') || col === STATUS || skip.has(col) || isBlank(row[col])) return;
+            if (col === SOURCE && branchSource) return; // always the branch, whatever was sent
             if (canEdit(x, col, added)) added[col] = row[col];
             else errors.push(`Your team can't fill in ${label(col)}.`);
           });
@@ -241,7 +259,7 @@
           if (col.startsWith('_') || skip.has(col)) return;
           if (String(before[col] ?? '') === String(row[col] ?? '')) return;
           if (col === STATUS) {
-            const check = checkMove(x, row, String(row[col] ?? '').trim(), String(before[col] ?? '').trim());
+            const check = checkMove(x, { ...row, [SOURCE]: before[SOURCE] }, String(row[col] ?? '').trim(), String(before[col] ?? '').trim()); // ownership is by what the server has
             if (!check.ok) { errors.push(check.message.split('\n')[0]); return; }
           } else if (!canEdit(x, col, before)) { // `before`: what the server has, not what was sent
             errors.push(`Your team can't change ${label(col)}.`);

@@ -1257,7 +1257,7 @@
         // A team picks only from its own moves (e.g. Application Stage → Mock Stage), and can't touch
         // the other dropdowns outside its columns.
         const isStatus = col === 'APPLICATION STATUS';
-        const choices = isStatus ? Teams.statusChoices(me, val, SELECT_COLS[col]) : SELECT_COLS[col];
+        const choices = isStatus ? Teams.statusChoices(me, val, SELECT_COLS[col], rows[rowIdx]) : SELECT_COLS[col];
         if (isStatus ? choices.length < 2 && isTeam() : !canEditCol(col, rows[rowIdx])) {
           select.disabled = true;
           select.title = 'Your team can\'t change this';
@@ -1989,6 +1989,7 @@
     if (isTeam()) {
       blank['APPLICATION STATUS'] = Teams.newStudentStatus(me, dept);
       blank._addedByTeam = dept;
+      if (dept && Teams.DEPARTMENTS[dept].source) blank['STUDENT SOURCE'] = Teams.DEPARTMENTS[dept].source; // a branch's student is tagged with the branch
     }
     rows.push(blank);
     const startCol = columns.find((c) => isTextCell(c) && canEditCol(c, blank)) || columns[0];

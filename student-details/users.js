@@ -6,6 +6,8 @@
     application: { label: 'Application Team', help: 'Sees Application Stage students. Fills in details up to NOC Number.' },
     mock: { label: 'Mock Team', help: 'Sees Mock Stage students. Fills in the mock interviews and Pre-CAS result.' },
     followup: { label: 'Follow-up Team', help: 'Sees Inquiry, Defer and Withdrawn students. Adds remarks.' },
+    chitwan: { label: 'Chitwan Branch', help: 'Sees the students whose Student Source is Chitwan Branch, and changes every column. Can add students.' },
+    pokhara: { label: 'Pokhara Branch', help: 'Sees the students whose Student Source is Pokhara Branch, and changes every column. Can add students.' },
   };
   const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({
     '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
