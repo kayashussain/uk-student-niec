@@ -52,6 +52,13 @@
   };
   let sheets = [];
   let activeSheetId = null;
+  // Sheets not shown on this page at all (no tab, never opened). Their data stays in the file, so
+  // the Incentive page still reads them. Matched by sheet name, e.g. "Sep Intake 2026".
+  const isHiddenSheet = (sheet) => /\bsep/i.test(sheet.name || '') && /2026/.test(sheet.name || '');
+  const shownSheets = () => {
+    const shown = sheets.filter((s) => !isHiddenSheet(s));
+    return shown.length ? shown : sheets;
+  };
   // Columns not shown on particular sheets. The data stays in the file (and in other sheets), these
   // sheets just don't display them. Matched by sheet name, e.g. "Sep Intake 2026" or "September 2026".
   const HIDDEN_COLUMNS_BY_SHEET = [
@@ -561,7 +568,7 @@
     }
     sheets = json.sheets;
     revision = json.revision || 0;
-    activeSheetId = newestSheet(sheets).id; // a reload always opens the latest intake
+    activeSheetId = newestSheet(shownSheets()).id; // a reload always opens the latest intake
     statusEl.textContent = 'All changes saved';
     statusEl.className = 'save-status';
     syncActiveSheet();
@@ -717,7 +724,7 @@
   }
 
   function deleteSheet(id) {
-    if (sheets.length <= 1) { alert('A workbook needs at least one sheet.'); return; }
+    if (shownSheets().length <= 1) { alert('A workbook needs at least one sheet.'); return; }
     const sheet = sheets.find((s) => s.id === id);
     if (!sheet) return;
     if (!confirm(`Delete sheet "${sheet.name}"? You can undo this with Ctrl+Z right after.`)) return;
@@ -725,7 +732,7 @@
     const idx = sheets.findIndex((s) => s.id === id);
     sheets.splice(idx, 1);
     if (activeSheetId === id) {
-      activeSheetId = sheets[Math.max(0, idx - 1)].id;
+      activeSheetId = newestSheet(shownSheets()).id;
       syncActiveSheet();
     }
     markDirtyAndSaveNow();
@@ -736,7 +743,7 @@
 
   function renderSheetTabs() {
     sheetTabsList.innerHTML = '';
-    sheets.forEach((sheet) => {
+    shownSheets().forEach((sheet) => {
       const tab = document.createElement('div');
       tab.className = 'sheet-tab' + (sheet.id === activeSheetId ? ' active' : '');
 
@@ -1694,8 +1701,8 @@
 
     sheets = json.sheets;
     revision = json.revision || 0;
-    const sameSheet = sheets.some((s) => s.id === keep.sheetId);
-    activeSheetId = sameSheet ? keep.sheetId : sheets[0].id;
+    const sameSheet = shownSheets().some((s) => s.id === keep.sheetId);
+    activeSheetId = sameSheet ? keep.sheetId : shownSheets()[0].id;
     syncActiveSheet();
 
     if (sameSheet) {
