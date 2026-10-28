@@ -11,10 +11,6 @@ services:
       mountPath: /data
       sizeGB: 1
     envVars:
-      - key: APP_USERNAME
-        sync: false
-      - key: APP_PASSWORD
-        sync: false
       - key: STUDENT_DETAILS_DATA_DIR
         value: /data/student-details
       - key: COUNSELOR_DATA_DIR

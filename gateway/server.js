@@ -2,8 +2,8 @@
 //
 // Runs both "student-details" and "counselor-incentive" as internal child processes
 // (unchanged, still on their own default ports) and sits in front of them on the one
-// port the host exposes publicly. Every request must pass HTTP Basic Auth first — a
-// single shared username/password protects both apps.
+// port the host exposes publicly. The login (one shared username/password, asked for on the
+// /login page) is checked by both apps themselves, so it works the same with or without this gateway.
 //
 // Routing:
 //   /commission or /commission/*        -> counselor-incentive (prefix stripped)
@@ -19,25 +19,11 @@ const http = require('http');
 const net = require('net');
 const { spawn } = require('child_process');
 const path = require('path');
-const { createAuth, send } = require('../shared/server-utils');
+const { send } = require('../shared/server-utils');
 
 const PORT = process.env.PORT || 8080;
 const STUDENT_DETAILS_PORT = 4173;
 const COUNSELOR_PORT = 5173;
-
-const USERNAME = process.env.APP_USERNAME;
-const PASSWORD = process.env.APP_PASSWORD;
-
-if (!USERNAME || !PASSWORD) {
-  console.error(
-    'Missing APP_USERNAME and/or APP_PASSWORD environment variables.\n' +
-    'Set both in your hosting dashboard before starting the gateway — refusing to run\n' +
-    'without them so the site is never accidentally exposed with no password.'
-  );
-  process.exit(1);
-}
-
-const requireAuth = createAuth({ username: USERNAME, password: PASSWORD });
 
 const children = [];
 let shuttingDown = false;
@@ -111,8 +97,6 @@ function pickTarget(urlPath) {
 }
 
 const server = http.createServer((req, res) => {
-  if (!requireAuth(req, res)) return;
-
   const [urlPath, query = ''] = req.url.split('?');
   // /commission -> /commission/, so the Incentive page's relative links (calc.js, favicon) stay inside it.
   if (urlPath === '/commission') {

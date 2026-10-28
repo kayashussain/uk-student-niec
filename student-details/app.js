@@ -52,10 +52,10 @@
   };
   let sheets = [];
   let activeSheetId = null;
-  // Sheets not shown on this page (no tab, never opened) until someone picks "Hidden sheet → View
-  // hidden sheet" and enters the password; a reload hides them again. Their data stays in the file,
-  // so the Incentive page still reads them. Matched by sheet name, e.g. "Sep Intake 2026".
-  const isHiddenSheet = (sheet) => /\bsep/i.test(sheet.name || '') && /2026/.test(sheet.name || '');
+  // Sheets ticked as hidden in "All sheets" have no tab and are never opened, until someone enters
+  // the password (checked by the server); a reload hides them again. Their data stays in the file,
+  // so the Incentive page still reads them.
+  const isHiddenSheet = (sheet) => sheet.hidden === true;
   let hiddenUnlocked = false;
   const shownSheets = () => {
     if (hiddenUnlocked) return sheets;
@@ -142,7 +142,7 @@
   const rowCountEl = $('#rowCount');
   const searchEl = $('#search');
   const sheetTabsList = $('#sheetTabsList');
-  const hiddenSheetsBtn = $('#hiddenSheetsBtn');
+  const allSheetsBtn = $('#allSheetsBtn');
   const statusSummaryEl = $('#statusSummary');
   const undoBtn = $('#undoBtn');
   const redoBtn = $('#redoBtn');
@@ -270,6 +270,7 @@
     renderBody();
     updateUndoRedoButtons();
     markDirtyAndSaveNow();
+    leaveHiddenSheet();
   }
 
   function undo() {
@@ -633,6 +634,7 @@
       leadColumnsApplied: true,
       columnOrderVersion: template.columnOrderVersion,
       rows: [],
+      hidden: false,
     };
     sheets.push(sheet);
     activeSheetId = sheet.id;
@@ -658,6 +660,7 @@
       leadColumnsApplied: true,
       columnOrderVersion: source.columnOrderVersion,
       rows: source.rows.map((r) => ({ ...r, _id: makeRowId() })),
+      hidden: false,
     };
     const idx = sheets.findIndex((s) => s.id === id);
     sheets.splice(idx + 1, 0, sheet);
@@ -751,6 +754,11 @@
       const tab = document.createElement('div');
       tab.className = 'sheet-tab' + (sheet.id === activeSheetId ? ' active' : '');
 
+      if (isHiddenSheet(sheet)) {
+        tab.classList.add('is-hidden');
+        tab.title = 'Hidden sheet — only shown after entering the password';
+      }
+
       const label = document.createElement('span');
       label.className = 'sheet-tab-label';
       label.textContent = sheet.name;
@@ -771,55 +779,130 @@
 
       sheetTabsList.appendChild(tab);
     });
-    hiddenSheetsBtn.hidden = !sheets.some(isHiddenSheet);
   }
 
-  function openHiddenSheetsMenu() {
-    if (openSheetMenu && openSheetMenu.dataset.sheetId === 'hidden') { closeSheetMenu(); return; }
+  // If the open sheet has just become hidden (ticked here, by someone else, or by an undo), move to
+  // the newest sheet still shown.
+  function leaveHiddenSheet() {
+    const active = getActiveSheet();
+    if (active && !shownSheets().includes(active)) switchSheet(newestSheet(shownSheets()).id);
+  }
+
+  // "All sheets": every sheet with a tick box. Ticking hides the sheet; unticking it, or opening a
+  // hidden sheet, needs the password first.
+  function openAllSheetsMenu() {
+    if (openSheetMenu && openSheetMenu.dataset.sheetId === 'all') { closeSheetMenu(); return; }
     closeSheetMenu();
     const menu = document.createElement('div');
-    menu.className = 'sheet-menu';
-    menu.dataset.sheetId = 'hidden';
-    const item = document.createElement('div');
-    item.className = 'sheet-menu-item';
-    item.textContent = hiddenUnlocked ? 'Hide sheet again' : 'View hidden sheet';
-    item.addEventListener('click', () => {
-      closeSheetMenu();
-      if (hiddenUnlocked) hideHiddenSheets();
-      else askHiddenSheetPassword();
+    menu.className = 'sheet-menu all-sheets-menu';
+    menu.dataset.sheetId = 'all';
+
+    const heading = document.createElement('div');
+    heading.className = 'all-sheets-heading';
+    heading.textContent = 'Tick a sheet to hide it';
+    menu.appendChild(heading);
+
+    sheets.forEach((sheet) => {
+      const row = document.createElement('div');
+      row.className = 'all-sheets-row' + (sheet.id === activeSheetId ? ' active' : '');
+
+      const box = document.createElement('input');
+      box.type = 'checkbox';
+      box.checked = isHiddenSheet(sheet);
+      box.title = box.checked ? 'Untick to show this sheet again (needs the password)' : 'Tick to hide this sheet';
+      box.setAttribute('aria-label', `Hide "${sheet.name}"`);
+      box.addEventListener('change', () => {
+        closeSheetMenu();
+        setSheetHidden(sheet.id, box.checked);
+      });
+      row.appendChild(box);
+
+      const name = document.createElement('span');
+      name.className = 'all-sheets-name';
+      name.textContent = (isHiddenSheet(sheet) ? '🔒 ' : '') + sheet.name;
+      name.title = 'Open this sheet';
+      name.addEventListener('click', () => {
+        closeSheetMenu();
+        if (!isHiddenSheet(sheet) || hiddenUnlocked) { switchSheet(sheet.id); return; }
+        askHiddenSheetPassword(() => {
+          hiddenUnlocked = true;
+          switchSheet(sheet.id);
+          renderSheetTabs();
+        });
+      });
+      row.appendChild(name);
+      menu.appendChild(row);
     });
-    menu.appendChild(item);
+
+    if (sheets.some(isHiddenSheet)) {
+      const item = document.createElement('div');
+      item.className = 'sheet-menu-item all-sheets-footer';
+      item.textContent = hiddenUnlocked ? 'Hide the hidden sheets again' : 'View hidden sheets';
+      item.addEventListener('click', () => {
+        closeSheetMenu();
+        if (hiddenUnlocked) {
+          hiddenUnlocked = false;
+          renderSheetTabs();
+          leaveHiddenSheet();
+          return;
+        }
+        askHiddenSheetPassword(() => {
+          hiddenUnlocked = true;
+          const active = getActiveSheet();
+          if (!isHiddenSheet(active)) switchSheet(newestSheet(sheets.filter(isHiddenSheet)).id);
+          renderSheetTabs();
+        });
+      });
+      menu.appendChild(item);
+    }
+
     document.body.appendChild(menu);
-    const rect = hiddenSheetsBtn.getBoundingClientRect();
-    menu.style.left = Math.min(rect.left, window.innerWidth - menu.offsetWidth - 8) + 'px';
-    menu.style.top = (rect.top - menu.offsetHeight - 4) + 'px';
+    const rect = allSheetsBtn.getBoundingClientRect();
+    menu.style.left = Math.max(8, Math.min(rect.left, window.innerWidth - menu.offsetWidth - 8)) + 'px';
+    menu.style.top = Math.max(8, rect.top - menu.offsetHeight - 4) + 'px';
     openSheetMenu = menu;
     setTimeout(() => document.addEventListener('mousedown', onSheetMenuDocClick, true), 0);
   }
 
-  function hideHiddenSheets() {
-    hiddenUnlocked = false;
-    const active = getActiveSheet();
-    if (active && isHiddenSheet(active)) switchSheet(newestSheet(shownSheets()).id);
-    else renderSheetTabs();
+  function setSheetHidden(id, hide) {
+    const sheet = sheets.find((s) => s.id === id);
+    if (!sheet || isHiddenSheet(sheet) === hide) return;
+    if (hide && !sheets.some((s) => s.id !== id && !isHiddenSheet(s))) {
+      alert('At least one sheet has to stay visible.');
+      return;
+    }
+    const apply = () => confirmChange(() => {
+      const target = sheets.find((s) => s.id === id);
+      if (!target) return;
+      pushUndo();
+      target.hidden = hide;
+      markDirtyAndSaveNow();
+      renderSheetTabs();
+      leaveHiddenSheet();
+      flashStatus(hide ? `"${target.name}" is now hidden` : `"${target.name}" is shown again`);
+    });
+    // Hiding is free; showing a hidden sheet again needs the password, unless it was already entered.
+    if (hide || hiddenUnlocked) apply();
+    else askHiddenSheetPassword(apply);
   }
 
   let passwordBoxOpen = false;
 
-  function askHiddenSheetPassword() {
+  // Asks for the hidden-sheet password and runs onSuccess once the server accepts it.
+  function askHiddenSheetPassword(onSuccess) {
     if (passwordBoxOpen) return;
     passwordBoxOpen = true;
     const overlay = document.createElement('div');
     overlay.className = 'pw-overlay';
     overlay.innerHTML = `
       <form class="pw-box" role="dialog" aria-modal="true" aria-labelledby="pw-title">
-        <h2 id="pw-title">View hidden sheet</h2>
+        <h2 id="pw-title">Hidden sheet</h2>
         <label for="pw-input">Password</label>
         <input id="pw-input" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" required>
         <p class="pw-error" hidden>Wrong password. Please try again.</p>
         <div class="pw-actions">
           <button type="button" class="pw-cancel">Cancel</button>
-          <button type="submit" class="pw-ok">Open</button>
+          <button type="submit" class="pw-ok">OK</button>
         </div>
       </form>`;
     const form = overlay.querySelector('form');
@@ -858,10 +941,7 @@
         return;
       }
       close();
-      hiddenUnlocked = true;
-      const hidden = sheets.filter(isHiddenSheet);
-      if (hidden.length) switchSheet(newestSheet(hidden).id);
-      renderSheetTabs();
+      onSuccess();
     });
 
     document.body.appendChild(overlay);
@@ -1964,7 +2044,7 @@
   $('#delRow').addEventListener('click', deleteRow);
   $('#exportExcel').addEventListener('click', exportExcel);
   $('#addSheet').addEventListener('click', addSheet);
-  hiddenSheetsBtn.addEventListener('click', openHiddenSheetsMenu);
+  allSheetsBtn.addEventListener('click', openAllSheetsMenu);
   if (undoBtn) undoBtn.addEventListener('click', undo);
   if (redoBtn) redoBtn.addEventListener('click', redo);
   // Redraw once typing pauses rather than on every letter, so the search box never lags behind.

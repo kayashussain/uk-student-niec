@@ -54,8 +54,6 @@ Click **Create**. Then scroll to **Environment Variables** on the same page and 
 | Name | Value |
 |---|---|
 | `STUDENT_DETAILS_DATA_DIR` | `/home/YOUR_CPANEL_USERNAME/niec_data/student-details` |
-| `APP_USERNAME` | pick something, e.g. `admin` |
-| `APP_PASSWORD` | a strong password — this protects all student data |
 
 Click **Save**, then **Run NPM Install**, then **Restart**.
 
@@ -77,8 +75,6 @@ Environment variables for this one:
 |---|---|
 | `COUNSELOR_DATA_DIR` | `/home/YOUR_CPANEL_USERNAME/niec_data/counselor-incentive` |
 | `STUDENT_DETAILS_DATA_DIR` | **exact same value** as in step 2 — this is how it finds the student data |
-| `APP_USERNAME` | same as step 2 |
-| `APP_PASSWORD` | same as step 2 |
 | `BASE_PATH` | **must exactly match the path above**, e.g. `/commission` (or `/incentive` if that's what you used) |
 
 `BASE_PATH` matters: this host doesn't strip the sub-path prefix before handing the
@@ -91,10 +87,19 @@ Save → **Run NPM Install** → **Restart**.
 Both apps load shared code from the repo's `shared/` folder, so keep the whole repo on the server
 (as cloned above), not just the two app folders.
 
-`APP_USERNAME` and `APP_PASSWORD` turn the login on for an app. An app without them has **no login at all**:
-anyone with its link can see (and change) its data. That's a choice you can make per app (for example
-Incentive); if you'd rather an app never run open by accident, add `REQUIRE_PASSWORD` = `true` to it, and
-it will refuse every request until both variables are set.
+Both apps always open a **login page** (`/login`) that asks you to pick your account and enter its password. There are
+four accounts (Admin, Application Team, Mock Team, Follow-up Team), each with its
+own password, set in `shared/server-utils.js` (`ACCOUNTS`; only a scrambled copy of each password is
+kept there, and the comment shows how to make a new one). After logging in
+you stay logged in on that device for 30 days, or until **Log out** (top right). No environment
+variables are needed for it.
+
+Every login (account, device, time) and every change is recorded in `activity.jsonl` in the Student
+Details data folder. Admin sees it with **Check activity** at the top of Student Details.
+
+The Incentive app sends people to Student Details' `/login` page and reads the login key from the
+Student Details data folder, which is why its `STUDENT_DETAILS_DATA_DIR` must match. `APP_USERNAME`,
+`APP_PASSWORD` and `REQUIRE_PASSWORD` are no longer used; you can delete them from both apps.
 
 Optional for both apps: `APP_TIMEZONE` (default `Asia/Kathmandu`) sets which calendar day daily
 backups and "today's" exchange rate follow.
@@ -110,12 +115,18 @@ absolute path there.)
 ## 4. Seed your existing data
 
 The new data folder starts empty. From your own machine, upload your current
-`student-details/data.json`:
+`student-details/data.json`. The first command logs in and keeps the login in `cookies.txt`; the
+second uploads with it:
+
+```bash
+curl -c cookies.txt -X POST https://niec.duckdns.org/api/login \
+  -H "Content-Type: application/json" -d '{"account":"admin","password":"ADMIN_PASSWORD"}'
+```
 
 ```bash
 node -e "const d=require('./data.json'); d.baseRevision=0; process.stdout.write(JSON.stringify(d))" \
   | curl -X POST https://niec.duckdns.org/api/data \
-    -u admin:YOUR_PASSWORD \
+    -b cookies.txt \
     -H "Content-Type: application/json" \
     --data-binary @-
 ```
@@ -125,8 +136,8 @@ with. Without it, the server refuses the upload as a conflict.)
 
 ## 5. Check it
 
-- `https://niec.duckdns.org/` should prompt for the username/password, then show the tracker
-- `https://niec.duckdns.org/commission` should do the same, showing the commission tracker
+- `https://niec.duckdns.org/` should show the login page, then the tracker
+- `https://niec.duckdns.org/commission` should do the same (or go straight in if you're already logged in), showing the commission tracker
 
 ## Updating the code later
 

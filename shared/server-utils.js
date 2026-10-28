@@ -52,42 +52,141 @@ function clientIp(req) {
   return remote;
 }
 
-function credentialsMatch(header, username, password) {
-  const [scheme, encoded] = String(header || '').split(' ');
-  if (scheme !== 'Basic' || !encoded) return false;
-  const decoded = Buffer.from(encoded, 'base64').toString('utf8');
-  const sep = decoded.indexOf(':');
-  if (sep === -1) return false;
-  // Both halves are always compared, so a right username with a wrong password takes just as long.
-  const userOk = safeEqual(decoded.slice(0, sep), username);
-  const passOk = safeEqual(decoded.slice(sep + 1), password);
-  return userOk && passOk;
+// The accounts that can log in, picked from a list on the login page (shared/login.html). Only a
+// scrypt hash of each password is kept here. To change a password, replace its hash with the output of
+//   node -e "console.log(require('crypto').scryptSync('NEW PASSWORD', 'niec-login-v1', 32).toString('hex'))"
+const ACCOUNTS = [
+  { id: 'admin', label: 'Admin', hash: '2fc2b430e9e2307db85684a96f60a10bbd4d09eb602d1ebaa363c89ab0ba804a' },
+  { id: 'application', label: 'Application Team', hash: '185cea1d3200f1bd6803b16ea76e8960c474bc6d2df3713d91926fd5b37ac713' },
+  { id: 'mock', label: 'Mock Team', hash: '7c15dffa55d50c4e7acb605799e167a36253cdd139649ee66346fc758c949d7e' },
+  { id: 'followup', label: 'Follow-up Team', hash: 'e3c077efc7e833df1dc8382cbbe4bbdf4f363052d364f2789e78fe31958f74d5' },
+];
+const LOGIN_SALT = 'niec-login-v1';
+
+const SESSION_COOKIE = 'niec_session';
+const SESSION_MS = 30 * 24 * 60 * 60 * 1000; // staying logged in for 30 days
+
+function passwordMatches(password, hash) {
+  const given = crypto.scryptSync(String(password), LOGIN_SALT, 32);
+  return crypto.timingSafeEqual(given, Buffer.from(hash, 'hex'));
 }
 
-// Shared-password Basic Auth with a lockout: after `maxFailures` wrong passwords from one address
-// within `windowMs`, that address is refused (429) until the window runs out, without its guesses
-// even being checked. Returns requireAuth(req, res) -> true when the request may go ahead.
-// With no username/password set, auth is off (an app deliberately run without a login, or local dev).
-// Setting REQUIRE_PASSWORD=true makes that a hard stop instead: the app refuses everything with a 503
-// until they are set, so a forgotten setting can never leave the data open.
-function createAuth({
-  username, password, maxFailures = 20, windowMs = 15 * 60 * 1000, now = Date.now,
-  failClosed = process.env.REQUIRE_PASSWORD === 'true',
-} = {}) {
-  const failures = new Map(); // ip -> { count, since }
+// The key that signs login cookies. Kept in a file both apps can read (the Student Details data
+// folder), so logging in once works for both, and a restart doesn't log everyone out. Made on first use.
+function loadSecret(dir) {
+  const file = path.join(dir, 'session-secret');
+  fs.mkdirSync(dir, { recursive: true });
+  try {
+    fs.writeFileSync(file, crypto.randomBytes(32).toString('hex'), { flag: 'wx', mode: 0o600 });
+  } catch (e) {
+    if (e.code !== 'EEXIST') throw e;
+  }
+  return fs.readFileSync(file, 'utf8').trim();
+}
 
-  function prune(t) {
-    failures.forEach((f, ip) => { if (t - f.since > windowMs) failures.delete(ip); });
+function readCookie(req, name) {
+  const header = String(req.headers.cookie || '');
+  for (const part of header.split(';')) {
+    const eq = part.indexOf('=');
+    if (eq !== -1 && part.slice(0, eq).trim() === name) return part.slice(eq + 1).trim();
+  }
+  return '';
+}
+
+const isHttps = (req) => Boolean((req.socket && req.socket.encrypted)
+  || String(req.headers['x-forwarded-proto'] || '').split(',')[0].trim() === 'https');
+
+// A short name for the browser and device a request came from, e.g. "Chrome on Windows".
+function describeDevice(userAgent) {
+  const ua = String(userAgent || '');
+  const os = [
+    [/iPhone/, 'iPhone'], [/iPad/, 'iPad'], [/Android/, 'Android'], [/Windows/, 'Windows'],
+    [/Mac OS X|Macintosh/, 'Mac'], [/CrOS/, 'Chromebook'], [/Linux/, 'Linux'],
+  ].find(([re]) => re.test(ua));
+  const browser = [
+    [/Edg\//, 'Edge'], [/OPR\/|Opera/, 'Opera'], [/SamsungBrowser/, 'Samsung Internet'], [/Firefox\//, 'Firefox'],
+    [/Chrome\/|CriOS/, 'Chrome'], [/Safari\//, 'Safari'], [/curl\//, 'curl'],
+  ].find(([re]) => re.test(ua));
+  if (!os && !browser) return ua ? ua.slice(0, 60) : 'Unknown device';
+  return `${browser ? browser[1] : 'Browser'} on ${os ? os[1] : 'unknown system'}`;
+}
+
+// The activity record ("Check activity"): one JSON line per login, logout or change, only ever added
+// to. Both apps write to the same file in the Student Details data folder.
+function createActivityLog(dir) {
+  const file = path.join(dir, 'activity.jsonl');
+  function record(req, user, action, details = {}) {
+    const entry = {
+      time: new Date().toISOString(),
+      account: user ? user.label : 'Unknown',
+      accountId: user ? user.id : null,
+      device: describeDevice(req.headers['user-agent']),
+      ip: clientIp(req),
+      action,
+      ...details,
+    };
+    try {
+      fs.mkdirSync(dir, { recursive: true });
+      fs.appendFileSync(file, JSON.stringify(entry) + '\n');
+    } catch (e) {
+      console.error('[activity]', e.message);
+    }
+  }
+  // The newest `limit` entries, newest first.
+  function latest(limit = 2000) {
+    let text = '';
+    try { text = fs.readFileSync(file, 'utf8'); } catch (e) { return []; }
+    const lines = text.split('\n').filter(Boolean);
+    return lines.slice(-limit).reverse().map((line) => {
+      try { return JSON.parse(line); } catch (e) { return null; }
+    }).filter(Boolean);
+  }
+  return { record, latest };
+}
+
+// Login with a session cookie that names the account. requireAuth(req, res) -> true when the request
+// may go ahead (and sets req.user to { id, label }); otherwise it has answered already: a page visit
+// goes to the login page (coming back to homePath(req) after), anything else gets a 401.
+// handleLogin answers the login page's POST, handleLogout clears the cookie. After `maxFailures` wrong
+// passwords from one address within `windowMs`, that address is refused (429) until the window runs
+// out, without its guesses even being checked. onLogin/onLogout(req, user) are told about each one.
+function createAuth({
+  secretDir, homePath = (req) => req.url, accounts = ACCOUNTS,
+  maxFailures = 20, windowMs = 15 * 60 * 1000, now = Date.now, onLogin = () => {}, onLogout = () => {},
+} = {}) {
+  let secret = null;
+  const sign = (value) => {
+    if (!secret) secret = loadSecret(secretDir);
+    return crypto.createHmac('sha256', secret).update(value).digest('hex');
+  };
+  const failures = new Map(); // ip -> { count, since }
+  const publicAccount = (a) => ({ id: a.id, label: a.label });
+
+  // The logged-in account, or null.
+  function userOf(req) {
+    const [id, expires, mac] = readCookie(req, SESSION_COOKIE).split('.');
+    if (!id || !expires || !mac || !(Number(expires) > now())) return null;
+    if (!safeEqual(mac, sign(`${id}.${expires}`))) return null;
+    const account = accounts.find((a) => a.id === id);
+    return account ? publicAccount(account) : null;
   }
 
-  return function requireAuth(req, res) {
-    if (!username || !password) {
-      if (!failClosed) return true;
-      send(res, 503, 'This site is not set up yet: APP_USERNAME and APP_PASSWORD must be set on the server.', {
-        'Content-Type': 'text/plain',
-      });
-      return false;
+  function requireAuth(req, res) {
+    const user = userOf(req);
+    if (user) {
+      req.user = user;
+      return true;
     }
+    const wantsPage = req.method === 'GET' && String(req.headers.accept || '').includes('text/html');
+    if (wantsPage) {
+      send(res, 302, '', { Location: '/login?next=' + encodeURIComponent(homePath(req)), 'Cache-Control': 'no-store' });
+    } else {
+      sendJSON(res, 401, { error: 'Please log in again.' });
+    }
+    return false;
+  }
+
+  async function handleLogin(req, res) {
     const t = now();
     const ip = clientIp(req);
     let f = failures.get(ip);
@@ -96,26 +195,46 @@ function createAuth({
       f = null;
     }
     if (f && f.count >= maxFailures) {
-      const retryAfter = Math.ceil((f.since + windowMs - t) / 1000);
-      send(res, 429, 'Too many wrong passwords. Try again in a few minutes.', {
-        'Content-Type': 'text/plain', 'Retry-After': String(retryAfter),
-      });
-      return false;
+      return sendJSON(res, 429, { error: 'Too many wrong passwords. Try again in a few minutes.' });
     }
-    const header = req.headers.authorization;
-    if (credentialsMatch(header, username, password)) return true;
-    // A request with no password at all is just the browser's first visit, not a wrong guess.
-    if (header) {
-      if (failures.size > 10000) prune(t);
+    let body;
+    try {
+      body = await readJSONBody(req, 4096);
+    } catch (e) {
+      return sendJSON(res, e.statusCode || 400, { error: e.message });
+    }
+    const account = accounts.find((a) => a.id === (body && body.account));
+    if (!account) return sendJSON(res, 400, { error: 'Please choose your account.' });
+    if (!passwordMatches((body && body.password) || '', account.hash)) {
+      if (failures.size > 10000) failures.forEach((x, k) => { if (t - x.since > windowMs) failures.delete(k); });
       if (f) f.count += 1;
       else failures.set(ip, { count: 1, since: t });
+      return sendJSON(res, 401, { error: 'Wrong password.' });
     }
-    send(res, 401, 'Authentication required.', {
-      'WWW-Authenticate': 'Basic realm="UK Student NIEC", charset="UTF-8"',
-      'Content-Type': 'text/plain',
+    failures.delete(ip);
+    const expires = String(t + SESSION_MS);
+    const value = `${account.id}.${expires}.${sign(`${account.id}.${expires}`)}`;
+    const cookie = `${SESSION_COOKIE}=${value}; Path=/; Max-Age=${SESSION_MS / 1000}; HttpOnly; SameSite=Lax`
+      + (isHttps(req) ? '; Secure' : '');
+    onLogin(req, publicAccount(account));
+    send(res, 200, JSON.stringify({ ok: true }), {
+      'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', 'Set-Cookie': cookie,
     });
-    return false;
-  };
+  }
+
+  function handleLogout(req, res) {
+    const user = userOf(req);
+    if (user) onLogout(req, user);
+    send(res, 200, JSON.stringify({ ok: true }), {
+      'Content-Type': 'application/json; charset=utf-8',
+      'Cache-Control': 'no-store',
+      'Set-Cookie': `${SESSION_COOKIE}=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax`,
+    });
+  }
+
+  const listAccounts = () => accounts.map(publicAccount);
+
+  return { requireAuth, handleLogin, handleLogout, userOf, listAccounts };
 }
 
 // Serves only the files listed in publicFiles ({ '/name': contentType }), so data files and server
@@ -204,6 +323,8 @@ module.exports = {
   safeEqual,
   clientIp,
   createAuth,
+  createActivityLog,
+  describeDevice,
   createStaticServer,
   readJSONBody,
   writeFileAtomic,

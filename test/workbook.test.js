@@ -156,3 +156,23 @@ test('history keeps only the most recent revisions', () => {
   assert.strictEqual(h.get(1), null);
   assert.strictEqual(h.get(3).revision, 3);
 });
+
+test('describeChanges lists cell edits, added and removed students, and sheet changes', () => {
+  const { describeChanges } = require('../student-details/workbook');
+  const before = { sheets: [
+    { id: 's1', name: 'Jan 2026', columns: [], rows: [{ _id: 'a', 'STUDENT NAME': 'Ram', STATUS: 'Inquiry' }, { _id: 'b', 'STUDENT NAME': 'Sita' }] },
+    { id: 's2', name: 'Sep 2026', columns: [], rows: [] },
+  ] };
+  const after = { sheets: [
+    { id: 's1', name: 'Jan 2026', columns: [], rows: [{ _id: 'a', 'STUDENT NAME': 'Ram', STATUS: 'CAS Issued', _deferredInto: 'x' }, { _id: 'c', 'STUDENT NAME': '' }] },
+    { id: 's2', name: 'Sep Intake 2026', columns: [], rows: [], hidden: true },
+  ] };
+  assert.deepStrictEqual(describeChanges(before, after), [
+    'Jan 2026 › Ram › STATUS: "Inquiry" → "CAS Issued"',
+    'Jan 2026: added a student with no name',
+    'Jan 2026: removed Sita',
+    'Renamed sheet "Sep 2026" to "Sep Intake 2026"',
+    'Hid sheet "Sep Intake 2026"',
+  ]);
+  assert.deepStrictEqual(describeChanges(after, after), []);
+});

@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Log in · UK Student NIEC</title>
+<link rel="icon" type="image/png" href="/favicon.png" />
+<style>
+  :root {
+    --niec-blue: #00adef;
+    --niec-blue-text: #0077a8;
+    --niec-orange: #fc6e1f;
+    --bg: #f3f6fa;
+    --panel: #ffffff;
+    --border: #c7ccd4;
+    --text: #1c2126;
+    --text-dim: #6b7280;
+    --danger: #dc2626;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #11161f;
+      --panel: #1a212d;
+      --border: #364152;
+      --text: #e5e7eb;
+      --text-dim: #9ca3af;
+      --danger: #f87171;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    background: var(--bg);
+    color: var(--text);
+    font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  form {
+    width: 100%;
+    max-width: 360px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 28px 24px 24px;
+    background: var(--panel);
+    border-radius: 12px;
+    border-top: 4px solid var(--niec-blue);
+    box-shadow: 0 12px 36px rgba(15, 23, 42, 0.12);
+  }
+  h1 { margin: 0; font-size: 20px; color: var(--niec-blue-text); }
+  @media (prefers-color-scheme: dark) { h1 { color: var(--niec-blue); } }
+  .sub { margin: 0 0 14px; color: var(--text-dim); }
+  label { margin-top: 8px; font-size: 12px; font-weight: 600; color: var(--text-dim); }
+  input, select {
+    font: inherit;
+    padding: 9px 11px;
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    background: var(--panel);
+    color: var(--text);
+  }
+  .password-field { display: flex; flex-direction: column; gap: 6px; }
+  .password-field[hidden] { display: none; }
+  input:focus, select:focus { outline: 2px solid var(--niec-blue); outline-offset: 1px; border-color: transparent; }
+  .error { margin: 8px 0 0; color: var(--danger); font-size: 13px; }
+  .error[hidden] { display: none; }
+  button {
+    margin-top: 18px;
+    padding: 10px;
+    border: none;
+    border-radius: 7px;
+    background: var(--niec-orange);
+    color: #fff;
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  button:disabled { opacity: 0.6; cursor: default; }
+</style>
+</head>
+<body>
+<form id="loginForm">
+  <h1>UK Student NIEC</h1>
+  <p class="sub">Log in to continue</p>
+  <label for="account">Account</label>
+  <select id="account" required autofocus>
+    <option value="" selected disabled>Choose your account…</option>
+  </select>
+  <div class="password-field" id="passwordField" hidden>
+    <label for="password">Password</label>
+    <input id="password" type="password" autocomplete="current-password" autocapitalize="off" spellcheck="false" required />
+  </div>
+  <p class="error" id="error" hidden></p>
+  <button type="submit" id="submit">Log in</button>
+</form>
+<script>
+(function () {
+  const form = document.getElementById('loginForm');
+  const error = document.getElementById('error');
+  const submit = document.getElementById('submit');
+  const account = document.getElementById('account');
+  const passwordField = document.getElementById('passwordField');
+  const password = document.getElementById('password');
+
+  // The accounts come from the server (shared/server-utils.js), so this list never goes out of date.
+  fetch('/api/accounts', { cache: 'no-store' })
+    .then((res) => res.json())
+    .then((list) => list.forEach((a) => account.add(new Option(a.label, a.id))))
+    .catch(() => {
+      error.textContent = 'Could not load the accounts. Please reload the page.';
+      error.hidden = false;
+    });
+
+  // The password box appears once an account is picked.
+  account.addEventListener('change', () => {
+    passwordField.hidden = false;
+    error.hidden = true;
+    password.value = '';
+    password.focus();
+  });
+  // Only a path on this site, so the link can't send someone elsewhere after logging in.
+  const next = new URLSearchParams(location.search).get('next') || '/';
+  const target = /^\/(?![\/\\])/.test(next) ? next : '/';
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    submit.disabled = true;
+    error.hidden = true;
+    try {
+      const res = await fetch('/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ account: account.value, password: password.value }),
+      });
+      if (res.ok) { location.replace(target); return; }
+      const json = await res.json().catch(() => ({}));
+      error.textContent = json.error || `Could not log in (server error ${res.status}).`;
+    } catch (err) {
+      error.textContent = 'Could not reach the server. Check your connection and try again.';
+    }
+    error.hidden = false;
+    submit.disabled = false;
+    password.select();
+  });
+})();
+</script>
+</body>
+</html>

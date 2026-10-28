@@ -2,11 +2,12 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const {
-  sendJSON, send, SECURITY_HEADERS, createAuth, createStaticServer, readJSONBody, writeFileAtomic, snapshotDaily,
+  sendJSON, send, SECURITY_HEADERS, createAuth, createActivityLog, createStaticServer, readJSONBody, writeFileAtomic,
+  snapshotDaily,
 } = require('../shared/server-utils');
 const crypto = require('crypto');
 const {
-  blankWorkbook, ensureRowIds, migrateWorkbook, isValidWorkbook, mergeWorkbooks, createHistory,
+  blankWorkbook, ensureRowIds, migrateWorkbook, isValidWorkbook, mergeWorkbooks, createHistory, describeChanges,
 } = require('./workbook');
 
 const PORT = process.env.PORT || 4173;
@@ -23,21 +24,37 @@ fs.mkdirSync(DATA_DIR, { recursive: true });
 const serveStatic = createStaticServer(ROOT, {
   '/index.html': 'text/html; charset=utf-8',
   '/app.js': 'text/javascript; charset=utf-8',
+  '/activity.js': 'text/javascript; charset=utf-8',
   '/calc.js': 'text/javascript; charset=utf-8',
   '/style.css': 'text/css; charset=utf-8',
   '/favicon.png': 'image/png',
   '/apple-touch-icon.png': 'image/png',
 });
 
-// The "Do you really want to make this change?" box, shared with the other app.
+// Files shared with the other app: the "Do you really want to make this change?" box, the login
+// session helper and the login page (this app answers /login for both, as it sits at the site's root).
 const serveShared = createStaticServer(path.join(__dirname, '..', 'shared'), {
   '/edit-guard.js': 'text/javascript; charset=utf-8',
+  '/session.js': 'text/javascript; charset=utf-8',
+  '/login.html': 'text/html; charset=utf-8',
 });
 
-// Shared-password protection — only active when both env vars are set (so local dev,
-// where they're unset, is unaffected). On a host, set APP_USERNAME/APP_PASSWORD as
-// environment variables for this app.
-const requireAuth = createAuth({ username: process.env.APP_USERNAME, password: process.env.APP_PASSWORD });
+// Every login, logout and change, for "Check activity" (Admin only). Kept next to the data, where
+// the Incentive app adds its changes too.
+const activity = createActivityLog(DATA_DIR);
+
+// Everything except the login page itself needs a login (see shared/server-utils.js). The cookie's
+// signing key lives next to the data, where the Incentive app reads it too.
+const { requireAuth, handleLogin, handleLogout, listAccounts } = createAuth({
+  secretDir: DATA_DIR,
+  onLogin: (req, user) => activity.record(req, user, 'Logged in'),
+  onLogout: (req, user) => activity.record(req, user, 'Logged out'),
+});
+
+function recordChanges(req, before, after) {
+  const changes = describeChanges(before, after);
+  if (changes.length) activity.record(req, req.user, 'Changed', { app: 'Student Details', changes });
+}
 
 // Recent revisions, so a save based on one of them can be merged instead of refused.
 const history = createHistory();
@@ -93,13 +110,16 @@ async function handleSave(req, res) {
     }
     if (!current || parsed.baseRevision === current.revision) {
       const revision = (current ? current.revision : num(parsed.baseRevision)) + 1;
-      writeWorkbook(ensureRowIds({ revision, sheets: mine.sheets, activeSheetId: mine.activeSheetId }));
+      const next = ensureRowIds({ revision, sheets: mine.sheets, activeSheetId: mine.activeSheetId });
+      writeWorkbook(next);
+      recordChanges(req, current, next);
       return sendJSON(res, 200, { ok: true, revision });
     }
     const base = history.get(parsed.baseRevision);
     if (!base) return sendJSON(res, 409, { error: 'conflict', revision: current.revision });
     const merged = { revision: current.revision + 1, ...mergeWorkbooks(base, current, mine) };
     writeWorkbook(merged);
+    recordChanges(req, current, merged);
     return sendJSON(res, 200, { ok: true, revision: merged.revision, merged: true, workbook: merged });
   } catch (e) {
     console.error('[save]', e);
@@ -202,7 +222,10 @@ async function handleUnlockHidden(req, res) {
     Buffer.from(sha256(String((body && body.password) || '').trim()), 'hex'),
     Buffer.from(HIDDEN_SHEET_PASSWORD_HASH, 'hex'),
   );
-  if (ok) return sendJSON(res, 200, { ok: true });
+  if (ok) {
+    activity.record(req, req.user, 'Opened hidden sheets', { app: 'Student Details' });
+    return sendJSON(res, 200, { ok: true });
+  }
   // A short pause on a wrong guess makes trying many passwords slow.
   setTimeout(() => sendJSON(res, 403, { ok: false }), 800);
 }
@@ -231,8 +254,21 @@ try {
 
 const server = http.createServer((req, res) => {
   try {
-    if (!requireAuth(req, res)) return;
     const urlPath = req.url.split('?')[0];
+    if (urlPath === '/login' && req.method === 'GET') {
+      req.url = '/login.html';
+      return serveShared(req, res);
+    }
+    if (urlPath === '/api/login' && req.method === 'POST') return handleLogin(req, res);
+    if (urlPath === '/api/logout' && req.method === 'POST') return handleLogout(req, res);
+    if (urlPath === '/api/accounts' && req.method === 'GET') return sendJSON(res, 200, listAccounts());
+    if (urlPath === '/favicon.png') return serveStatic(req, res);
+    if (!requireAuth(req, res)) return;
+    if (urlPath === '/api/me' && req.method === 'GET') return sendJSON(res, 200, req.user);
+    if (urlPath === '/api/activity' && req.method === 'GET') {
+      if (req.user.id !== 'admin') return sendJSON(res, 403, { error: 'Only Admin can see the activity.' });
+      return sendJSON(res, 200, activity.latest());
+    }
     if (urlPath === '/api/events' && req.method === 'GET') return handleEvents(req, res);
     if (urlPath === '/api/presence') {
       if (req.method === 'POST') return handlePresence(req, res);
@@ -256,7 +292,7 @@ const server = http.createServer((req, res) => {
       if (req.method === 'POST' && urlPath === '/api/data') return handleSave(req, res);
       return send(res, 405, 'Method not allowed');
     }
-    if (urlPath === '/edit-guard.js') return serveShared(req, res);
+    if (urlPath === '/edit-guard.js' || urlPath === '/session.js') return serveShared(req, res);
     serveStatic(req, res);
   } catch (e) {
     console.error(e);
