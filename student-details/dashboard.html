@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex, nofollow" />
+<title>Dashboard · UK Student NIEC</title>
+<link rel="icon" type="image/png" href="favicon.png" />
+<link rel="stylesheet" href="header.css" />
+<link rel="stylesheet" href="dashboard.css" />
+</head>
+<body>
+  <header class="niec-header" data-page="dashboard"></header>
+
+  <main class="page" id="page">
+    <div class="page-head">
+      <div>
+        <h1>Dashboard</h1>
+        <p>Where the UK department stands: applications, mock interviews, payments and visas.</p>
+      </div>
+      <div class="filters" role="group" aria-label="Filter">
+        <label>Intake <select id="intake"><option value="all">All intakes</option></select></label>
+        <span class="updated" id="updated" role="status"></span>
+      </div>
+    </div>
+
+    <section class="hero-row" aria-label="Headline numbers">
+      <div class="hero card">
+        <span class="hero-label">Total students</span>
+        <span class="hero-value" id="heroValue">0</span>
+        <span class="hero-sub" id="heroSub"></span>
+      </div>
+      <div class="kpis" id="kpis"></div>
+    </section>
+
+    <section class="attention" id="attention" aria-label="Needs attention"></section>
+
+    <section class="grid-2">
+      <figure class="card" id="cardStages">
+        <figcaption><div><h2>Where students are now</h2><p>Students at each stage today</p></div><button class="toggle" type="button" data-table="stages">Table</button></figcaption>
+        <div class="body" id="chartStages"></div>
+      </figure>
+      <figure class="card" id="cardMilestones">
+        <figcaption><div><h2>How far students have got</h2><p>Students who have reached each step, as a share of all students</p></div><button class="toggle" type="button" data-table="milestones">Table</button></figcaption>
+        <div class="body" id="chartMilestones"></div>
+      </figure>
+    </section>
+
+    <figure class="card" id="cardMonthly">
+      <figcaption><div><h2>Month by month</h2><p>Applications, payments and visas over the last 12 months, by the date entered on each student</p></div><button class="toggle" type="button" data-table="monthly">Table</button></figcaption>
+      <div class="legend" id="legend" role="group" aria-label="Show or hide a line"></div>
+      <div class="body line-body" id="chartMonthly"></div>
+    </figure>
+
+    <section class="grid-3">
+      <figure class="card" id="cardSources">
+        <figcaption><div><h2>Where students come from</h2><p>Students by source, with visas issued</p></div><button class="toggle" type="button" data-table="sources">Table</button></figcaption>
+        <div class="body" id="chartSources"></div>
+      </figure>
+      <figure class="card" id="cardPartners">
+        <figcaption><div><h2>University partners</h2><p>Students by partner</p></div><button class="toggle" type="button" data-table="partners">Table</button></figcaption>
+        <div class="body" id="chartPartners"></div>
+      </figure>
+      <figure class="card" id="cardUniversities">
+        <figcaption><div><h2>Universities</h2><p>Students by university</p></div><button class="toggle" type="button" data-table="universities">Table</button></figcaption>
+        <div class="body" id="chartUniversities"></div>
+      </figure>
+    </section>
+  </main>
+
+  <div class="tip" id="tip" role="tooltip" hidden></div>
+
+<script src="session.js"></script>
+<script src="header.js"></script>
+<script src="dashboard.js"></script>
+</body>
+</html>

@@ -36,7 +36,7 @@ function startChild(name, cwd, port, extraEnv) {
   });
   child.on('exit', (code, signal) => {
     if (shuttingDown) return;
-    console.error(`[gateway] ${name} exited (${signal || 'code ' + code}) — shutting down.`);
+    console.error(`[gateway] ${name} exited (${signal || 'code ' + code}), shutting down.`);
     shutdown(1);
   });
   children.push(child);

@@ -293,7 +293,7 @@
     </div>
     <div class="summary-row final">
       <span class="label">Company Earnings (NPR)<span class="hint" id="earnRateHint"></span></span>
-      <span class="value" id="earnNpr">—</span>
+      <span class="value" id="earnNpr">-</span>
     </div>
     <div class="summary-row">
       <span class="label">Basic Salary (per month, NPR)</span>
@@ -317,7 +317,7 @@
     </div>
     <div class="summary-row final">
       <span class="label">My Share of Company Earnings <span class="info" title="Grand Total ÷ Company Earnings (NPR). How much of what the company earned on this intake went to you.">ⓘ</span></span>
-      <span class="value" id="earnShare">—</span>
+      <span class="value" id="earnShare">-</span>
     </div>
   </div>
 
@@ -334,7 +334,7 @@ fetch('/api/me', { cache: 'no-store' }).then((r) => (r.ok ? r.json() : null)).th
 </script>
 <script src="edit-guard.js"></script>
 <script>
-// This page may be mounted at a sub-path (e.g. /incentive) rather than a domain's root —
+// This page may be mounted at a sub-path (e.g. /incentive) rather than a domain's root,
 // derive that prefix from the URL actually used to load it, so every API call still hits
 // this app and not whatever else is mounted at the true root.
 const BASE = location.pathname.replace(/\/index\.html$/, '').replace(/\/+$/, '');
@@ -448,7 +448,7 @@ function createSaver(pending, request) {
       if (versions[key] === version) pending.delete(key);
     } catch (e) {
       liveDot.classList.add('stale');
-      liveText.textContent = 'save failed — retrying…';
+      liveText.textContent = 'save failed, retrying…';
       clearTimeout(timers[key]);
       timers[key] = setTimeout(() => run(key), 3000);
     } finally {
@@ -664,7 +664,7 @@ async function loadAll() {
     render();
   } catch (e) {
     liveDot.classList.add('stale');
-    liveText.textContent = 'sync failed — retrying…';
+    liveText.textContent = 'sync failed, retrying…';
   }
 }
 
@@ -750,7 +750,7 @@ function render() {
       } else {
         td.title = INFO_HINT;
         if (s[col.key]) td.textContent = s[col.key];
-        else td.innerHTML = '<span class="muted">—</span>';
+        else td.innerHTML = '<span class="muted">-</span>';
         if (col.synced && s[col.key]) td.insertAdjacentHTML('beforeend', '<span class="synced-badge">SYNCED</span>');
       }
       tr.appendChild(td);
@@ -813,7 +813,7 @@ function renderEarnings(students, summary) {
   const e = computeEarnings(students, summary);
   $('#earnStudents').textContent = students.length;
   $('#earnGbp').textContent = '£' + fmt(e.commissionGbp);
-  $('#earnNpr').textContent = e.companyNpr === null ? '—' : fmt(e.companyNpr);
+  $('#earnNpr').textContent = e.companyNpr === null ? '-' : fmt(e.companyNpr);
   $('#earnRateHint').textContent = earningsRate
     ? `at today's rate, £1 = ${earningsRate.rate} NPR${earningsRate.stale ? ' (last known)' : ''}`
     : 'exchange rate not available right now';
@@ -822,7 +822,7 @@ function renderEarnings(students, summary) {
   $('#earnSalary').textContent = fmt(e.salaryTotal);
   $('#earnIncentives').textContent = fmt(summary.netCommissions);
   $('#earnMyTotal').textContent = fmt(e.myTotal);
-  $('#earnShare').textContent = e.sharePercent === null ? '—' : e.sharePercent.toFixed(2) + '%';
+  $('#earnShare').textContent = e.sharePercent === null ? '-' : e.sharePercent.toFixed(2) + '%';
 }
 
 getExchangeRate().then((fx) => { earningsRate = fx; recalc(intakeStudents()); });

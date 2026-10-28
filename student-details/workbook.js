@@ -1,4 +1,4 @@
-// Workbook shape, migrations and merging for Student Details — kept apart from server.js so tests can load it.
+// Workbook shape, migrations and merging for Student Details, kept apart from server.js so tests can load it.
 
 // Column names that used to be misspelled. Older files and tabs opened before the fix still use the
 // left-hand names; migrateWorkbook renames them (columns and every row's cell) to the right-hand ones.
@@ -243,7 +243,7 @@ function mergeWorkbooks(base, theirs, mine) {
   return { sheets, activeSheetId };
 }
 
-// What a save changed, as short lines for the activity record (Users & activity → Activity): sheets added,
+// What a save changed, as short lines for the activity record (Activity page): sheets added,
 // removed, renamed or hidden, students added or removed, and each cell's old and new value.
 // Internal fields (starting with "_") are left out. At most `limit` lines, then a count of the rest.
 function describeChanges(before, after, limit = 300) {

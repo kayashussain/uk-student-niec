@@ -15,7 +15,7 @@
     'APPLICATION STATUS', 'PRE CAS INTERVIEW', 'NOC', 'MEDICAL REPORT', 'E-VISA',
   ]);
   // Rows stay grouped by this column: whichever partner value appeared first in the sheet forms the
-  // first block, the next new value forms the next block, and so on — matching the sheet's convention
+  // first block, the next new value forms the next block, and so on, matching the sheet's convention
   // of e.g. Adventus students first, then Real Dreams, then Official Rep. See autoGroupRows().
   const PARTNER_COL = 'UNIVERSITY PARTNER';
   // Students at these statuses sit in a section below everyone else (see autoGroupRows), so active
@@ -113,12 +113,14 @@
   let sendFull = false; // the server asked for the whole workbook once (it no longer had our revision)
   let reloadWanted = false; // fetch the whole (team) view next time, e.g. after moving a student on
   const Patch = window.WorkbookPatch;
-  // Who is logged in. Admin works on everything; a team sees only the students at its stage and can
-  // change only its own columns (shared/teams.js — the server enforces the same rules).
+  // Who is logged in (from /api/me). Admin works on everything; the CEO sees every student and changes
+  // nothing; staff see the students at their departments' stages and change only those departments'
+  // columns (shared/teams.js; the server enforces the same rules).
   const Teams = window.TeamRules;
-  let myRole = null;
-  const isTeam = () => Boolean(Teams.teamOf(myRole));
-  const canEditCol = (col, row = null) => Teams.canEdit(myRole, col, row); // row: a student the team added can have its basics filled in
+  let me = null;
+  const isTeam = () => Boolean(Teams.teamOf(me)); // anyone but Admin
+  const isViewOnly = () => Teams.isReadOnly(me);
+  const canEditCol = (col, row = null) => Teams.canEdit(me, col, row); // row: a student the person's team added can have its basics filled in
   let saving = false;
   let saveQueued = false;
   let changeCount = 0;
@@ -143,7 +145,7 @@
   let dragMode = null; // 'cells' | 'rows' while the mouse button is held
 
   // Undo/redo: whole-workbook snapshots (like Google Sheets, one step = one committed
-  // action — a cell edit, a row add/delete, a sheet rename, etc.), not per-keystroke.
+  // action: a cell edit, a row add/delete, a sheet rename, etc.), not per-keystroke.
   let undoStack = [];
   let redoStack = [];
   const MAX_UNDO_STEPS = 100;
@@ -204,8 +206,8 @@
     else apply();
   }
 
-  // Date boxes fire "change" as soon as a typed date is complete — already after the first digit of the
-  // year (0002) — so a typed date is only confirmed once the typing is done: Enter, leaving the box, or a
+  // Date boxes fire "change" as soon as a typed date is complete, already after the first digit of the
+  // year (0002), so a typed date is only confirmed once the typing is done: Enter, leaving the box, or a
   // 2-second pause. A date picked from the calendar is confirmed straight away.
   // An empty date box shows no "mm/dd/yyyy" until it's clicked (see .date-input.empty in style.css).
   function markEmptyDate(input) { input.classList.toggle('empty', !input.value); }
@@ -394,8 +396,8 @@
     flag.textContent = status === 'expired' ? '⚠ Expired' : '⚠ Expiring';
     td.appendChild(flag);
     td.title = status === 'expired'
-      ? 'Language test result has expired (valid for 2 years) — a new test is needed'
-      : 'Language test result expires within 3 months (valid for 2 years) — consider retaking soon';
+      ? 'Language test result has expired (valid for 2 years). A new test is needed'
+      : 'Language test result expires within 3 months (valid for 2 years). Consider retaking soon';
   }
 
   // Which choice a language test value means: older text like "IELTS WAIVER" counts as Waiver, any date as
@@ -420,7 +422,7 @@
     const select = document.createElement('select');
     select.className = 'status-select ' + (LANGUAGE_TEST_NO_DATE.has(choice) ? 'badge-green' : choice ? 'badge-blue' : 'badge-gray');
     const choices = choice && !LANGUAGE_TEST_CHOICES.includes(choice) ? [...LANGUAGE_TEST_CHOICES, choice] : LANGUAGE_TEST_CHOICES;
-    [['', '— Select —'], ...choices.map((c) => [c, c])].forEach(([value, label]) => {
+    [['', 'Select'], ...choices.map((c) => [c, c])].forEach(([value, label]) => {
       const o = document.createElement('option');
       o.value = value;
       o.textContent = label;
@@ -469,7 +471,7 @@
     applyLanguageTestFlag(td, input.value);
   }
 
-  // The sheet deferred students get moved into — whichever sheet sits immediately
+  // The sheet deferred students get moved into: whichever sheet sits immediately
   // after the currently open one in the tab order (Sheet1 → Sheet2, Sheet2 → Sheet3, …).
   function getDeferTargetSheet() {
     const idx = sheets.findIndex((s) => s.id === activeSheetId);
@@ -517,10 +519,10 @@
 
   // Standing rules, applied together so neither undoes the other:
   //  1. A student with a UNIVERSITY PARTNER always sits in that partner's block, whatever their status.
-  //     Blocks are ordered by each partner's first appearance (not alphabetically) — so typing "OIEG"
+  //     Blocks are ordered by each partner's first appearance (not alphabetically), so typing "OIEG"
   //     into any row's partner cell moves it in next to the other OIEG rows, Inquiry or not.
   //  2. Students without a partner go below all the partner blocks: first those with a status other
-  //     than Inquiry, then Inquiry students, then rows with no status yet — so a newly added row stays
+  //     than Inquiry, then Inquiry students, then rows with no status yet, so a newly added row stays
   //     at the very bottom while it's filled in, and moves into place once its partner or status is set.
   // Runs on every render, same as autoMoveDeferredRows, so it stays true as values are typed or pasted in.
   function autoGroupRows() {
@@ -580,19 +582,20 @@
   async function loadData() {
     let json;
     try {
-      const [res, me] = await Promise.all([
+      const [res, who] = await Promise.all([
         fetch('/api/data', { cache: 'no-store' }),
-        myRole ? null : fetch('/api/me', { cache: 'no-store' }).then((r) => (r.ok ? r.json() : null)),
+        me ? null : fetch('/api/me', { cache: 'no-store' }).then((r) => (r.ok ? r.json() : null)),
       ]);
-      if (me) {
-        myRole = me.role;
+      if (who) {
+        me = who;
         document.body.dataset.role = me.role;
+        $('#viewOnly').hidden = me.role !== 'ceo';
       }
-      if (!res.ok || !myRole) throw new Error('HTTP ' + res.status);
+      if (!res.ok || !me) throw new Error('HTTP ' + res.status);
       json = await res.json();
       if (!Array.isArray(json.sheets) || !json.sheets.length) throw new Error('no sheets');
     } catch (e) {
-      statusEl.textContent = 'Could not load data — retrying…';
+      statusEl.textContent = 'Could not load data. Retrying…';
       statusEl.className = 'save-status error';
       setTimeout(loadData, 3000);
       return;
@@ -783,7 +786,7 @@
 
       if (isHiddenSheet(sheet)) {
         tab.classList.add('is-hidden');
-        tab.title = 'Hidden sheet — only shown after entering the password';
+        tab.title = 'Hidden sheet. Only shown after entering the password';
       }
 
       const label = document.createElement('span');
@@ -1217,7 +1220,7 @@
     const q = searchEl.value.trim().toLowerCase();
     let indices = rows.map((_, i) => i);
     // A team sees only its stage's students (a student it just moved on drops out of its list).
-    if (isTeam()) indices = indices.filter((i) => Teams.seesRow(myRole, rows[i]));
+    if (isTeam()) indices = indices.filter((i) => Teams.seesRow(me, rows[i]));
     if (q) {
       indices = indices.filter((i) => columns.some((c) => (rows[i][c] || '').toLowerCase().includes(q)));
     }
@@ -1369,7 +1372,7 @@
   tableWrap.addEventListener('scroll', () => { if (renderWindow()) afterWindowChange(); }, { passive: true });
   window.addEventListener('resize', () => { if (renderWindow()) afterWindowChange(); });
 
-  // Redraws one student's row in place after an edit to it — far quicker than rebuilding the whole
+  // Redraws one student's row in place after an edit to it, far quicker than rebuilding the whole
   // table. Falls back to a full redraw when the edit can move rows or hide/show them, or affects
   // other rows: the sort or a filter is on that column, a search is active, or it's a column the rows
   // are grouped by or compared across (partner, status, WhatsApp duplicates).
@@ -1431,7 +1434,7 @@
           ['', ...list].forEach((opt) => {
             const o = document.createElement('option');
             o.value = opt;
-            o.textContent = opt || '— Select —';
+            o.textContent = opt || 'Select';
             if (opt === val) o.selected = true;
             select.appendChild(o);
           });
@@ -1440,7 +1443,7 @@
         // A team picks only from its own moves (e.g. Application Stage → Mock Stage), and can't touch
         // the other dropdowns outside its columns.
         const isStatus = col === 'APPLICATION STATUS';
-        const choices = isStatus ? Teams.statusChoices(myRole, val, SELECT_COLS[col]) : SELECT_COLS[col];
+        const choices = isStatus ? Teams.statusChoices(me, val, SELECT_COLS[col]) : SELECT_COLS[col];
         if (isStatus ? choices.length < 2 && isTeam() : !canEditCol(col, rows[rowIdx])) {
           select.disabled = true;
           select.title = 'Your team can\'t change this';
@@ -1465,7 +1468,7 @@
         select.addEventListener('change', () => {
           const newVal = select.value;
           if (isStatus && isTeam()) {
-            const check = Teams.checkMove(myRole, rows[rowIdx], newVal);
+            const check = Teams.checkMove(me, rows[rowIdx], newVal);
             if (!check.ok) { alert(check.message); select.value = val; return; }
             if (check.confirm && !confirm(check.confirm)) { select.value = val; return; }
           }
@@ -1724,7 +1727,7 @@
   }
 
   function warnPeerOnCell(peer) {
-    statusEl.textContent = `${peer.name} is on this cell right now — wait for them to finish`;
+    statusEl.textContent = `${peer.name} is on this cell right now. Wait for them to finish`;
     statusEl.className = 'save-status error';
     setTimeout(() => { if (!dirty) { statusEl.textContent = 'All changes saved'; statusEl.className = 'save-status'; } }, 3000);
   }
@@ -1736,7 +1739,7 @@
     revealRow(rowIdx);
     const td = cellTd(rowIdx, col);
     if (!td || !rows[rowIdx] || CALC_COLS[col]) return;
-    if (!canEditCol(col, rows[rowIdx]) && col !== 'APPLICATION STATUS') { flashStatus("Your team can't change this column"); return; }
+    if (!canEditCol(col, rows[rowIdx]) && col !== 'APPLICATION STATUS') { flashStatus(isViewOnly() ? 'This account is view only' : "Your team can't change this column"); return; }
     const busy = peerOnCell(rowIdx, col, isTextCell(col));
     if (busy) { warnPeerOnCell(busy); return; }
     if (!isTextCell(col)) {
@@ -1948,6 +1951,7 @@
   }
 
   function markDirty() {
+    if (isViewOnly()) return; // a view-only account never saves (the sheet's automatic tidying of rows is not a change)
     dirty = true;
     changeCount += 1;
     renderStatusSummary();
@@ -1958,9 +1962,10 @@
     saveTimer = setTimeout(saveData, 600);
   }
 
-  // For deliberate, infrequent actions (rename/add/delete/duplicate a sheet) — save
+  // For deliberate, infrequent actions (rename/add/delete/duplicate a sheet): save
   // right away instead of waiting out the debounce, so a quick refresh can't lose it.
   function markDirtyAndSaveNow() {
+    if (isViewOnly()) return;
     dirty = true;
     changeCount += 1;
     renderStatusSummary();
@@ -2019,7 +2024,7 @@
       }
       if (reloadWanted) setTimeout(checkForRemoteChanges, 0);
     } catch (e) {
-      statusEl.textContent = 'Save failed — retrying…';
+      statusEl.textContent = 'Save failed. Retrying…';
       statusEl.className = 'save-status error';
       saveTimer = setTimeout(saveData, 3000);
     } finally {
@@ -2138,19 +2143,55 @@
     } catch (e) { /* offline for a moment: try again next time */ }
   }
 
-  function addRow() {
-    confirmChange(addRowNow);
+  async function addRow() {
+    if (isViewOnly()) return;
+    const depts = isTeam() ? Teams.addableDepartments(me) : [];
+    // Someone in several departments says which team the new student is for.
+    const dept = depts.length > 1 ? await chooseDepartment(depts) : (depts[0] || null);
+    if (isTeam() && !dept) return;
+    confirmChange(() => addRowNow(dept));
   }
 
-  function addRowNow() {
+  // A small menu under "+ Add student": one entry per department the person works in.
+  function chooseDepartment(depts) {
+    return new Promise((resolve) => {
+      closeSheetMenu();
+      const menu = document.createElement('div');
+      menu.className = 'sheet-menu dept-menu';
+      menu.dataset.sheetId = 'dept';
+      const head = document.createElement('div');
+      head.className = 'all-sheets-heading';
+      head.textContent = 'Add a student for';
+      menu.appendChild(head);
+      depts.forEach((d) => {
+        const item = document.createElement('div');
+        item.className = 'sheet-menu-item';
+        item.innerHTML = '<b></b><br><small></small>';
+        item.firstChild.textContent = Teams.DEPARTMENTS[d].label;
+        item.lastChild.textContent = `Starts at ${Teams.DEPARTMENTS[d].start}`;
+        item.addEventListener('click', () => { closeSheetMenu(); resolve(d); });
+        menu.appendChild(item);
+      });
+      document.body.appendChild(menu);
+      const rect = $('#addRow').getBoundingClientRect();
+      menu.style.left = Math.min(rect.left, window.innerWidth - menu.offsetWidth - 8) + 'px';
+      menu.style.top = rect.bottom + 4 + 'px';
+      openSheetMenu = menu;
+      setTimeout(() => document.addEventListener('mousedown', onSheetMenuDocClick, true), 0);
+      // Clicking elsewhere closes the menu without choosing.
+      const watch = setInterval(() => { if (!openSheetMenu || openSheetMenu !== menu) { clearInterval(watch); resolve(null); } }, 200);
+    });
+  }
+
+  function addRowNow(dept = null) {
     pushUndo();
     const blank = { _id: makeRowId() };
     columns.forEach((c) => (blank[c] = ''));
-    // A team's new student starts at its own stage (so it stays in the team's list) and is marked as
-    // added by the team, which lets the team fill in the student's basics (the server checks both).
+    // A team's new student starts at that team's stage (so it stays in the person's list) and is marked
+    // with the department, which lets the person fill in the student's basics (the server checks both).
     if (isTeam()) {
-      blank['APPLICATION STATUS'] = Teams.newStudentStatus(myRole);
-      blank._addedByTeam = myRole;
+      blank['APPLICATION STATUS'] = Teams.newStudentStatus(me, dept);
+      blank._addedByTeam = dept;
     }
     rows.push(blank);
     const startCol = columns.find((c) => isTextCell(c) && canEditCol(c, blank)) || columns[0];
@@ -2193,7 +2234,7 @@
     try {
       ExcelJS = await NiecSession.loadExcel();
     } catch (e) {
-      alert('The Excel export library failed to load (check your internet connection) — try again.');
+      alert('The Excel export library failed to load (check your internet connection). Try again.');
       return;
     }
     const sheetName = (getActiveSheet() || {}).name || 'Export';

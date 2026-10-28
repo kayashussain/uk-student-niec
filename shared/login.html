@@ -54,8 +54,8 @@
   form { display: flex; flex-direction: column; gap: 6px; }
   form[hidden] { display: none; }
   .brand { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; }
-  .mark { display: grid; place-items: center; height: 42px; padding: 0 10px; border-radius: 10px; background: var(--niec-blue);
-    color: #fff; font-weight: 800; font-size: 13px; letter-spacing: .04em; flex: 0 0 auto; }
+  .brand { flex-direction: column; text-align: center; gap: 6px; }
+  .logo { display: block; height: 64px; width: auto; }
   .company { font-size: 12px; color: var(--text-dim); }
   h1 { margin: 0; font-size: 19px; color: var(--niec-blue-text); }
   .footnote { margin: 18px 0 0; padding-top: 14px; border-top: 1px solid var(--border); font-size: 12px; color: var(--text-dim); text-align: center; }
@@ -100,7 +100,7 @@
 <body>
 <div class="card">
   <div class="brand">
-    <span class="mark" aria-hidden="true">NIEC</span>
+    <img class="logo" src="niec-logo.png" alt="NIEC, Your Future, Our Responsibility" width="132" height="64">
     <div><h1>UK Student NIEC</h1><div class="company">Nepal International Education Consultancy</div></div>
   </div>
   <p class="sub" id="subtitle">Log in to continue</p>
@@ -134,7 +134,7 @@
   </form>
 
   <form id="step-new-password" hidden>
-    <p class="note">Choose your own password. Only you should know it — never share it, not even with your team.</p>
+    <p class="note">Choose your own password. Only you should know it. Never share it, not even with your team.</p>
     <label for="new-password">New password</label>
     <input id="new-password" type="password" autocomplete="new-password" minlength="10" required />
     <p class="hint">At least 10 characters. A short sentence is easy to remember and hard to guess.</p>
@@ -199,7 +199,7 @@
   function show(state) {
     if (state.stage === 'done') { location.replace(target); return; }
     document.querySelectorAll('form').forEach((f) => { f.hidden = f.id !== 'step-' + state.stage; });
-    $('subtitle').textContent = (state.name ? `Hi ${state.name} — ` : '') + (subtitles[state.stage] || '');
+    $('subtitle').textContent = (state.name ? `Hi ${state.name}. ` : '') + (subtitles[state.stage] || '');
     const form = $('step-' + state.stage);
     if (!form) return;
     form.reset();

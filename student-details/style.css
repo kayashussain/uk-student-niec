@@ -713,6 +713,9 @@ body:not([data-role="admin"]) #exportExcel { display: none; }
 td.locked { color: var(--text-dim); cursor: default; }
 select.status-select:disabled { opacity: 0.85; cursor: default; }
 body:not([data-role]) #addRow,
+body[data-role="ceo"] #addRow,
+body[data-role="ceo"] #undoBtn,
+body[data-role="ceo"] #redoBtn,
 body:not([data-role="admin"]) #delRow,
 body:not([data-role="admin"]) #addSheet,
 body:not([data-role="admin"]) #allSheetsBtn,
@@ -726,3 +729,12 @@ body:not([data-role="admin"]) .sheet-tab-menu-btn { display: none; }
   .topbar .save-status { min-width: 0; }
   .legend { display: none; } /* the colour key needs room a phone doesn't have */
 }
+
+/* The CEO's view-only note, and the menu that asks which team a new student is for. */
+.view-only {
+  padding: 3px 10px; border-radius: 999px; background: var(--niec-blue-tint); color: var(--niec-blue-text);
+  font-size: 12px; font-weight: 600; white-space: nowrap;
+}
+.view-only[hidden] { display: none; }
+.dept-menu { min-width: 210px; }
+.dept-menu .sheet-menu-item small { color: var(--text-dim); }

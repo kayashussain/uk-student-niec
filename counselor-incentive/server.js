@@ -1,7 +1,7 @@
-// Incentive — static file server + a small JSON API.
+// Incentive: static file server + a small JSON API.
 //
 // Source of truth for *who* to show is the sibling "student-details" app's data.json
-// (read directly off disk — same machine, no network hop needed). A student surfaces
+// (read directly off disk, same machine, no network hop needed). A student surfaces
 // here automatically the moment their APPLICATION STATUS is set to "Visa Issued" over
 // there, grouped under the same sheet/tab name (the "intake"). Incentive-specific
 // numbers (Enrollment, Enrollment from University, New Partnership, Direct Student,
@@ -10,14 +10,14 @@
 // earnings comparison) lives in advances.json, keyed by
 // the sheet's id, so renaming a sheet keeps it (see advances.js). Flywire Incentive is
 // auto-derived from Flywire Fee Payment (0.2% of the GBP amount, converted to NPR at the
-// day's rate) — that rate is fetched from a public
+// day's rate): that rate is fetched from a public
 // API and cached in exchange-rate-cache.json, refreshed at most once per day.
 
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const {
-  send, sendJSON, createActivityLog, createStaticServer, readJSONBody, writeFileAtomic, snapshotDaily,
+  send, sendJSON, createActivityLog, createStaticServer, SHARED_FILES, readJSONBody, writeFileAtomic, snapshotDaily,
   localDate,
 } = require('../shared/server-utils');
 const { createAccounts } = require('../shared/accounts');
@@ -29,12 +29,12 @@ const { netTuitionFee } = require('../student-details/calc');
 const PORT = process.env.PORT || 5173;
 const ROOT = __dirname;
 // This app may be mounted at a sub-path (e.g. https://host/incentive) rather than a
-// domain's root — some hosts (this one included) pass the full original path through
+// domain's root. Some hosts (this one included) pass the full original path through
 // without stripping that prefix, so we strip it ourselves. Set BASE_PATH to whatever
 // path was used in "Application URL" (e.g. "/incentive"); leave unset for a root mount.
 const BASE_PATH = (process.env.BASE_PATH || '').replace(/\/+$/, '');
 // These let a host's persistent disk (mounted anywhere) hold the data files instead of
-// the app folders themselves — unset locally, so local sibling-folder behavior is unchanged.
+// the app folders themselves. Unset locally, so local sibling-folder behavior is unchanged.
 const DATA_DIR = process.env.COUNSELOR_DATA_DIR || ROOT;
 fs.mkdirSync(DATA_DIR, { recursive: true });
 const STUDENT_DETAILS_DATA = process.env.STUDENT_DETAILS_DATA_DIR
@@ -56,14 +56,8 @@ const serveStatic = createStaticServer(ROOT, {
   '/apple-touch-icon.png': 'image/png',
 });
 
-// Files shared with the other app: the "Do you really want to make this change?" box and the login
-// session helper.
-const serveShared = createStaticServer(path.join(__dirname, '..', 'shared'), {
-  '/edit-guard.js': 'text/javascript; charset=utf-8',
-  '/session.js': 'text/javascript; charset=utf-8',
-  '/header.js': 'text/javascript; charset=utf-8',
-  '/header.css': 'text/css; charset=utf-8',
-});
+// Files shared with the other app (header, logo, session helper, ...).
+const serveShared = createStaticServer(path.join(__dirname, '..', 'shared'), SHARED_FILES);
 
 // Changes made here go into the same activity record as Student Details ("Check activity").
 const activity = createActivityLog(path.dirname(STUDENT_DETAILS_DATA));
@@ -124,7 +118,7 @@ function writeWithBackup(file, backupName, data) {
 }
 
 // Student Details -> the fields Incentive cares about. Everything else (visa lodge dates,
-// language test, other tuition figures, etc.) stays over there — this app only needs enough to
+// language test, other tuition figures, etc.) stays over there. This app only needs enough to
 // identify the student and show read-only context alongside the incentive fields.
 function normalizeStudent(row, intake) {
   return {
@@ -142,7 +136,7 @@ function normalizeStudent(row, intake) {
 // Reads the Student Details workbook and reshapes it into { intakes, byIntake }, where
 // byIntake[sheetName] only ever contains students whose APPLICATION STATUS is exactly
 // "Visa Issued" right now. Every sheet becomes an intake tab here, even if it currently
-// has zero visa-issued students — mirroring the sheets over in Student Details 1:1.
+// has zero visa-issued students, mirroring the sheets over in Student Details 1:1.
 // The Student Details sheets as [{ id, name }] (empty if the file can't be read right now).
 function readSheetList() {
   try {
@@ -166,7 +160,7 @@ function readSync() {
   try {
     workbook = JSON.parse(raw);
   } catch (e) {
-    return { ok: false, error: 'Student Details data file is not valid JSON right now — try again.', intakes: [], byIntake: {} };
+    return { ok: false, error: 'Student Details data file is not valid JSON right now. Try again.', intakes: [], byIntake: {} };
   }
   const sheets = Array.isArray(workbook.sheets) ? workbook.sheets : [];
   const intakes = sheets.map((s) => s.name);
@@ -336,7 +330,7 @@ const server = http.createServer(async (req, res) => {
       return sendJSON(res, 404, { error: 'Not found' });
     }
 
-    if (['/edit-guard.js', '/session.js', '/header.js', '/header.css'].includes(urlPath)) return serveShared(req, res);
+    if (SHARED_FILES[urlPath]) return serveShared(req, res);
     serveStatic(req, res);
   } catch (e) {
     const status = e.statusCode || (e instanceof URIError ? 400 : 500);

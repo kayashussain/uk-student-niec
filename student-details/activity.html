@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex, nofollow" />
+<title>Activity · UK Student NIEC</title>
+<link rel="icon" type="image/png" href="favicon.png" />
+<link rel="stylesheet" href="header.css" />
+<link rel="stylesheet" href="admin.css" />
+</head>
+<body>
+  <header class="niec-header" data-page="activity"></header>
+
+  <main class="page">
+    <div class="page-head">
+      <div>
+        <h1>Activity</h1>
+        <p>Every login, failed login, logout and change, with who did it, on which device, and when.</p>
+      </div>
+    </div>
+
+    <div class="summary" id="summary" aria-label="Summary">
+      <div class="tile"><span class="tile-value" id="sLogins">0</span><span class="tile-label">Logins today</span><span class="tile-sub" id="sLoginsWeek"></span></div>
+      <div class="tile"><span class="tile-value" id="sPeople">0</span><span class="tile-label">People active today</span></div>
+      <div class="tile"><span class="tile-value" id="sChanges">0</span><span class="tile-label">Changes today</span><span class="tile-sub" id="sChangesWeek"></span></div>
+      <div class="tile" id="failedTile"><span class="tile-value" id="sFailed">0</span><span class="tile-label">Failed logins today</span><span class="tile-sub" id="sFailedWeek"></span></div>
+    </div>
+
+    <div class="card filters">
+      <div class="filter-row">
+        <label>Person <select id="fPerson"><option value="">Everyone</option></select></label>
+        <label>Type
+          <select id="fType">
+            <option value="">Everything</option>
+            <option value="logins">Logins and logouts</option>
+            <option value="changes">Changes to students</option>
+            <option value="security">Security (failed logins, refused changes)</option>
+            <option value="accounts">People and settings</option>
+          </select>
+        </label>
+        <label>From <input type="date" id="fFrom" /></label>
+        <label>To <input type="date" id="fTo" /></label>
+        <label class="grow">Search <input type="search" id="fSearch" placeholder="Student name, column, device..." /></label>
+      </div>
+      <div class="filter-row presets">
+        <button class="btn btn-sm" type="button" data-range="today">Today</button>
+        <button class="btn btn-sm" type="button" data-range="7">Last 7 days</button>
+        <button class="btn btn-sm" type="button" data-range="30">Last 30 days</button>
+        <button class="btn btn-sm" type="button" data-range="all">All time</button>
+        <span class="spacer"></span>
+        <button class="btn btn-sm" type="button" id="refresh">Refresh</button>
+        <button class="btn btn-sm" type="button" id="download">Download CSV</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><h2 id="resultTitle">Activity</h2><span class="muted" id="resultCount"></span></div>
+      <div id="list"><p class="muted">Loading...</p></div>
+    </div>
+  </main>
+
+<script src="session.js"></script>
+<script src="header.js"></script>
+<script src="activity.js"></script>
+</body>
+</html>
