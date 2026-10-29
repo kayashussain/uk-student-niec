@@ -178,6 +178,8 @@ function createFacts(dir, { now = () => new Date() } = {}) {
   return {
     list: (q = '') => (String(q).trim() ? search(q) : load().universities.map(summary).sort((a, b) => a.name.localeCompare(b.name))),
     // Pages saved before the overview and fees table existed come back with those empty.
+    // Every university with all its details (for Admin's backup copy).
+    all: () => load().universities,
     get: (id) => { const u = load().universities.find((x) => x.id === id); return u ? { overview: '', programs: [], ...u } : null; },
     // Adds a university (just its name; the rest is filled in on its page).
     create(name, by) {

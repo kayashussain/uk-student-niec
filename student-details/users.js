@@ -67,16 +67,30 @@
   wireAccess($('editAccess'), 'edit');
 
   // ---- Tabs ----
-  const tabs = ['people', 'devices'];
+  const tabs = ['people', 'devices', 'backup'];
   function showTab(name) {
     tabs.forEach((t) => {
       $('tab-' + t).setAttribute('aria-selected', String(t === name));
       $('panel-' + t).hidden = t !== name;
     });
     if (name === 'devices') loadSessions();
+    if (name === 'backup') loadBackups();
     try { history.replaceState(null, '', '#' + name); } catch (e) { /* not important */ }
   }
   tabs.forEach((t) => $('tab-' + t).addEventListener('click', () => showTab(t)));
+
+  // ---- Backup ----
+  async function loadBackups() {
+    try {
+      const info = await api('/api/backup/info');
+      $('backupCounts').textContent = `Right now: ${info.students} student${info.students === 1 ? '' : 's'} and ${info.universities} universities in the Fact File.`;
+      const size = (b) => (b > 1048576 ? (b / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(b / 1024)) + ' KB');
+      $('dailyBackups').innerHTML = info.daily.map((d) => `<tr><td>${esc(d.name.slice(5, 15))}</td><td><code>${esc(d.name)}</code></td><td>${size(d.bytes)}</td></tr>`).join('')
+        || '<tr><td class="muted" colspan="3">None yet. The first one is made the first time something is saved today.</td></tr>';
+    } catch (e) {
+      $('dailyBackups').innerHTML = `<tr><td class="muted" colspan="3">${esc(e.message)}</td></tr>`;
+    }
+  }
 
   // ---- Setup email results ----
   // What happened to the setup email, in a sentence, and whether the temporary password has to be shown.
