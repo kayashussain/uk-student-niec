@@ -142,3 +142,11 @@ details.rates summary { cursor: pointer; color: var(--brand-text); font-weight: 
 .notes { margin: 18px 2px 0; font-size: 12px; color: var(--ink-3); max-width: 90ch; }
 .notes:empty { display: none; }
 #attention table.data td { white-space: normal; }
+
+/* Before the first numbers arrive: grey bars where the charts and tables will be (they fill in on their own). */
+.first-load :is(#attention, #speed, #notes, [id^="chart"]):empty {
+  min-height: 96px; margin: 4px 18px 18px; border-radius: 8px; background: linear-gradient(90deg, #eaeef3 25%, #f6f8fb 37%, #eaeef3 63%); background-size: 400% 100%; animation: dash-shimmer 1.4s ease infinite;
+}
+@media (prefers-color-scheme: dark) { .first-load :is(#attention, #speed, #notes, [id^="chart"]):empty { background: linear-gradient(90deg, #232a35 25%, #2b3340 37%, #232a35 63%); background-size: 400% 100%; } }
+@keyframes dash-shimmer { 0% { background-position: 100% 50%; } 100% { background-position: 0 50%; } }
+@media (prefers-reduced-motion: reduce) { .first-load :is(#attention, #speed, #notes, [id^="chart"]):empty { animation: none; } }

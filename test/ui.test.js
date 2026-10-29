@@ -134,6 +134,28 @@ test('screens: log in, edit, delete, search, team rules, Fact File', { timeout: 
     await page.close();
   });
 
+  await t.test('if the login runs out with unsaved changes, the page stays and saves once the login is back', async () => {
+    const page = await open(admin, '/students');
+    await page.waitForSelector('#body tr:not(.pad-row)');
+    let loginEnded = true;
+    await page.route('**/api/data', (route) => (route.request().method() === 'POST' && loginEnded
+      ? route.fulfill({ status: 401, contentType: 'application/json', body: JSON.stringify({ error: 'Please log in again.' }) })
+      : route.continue()));
+    await page.locator('#body tr:not(.pad-row)').nth(3).locator('td').nth(1).click();
+    await page.keyboard.type('Typed while the login had ended');
+    await page.keyboard.press('Enter');
+    await page.waitForSelector('.eg-box');
+    await page.click('.eg-ok');
+    await page.waitForFunction(() => /login ended/i.test(document.querySelector('#status').textContent), null, { timeout: 10000 });
+    assert.match(new URL(page.url()).pathname, /\/students/, 'not sent to the login page');
+    assert.ok(await page.isVisible('.ui-toast.error'), 'the person is told what to do');
+    loginEnded = false; // logged in again in another tab
+    await page.waitForFunction(() => document.querySelector('#status').textContent.includes('All changes saved'), null, { timeout: 15000 });
+    const saved = await (await admin.request.get('/api/data')).json();
+    assert.ok(saved.sheets[0].rows.some((r) => r['REMARKS'] === 'Typed while the login had ended'), 'the change was kept and saved');
+    await page.close();
+  });
+
   await t.test('a team member sees only their stage and is asked before moving a student on', async () => {
     const page = await open(team, '/students');
     await page.waitForSelector('#body tr:not(.pad-row)');

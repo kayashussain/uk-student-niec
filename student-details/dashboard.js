@@ -371,6 +371,7 @@
       selected = data.selected;
       fillIntakes(data);
       render();
+      page.classList.remove('first-load');
       $('updated').textContent = 'Updated ' + new Date().toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
     } catch (e) {
       $('updated').textContent = data ? 'Could not refresh. Showing the last numbers.' : 'Could not load the dashboard.';

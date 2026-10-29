@@ -117,6 +117,9 @@
   const canEditCol = (col, row = null) => Teams.canEdit(me, col, row); // row: a student the person's team added can have its basics filled in
   let saving = false;
   let saveQueued = false;
+  let loginEnded = false; // a save was refused because the login ran out (see NiecSession.holdWhile)
+  let loginNoticeShown = false; // the pop-up once per login ending, not at every retry
+  const LOGIN_ENDED_TEXT = 'Your login ended. Log in again in another tab: your changes then save by themselves.';
   let changeCount = 0;
   let conflicted = false;
   let columnFilters = {}; // col -> Set of allowed values (absent = no filter); per-sheet, reset on switch
@@ -1875,9 +1878,11 @@
         statusEl.textContent = 'All changes saved';
         statusEl.className = 'save-status';
       }
+      loginNoticeShown = false;
+      loginEnded = false;
       if (reloadWanted) setTimeout(checkForRemoteChanges, 0);
     } catch (e) {
-      statusEl.textContent = 'Save failed. Retrying…';
+      statusEl.textContent = loginEnded ? LOGIN_ENDED_TEXT : 'Save failed. Retrying…';
       statusEl.className = 'save-status error';
       saveTimer = setTimeout(saveData, 3000);
     } finally {
@@ -2471,6 +2476,17 @@
     if (/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName)) return;
     e.preventDefault();
     showShortcuts();
+  });
+
+  // If the login runs out with changes not saved yet, stay on the page instead of being sent away and losing them:
+  // saving carries on by itself once the person logs in again in another tab.
+  NiecSession.holdWhile(() => dirty || saving, () => {
+    loginEnded = true;
+    statusEl.textContent = LOGIN_ENDED_TEXT;
+    statusEl.className = 'save-status error';
+    if (loginNoticeShown) return;
+    loginNoticeShown = true;
+    NiecUI.toast('Your login has ended. Open the site in another tab and log in again: your changes are kept and will save by themselves.', { type: 'error', duration: 12000 });
   });
 
   $('#reloadBtn').addEventListener('click', () => {

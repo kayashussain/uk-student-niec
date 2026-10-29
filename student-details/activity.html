@@ -22,10 +22,10 @@
     </div>
 
     <div class="summary" id="summary" aria-label="Summary">
-      <div class="tile"><span class="tile-value" id="sLogins">0</span><span class="tile-label">Logins today</span><span class="tile-sub" id="sLoginsWeek"></span></div>
-      <div class="tile"><span class="tile-value" id="sPeople">0</span><span class="tile-label">People active today</span></div>
-      <div class="tile"><span class="tile-value" id="sChanges">0</span><span class="tile-label">Changes today</span><span class="tile-sub" id="sChangesWeek"></span></div>
-      <div class="tile" id="failedTile"><span class="tile-value" id="sFailed">0</span><span class="tile-label">Failed logins today</span><span class="tile-sub" id="sFailedWeek"></span></div>
+      <div class="tile"><span class="tile-value" id="sLogins">-</span><span class="tile-label">Logins today</span><span class="tile-sub" id="sLoginsWeek"></span></div>
+      <div class="tile"><span class="tile-value" id="sPeople">-</span><span class="tile-label">People active today</span></div>
+      <div class="tile"><span class="tile-value" id="sChanges">-</span><span class="tile-label">Changes today</span><span class="tile-sub" id="sChangesWeek"></span></div>
+      <div class="tile" id="failedTile"><span class="tile-value" id="sFailed">-</span><span class="tile-label">Failed logins today</span><span class="tile-sub" id="sFailedWeek"></span></div>
     </div>
 
     <div class="card filters">
@@ -57,7 +57,7 @@
 
     <div class="card">
       <div class="card-head"><h2 id="resultTitle">Activity</h2><span class="muted" id="resultCount"></span></div>
-      <div id="list"><p class="muted">Loading...</p></div>
+      <div id="list" aria-busy="true"><span class="ui-skeleton" style="height:18px;width:35%;margin:6px 0 12px"></span><span class="ui-skeleton" style="height:14px;width:90%;margin:8px 0"></span><span class="ui-skeleton" style="height:14px;width:80%;margin:8px 0"></span><span class="ui-skeleton" style="height:14px;width:85%;margin:8px 0"></span></div>
     </div>
   </main>
 

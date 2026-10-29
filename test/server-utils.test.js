@@ -107,3 +107,20 @@ test('the activity record is set aside when it grows too large, and a new one st
   assert.strictEqual(kept, 11, 'no entry is lost');
   assert.ok(log.latest().length >= 1 && log.latest().length < 11, 'the page shows the new record only');
 });
+
+test('responses carry the security headers, and HSTS only over https', async () => {
+  const http = require('node:http');
+  const { send } = require('../shared/server-utils');
+  const server = http.createServer((req, res) => send(res, 200, 'ok', { 'Content-Type': 'text/plain' })).listen(0);
+  const port = server.address().port;
+  const get = (headers) => new Promise((resolve) => http.get({ port, headers }, (res) => { res.resume(); resolve(res.headers); }));
+  const plain = await get({});
+  assert.match(plain['content-security-policy'], /frame-ancestors 'self'/);
+  assert.match(plain['content-security-policy'], /object-src 'none'/);
+  assert.strictEqual(plain['permissions-policy'], 'camera=(), microphone=(), geolocation=(), payment=()');
+  assert.strictEqual(plain['x-content-type-options'], 'nosniff');
+  assert.strictEqual(plain['strict-transport-security'], undefined, 'no HSTS over plain http');
+  const secure = await get({ 'x-forwarded-proto': 'https' });
+  assert.match(secure['strict-transport-security'], /max-age=\d+/);
+  server.close();
+});
