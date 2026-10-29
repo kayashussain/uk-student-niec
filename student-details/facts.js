@@ -68,6 +68,7 @@ const isUwl = (name) => String(name || '').trim().toLowerCase() === 'university 
 const isBlank = (u) => !(u.overview || u.entryRequirements || u.languageTests || u.courses || u.interview || u.notes || u.location
   || (u.programs && u.programs.length) || (u.intakes && u.intakes.length)
   || (u.process || []).some((s, i) => s.detail || s.title !== STARTER_STEPS[i]) || (u.process || []).length > STARTER_STEPS.length);
+const starterFields = (u) => JSON.stringify([u.city, u.location, u.overview, u.website, u.entryRequirements, u.languageTests, u.courses, u.interview, u.notes, u.programs || [], u.intakes || [], u.process || []]);
 const withStarterDetails = (u) => (isUwl(u.name) ? { ...u, ...clean({ ...UWL_DETAILS, name: u.name, website: u.website || 'https://www.uwl.ac.uk' }, u) } : u);
 
 function createFacts(dir, { now = () => new Date() } = {}) {
@@ -93,10 +94,18 @@ function createFacts(dir, { now = () => new Date() } = {}) {
         })),
       };
       write(data);
-    } else if (data.universities.some((u) => isUwl(u.name) && isBlank(u))) {
-      // An existing list whose UWL page was never filled in: add UWL's details once. Pages Admin has edited are left alone.
-      data.universities = data.universities.map((u) => (isUwl(u.name) && isBlank(u) ? { ...withStarterDetails(u), id: u.id, updatedAt: now().toISOString(), updatedBy: u.updatedBy || '' } : u));
-      write(data);
+    } else {
+      // UWL's page is refreshed from the starter details only while nobody has edited it (still empty, or still
+      // exactly as it was seeded). Once Admin saves it, their version is kept.
+      let changed = false;
+      data.universities = data.universities.map((u) => {
+        if (!isUwl(u.name) || !(isBlank(u) || !u.updatedBy)) return u;
+        const fresh = { ...withStarterDetails(u), id: u.id, updatedAt: u.updatedAt, updatedBy: u.updatedBy || '' };
+        if (starterFields(fresh) === starterFields(u)) return u;
+        changed = true;
+        return { ...fresh, updatedAt: now().toISOString() };
+      });
+      if (changed) write(data);
     }
     return data;
   }
