@@ -140,3 +140,7 @@ Daily backups and "today's" exchange rate follow Nepal time. To use a different 
 Push to the GitHub repo's default branch and Render redeploys automatically
 (`autoDeploy: true` in `render.yaml`). Your data isn't touched by a redeploy. It lives on
 the persistent disk, separate from the code.
+
+## Tests
+
+`npm test` runs the checks (they also run during `deploy.sh`). Most are quick tests of the rules and data. `test/ui.test.js` drives the real screens in a browser (log in, edit, delete, search, team rules, Fact File); it runs only where Playwright and Chromium are installed and skips itself on a normal server, so it never blocks a deploy.
