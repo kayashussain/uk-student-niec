@@ -84,3 +84,25 @@ test('an existing, still empty UWL page is filled in once; an edited one is left
   assert.strictEqual(createFacts(dir).get('aaaaaaaaaaaa').overview, 'Edited');
   assert.strictEqual(createFacts(dir).get('aaaaaaaaaaaa').programs.length, 0);
 });
+
+test('UWL takes the February 2027 flyer courses by level, and an older seeded page is upgraded only if nobody edited it', () => {
+  const dir = tmp();
+  const first = createFacts(dir);
+  const id = first.list().find((u) => u.name === 'University of West London').id;
+  const feb = first.get(id).intakes[0];
+  assert.match(feb.courses, /## Enhanced Extended\nMSc Civil and Environmental Engineering/);
+  assert.match(feb.courses, /## Placement Year\nMSc Cyber Security/);
+  assert.match(feb.requirements, /£700 early payment discount/);
+  assert.match(feb.notes, /karan\.mehra@uwl\.ac\.uk/);
+
+  // an older seeded copy (grouped by subject, never edited) is replaced
+  const data = JSON.parse(fs.readFileSync(path.join(dir, 'fact-file.json'), 'utf8'));
+  data.universities.find((u) => u.id === id).intakes = [{ id: 'aaaaaaaaaaaa', name: 'February 2027', deadline: '', requirements: '', courses: '## Undergraduate: Business and Accounting\nBA Accounting and Finance', notes: '' }];
+  fs.writeFileSync(path.join(dir, 'fact-file.json'), JSON.stringify(data));
+  assert.match(createFacts(dir).get(id).intakes[0].courses, /## Placement Year/);
+
+  // once Admin has saved the page, it is left as they made it
+  const facts = createFacts(dir);
+  facts.update(id, { ...facts.get(id), intakes: [{ name: 'February 2027', courses: 'Only this' }] }, 'Kayas');
+  assert.strictEqual(createFacts(dir).get(id).intakes[0].courses, 'Only this');
+});
