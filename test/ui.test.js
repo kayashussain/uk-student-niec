@@ -12,6 +12,8 @@ const { spawn } = require('node:child_process');
 
 let playwright = null;
 try { playwright = require('playwright'); } catch (e) { /* not installed: skipped below */ }
+let axeSource = null; // the accessibility checker, if installed (npm i -D axe-core)
+try { axeSource = fs.readFileSync(require.resolve('axe-core/axe.min.js'), 'utf8'); } catch (e) { /* the accessibility check skips itself */ }
 
 const freePort = () => new Promise((resolve) => { const s = net.createServer().listen(0, () => { const p = s.address().port; s.close(() => resolve(p)); }); });
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -166,6 +168,23 @@ test('screens: log in, edit, delete, search, team rules, Fact File', { timeout: 
       await page.waitForLoadState('networkidle');
       assert.deepStrictEqual(page.errors, [], url);
       await page.close();
+    }
+  });
+
+  await t.test('no accessibility violations on the main pages, in light and dark', { skip: !axeSource && 'axe-core is not installed' }, async () => {
+    for (const scheme of ['light', 'dark']) {
+      const ctx = await browser.newContext({ baseURL: base, storageState: await admin.storageState(), colorScheme: scheme, viewport: { width: 1440, height: 900 } });
+      for (const url of ['/students', '/dashboard', '/users', '/activity', '/fact-file']) {
+        const page = await ctx.newPage();
+        await page.goto(url);
+        await page.waitForLoadState('networkidle');
+        await page.evaluate(axeSource);
+        const result = await page.evaluate(() => axe.run({ runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'best-practice'] } }));
+        const found = result.violations.map((v) => `${v.id} (${v.nodes.length}): ${v.nodes[0].target.join(' ')}`);
+        assert.deepStrictEqual(found, [], `${scheme} ${url}`);
+        await page.close();
+      }
+      await ctx.close();
     }
   });
 });

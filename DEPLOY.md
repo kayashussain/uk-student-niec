@@ -143,4 +143,4 @@ the persistent disk, separate from the code.
 
 ## Tests
 
-`npm test` runs the checks (they also run during `deploy.sh`). Most are quick tests of the rules and data. `test/ui.test.js` drives the real screens in a browser (log in, edit, delete, search, team rules, Fact File); it runs only where Playwright and Chromium are installed and skips itself on a normal server, so it never blocks a deploy.
+`npm test` runs the checks (they also run during `deploy.sh`). Most are quick tests of the rules and data. `test/ui.test.js` drives the real screens in a browser (log in, edit, delete, search, team rules, Fact File); it runs only where Playwright and Chromium are installed (add `npm i -D axe-core` to include the accessibility check) and skips itself on a normal server, so it never blocks a deploy.

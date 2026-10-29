@@ -313,6 +313,7 @@
     const input = document.createElement('input');
     input.type = 'date';
     input.className = 'date-input';
+    input.setAttribute('aria-label', `${columnLabel(col)} for ${describeRow(rows[rowIdx])}`);
     input.value = original;
     input.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -412,6 +413,7 @@
     td.classList.add('lang-test');
 
     const select = document.createElement('select');
+    select.setAttribute('aria-label', `Language test for ${describeRow(rows[rowIdx])}`);
     select.className = 'status-select ' + (LANGUAGE_TEST_NO_DATE.has(choice) ? 'badge-green' : choice ? 'badge-blue' : 'badge-gray');
     const choices = choice && !LANGUAGE_TEST_CHOICES.includes(choice) ? [...LANGUAGE_TEST_CHOICES, choice] : LANGUAGE_TEST_CHOICES;
     [['', 'Select'], ...choices.map((c) => [c, c])].forEach(([value, label]) => {
@@ -448,6 +450,7 @@
     input.className = 'date-input';
     input.value = toISODate(val);
     input.title = 'Test date';
+    input.setAttribute('aria-label', `Language test date for ${describeRow(rows[rowIdx])}`);
     input.disabled = !canEditCol(col, rows[rowIdx]);
     input.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -779,8 +782,7 @@
     shownSheets().forEach((sheet) => {
       const tab = document.createElement('div');
       tab.className = 'sheet-tab' + (sheet.id === activeSheetId ? ' active' : '');
-      tab.setAttribute('role', 'tab');
-      tab.setAttribute('aria-selected', String(sheet.id === activeSheetId));
+      if (sheet.id === activeSheetId) tab.setAttribute('aria-current', 'true');
       tab.tabIndex = 0;
       tab.addEventListener('keydown', (e) => {
         if (e.target !== tab) return;
@@ -1276,6 +1278,7 @@
         renderLanguageTestCell(td, rowIdx);
       } else if (SELECT_COLS[col]) {
         const select = document.createElement('select');
+        select.setAttribute('aria-label', `${columnLabel(col)} for ${describeRow(rows[rowIdx])}`);
         select.className = 'status-select ' + badgeClass(val);
         // Only the current value is put in at first; the full list of choices is added the moment the
         // dropdown is clicked or focused. Thousands of rows × every choice was most of the page's weight.
@@ -1775,6 +1778,9 @@
       el.innerHTML = `<span class="stat-group-title">${title}</span>`;
       const cards = document.createElement('div');
       cards.className = 'stat-group-cards';
+      cards.tabIndex = 0; // the row of cards scrolls sideways: reachable from the keyboard
+      cards.setAttribute('role', 'group');
+      cards.setAttribute('aria-label', title);
       el.appendChild(cards);
       statusSummaryEl.appendChild(el);
       return cards;

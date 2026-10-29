@@ -12,6 +12,8 @@
 </head>
 <body>
   <header class="niec-header" data-page="sheet"></header>
+  <main class="app-main" id="main">
+  <h1 class="sr-only">Student Details</h1>
   <div class="topbar" role="toolbar" aria-label="Student Details">
     <input id="search" type="search" placeholder="Search students, universities, status…" aria-label="Search" />
     <div class="toolbar-group">
@@ -34,7 +36,7 @@
 
   <div class="status-summary" id="statusSummary"></div>
 
-  <div class="table-wrap">
+  <div class="table-wrap" tabindex="0" role="region" aria-label="Students">
     <table id="sheet">
       <thead>
         <tr id="headerRow"></tr>
@@ -67,6 +69,7 @@
       <span><i class="key key-defer"></i>Deferred, but no next sheet to move to</span>
     </span>
   </footer>
+  </main>
 
 <script src="calc.js"></script>
 <script src="session.js"></script>
