@@ -303,7 +303,10 @@ function readJSONBody(req, maxBytes) {
       if (failed) return;
       const body = Buffer.concat(chunks).toString('utf8');
       try {
-        resolve(body ? JSON.parse(body) : {});
+        // Every request here sends an object. Anything else that is valid JSON (null, a list, a number) counts as
+        // empty, so no handler has to guard against it (a null body once stopped the whole server).
+        const parsed = body ? JSON.parse(body) : {};
+        resolve(parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {});
       } catch (e) {
         e.statusCode = 400;
         e.message = 'invalid JSON';

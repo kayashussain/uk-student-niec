@@ -348,6 +348,9 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
+process.on('unhandledRejection', (err) => console.error('[unhandled]', err)); // one bad request must not stop the app
+process.on('uncaughtException', (err) => console.error('[uncaught]', err));
+
 server.listen(PORT, () => {
   console.log(`Incentive running at http://localhost:${PORT}`);
   console.log(`Reading student data from ${STUDENT_DETAILS_DATA}`);
