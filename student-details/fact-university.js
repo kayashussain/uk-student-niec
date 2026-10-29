@@ -144,6 +144,20 @@
     }
     section(doc, 'Notes', uni.notes);
     doc.append(el('div', 'foot', has(uni.updatedBy) ? `Last updated ${when(uni.updatedAt)} by ${uni.updatedBy}. Nepal International Education Consultancy.` : 'Nepal International Education Consultancy.'));
+    // A bar to jump between the sections of a long page (hidden when printing).
+    const heads = [...doc.querySelectorAll('section > h2')];
+    if (heads.length >= 4) {
+      const toc = el('nav', 'toc no-print');
+      toc.setAttribute('aria-label', 'On this page');
+      heads.forEach((h, i) => {
+        h.parentElement.id = `sec-${i}`;
+        const a = el('a', '', h.textContent);
+        a.href = `#sec-${i}`;
+        a.addEventListener('click', (e) => { e.preventDefault(); h.parentElement.scrollIntoView({ behavior: 'smooth', block: 'start' }); history.replaceState(null, '', location.pathname + location.search); });
+        toc.append(a);
+      });
+      view.append(toc);
+    }
     view.append(doc);
     document.title = `${uni.name} · Fact File · UK Student NIEC`;
 
@@ -296,7 +310,9 @@
     del.type = 'button';
     del.style.marginLeft = 'auto';
     del.addEventListener('click', async () => {
-      if (!confirm(`Delete ${uni.name} from the Fact File? Its whole page is removed. This cannot be undone.`)) return;
+      const yes = await NiecUI.confirm(`The whole page for ${uni.name} is removed from the Fact File. This cannot be undone.`,
+        { title: 'Delete this university?', confirmText: 'Delete university', danger: true });
+      if (!yes) return;
       const res = await fetch(`/api/facts/${uni.id}/delete`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
       if (res.ok) location.href = '/fact-file'; else say('Could not delete it.', true);
     });

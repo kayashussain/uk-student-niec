@@ -219,6 +219,8 @@ const SHARED_FILES = {
   '/teams.js': 'text/javascript; charset=utf-8',
   '/header.js': 'text/javascript; charset=utf-8',
   '/header.css': 'text/css; charset=utf-8',
+  '/ui.js': 'text/javascript; charset=utf-8',
+  '/ui.css': 'text/css; charset=utf-8',
   '/niec-logo.png': 'image/png',
   '/login.html': 'text/html; charset=utf-8',
 };

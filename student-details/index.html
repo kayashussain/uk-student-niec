@@ -7,6 +7,7 @@
 <link rel="icon" type="image/png" href="favicon.png" />
 <link rel="apple-touch-icon" href="apple-touch-icon.png" />
 <link rel="stylesheet" href="header.css" />
+<link rel="stylesheet" href="ui.css" />
 <link rel="stylesheet" href="style.css" />
 </head>
 <body>
@@ -40,6 +41,16 @@
       </thead>
       <tbody id="body"></tbody>
     </table>
+    <div class="sheet-loading" id="sheetLoading" aria-hidden="true">
+      <span class="ui-skeleton"></span><span class="ui-skeleton"></span><span class="ui-skeleton"></span><span class="ui-skeleton"></span>
+      <span class="ui-skeleton"></span><span class="ui-skeleton"></span><span class="ui-skeleton"></span><span class="ui-skeleton"></span>
+    </div>
+    <div class="ui-empty sheet-empty" id="sheetEmpty" hidden>
+      <span class="ui-empty-icon" aria-hidden="true"></span>
+      <strong></strong>
+      <span class="ui-empty-text"></span>
+      <button type="button" class="btn" id="clearFilters" hidden>Clear search and filters</button>
+    </div>
   </div>
 
   <div class="sheet-tabs" id="sheetTabs">
@@ -58,6 +69,7 @@
 
 <script src="calc.js"></script>
 <script src="session.js"></script>
+<script src="ui.js"></script>
 <script src="header.js"></script>
 <script src="edit-guard.js"></script>
 <script src="patch.js"></script>

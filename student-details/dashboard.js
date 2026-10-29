@@ -139,7 +139,7 @@
     c.append(list);
     if (d.chase.length) {
       c.append(el('div', 'group-title', 'Longest waiting'));
-      table(c, ['Student', 'Waiting', 'Stage', 'What is missing'], d.chase.map((x) => [x.name, x.days ? `${x.days} days` : '', x.stage, x.reason]), true);
+      table(c, ['Student', 'Waiting', 'Stage', 'What is missing'], d.chase.map((x) => [x.name, x.days ? `${x.days} days` : '-', x.stage, x.reason]), true);
     }
   }
 

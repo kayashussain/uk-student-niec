@@ -1,0 +1,106 @@
+/* Shared polish for every page (shared/ui.js adds the notices and confirmation boxes): one look for
+   keyboard focus, gentle motion, loading placeholders and empty states. Self-contained, with its own
+   colours, so it works the same on every page and in dark mode. */
+:root {
+  --ui-blue: #0077a8;
+  --ui-orange: #fc6e1f;
+  --ui-orange-dark: #e85f12;
+  --ui-text: #1c2126;
+  --ui-dim: #6b7280;
+  --ui-panel: #ffffff;
+  --ui-border: #dfe3e8;
+  --ui-danger: #dc2626;
+  --ui-focus: #0284c7;
+  --ui-skeleton-a: #eaeef3;
+  --ui-skeleton-b: #f6f8fb;
+  --ui-shadow: 0 18px 48px rgba(15, 23, 42, .28);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ui-blue: #6fd0f7;
+    --ui-orange: #ff8a47;
+    --ui-orange-dark: #ff9a5c;
+    --ui-text: #e7eaee;
+    --ui-dim: #9aa2ad;
+    --ui-panel: #1f2530;
+    --ui-border: #2f3642;
+    --ui-danger: #f87171;
+    --ui-focus: #5bb4f0;
+    --ui-skeleton-a: #232a35;
+    --ui-skeleton-b: #2b3340;
+    --ui-shadow: 0 18px 48px rgba(0, 0, 0, .55);
+  }
+}
+
+/* Keyboard focus: one clear ring everywhere (the mouse doesn't trigger it). */
+a:focus-visible, button:focus-visible, select:focus-visible, summary:focus-visible,
+input[type="checkbox"]:focus-visible, input[type="radio"]:focus-visible, [role="button"]:focus-visible {
+  outline: 2px solid var(--ui-focus);
+  outline-offset: 2px;
+}
+
+/* People who ask their system for less motion get none. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; scroll-behavior: auto !important; }
+}
+
+/* ---- notices (toasts) ---- */
+.ui-toasts {
+  position: fixed; z-index: 10050; left: 50%; bottom: 22px; transform: translateX(-50%);
+  display: flex; flex-direction: column; align-items: center; gap: 8px; width: min(92vw, 440px); pointer-events: none;
+}
+.ui-toast {
+  display: flex; align-items: flex-start; gap: 10px; width: 100%; padding: 11px 14px;
+  background: var(--ui-panel); color: var(--ui-text); border: 1px solid var(--ui-border); border-left: 4px solid var(--ui-blue);
+  border-radius: 10px; box-shadow: var(--ui-shadow); font: 13px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  pointer-events: auto; animation: ui-toast-in .22s ease-out both;
+}
+.ui-toast.success { border-left-color: #16a34a; }
+.ui-toast.error { border-left-color: var(--ui-danger); }
+.ui-toast .ui-toast-text { flex: 1; min-width: 0; overflow-wrap: anywhere; white-space: pre-line; }
+.ui-toast button {
+  flex: none; margin: -3px -6px -3px 0; padding: 2px 7px; border: 0; border-radius: 6px; background: none;
+  color: var(--ui-dim); font: inherit; font-size: 16px; line-height: 1.2; cursor: pointer;
+}
+.ui-toast button:hover { color: var(--ui-text); background: rgba(127, 127, 127, .15); }
+.ui-toast.leaving { animation: ui-toast-out .18s ease-in both; }
+@keyframes ui-toast-in { from { opacity: 0; transform: translateY(10px) scale(.98); } to { opacity: 1; transform: none; } }
+@keyframes ui-toast-out { to { opacity: 0; transform: translateY(6px) scale(.98); } }
+
+/* ---- confirmation / message box ---- */
+dialog.ui-dialog {
+  width: min(92vw, 420px); padding: 0; border: 1px solid var(--ui-border); border-radius: 14px;
+  background: var(--ui-panel); color: var(--ui-text); box-shadow: var(--ui-shadow);
+  font: 14px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+dialog.ui-dialog[open] { animation: ui-dialog-in .18s ease-out both; }
+dialog.ui-dialog::backdrop { background: rgba(15, 23, 42, .5); backdrop-filter: blur(2px); animation: ui-fade-in .18s ease-out both; }
+.ui-dialog form { margin: 0; padding: 22px 22px 18px; }
+.ui-dialog h2 { margin: 0 0 8px; font-size: 17px; line-height: 1.3; }
+.ui-dialog p { margin: 0 0 20px; color: var(--ui-dim); white-space: pre-line; overflow-wrap: anywhere; }
+.ui-dialog .ui-actions { display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
+.ui-dialog .ui-actions button {
+  padding: 8px 16px; border-radius: 8px; border: 1px solid var(--ui-border); background: var(--ui-panel); color: var(--ui-text);
+  font: inherit; font-weight: 600; cursor: pointer; transition: background .12s, filter .12s;
+}
+.ui-dialog .ui-actions button:hover { background: rgba(127, 127, 127, .12); }
+.ui-dialog .ui-actions .ui-ok { background: var(--ui-orange); border-color: var(--ui-orange); color: #fff; }
+.ui-dialog .ui-actions .ui-ok:hover { background: var(--ui-orange-dark); border-color: var(--ui-orange-dark); filter: none; }
+.ui-dialog .ui-actions .ui-ok.danger { background: var(--ui-danger); border-color: var(--ui-danger); }
+.ui-dialog .ui-actions .ui-ok.danger:hover { filter: brightness(.92); background: var(--ui-danger); }
+@keyframes ui-dialog-in { from { opacity: 0; transform: translateY(8px) scale(.97); } to { opacity: 1; transform: none; } }
+@keyframes ui-fade-in { from { opacity: 0; } to { opacity: 1; } }
+
+/* ---- loading placeholders and empty states ---- */
+.ui-skeleton {
+  display: block; border-radius: 8px; min-height: 14px;
+  background: linear-gradient(90deg, var(--ui-skeleton-a) 25%, var(--ui-skeleton-b) 37%, var(--ui-skeleton-a) 63%);
+  background-size: 400% 100%; animation: ui-shimmer 1.4s ease infinite;
+}
+@keyframes ui-shimmer { 0% { background-position: 100% 50%; } 100% { background-position: 0 50%; } }
+.ui-empty {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; text-align: center;
+  padding: 36px 20px; color: var(--ui-dim); font: 14px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+.ui-empty strong { color: var(--ui-text); font-size: 16px; }
+.ui-empty .ui-empty-icon { font-size: 30px; line-height: 1; opacity: .8; }

@@ -88,9 +88,9 @@ test('teams edit only their own columns and make only their own moves', () => {
 
 test('Application → Mock warns about blank details; Mock → Payment is refused until the mocks are filled', () => {
   const warn = checkMove('application', { [S]: 'Application Stage', 'STUDENT ID': '' }, 'Mock Stage');
-  assert.ok(warn.ok && /Student Id/.test(warn.confirm));
+  assert.ok(warn.ok && /Student ID/.test(warn.confirm));
   const blocked = checkMove('mock', { [S]: 'Mock Stage', 'MOCK SCHEDULE 1': '2026-01-01' }, 'Payment Stage');
-  assert.ok(!blocked.ok && /Mock Schedule 4/.test(blocked.message) && /Pre Cas Interview/.test(blocked.message));
+  assert.ok(!blocked.ok && /Mock Schedule 4/.test(blocked.message) && /Pre-CAS Interview/.test(blocked.message));
   const full = { [S]: 'Mock Stage', 'PRE CAS INTERVIEW': 'Passed' };
   [1, 2, 3, 4].forEach((n) => { full[`MOCK SCHEDULE ${n}`] = 'x'; full[`FEEDBACK ${n}`] = 'y'; });
   assert.ok(checkMove('mock', full, 'Payment Stage').ok);

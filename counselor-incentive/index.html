@@ -7,6 +7,7 @@
 <link rel="icon" type="image/png" href="favicon.png" />
 <link rel="apple-touch-icon" href="apple-touch-icon.png" />
 <link rel="stylesheet" href="header.css" />
+<link rel="stylesheet" href="ui.css" />
 <style>
   :root {
     --bg: #f6f7f9;
@@ -325,6 +326,7 @@
 
 <script src="calc.js"></script>
 <script src="session.js"></script>
+<script src="ui.js"></script>
 <script src="header.js"></script>
 <script>
 // Exporting everything is for Admin only. /api/me is answered by Student Details (at the site's root).
@@ -1336,7 +1338,7 @@ $('#exportExcelBtn').addEventListener('click', async () => {
   try {
     ExcelJS = await NiecSession.loadExcel();
   } catch (e) {
-    alert('The Excel export library failed to load (check your internet connection). Try again.');
+    NiecUI.toast('The Excel export tool could not load. Check your internet connection and try again.', { type: 'error' });
     return;
   }
   const students = intakeStudents();

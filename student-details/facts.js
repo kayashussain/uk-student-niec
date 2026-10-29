@@ -94,16 +94,29 @@ const withStarterDetails = (u) => (hasStarter(u.name) ? { ...u, ...clean({ ...ST
 function createFacts(dir, { now = () => new Date() } = {}) {
   const file = path.join(dir, 'fact-file.json');
 
+  // The list is kept in memory and only re-read if the file changed on disk, so opening a page doesn't
+  // parse (and check) the whole Fact File every time.
+  let cache = null; // { mtimeMs, size, data }
   function read() {
+    let stat;
+    try { stat = fs.statSync(file); } catch (e) { return null; } // first time: start the list
+    if (cache && cache.mtimeMs === stat.mtimeMs && cache.size === stat.size) return cache.data;
     try {
       const data = JSON.parse(fs.readFileSync(file, 'utf8'));
-      if (Array.isArray(data.universities)) return data;
-    } catch (e) { /* first time, or unreadable: start the list */ }
+      if (Array.isArray(data.universities)) {
+        cache = { mtimeMs: stat.mtimeMs, size: stat.size, data };
+        return data;
+      }
+    } catch (e) { /* unreadable: set aside below */ }
+    // A damaged file is kept next to the data (not overwritten), then the list starts again.
+    try { fs.renameSync(file, path.join(dir, `fact-file.damaged-${now().toISOString().replace(/[:.]/g, '-')}.json`)); } catch (e) { /* ignore */ }
     return null;
   }
   function write(data) {
     fs.mkdirSync(dir, { recursive: true });
     writeFileAtomic(file, JSON.stringify(data, null, 2));
+    const stat = fs.statSync(file);
+    cache = { mtimeMs: stat.mtimeMs, size: stat.size, data };
   }
   function load() {
     let data = read();
@@ -143,8 +156,27 @@ function createFacts(dir, { now = () => new Date() } = {}) {
 
   const summary = (u) => ({ id: u.id, name: u.name, city: u.city, intakes: u.intakes.map((i) => i.name), updatedAt: u.updatedAt });
 
+  // Course lines of a page: the course list and each intake's, without the "## " sub-headings.
+  const courseLines = (u) => [u.courses, ...u.intakes.map((i) => i.courses)]
+    .join('\n').split('\n').map((l) => l.trim()).filter((l) => l && !l.startsWith('##') && !/^The course list is under/.test(l));
+
+  // Universities matching every word typed, by name, city or any course, so "cyber security" finds who
+  // teaches it. `matches` holds up to four of the courses that matched; `matchCount` is how many.
+  function search(q) {
+    const words = String(q || '').toLowerCase().split(/\s+/).filter(Boolean).slice(0, 6);
+    if (!words.length) return load().universities.map(summary);
+    const hits = [];
+    load().universities.forEach((u) => {
+      const head = `${u.name} ${u.city}`.toLowerCase();
+      const nameHit = words.every((w) => head.includes(w));
+      const lines = courseLines(u).filter((l) => { const t = l.toLowerCase(); return words.every((w) => t.includes(w)); });
+      if (nameHit || lines.length) hits.push({ ...summary(u), matches: [...new Set(lines)].slice(0, 4), matchCount: new Set(lines).size, nameHit });
+    });
+    return hits.sort((a, b) => (b.nameHit - a.nameHit) || (b.matchCount - a.matchCount) || a.name.localeCompare(b.name));
+  }
+
   return {
-    list: () => load().universities.map(summary).sort((a, b) => a.name.localeCompare(b.name)),
+    list: (q = '') => (String(q).trim() ? search(q) : load().universities.map(summary).sort((a, b) => a.name.localeCompare(b.name))),
     // Pages saved before the overview and fees table existed come back with those empty.
     get: (id) => { const u = load().universities.find((x) => x.id === id); return u ? { overview: '', programs: [], ...u } : null; },
     // Adds a university (just its name; the rest is filled in on its page).

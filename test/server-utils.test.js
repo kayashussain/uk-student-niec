@@ -62,3 +62,30 @@ test('describeDevice names common phones and computers', () => {
   assert.strictEqual(describeDevice('Mozilla/5.0 (Windows NT 10.0) Chrome/120.0 Safari/537.36 Edg/120.0'), 'Edge on Windows');
   assert.strictEqual(describeDevice(''), 'Unknown device');
 });
+
+// Every page's scripts and styles must be served: either a file next to the page, or a shared file that is
+// registered in SHARED_FILES. A forgotten registration shows up as a page that silently loses a feature.
+test('every script and stylesheet a page loads is a real file that the server serves', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const { SHARED_FILES } = require('../shared/server-utils');
+  const root = path.join(__dirname, '..');
+  Object.keys(SHARED_FILES).forEach((name) => assert.ok(fs.existsSync(path.join(root, 'shared', name.slice(1))), `shared/${name} exists`));
+  const problems = [];
+  let scanned = 0;
+  for (const dir of ['student-details', 'counselor-incentive']) {
+    for (const page of fs.readdirSync(path.join(root, dir)).filter((f) => f.endsWith('.html'))) {
+      const html = fs.readFileSync(path.join(root, dir, page), 'utf8');
+      for (const m of Array.from(html.matchAll(/<(script|link)\b[^>]*?(?:src|href)="([^"#?]+)"/g))) {
+        const ref = m[2];
+        scanned += 1;
+        if (/^(https?:)?\/\//.test(ref) || ref.startsWith('/') && !SHARED_FILES[ref]) continue;
+        const local = fs.existsSync(path.join(root, dir, ref.replace(/^\//, '')));
+        const shared = SHARED_FILES['/' + ref.replace(/^\//, '')];
+        if (!local && !shared) problems.push(`${dir}/${page}: ${ref}`);
+      }
+    }
+  }
+  assert.ok(scanned > 30, 'the pages were actually scanned');
+  assert.deepStrictEqual(problems, []);
+});

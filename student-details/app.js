@@ -331,6 +331,7 @@
   function badgeClass(value) {
     const v = (value || '').toLowerCase();
     if (!v) return 'badge-gray';
+    if (/(reject|fail)/.test(v)) return 'badge-red'; // a refused visa or a failed interview stands out
     if (/(issued|passed|received|done|submitted)/.test(v)) return 'badge-green';
     if (/(lodge|requested|pending|waiting|inquiry|stage)/.test(v)) return 'badge-blue';
     if (/(not|no|fail|reject|hold|defer|withdrawn)/.test(v)) return 'badge-amber';
@@ -592,6 +593,7 @@
       setTimeout(loadData, 3000);
       return;
     }
+    $('#sheetLoading').hidden = true;
     sheets = json.sheets;
     revision = json.revision || 0;
     synced = Patch.snapshot({ sheets });
@@ -720,7 +722,7 @@
         document.execCommand('copy');
         flashStatus(`Copied "${sheet.name}" to clipboard`);
       } catch (e2) {
-        alert('Could not copy to clipboard. Your browser may be blocking clipboard access.');
+        NiecUI.toast('Could not copy to the clipboard. Your browser may be blocking clipboard access.', { type: 'error' });
       }
       document.body.removeChild(ta);
     }
@@ -732,7 +734,7 @@
     if (!sheet || !trimmed || trimmed === sheet.name) { renderSheetTabs(); return; }
     if (sheets.some((s) => s.id !== id && s.name.trim().toLowerCase() === trimmed.toLowerCase())) {
       // The Incentive page groups students (and each intake's Previous Advance) by sheet name.
-      alert(`There's already a sheet called "${trimmed}". Please pick a different name.`);
+      NiecUI.toast(`There's already a sheet called "${trimmed}". Please pick a different name.`, { type: 'error' });
       renderSheetTabs();
       return;
     }
@@ -752,11 +754,13 @@
     }
   }
 
-  function deleteSheet(id) {
-    if (shownSheets().length <= 1) { alert('A workbook needs at least one sheet.'); return; }
+  async function deleteSheet(id) {
+    if (shownSheets().length <= 1) { NiecUI.toast('A workbook needs at least one sheet.', { type: 'error' }); return; }
     const sheet = sheets.find((s) => s.id === id);
     if (!sheet) return;
-    if (!confirm(`Delete sheet "${sheet.name}"? You can undo this with Ctrl+Z right after.`)) return;
+    const yes = await NiecUI.confirm(`This removes the sheet "${sheet.name}" and its ${sheet.rows.length} row${sheet.rows.length === 1 ? '' : 's'}. You can undo it with Ctrl+Z right after.`,
+      { title: 'Delete this sheet?', confirmText: 'Delete sheet', danger: true });
+    if (!yes || !sheets.includes(sheet)) return;
     pushUndo();
     const idx = sheets.findIndex((s) => s.id === id);
     sheets.splice(idx, 1);
@@ -775,16 +779,27 @@
     shownSheets().forEach((sheet) => {
       const tab = document.createElement('div');
       tab.className = 'sheet-tab' + (sheet.id === activeSheetId ? ' active' : '');
+      tab.setAttribute('role', 'tab');
+      tab.setAttribute('aria-selected', String(sheet.id === activeSheetId));
+      tab.tabIndex = 0;
+      tab.addEventListener('keydown', (e) => {
+        if (e.target !== tab) return;
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); switchSheet(sheet.id); }
+        else if (e.key === 'F2' && !isTeam()) { e.preventDefault(); startInlineRename(sheet, tab); }
+      });
 
       const label = document.createElement('span');
       label.className = 'sheet-tab-label';
       label.textContent = sheet.name;
       tab.appendChild(label);
 
-      const menuBtn = document.createElement('span');
+      const menuBtn = document.createElement('button');
+      menuBtn.type = 'button';
       menuBtn.className = 'sheet-tab-menu-btn';
       menuBtn.textContent = '⋮';
       menuBtn.title = 'Sheet options';
+      menuBtn.setAttribute('aria-label', `Options for ${sheet.name}`);
+      menuBtn.setAttribute('aria-haspopup', 'menu');
       menuBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         openSheetMenuFor(sheet, menuBtn, tab);
@@ -1117,8 +1132,30 @@
     applySelectionClasses(viewIndices);
     renderPeers();
     renderStatusSummary();
+    renderEmptyState();
     if (hadGridFocus && !editing && !skipRefocus) focusActiveCell({ scroll: false });
   }
+
+  // A friendly note instead of a blank sheet: no students yet, or none that match the search and filters.
+  const emptyEl = $('#sheetEmpty');
+  function renderEmptyState() {
+    const none = viewIndices.length === 0;
+    emptyEl.hidden = !none;
+    if (!none) return;
+    const narrowed = rows.length > 0;
+    emptyEl.querySelector('.ui-empty-icon').textContent = narrowed ? '🔍' : '🎓';
+    emptyEl.querySelector('strong').textContent = narrowed ? 'No students match' : 'No students on this sheet yet';
+    emptyEl.querySelector('.ui-empty-text').textContent = narrowed
+      ? 'Try a different search, or clear the filters.'
+      : (isViewOnly() ? 'Students will appear here once they are added.' : 'Click “+ Add student” to add the first one.');
+    emptyEl.querySelector('button').hidden = !narrowed;
+  }
+  $('#clearFilters').addEventListener('click', () => {
+    searchEl.value = '';
+    columnFilters = {};
+    renderHeader();
+    renderBody();
+  });
 
   // Draws the rows that should be on screen now and removes the ones that scrolled well away.
   // Returns true if it changed anything.
@@ -1279,12 +1316,12 @@
           const busy = peerOnCell(rowIdx, col, false);
           if (busy) { e.preventDefault(); warnPeerOnCell(busy); }
         });
-        select.addEventListener('change', () => {
+        select.addEventListener('change', async () => {
           const newVal = select.value;
           if (isStatus && isTeam()) {
             const check = Teams.checkMove(me, rows[rowIdx], newVal);
-            if (!check.ok) { alert(check.message); select.value = val; return; }
-            if (check.confirm && !confirm(check.confirm)) { select.value = val; return; }
+            if (!check.ok) { select.value = val; await NiecUI.alert(check.message, { title: "This student can't move yet" }); return; }
+            if (check.confirm && !(await NiecUI.confirm(check.confirm, { title: 'Move this student on?', confirmText: 'Yes, move on' }))) { select.value = val; return; }
           }
           confirmChange(() => {
             pushUndo();
@@ -1299,7 +1336,8 @@
           tr.classList.add('defer-warning-row');
           const warn = document.createElement('span');
           warn.className = 'defer-warning-flag';
-          warn.textContent = '⚠ No next sheet';
+          warn.textContent = '⚠';
+          warn.setAttribute('aria-label', 'No next sheet to move this deferred student to');
           warn.title = 'There\'s no sheet after this one to move this deferred student to. Add another sheet (it will become the target) to enable auto-move.';
           td.appendChild(warn);
         }
@@ -1540,10 +1578,19 @@
       && (!editingOnly || p.editing)) || null;
   }
 
+  // Puts the save status back to what is really true (not yet saved, not saved at all, or all saved) once a
+  // short message about something else has been shown.
+  function restoreStatus() {
+    if (conflicted) { statusEl.textContent = 'Not saved'; statusEl.className = 'save-status error'; return; }
+    if (dirty) { statusEl.textContent = 'Unsaved changes…'; statusEl.className = 'save-status dirty'; return; }
+    statusEl.textContent = 'All changes saved';
+    statusEl.className = 'save-status';
+  }
+
   function warnPeerOnCell(peer) {
     statusEl.textContent = `${peer.name} is on this cell right now. Wait for them to finish`;
     statusEl.className = 'save-status error';
-    setTimeout(() => { if (!dirty) { statusEl.textContent = 'All changes saved'; statusEl.className = 'save-status'; } }, 3000);
+    setTimeout(restoreStatus, 3000);
   }
 
   // replaceWith: the first character typed (typing over a cell replaces it, like Sheets).
@@ -1697,7 +1744,7 @@
   function flashStatus(text) {
     statusEl.textContent = text;
     statusEl.className = 'save-status';
-    setTimeout(() => { if (!dirty) statusEl.textContent = 'All changes saved'; }, 2000);
+    setTimeout(restoreStatus, 2000);
   }
 
   function renderStatusSummary() {
@@ -1907,7 +1954,7 @@
   // Keeps an open tab current when someone else saves. Never runs over unsaved or in-progress work.
   function busyEditing() {
     return Boolean(editing || dragMode || openFilterMenu || openSheetMenu
-      || (window.EditGuard && window.EditGuard.isOpen()));
+      || (window.EditGuard && window.EditGuard.isOpen()) || NiecUI.isOpen());
   }
 
   async function checkForRemoteChanges() {
@@ -2007,18 +2054,25 @@
     return [row['FIRST NAME'], row['LAST NAME']].filter(Boolean).join(' ') || 'this row';
   }
 
-  function deleteRow() {
+  async function deleteRow() {
     if (selectedRows.size === 0) {
-      alert('Click a row first (Ctrl+Click to select multiple), then Delete rows.');
+      NiecUI.toast('Click a row number (S.N) first, or Ctrl+Click several, then press Delete rows.');
       return;
     }
     const indicesToDelete = Array.from(selectedRows).sort((a, b) => b - a); // descending, so splice indices stay valid
+    const picked = indicesToDelete.map((i) => rows[i]);
     const label = indicesToDelete.length === 1
       ? describeRow(rows[indicesToDelete[0]])
-      : `${indicesToDelete.length} rows`;
-    if (!confirm(`Delete ${label}?`)) return;
+      : `${indicesToDelete.length} students`;
+    const yes = await NiecUI.confirm(`${label} will be removed from this sheet. You can undo it with Ctrl+Z right after.`,
+      { title: indicesToDelete.length === 1 ? 'Delete this student?' : `Delete ${indicesToDelete.length} students?`, confirmText: 'Delete', danger: true });
+    if (!yes) return;
+    // The sheet may have changed while the question was open (someone else's save, a redraw): delete the
+    // students that were picked, wherever they are now.
+    const present = picked.map((r) => rows.indexOf(r)).filter((i) => i !== -1).sort((a, b) => b - a);
+    if (!present.length) return;
     pushUndo();
-    indicesToDelete.forEach((i) => rows.splice(i, 1));
+    present.forEach((i) => rows.splice(i, 1));
     selectedRows = new Set();
     selRanges = [];
     rowSelectMode = false;
@@ -2033,7 +2087,7 @@
     try {
       ExcelJS = await NiecSession.loadExcel();
     } catch (e) {
-      alert('The Excel export library failed to load (check your internet connection). Try again.');
+      NiecUI.toast('The Excel export tool could not load. Check your internet connection and try again.', { type: 'error' });
       return;
     }
     const sheetName = (getActiveSheet() || {}).name || 'Export';
