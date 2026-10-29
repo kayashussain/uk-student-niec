@@ -21,6 +21,8 @@
     let list = null;
     String(text || '').split('\n').forEach((raw) => {
       const line = raw.trim();
+      const heading = /^##\s+(.*)$/.exec(line);
+      if (heading) { list = null; parent.append(el('h3', '', heading[1])); return; }
       const bullet = /^[-*•]\s+(.*)$/.exec(line) || (allBullets && line ? [line, line] : null);
       if (bullet) {
         if (!list) { list = el('ul'); parent.append(list); }
@@ -38,6 +40,40 @@
     const s = el('section');
     s.append(el('h2', '', title));
     if (has(text)) richText(s, text, { allBullets }); else s.append(el('p', 'placeholder', 'Not added yet.'));
+    doc.append(s);
+  }
+
+  const PROGRAM_COLUMNS = [['name', 'Program'], ['duration', 'Duration'], ['academic', 'Academic requirement'], ['english', 'English language requirement'],
+    ['tuition', 'Total tuition fee'], ['scholarship', 'Scholarship'], ['deposit', 'CAS deposit structure']];
+
+  // Fees, scholarships and deposits by course level, as a table that scrolls sideways on a phone.
+  function renderPrograms(doc) {
+    const programs = uni.programs || [];
+    if (!programs.length && !isAdmin) return;
+    const s = el('section');
+    s.append(el('h2', '', 'Entry requirements, fees and scholarships'));
+    if (!programs.length) { s.append(el('p', 'placeholder', 'Not added yet.')); doc.append(s); return; }
+    const wrap = el('div', 'table-wrap');
+    const table = el('table', 'programs');
+    const headRow = el('tr');
+    PROGRAM_COLUMNS.forEach(([, label]) => headRow.append(el('th', '', label)));
+    const thead = el('thead');
+    thead.append(headRow);
+    table.append(thead);
+    const body = el('tbody');
+    programs.forEach((p) => {
+      const tr = el('tr');
+      PROGRAM_COLUMNS.forEach(([key, label]) => {
+        const td = el('td');
+        td.dataset.label = label;
+        if (key === 'name') td.append(el('b', '', p.name)); else richText(td, p[key]);
+        tr.append(td);
+      });
+      body.append(tr);
+    });
+    table.append(body);
+    wrap.append(table);
+    s.append(wrap);
     doc.append(s);
   }
 
@@ -64,7 +100,9 @@
     if (uni.intakes.length) row('Intakes', '', uni.intakes.map((i) => i.name));
     if (glance.children.length) doc.append(glance);
 
+    section(doc, 'Overview and key facts', uni.overview, { allBullets: true });
     section(doc, 'Location', uni.location);
+    renderPrograms(doc);
     section(doc, 'Entry requirements', uni.entryRequirements, { force: true });
     section(doc, 'Language test', uni.languageTests, { force: true });
     section(doc, 'Courses available', uni.courses, { force: true, allBullets: true });
@@ -141,6 +179,7 @@
     const city = line(uni.city, 'e.g. London');
     const website = line(uni.website, 'e.g. https://www.uwl.ac.uk');
     const location = text(uni.location, 3);
+    const overview = text(uni.overview, 5);
     const entry = text(uni.entryRequirements, 6);
     const lang = text(uni.languageTests, 5);
     const courses = text(uni.courses, 6);
@@ -151,8 +190,38 @@
     const two = el('div', 'two');
     two.append(field('Name', name), field('City', city));
     form.append(two, field('Website', website), field('Where it is (campus, address, how to get there)', location));
+    form.append(field('Overview and key facts (living expenses requirement, placement partners, anything at a glance)', overview));
+
+    form.append(el('h2', '', 'Fees and scholarships by course level'));
+    form.append(el('p', 'hint', 'One block for each level, for example UG, PG or PG Placement Year. Start a line with "- " for a bullet.'));
+    const programsBox = el('div');
+    form.append(programsBox);
+    const programRows = [];
+    function addProgram(p) {
+      const block = el('div', 'block');
+      const head = el('div', 'block-head');
+      const remove = el('button', 'btn btn-sm btn-danger', 'Remove');
+      remove.type = 'button';
+      const rec = { block };
+      PROGRAM_COLUMNS.forEach(([key]) => { rec[key] = key === 'name' || key === 'duration' ? line(p && p[key], key === 'name' ? 'e.g. PG' : 'e.g. 1 Year') : text(p && p[key], 4); });
+      remove.addEventListener('click', () => { programRows.splice(programRows.indexOf(rec), 1); block.remove(); });
+      head.append(el('b', '', 'Course level'), remove);
+      const pair = el('div', 'two');
+      pair.append(field('Program', rec.name), field('Duration', rec.duration));
+      block.append(head, pair);
+      PROGRAM_COLUMNS.slice(2).forEach(([key, label]) => block.append(field(label, rec[key])));
+      programRows.push(rec);
+      programsBox.append(block);
+    }
+    (uni.programs || []).forEach(addProgram);
+    const addProgramBtn = el('button', 'btn btn-sm', 'Add a course level');
+    addProgramBtn.type = 'button';
+    addProgramBtn.style.marginTop = '10px';
+    addProgramBtn.addEventListener('click', () => addProgram({}));
+    form.append(addProgramBtn);
+
     form.append(el('h2', '', 'Requirements'));
-    form.append(el('p', 'hint', 'Start a line with "- " to make a bullet list. Blank lines make a new paragraph.'));
+    form.append(el('p', 'hint', 'Start a line with "- " to make a bullet list, or "## " to make a sub-heading. Blank lines make a new paragraph.'));
     form.append(field('Entry requirements (grades, subjects, gap, backlogs)', entry), field('Language test (IELTS, PTE, Duolingo, waivers)', lang));
     form.append(field('Courses available (one per line)', courses));
 
@@ -239,7 +308,8 @@
       save.disabled = true;
       say('Saving...');
       const body = {
-        name: name.value, city: city.value, website: website.value, location: location.value,
+        name: name.value, city: city.value, website: website.value, location: location.value, overview: overview.value,
+        programs: programRows.map((r) => Object.fromEntries(PROGRAM_COLUMNS.map(([key]) => [key, r[key].value]))),
         entryRequirements: entry.value, languageTests: lang.value, courses: courses.value, interview: interview.value, notes: notes.value,
         process: stepRows.map((r) => ({ title: r.title.value, detail: r.detail.value })),
         intakes: intakeRows.map((r) => ({ id: r.id, name: r.name.value, deadline: r.deadline.value, requirements: r.requirements.value, courses: r.courses.value, notes: r.notes.value })),

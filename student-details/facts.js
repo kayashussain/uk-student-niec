@@ -6,6 +6,7 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const { writeFileAtomic } = require('../shared/server-utils');
+const { UWL_DETAILS } = require('./fact-seed-uwl');
 
 // Universities the list starts with the first time it is opened. Only names: the details are for Admin to enter.
 const STARTER_UNIVERSITIES = ['University of West London', 'Bangor University', 'University of Roehampton', 'University of East London', 'University of York'];
@@ -15,7 +16,7 @@ const STARTER_STEPS = [
   'Application submitted', 'Offer letter received', 'Pre-CAS interview', 'Tuition deposit paid', 'CAS issued', 'Visa application',
 ];
 
-const LIMITS = { name: 120, short: 300, text: 12000, items: 300, intakes: 12, steps: 30 };
+const LIMITS = { name: 120, short: 300, text: 12000, items: 300, intakes: 12, steps: 30, programs: 12 };
 
 const str = (v, max) => (typeof v === 'string' ? v.replace(/\r\n?/g, '\n').slice(0, max) : '');
 const newId = () => crypto.randomBytes(6).toString('hex');
@@ -34,21 +35,40 @@ function clean(input, old = {}) {
     title: str(s && s.title, LIMITS.short).trim(),
     detail: str(s && s.detail, LIMITS.text),
   })).filter((s) => s.title);
+  // The fees table: one row per course level (UG, PG, ...), each cell plain text.
+  const programs = (Array.isArray(input.programs) ? input.programs : []).slice(0, LIMITS.programs).map((p) => ({
+    name: str(p && p.name, LIMITS.short).trim(),
+    duration: str(p && p.duration, LIMITS.short).trim(),
+    academic: str(p && p.academic, LIMITS.text),
+    english: str(p && p.english, LIMITS.text),
+    tuition: str(p && p.tuition, LIMITS.text),
+    scholarship: str(p && p.scholarship, LIMITS.text),
+    deposit: str(p && p.deposit, LIMITS.text),
+  })).filter((p) => p.name);
   return {
     id: old.id,
     name: str(input.name, LIMITS.name).trim() || old.name || '',
     city: str(input.city, LIMITS.short).trim(),
     location: str(input.location, LIMITS.text),
+    overview: str(input.overview, LIMITS.text),
     website: str(input.website, LIMITS.short).trim(),
     entryRequirements: str(input.entryRequirements, LIMITS.text),
     languageTests: str(input.languageTests, LIMITS.text),
     courses: str(input.courses, LIMITS.text),
     interview: str(input.interview, LIMITS.text),
     notes: str(input.notes, LIMITS.text),
+    programs,
     intakes,
     process,
   };
 }
+
+const isUwl = (name) => String(name || '').trim().toLowerCase() === 'university of west london';
+// A page nobody has filled in yet (only its name and the starter steps).
+const isBlank = (u) => !(u.overview || u.entryRequirements || u.languageTests || u.courses || u.interview || u.notes || u.location
+  || (u.programs && u.programs.length) || (u.intakes && u.intakes.length)
+  || (u.process || []).some((s, i) => s.detail || s.title !== STARTER_STEPS[i]) || (u.process || []).length > STARTER_STEPS.length);
+const withStarterDetails = (u) => (isUwl(u.name) ? { ...u, ...clean({ ...UWL_DETAILS, name: u.name, website: u.website || 'https://www.uwl.ac.uk' }, u) } : u);
 
 function createFacts(dir, { now = () => new Date() } = {}) {
   const file = path.join(dir, 'fact-file.json');
@@ -69,9 +89,13 @@ function createFacts(dir, { now = () => new Date() } = {}) {
     if (!data) {
       data = {
         universities: STARTER_UNIVERSITIES.map((name) => ({
-          ...clean({ name, process: STARTER_STEPS.map((title) => ({ title })) }), id: newId(), updatedAt: now().toISOString(), updatedBy: '',
+          ...withStarterDetails(clean({ name, process: STARTER_STEPS.map((title) => ({ title })) })), id: newId(), updatedAt: now().toISOString(), updatedBy: '',
         })),
       };
+      write(data);
+    } else if (data.universities.some((u) => isUwl(u.name) && isBlank(u))) {
+      // An existing list whose UWL page was never filled in: add UWL's details once. Pages Admin has edited are left alone.
+      data.universities = data.universities.map((u) => (isUwl(u.name) && isBlank(u) ? { ...withStarterDetails(u), id: u.id, updatedAt: now().toISOString(), updatedBy: u.updatedBy || '' } : u));
       write(data);
     }
     return data;
@@ -81,7 +105,8 @@ function createFacts(dir, { now = () => new Date() } = {}) {
 
   return {
     list: () => load().universities.map(summary).sort((a, b) => a.name.localeCompare(b.name)),
-    get: (id) => load().universities.find((u) => u.id === id) || null,
+    // Pages saved before the overview and fees table existed come back with those empty.
+    get: (id) => { const u = load().universities.find((x) => x.id === id); return u ? { overview: '', programs: [], ...u } : null; },
     // Adds a university (just its name; the rest is filled in on its page).
     create(name, by) {
       const data = load();

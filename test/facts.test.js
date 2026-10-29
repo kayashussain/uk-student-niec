@@ -56,3 +56,31 @@ test('adding and removing universities, with no duplicates', () => {
   assert.strictEqual(facts.get(made.university.id), null);
   assert.ok(facts.remove('nope').error);
 });
+
+test('University of West London starts with its fact file details filled in', () => {
+  const facts = createFacts(tmp());
+  const uwl = facts.get(facts.list().find((u) => u.name === 'University of West London').id);
+  assert.deepStrictEqual(uwl.programs.map((p) => p.name), ['UG', 'PG', 'Enhanced Extended PG', 'PG Placement Year']);
+  assert.strictEqual(uwl.programs[0].tuition, '£16,750');
+  assert.strictEqual(uwl.process.length, 7);
+  assert.deepStrictEqual(uwl.intakes.map((i) => i.name), ['February 2027']);
+  assert.match(uwl.intakes[0].courses, /BSc Computer Science/);
+  // the other starter universities are still just names
+  const other = facts.get(facts.list().find((u) => u.name === 'Bangor University').id);
+  assert.strictEqual(other.programs.length, 0);
+});
+
+test('an existing, still empty UWL page is filled in once; an edited one is left alone', () => {
+  const dir = tmp();
+  fs.writeFileSync(path.join(dir, 'fact-file.json'), JSON.stringify({ universities: [
+    { id: 'aaaaaaaaaaaa', name: 'University of West London', city: '', intakes: [], process: [{ title: 'Application submitted', detail: '' }, { title: 'Offer letter received', detail: '' }, { title: 'Pre-CAS interview', detail: '' }, { title: 'Tuition deposit paid', detail: '' }, { title: 'CAS issued', detail: '' }, { title: 'Visa application', detail: '' }], updatedAt: '2026-01-01T00:00:00.000Z', updatedBy: '' },
+    { id: 'bbbbbbbbbbbb', name: 'Bangor University', city: 'Bangor', intakes: [], process: [], updatedAt: '2026-01-01T00:00:00.000Z', updatedBy: 'Kayas' },
+  ] }));
+  const facts = createFacts(dir);
+  assert.strictEqual(facts.get('aaaaaaaaaaaa').programs.length, 4);
+  assert.strictEqual(facts.get('bbbbbbbbbbbb').programs.length, 0);
+  // Admin edits it afterwards: a later load keeps their version
+  facts.update('aaaaaaaaaaaa', { name: 'University of West London', overview: 'Edited', programs: [] }, 'Kayas');
+  assert.strictEqual(createFacts(dir).get('aaaaaaaaaaaa').overview, 'Edited');
+  assert.strictEqual(createFacts(dir).get('aaaaaaaaaaaa').programs.length, 0);
+});
