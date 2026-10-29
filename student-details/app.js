@@ -2443,6 +2443,27 @@
     if (e.isComposing || e.key === 'Process') startEdit({ replaceWith: '' }); // IME input (e.g. Nepali) types into it
   });
 
+  // The keys that work like Google Sheets, in one place.
+  const SHORTCUTS = [
+    'Arrow keys / Tab: move between cells',
+    'Enter or F2 or double-click: edit a cell (Esc cancels)',
+    'Just start typing: replace the cell',
+    'Shift + arrows: select several cells',
+    'Shift + Space: select the whole row',
+    'Ctrl + A: select everything',
+    'Ctrl + C / X / V: copy, cut, paste (works with Excel and Google Sheets)',
+    'Delete: clear the selected cells',
+    'Ctrl + Z / Ctrl + Y: undo, redo',
+  ].map((l) => '• ' + l).join('\n');
+  const showShortcuts = () => NiecUI.alert(SHORTCUTS, { title: 'Keyboard shortcuts', confirmText: 'Got it' });
+  $('#helpBtn').addEventListener('click', showShortcuts);
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== '?' || e.ctrlKey || e.metaKey || e.altKey || editing || NiecUI.isOpen()) return;
+    if (/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName)) return;
+    e.preventDefault();
+    showShortcuts();
+  });
+
   $('#reloadBtn').addEventListener('click', () => {
     dirty = false; // skip the "leave site?" prompt: reloading to get the latest version is the point
     location.reload();

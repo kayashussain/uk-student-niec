@@ -299,13 +299,24 @@ function describeChanges(before, after, limit = 300) {
   return lines;
 }
 
-// Recent revisions, kept in memory so a save based on one of them can be merged.
-function createHistory(limit = 30) {
+// Recent revisions, kept in memory so a save based on one of them can be merged. At most `limit` of them,
+// and no more than `maxBytes` of text in all, so a very large workbook can't use up a small host's memory
+// (the newest two are always kept, which is enough to merge a save made just before another).
+function createHistory(limit = 30, maxBytes = 48 * 1024 * 1024) {
   const versions = new Map(); // revision -> JSON text
+  let bytes = 0;
+  const drop = () => {
+    const oldest = versions.keys().next().value;
+    bytes -= versions.get(oldest).length;
+    versions.delete(oldest);
+  };
   return {
     remember(workbook) {
-      versions.set(workbook.revision, JSON.stringify(workbook));
-      while (versions.size > limit) versions.delete(versions.keys().next().value);
+      const text = JSON.stringify(workbook);
+      if (versions.has(workbook.revision)) bytes -= versions.get(workbook.revision).length;
+      versions.set(workbook.revision, text);
+      bytes += text.length;
+      while (versions.size > limit || (bytes > maxBytes && versions.size > 2)) drop();
     },
     get(revision) {
       const text = versions.get(revision);

@@ -46,7 +46,7 @@ const UWL_DETAILS = {
     },
   ],
   entryRequirements: 'Academic requirements for each course level (UG, PG, Enhanced Extended PG and PG Placement Year) are in the fees table above.',
-  courses: 'The full course list is under the February 2027 intake below.',
+  courses: 'The full course lists are under the intakes below.',
   languageTests: 'The accepted tests and scores for each course level are in the table above (IELTS, PTE, TOEFL iBT and Duolingo).',
   interview: [
     '- The credibility interview is mandatory. It is booked with the £250 deposit.',

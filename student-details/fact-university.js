@@ -189,6 +189,16 @@
     $('toolbar').replaceChildren();
     const form = el('form', 'editor');
     form.autocomplete = 'off';
+    // Anything changed and not yet saved: the browser asks before the page is left, and Cancel asks too.
+    let dirty = false;
+    const guard = (e) => { if (dirty) { e.preventDefault(); e.returnValue = ''; } };
+    window.addEventListener('beforeunload', guard);
+    const stopGuarding = () => { window.removeEventListener('beforeunload', guard); dirty = false; };
+    form.addEventListener('input', () => { dirty = true; });
+    form.addEventListener('click', (e) => { if (e.target.closest('button.btn-sm')) dirty = true; }); // add / remove / move a step or intake
+    form.addEventListener('keydown', (e) => { // Ctrl+S or Cmd+S saves
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') { e.preventDefault(); form.requestSubmit(); }
+    });
     const name = line(uni.name); name.required = true; name.maxLength = 120;
     const city = line(uni.city, 'e.g. London');
     const website = line(uni.website, 'e.g. https://www.uwl.ac.uk');
@@ -305,7 +315,12 @@
     save.type = 'submit';
     const cancel = el('button', 'btn', 'Cancel');
     cancel.type = 'button';
-    cancel.addEventListener('click', () => { say(''); renderView(); });
+    cancel.addEventListener('click', async () => {
+      if (dirty && !(await NiecUI.confirm('What you changed on this page has not been saved.', { title: 'Leave without saving?', confirmText: 'Leave without saving', cancelText: 'Keep editing', danger: true }))) return;
+      stopGuarding();
+      say('');
+      renderView();
+    });
     const del = el('button', 'btn btn-danger', 'Delete this university');
     del.type = 'button';
     del.style.marginLeft = 'auto';
@@ -314,7 +329,7 @@
         { title: 'Delete this university?', confirmText: 'Delete university', danger: true });
       if (!yes) return;
       const res = await fetch(`/api/facts/${uni.id}/delete`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
-      if (res.ok) location.href = '/fact-file'; else say('Could not delete it.', true);
+      if (res.ok) { stopGuarding(); location.href = '/fact-file'; } else say('Could not delete it.', true);
     });
     actions.append(save, cancel, del);
     form.append(actions);
@@ -335,9 +350,10 @@
         const json = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(json.error || `Server error ${res.status}`);
         uni = json;
+        stopGuarding();
         renderView();
-        say('Saved.');
-        setTimeout(() => say(''), 2500);
+        say('');
+        NiecUI.toast('Saved. Everyone can see the new version.', { type: 'success' });
         window.scrollTo(0, 0);
       } catch (err) {
         say(err.message, true);
@@ -345,6 +361,9 @@
       }
     });
     $('view').replaceChildren(form);
+    // Long lists (a university's courses) show in full instead of a small box that scrolls.
+    const fit = (t) => { t.style.height = 'auto'; t.style.height = Math.min(Math.max(t.scrollHeight + 2, 84), 460) + 'px'; };
+    form.querySelectorAll('textarea').forEach((t) => { fit(t); t.addEventListener('input', () => fit(t)); });
     name.focus();
   }
 

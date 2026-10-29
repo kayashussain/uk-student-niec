@@ -673,3 +673,7 @@ body:not([data-role="admin"]) .sheet-tab-menu-btn { display: none; }
 .sheet-empty[hidden] { display: none; }
 .sheet-empty .btn { margin-top: 8px; }
 .defer-warning-flag { cursor: help; }
+
+.help-btn { margin-left: 14px; padding: 2px 8px; border: 1px solid var(--border-strong); border-radius: 999px; background: none; color: var(--text-dim); font: inherit; font-size: 11px; cursor: pointer; }
+.help-btn:hover { color: var(--text); background: var(--row-hover); }
+@media (max-width: 760px) { .help-btn { display: none; } }
