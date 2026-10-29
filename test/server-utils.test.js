@@ -89,3 +89,21 @@ test('every script and stylesheet a page loads is a real file that the server se
   assert.ok(scanned > 30, 'the pages were actually scanned');
   assert.deepStrictEqual(problems, []);
 });
+
+test('the activity record is set aside when it grows too large, and a new one starts', () => {
+  const fs = require('node:fs');
+  const os = require('node:os');
+  const path = require('node:path');
+  const { createActivityLog } = require('../shared/server-utils');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'niec-activity-'));
+  const log = createActivityLog(dir, { maxBytes: 600 });
+  const req = { headers: { 'user-agent': 'Mozilla/5.0 (Windows) Chrome/120' }, socket: { remoteAddress: '127.0.0.1' } };
+  const user = { id: 'u1', label: 'Test (Admin)' };
+  for (let i = 0; i < 11; i += 1) log.record(req, user, 'Changed', { changes: ['x'.repeat(80)] });
+  const files = fs.readdirSync(dir);
+  assert.ok(files.some((f) => /^activity-\d{4}-\d{2}-\d{2}.*\.jsonl$/.test(f)), 'an older record was set aside');
+  const kept = files.filter((f) => /^activity-/.test(f)).reduce((n, f) => n + fs.readFileSync(path.join(dir, f), 'utf8').split('\n').filter(Boolean).length, 0)
+    + fs.readFileSync(path.join(dir, 'activity.jsonl'), 'utf8').split('\n').filter(Boolean).length;
+  assert.strictEqual(kept, 11, 'no entry is lost');
+  assert.ok(log.latest().length >= 1 && log.latest().length < 11, 'the page shows the new record only');
+});

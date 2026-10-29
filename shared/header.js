@@ -30,6 +30,15 @@
     const links = LINKS[me.role] || [];
     header.querySelector('.niec-nav').innerHTML = links
       .map(([id, href, label]) => `<a href="${href}"${id === page ? ' aria-current="page"' : ''}>${label}</a>`).join('');
+    // On a phone the menu may not fit: its right edge fades until it is scrolled to the end, as a hint to swipe.
+    const nav = header.querySelector('.niec-nav');
+    const edge = () => nav.classList.toggle('at-end', nav.scrollLeft + nav.clientWidth >= nav.scrollWidth - 2);
+    nav.addEventListener('scroll', edge, { passive: true });
+    window.addEventListener('resize', edge);
+    edge();
+    // The current page is scrolled into view in a menu that doesn't fit.
+    const here = nav.querySelector('[aria-current="page"]');
+    if (here && here.scrollIntoView) nav.scrollLeft = Math.max(0, here.offsetLeft - 24);
     // The logo goes home: the dashboard for the Manager, Student Details for everyone else.
     header.querySelector('#niecHome').setAttribute('href', me.role === 'manager' ? '/dashboard' : '/students');
     const initials = String(me.name || '?').split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase();
