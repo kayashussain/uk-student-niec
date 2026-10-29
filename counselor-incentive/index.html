@@ -1434,10 +1434,22 @@ function refreshIfIdle() {
   if (document.activeElement && document.activeElement.tagName === 'INPUT') return;
   loadAll();
 }
-setInterval(refreshIfIdle, POLL_MS);
-// The server pushes a notice the moment anything changes (reconnects by itself); the timer above
-// covers hosts that hold streams back, and catches up after typing.
-if (window.EventSource) new EventSource(BASE + '/api/live').onmessage = refreshIfIdle;
+// While the live connection below is working, the timer is only a slow safety net (every 20 seconds); if
+// the connection is down or a host holds streams back, it checks every few seconds instead.
+let liveConnected = false;
+let lastCheck = 0;
+setInterval(() => {
+  if (liveConnected && Date.now() - lastCheck < 20000) return;
+  lastCheck = Date.now();
+  refreshIfIdle();
+}, POLL_MS);
+// The server pushes a notice the moment anything changes (reconnects by itself), and it catches up after typing.
+if (window.EventSource) {
+  const live = new EventSource(BASE + '/api/live');
+  live.onopen = () => { liveConnected = true; };
+  live.onerror = () => { liveConnected = false; };
+  live.onmessage = () => { lastCheck = Date.now(); refreshIfIdle(); };
+}
 document.addEventListener('visibilitychange', refreshIfIdle);
 
 renderHead();

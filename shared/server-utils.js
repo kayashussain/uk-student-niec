@@ -99,7 +99,11 @@ function activityCategory(action) {
   return 'accounts';
 }
 
-function createActivityLog(dir) {
+// When the record passes this size, the file is set aside as activity-<date>.jsonl and a new one starts, so
+// a year of busy use can't fill the disk or slow the Activity page. The set-aside files stay on the server.
+const ACTIVITY_ROTATE_BYTES = 20 * 1024 * 1024;
+
+function createActivityLog(dir, { maxBytes = ACTIVITY_ROTATE_BYTES } = {}) {
   const file = path.join(dir, 'activity.jsonl');
   let cache = null; // { mtimeMs, size, events } the whole record, oldest first, parsed once per change
 
@@ -116,6 +120,12 @@ function createActivityLog(dir) {
     try {
       fs.mkdirSync(dir, { recursive: true });
       fs.appendFileSync(file, JSON.stringify(entry) + '\n');
+      if (fs.statSync(file).size > maxBytes) {
+        let target = path.join(dir, `activity-${localDate()}.jsonl`);
+        for (let n = 2; fs.existsSync(target); n += 1) target = path.join(dir, `activity-${localDate()}-${n}.jsonl`);
+        fs.renameSync(file, target);
+        cache = null;
+      }
     } catch (e) {
       console.error('[activity]', e.message);
     }
