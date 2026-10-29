@@ -40,6 +40,20 @@ input:focus, textarea:focus { outline: 2px solid var(--blue); outline-offset: 1p
 .uni-card h2 { margin: 0; font-size: 16px; }
 .uni-card .city { color: var(--dim); font-size: 13px; }
 .uni-card .updated { margin-top: auto; padding-top: 6px; color: var(--dim); font-size: 12px; }
+.count { margin: 4px 0 0; color: var(--dim); font-size: 12px; min-height: 1.2em; }
+.uni-card { transition: border-color .15s, box-shadow .15s, transform .15s; }
+.uni-card:hover { transform: translateY(-1px); }
+.uni-card:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+.uni-card.skeleton { pointer-events: none; gap: 10px; }
+.uni-card.skeleton .line-lg { height: 18px; width: 70%; }
+.uni-card.skeleton .line-sm { height: 12px; width: 40%; }
+.uni-card.skeleton .line-chip { height: 20px; width: 30%; border-radius: 999px; }
+.matches { margin: 2px 0 4px; padding: 8px 10px; background: var(--blue-tint); border-radius: 8px; font-size: 12px; }
+.matches .match-count { font-weight: 700; color: var(--blue-text); margin-bottom: 2px; }
+.matches ul { margin: 0; padding-left: 16px; }
+.matches li { margin: 1px 0; overflow-wrap: anywhere; }
+.matches .match-more { margin-top: 2px; color: var(--dim); }
+@media (prefers-reduced-motion: reduce) { .uni-card:hover { transform: none; } }
 .chips { display: flex; flex-wrap: wrap; gap: 5px; }
 .chip { padding: 2px 9px; border-radius: 999px; font-size: 12px; font-weight: 600; background: var(--blue-tint); color: var(--blue-text); }
 .empty { padding: 28px; text-align: center; color: var(--dim); background: var(--panel); border: 1px dashed var(--border-strong); border-radius: 12px; }
@@ -78,6 +92,14 @@ input:focus, textarea:focus { outline: 2px solid var(--blue); outline-offset: 1p
 .label { margin: 8px 0 2px; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--dim); }
 .placeholder { color: var(--dim); font-style: italic; }
 .foot { margin-top: 24px; padding-top: 10px; border-top: 1px solid var(--border); color: var(--dim); font-size: 12px; }
+
+/* The jump bar on a long page */
+.toc { position: sticky; top: 0; z-index: 5; display: flex; gap: 6px; overflow-x: auto; margin: 0 0 12px; padding: 8px 2px; background: var(--bg); scrollbar-width: none; }
+.toc::-webkit-scrollbar { display: none; }
+.toc a { flex: none; padding: 5px 12px; border-radius: 999px; border: 1px solid var(--border-strong); background: var(--panel); color: var(--text); font-size: 12px; font-weight: 600; text-decoration: none; white-space: nowrap; transition: background .12s, border-color .12s; }
+.toc a:hover { background: var(--blue-tint); border-color: var(--blue); color: var(--blue-text); }
+.toc a:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+.doc section { scroll-margin-top: 56px; }
 
 /* Editing */
 .editor { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 22px 24px 26px; }

@@ -163,3 +163,35 @@ test('a list made before the sheet gets the new universities once, and fills in 
   const count = facts.list().length;
   assert.strictEqual(createFacts(dir).list().length, count, 'nothing is added twice');
 });
+
+test('searching finds universities by name, city or any course they teach', () => {
+  const facts = createFacts(tmp());
+  const cyber = facts.list('cyber security');
+  assert.ok(cyber.length > 5, 'many universities teach cyber security');
+  assert.ok(cyber.every((u) => u.matches.length > 0 && u.matchCount >= u.matches.length));
+  assert.ok(cyber.every((u) => u.matches.every((m) => /cyber/i.test(m) && /security/i.test(m))));
+  assert.deepStrictEqual(facts.list('aston').slice(0, 1).map((u) => u.name), ['Aston University']);
+  assert.strictEqual(facts.list('zzzz nothing').length, 0);
+  assert.strictEqual(facts.list('').length, facts.list().length, 'no words: everything');
+});
+
+test('a damaged Fact File is set aside, not overwritten, and the list starts again', () => {
+  const dir = tmp();
+  fs.writeFileSync(path.join(dir, 'fact-file.json'), '{ this is not json');
+  const facts = createFacts(dir);
+  assert.ok(facts.list().length > 50);
+  const kept = fs.readdirSync(dir).filter((f) => f.startsWith('fact-file.damaged-'));
+  assert.strictEqual(kept.length, 1);
+  assert.strictEqual(fs.readFileSync(path.join(dir, kept[0]), 'utf8'), '{ this is not json');
+});
+
+test('the Fact File is read from disk again when the file changes outside this process', () => {
+  const dir = tmp();
+  const facts = createFacts(dir);
+  const id = facts.list().find((u) => u.name === 'Bangor University').id; // no starter details: nothing refreshes it
+  const file = path.join(dir, 'fact-file.json');
+  const data = JSON.parse(fs.readFileSync(file, 'utf8'));
+  data.universities.find((u) => u.id === id).city = 'Newcastle (changed by hand)';
+  fs.writeFileSync(file, JSON.stringify(data, null, 2) + '\n'); // a different size: seen by the cache check
+  assert.strictEqual(facts.get(id).city, 'Newcastle (changed by hand)');
+});

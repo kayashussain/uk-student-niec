@@ -357,7 +357,7 @@ async function handlePresence(req, res) {
 async function handleFacts(req, res, urlPath) {
   const id = (urlPath.match(/^\/api\/facts\/([a-f0-9]{12})/) || [])[1];
   if (req.method === 'GET') {
-    if (!id) return sendJSON(res, 200, facts.list());
+    if (!id) return sendJSON(res, 200, facts.list((new URL(req.url, 'http://x').searchParams.get('q') || '').slice(0, 100)));
     const uni = facts.get(id);
     return uni ? sendJSON(res, 200, uni) : sendJSON(res, 404, { error: 'No such university.' });
   }

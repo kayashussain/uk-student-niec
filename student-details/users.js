@@ -158,6 +158,14 @@
     'logout-everywhere': (n) => `Log ${n} out of every device?`,
   };
 
+  const CONFIRM_TITLE = {
+    remove: 'Remove this person?', disable: 'Disable this login?', 'reset-password': 'Give a new temporary password?',
+    'reset-authenticator': 'Unlink the authenticator app?', 'logout-everywhere': 'Log out of every device?',
+  };
+  const CONFIRM_BUTTON = {
+    remove: 'Remove', disable: 'Disable', 'reset-password': 'Reset password', 'reset-authenticator': 'Unlink', 'logout-everywhere': 'Log out',
+  };
+
   $('users').addEventListener('click', async (e) => {
     const btn = e.target.closest('button[data-act]');
     if (!btn) return;
@@ -165,7 +173,11 @@
     if (!person) return;
     if (btn.dataset.act === 'edit') { openEdit(person); return; }
     const ask = CONFIRM[btn.dataset.act];
-    if (ask && !confirm(ask(person.name, person))) return;
+    if (ask) {
+      const danger = btn.dataset.act === 'remove' || btn.dataset.act === 'disable';
+      const yes = await NiecUI.confirm(ask(person.name, person), { title: CONFIRM_TITLE[btn.dataset.act], confirmText: CONFIRM_BUTTON[btn.dataset.act], danger });
+      if (!yes) return;
+    }
     message('usersMsg', '');
     $('tempBox').hidden = true;
     try {
@@ -257,7 +269,8 @@
   });
 
   $('endOthers').addEventListener('click', async () => {
-    if (!confirm('Log out everyone except you, on every device? They will need to log in again.')) return;
+    const yes = await NiecUI.confirm('They will need to log in again.', { title: 'Log out everyone except you?', confirmText: 'Log them out', danger: true });
+    if (!yes) return;
     try {
       await api('/api/sessions/end-others', {});
       message('sessionsMsg', 'Everyone else has been logged out.');

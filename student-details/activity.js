@@ -104,7 +104,9 @@
 
   // Starts the record again from zero (Admin only). The server notes who cleared it as the first entry.
   $('clear').addEventListener('click', async () => {
-    if (!confirm('Clear all saved activity? Every login and change on record is deleted and the record starts again from zero. This cannot be undone.')) return;
+    const yes = await NiecUI.confirm('Every login and change on record is deleted and the record starts again from zero. This cannot be undone.',
+      { title: 'Clear all saved activity?', confirmText: 'Clear activity', danger: true });
+    if (!yes) return;
     try {
       const res = await fetch('/api/activity/clear', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
       const json = await res.json().catch(() => ({}));

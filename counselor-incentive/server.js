@@ -83,10 +83,22 @@ function recordChanges(req, what, before, after, fields) {
   if (changes.length) activity.record(req, req.user, 'Changed', { app: 'Incentive', changes });
 }
 
+// The Student Details workbook, parsed once per change of the file instead of once per request: every open
+// Incentive tab asks again the moment anyone saves a student, and the file is a few megabytes.
+// Throws like reading the file would (missing or not valid JSON right now).
+let workbookCache = null; // { mtimeMs, size, workbook }
+function readWorkbook() {
+  const stat = fs.statSync(STUDENT_DETAILS_DATA);
+  if (workbookCache && workbookCache.mtimeMs === stat.mtimeMs && workbookCache.size === stat.size) return workbookCache.workbook;
+  const workbook = JSON.parse(fs.readFileSync(STUDENT_DETAILS_DATA, 'utf-8'));
+  workbookCache = { mtimeMs: stat.mtimeMs, size: stat.size, workbook };
+  return workbook;
+}
+
 // The student's name for a Student Details row id, for the activity record.
 function studentName(rowId) {
   try {
-    const workbook = JSON.parse(fs.readFileSync(STUDENT_DETAILS_DATA, 'utf-8'));
+    const workbook = readWorkbook();
     for (const sheet of workbook.sheets || []) {
       const row = (sheet.rows || []).find((r) => r._id === rowId);
       const name = [row && row['FIRST NAME'], row && row['LAST NAME']].map((v) => String(v || '').trim()).filter(Boolean).join(' ');
@@ -140,7 +152,7 @@ function normalizeStudent(row, intake) {
 // The Student Details sheets as [{ id, name }] (empty if the file can't be read right now).
 function readSheetList() {
   try {
-    const workbook = JSON.parse(fs.readFileSync(STUDENT_DETAILS_DATA, 'utf-8'));
+    const workbook = readWorkbook();
     return (Array.isArray(workbook.sheets) ? workbook.sheets : [])
       .filter((s) => s && typeof s.id === 'string' && typeof s.name === 'string')
       .map((s) => ({ id: s.id, name: s.name }));
@@ -150,15 +162,12 @@ function readSheetList() {
 }
 
 function readSync() {
-  let raw;
-  try {
-    raw = fs.readFileSync(STUDENT_DETAILS_DATA, 'utf-8');
-  } catch (e) {
+  if (!fs.existsSync(STUDENT_DETAILS_DATA)) {
     return { ok: false, error: 'Could not find the Student Details data file at ' + STUDENT_DETAILS_DATA, intakes: [], byIntake: {} };
   }
   let workbook;
   try {
-    workbook = JSON.parse(raw);
+    workbook = readWorkbook();
   } catch (e) {
     return { ok: false, error: 'Student Details data file is not valid JSON right now. Try again.', intakes: [], byIntake: {} };
   }

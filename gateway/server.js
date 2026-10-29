@@ -124,6 +124,9 @@ const server = http.createServer((req, res) => {
     if (!res.headersSent) res.writeHead(502, { 'Content-Type': 'text/plain' });
     res.end('Bad gateway.');
   });
+  // A browser that goes away mid-response (most often a closed tab holding a live-update stream) must end
+  // the request to the app as well. Otherwise the app never learns the tab has gone and keeps writing to it.
+  res.on('close', () => { if (!res.writableEnded) proxyReq.destroy(); });
 
   req.pipe(proxyReq);
 });

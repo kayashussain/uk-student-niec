@@ -92,7 +92,20 @@
     font-weight: 600;
     cursor: pointer;
   }
+  button { transition: filter .12s, background .12s; }
+  button:hover:not(:disabled) { filter: brightness(1.07); }
+  button:focus-visible, .pw-toggle:focus-visible { outline: 2px solid var(--niec-blue); outline-offset: 2px; }
   button:disabled { opacity: 0.6; cursor: default; }
+  .pw { position: relative; display: flex; }
+  .pw input { flex: 1; min-width: 0; padding-right: 58px; }
+  .pw-toggle { position: absolute; right: 4px; top: 50%; transform: translateY(-50%); margin: 0; padding: 5px 9px; background: none;
+    color: var(--niec-blue-text); font-size: 12px; font-weight: 600; border-radius: 6px; }
+  .pw-toggle:hover:not(:disabled) { background: var(--note-bg); filter: none; }
+  @media (prefers-color-scheme: dark) { .pw-toggle { color: var(--niec-blue); } }
+  .caps { margin: 4px 0 0; color: #b45309; font-size: 12px; font-weight: 600; }
+  @media (prefers-color-scheme: dark) { .caps { color: #f2b705; } }
+  .caps[hidden] { display: none; }
+  @media (prefers-reduced-motion: reduce) { button { transition: none; } }
   .link { margin-top: 10px; padding: 0; background: none; color: var(--niec-blue-text); font-weight: 500; font-size: 13px; }
   @media (prefers-color-scheme: dark) { .link { color: var(--niec-blue); } }
 </style>
@@ -121,7 +134,8 @@
     <label for="username">Username</label>
     <input id="username" autocomplete="username" autocapitalize="off" spellcheck="false" required />
     <label for="password">Password</label>
-    <input id="password" type="password" autocomplete="current-password" required />
+    <div class="pw"><input id="password" type="password" autocomplete="current-password" required /><button type="button" class="pw-toggle" aria-pressed="false" aria-label="Show password">Show</button></div>
+    <p class="caps" id="caps" hidden>Caps Lock is on.</p>
     <button type="submit">Log in</button>
   </form>
 
@@ -136,10 +150,10 @@
   <form id="step-new-password" hidden>
     <p class="note">Choose your own password. Only you should know it. Never share it, not even with your team.</p>
     <label for="new-password">New password</label>
-    <input id="new-password" type="password" autocomplete="new-password" minlength="10" required />
+    <div class="pw"><input id="new-password" type="password" autocomplete="new-password" minlength="10" required /><button type="button" class="pw-toggle" aria-pressed="false" aria-label="Show password">Show</button></div>
     <p class="hint">At least 10 characters. A short sentence is easy to remember and hard to guess.</p>
     <label for="new-password-2">Type it again</label>
-    <input id="new-password-2" type="password" autocomplete="new-password" required />
+    <div class="pw"><input id="new-password-2" type="password" autocomplete="new-password" required /><button type="button" class="pw-toggle" aria-pressed="false" aria-label="Show password">Show</button></div>
     <button type="submit">Save password</button>
     <button type="button" class="link" data-restart>Cancel</button>
   </form>
@@ -203,6 +217,8 @@
     const form = $('step-' + state.stage);
     if (!form) return;
     form.reset();
+    form.querySelectorAll('.pw input').forEach((i) => { i.type = 'password'; }); // a new step starts hidden again
+    form.querySelectorAll('.pw-toggle').forEach((b) => { b.textContent = 'Show'; b.setAttribute('aria-pressed', 'false'); b.setAttribute('aria-label', 'Show password'); });
     if (state.stage === 'authenticator') startAuthenticator();
     const first = form.querySelector('input');
     if (first) first.focus();
@@ -225,7 +241,10 @@
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       const buttons = form.querySelectorAll('button');
+      const submit = form.querySelector('button[type=submit]');
+      const label = submit.textContent;
       buttons.forEach((b) => { b.disabled = true; });
+      submit.textContent = 'Please wait…';
       showError('');
       try {
         show(await handler());
@@ -234,6 +253,7 @@
         const pw = form.querySelector('input[type=password], input.code');
         if (pw) pw.select();
       }
+      submit.textContent = label;
       buttons.forEach((b) => { b.disabled = false; });
     });
   }
@@ -248,6 +268,23 @@
     return post('/api/login/new-password', { password: $('new-password').value });
   });
   bind('authenticator', () => post('/api/login/authenticator', { code: $('first-code').value }));
+
+  // Show or hide what is typed in a password box (handy on a phone).
+  document.querySelectorAll('.pw-toggle').forEach((b) => b.addEventListener('click', () => {
+    const input = b.parentElement.querySelector('input');
+    const shown = input.type === 'password';
+    input.type = shown ? 'text' : 'password';
+    b.textContent = shown ? 'Hide' : 'Show';
+    b.setAttribute('aria-pressed', String(shown));
+    b.setAttribute('aria-label', shown ? 'Hide password' : 'Show password');
+    input.focus();
+  }));
+  // A quiet warning when Caps Lock is on while typing the password.
+  const capsNote = $('caps');
+  const checkCaps = (e) => { if (e.getModifierState) capsNote.hidden = !e.getModifierState('CapsLock'); };
+  $('password').addEventListener('keydown', checkCaps);
+  $('password').addEventListener('keyup', checkCaps);
+  $('password').addEventListener('blur', () => { capsNote.hidden = true; });
 
   document.querySelectorAll('[data-restart]').forEach((b) => b.addEventListener('click', async () => {
     showError('');

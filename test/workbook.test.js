@@ -176,3 +176,24 @@ test('describeChanges lists cell edits, added and removed students, and sheet ch
   ]);
   assert.deepStrictEqual(describeChanges(after, after), []);
 });
+
+test('history keeps recent revisions but never more than its memory budget', () => {
+  const { createHistory } = require('../student-details/workbook');
+  const wb = (revision) => ({ revision, sheets: [], pad: 'x'.repeat(1000) });
+  const small = createHistory(3);
+  [1, 2, 3, 4, 5].forEach((r) => small.remember(wb(r)));
+  assert.strictEqual(small.get(1), null);
+  assert.strictEqual(small.get(2), null);
+  assert.strictEqual(small.get(3).revision, 3);
+  assert.strictEqual(small.get(5).revision, 5);
+  // each version is about 1 KB; a 3 KB budget keeps the newest two at least, and no more than fit
+  const tight = createHistory(30, 3000);
+  [1, 2, 3, 4, 5, 6].forEach((r) => tight.remember(wb(r)));
+  assert.ok(tight.get(6) && tight.get(5), 'the newest two are always kept');
+  assert.strictEqual(tight.get(1), null);
+  assert.strictEqual(tight.get(2), null);
+  // remembering a revision again replaces it instead of counting it twice
+  const again = createHistory(30, 2500);
+  again.remember(wb(1)); again.remember(wb(1)); again.remember(wb(1));
+  assert.ok(again.get(1));
+});

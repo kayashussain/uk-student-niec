@@ -7,6 +7,7 @@
 <title>Fact File · UK Student NIEC</title>
 <link rel="icon" type="image/png" href="favicon.png" />
 <link rel="stylesheet" href="header.css" />
+<link rel="stylesheet" href="ui.css" />
 <link rel="stylesheet" href="fact-file.css" />
 </head>
 <body>
@@ -18,7 +19,7 @@
         <p>One page for each university: entry requirements, language test, courses, location, intakes and the application process. Open one to read it, or to print it or save it as a PDF.</p>
       </div>
       <div class="toolbar">
-        <input class="search" id="search" type="search" placeholder="Search universities" aria-label="Search universities" />
+        <input class="search" id="search" type="search" placeholder="Search a university or a course   ( / )" aria-label="Search universities and courses" autocomplete="off" />
       </div>
     </div>
     <form class="add-row" id="addForm" hidden>
@@ -26,9 +27,11 @@
       <button class="btn btn-primary" type="submit">Add</button>
     </form>
     <div class="msg" id="msg" role="status"></div>
+    <div class="count" id="count" aria-live="polite"></div>
     <div class="cards" id="cards"></div>
   </main>
 <script src="session.js"></script>
+<script src="ui.js"></script>
 <script src="header.js"></script>
 <script src="fact-file.js"></script>
 </body>
