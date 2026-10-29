@@ -26,7 +26,7 @@
     .eg-actions { display: flex; justify-content: flex-end; gap: 8px; }
     .eg-actions button { padding: 7px 16px; border-radius: 6px; font: inherit; font-weight: 600; cursor: pointer;
       border: 1px solid #d1d5db; background: #fff; color: #374151; }
-    .eg-actions .eg-ok { background: #ea580c; border-color: #ea580c; color: #fff; }
+    .eg-actions .eg-ok { background: #cc4a0a; border-color: #cc4a0a; color: #fff; }
     .eg-actions button:focus-visible { outline: 2px solid #2563eb; outline-offset: 2px; }
     @media (prefers-color-scheme: dark) {
       .eg-box { background: #1f2937; color: #f3f4f6; }

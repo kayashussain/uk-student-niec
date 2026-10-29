@@ -44,7 +44,7 @@
     const initials = String(me.name || '?').split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase();
     const account = header.querySelector('.niec-account');
     account.innerHTML = `
-      <button type="button" class="niec-account-btn" aria-haspopup="menu" aria-expanded="false">
+      <button type="button" class="niec-account-btn" aria-haspopup="menu" aria-expanded="false" aria-label="Account menu for ${esc(me.name)}">
         <span class="niec-avatar" aria-hidden="true">${esc(initials)}</span>
         <span class="niec-account-text"><span class="niec-account-name">${esc(me.name)}</span><span class="niec-account-role">${esc(me.roleLabel)}</span></span>
         <span class="niec-caret" aria-hidden="true">▾</span>

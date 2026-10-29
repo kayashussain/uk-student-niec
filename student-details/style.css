@@ -11,8 +11,10 @@
   --border: #dfe3e8;
   --border-strong: #c7ccd4;
   --text: #1c2126;
-  --text-dim: #6b7280;
+  --text-dim: #5b6472;
   --accent: #fc6e1f;
+  --primary: #cc4a0a; /* orange for buttons with white text: readable (4.6:1), unlike the bright brand orange */
+  --primary-hover: #b54008;
   --accent-dim: #fff0e5;
   --orange: #fc6e1f;
   --focus: #0284c7;
@@ -124,7 +126,7 @@ html, body, .table-wrap { overscroll-behavior-x: none; }
 }
 .btn:hover { background: var(--row-hover); }
 .btn:disabled { opacity: .4; cursor: not-allowed; background: var(--panel); }
-.btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.btn-primary { background: var(--primary); border-color: var(--primary); color: #fff; }
 .btn-primary:hover { filter: brightness(1.08); }
 .btn-danger { color: var(--danger); }
 
@@ -585,20 +587,20 @@ tr.defer-warning-row td { background: var(--red-bg) !important; }
 .btn:hover { background: var(--niec-blue-tint); border-color: var(--niec-blue); }
 .btn:disabled:hover { border-color: var(--border-strong); }
 .btn-primary, .topbar .btn-primary {
-  background: var(--niec-orange); border-color: var(--niec-orange); color: #fff; font-weight: 600;
+  background: var(--primary); border-color: var(--primary); color: #fff; font-weight: 600;
 }
-.btn-primary:hover { background: var(--niec-orange); border-color: var(--niec-orange); filter: brightness(1.06); }
+.btn-primary:hover { background: var(--primary-hover); border-color: var(--primary-hover); filter: none; }
 
 /* Summary: white cards with a light-blue edge and blue figures; Total Students in solid NIEC blue. */
 .status-summary { background: var(--niec-blue-tint); }
 .stat-group-title { color: var(--niec-blue-text); }
 .stat-card { border-left: 3px solid var(--niec-blue); box-shadow: 0 1px 2px rgba(0, 119, 168, 0.08); }
 .stat-card .stat-value { color: var(--niec-blue-text); }
-.stat-card.stat-total { background: var(--niec-blue); border-color: var(--niec-blue); }
+.stat-card.stat-total { background: #0077a8; border-color: #0077a8; }
 .stat-card.stat-total .stat-value { color: #fff; }
-.stat-card.stat-total .stat-label { color: rgba(255, 255, 255, 0.92); }
+.stat-card.stat-total .stat-label { color: #fff; }
 .stat-card.stat-rate { border-left-color: var(--niec-orange); }
-.stat-card.stat-rate .stat-value { color: #d4560f; }
+.stat-card.stat-rate .stat-value { color: #b94a0b; }
 .stat-card .stat-visa { color: #15803d; font-weight: 600; }
 
 /* Column headings: light blue, with the NIEC blue line underneath. */
@@ -609,8 +611,8 @@ thead th {
   border-right-color: #cdebf8;
 }
 thead th:hover { background: #d6f1fd; color: #06415a; }
-thead th.col-idx { background: var(--niec-blue-tint); color: #4f8aa3; }
-thead .filter-btn { color: #4f8aa3; }
+thead th.col-idx { background: var(--niec-blue-tint); color: #2f6f8a; }
+thead .filter-btn { color: #2f6f8a; }
 thead .filter-btn:hover { background: #c4e9fa; color: #06415a; }
 thead .filter-btn.active { color: var(--niec-orange); }
 
@@ -619,7 +621,7 @@ thead .filter-btn.active { color: var(--niec-orange); }
 
 @media (prefers-color-scheme: dark) {
   :root { --niec-blue-text: #6fd0f7; --niec-blue-tint: #10283a; }
-  .stat-card.stat-total { background: #0088bd; border-color: #0088bd; }
+  .stat-card.stat-total { background: #0077a8; border-color: #0077a8; }
   .stat-card.stat-rate .stat-value { color: #ff9a5c; }
   .stat-card .stat-visa { color: #6fd894; }
   thead th, thead th.col-idx { background: #12303f; color: #bfe9fb; border-right-color: #1d4153; }
@@ -677,3 +679,7 @@ body:not([data-role="admin"]) .sheet-tab-menu-btn { display: none; }
 .help-btn { margin-left: 14px; padding: 2px 8px; border: 1px solid var(--border-strong); border-radius: 999px; background: none; color: var(--text-dim); font: inherit; font-size: 11px; cursor: pointer; }
 .help-btn:hover { color: var(--text); background: var(--row-hover); }
 @media (max-width: 760px) { .help-btn { display: none; } }
+
+/* The page's one main area: the toolbar, the sheet and the footer, stacked as they were before it was a landmark. */
+.app-main { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+.table-wrap:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }

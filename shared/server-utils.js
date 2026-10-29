@@ -16,12 +16,22 @@ function localDate(date = new Date(), timeZone = TIME_ZONE) {
 // Sent with every response: the pages can't be shown inside another site's frame (so no one can trick
 // a logged-in user into clicking things there), browsers don't guess file types, and no addresses
 // leak to other sites through the Referer header.
+// The Content-Security-Policy only lists things no page here does: no plug-ins, no pages rebased to another
+// site, no forms sent to another site (the pages' own scripts are not restricted, as they load a spreadsheet
+// library and a QR-code library from a CDN). Camera, microphone and location are never needed.
 const SECURITY_HEADERS = {
   'X-Frame-Options': 'SAMEORIGIN',
-  'Content-Security-Policy': "frame-ancestors 'self'",
+  'Content-Security-Policy': "frame-ancestors 'self'; object-src 'none'; base-uri 'self'; form-action 'self'",
   'X-Content-Type-Options': 'nosniff',
   'Referrer-Policy': 'same-origin',
+  'Permissions-Policy': 'camera=(), microphone=(), geolocation=(), payment=()',
+  'Cross-Origin-Opener-Policy': 'same-origin',
 };
+
+// Browsers are told to use https only for this site once they have seen it over https (a login over plain
+// http on a public address would send the password in the clear). Not sent over plain http, where it is ignored.
+const isSecureRequest = (req) => Boolean(req && ((req.socket && req.socket.encrypted)
+  || String(req.headers['x-forwarded-proto'] || '').split(',')[0].trim() === 'https'));
 
 // Text bigger than this is sent gzip-compressed to browsers that accept it (all do): JSON and pages
 // shrink to a fifth or less, which is most of the waiting on a slow connection.
@@ -31,6 +41,7 @@ const acceptsGzip = (res) => Boolean(res.req && /\bgzip\b/.test(String(res.req.h
 // `gzipped`: the body already compressed (a cached copy), used when the browser accepts gzip.
 function send(res, status, body, headers = {}, gzipped = null) {
   const out = { ...SECURITY_HEADERS, ...headers };
+  if (isSecureRequest(res.req)) out['Strict-Transport-Security'] = 'max-age=15552000';
   if (body != null && !out['Content-Encoding'] && acceptsGzip(res)) {
     if (gzipped) {
       body = gzipped;

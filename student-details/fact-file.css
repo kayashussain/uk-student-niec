@@ -2,7 +2,7 @@
    of a university is laid out like a document so it prints (or saves as a PDF) cleanly. */
 :root {
   --blue: #00adef; --blue-text: #0077a8; --blue-tint: #e8f7fe; --orange: #fc6e1f; --orange-tint: #fff0e5;
-  --bg: #f3f6fa; --panel: #ffffff; --border: #dfe3e8; --border-strong: #c7ccd4; --text: #1c2126; --dim: #6b7280; --danger: #dc2626;
+  --bg: #f3f6fa; --panel: #ffffff; --border: #dfe3e8; --border-strong: #c7ccd4; --text: #1c2126; --dim: #5b6472; --danger: #dc2626;
 }
 @media (prefers-color-scheme: dark) {
   :root {
@@ -20,8 +20,8 @@ body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.5 syst
 
 .btn { padding: 7px 13px; border-radius: 7px; border: 1px solid var(--border-strong); background: var(--panel); color: var(--text); font: inherit; font-size: 13px; cursor: pointer; text-decoration: none; white-space: nowrap; }
 .btn:hover { background: var(--blue-tint); border-color: var(--blue); }
-.btn-primary { background: var(--orange); border-color: var(--orange); color: #fff; font-weight: 600; }
-.btn-primary:hover { background: #e85f12; border-color: #e85f12; }
+.btn-primary { background: #cc4a0a; border-color: #cc4a0a; color: #fff; font-weight: 600; }
+.btn-primary:hover { background: #b54008; border-color: #b54008; }
 .btn-danger { color: var(--danger); }
 .btn-sm { padding: 3px 9px; font-size: 12px; }
 input, textarea, select { font: inherit; font-size: 14px; padding: 8px 10px; border: 1px solid var(--border-strong); border-radius: 7px; background: var(--panel); color: var(--text); width: 100%; }

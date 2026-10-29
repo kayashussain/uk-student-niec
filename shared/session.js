@@ -5,12 +5,23 @@
   const loginUrl = () => '/login?next=' + encodeURIComponent(location.pathname + location.search);
   let leaving = false;
 
+  // A page with work that is not saved yet can ask to stay where it is when the login runs out (holdWhile), so
+  // the work isn't thrown away by a redirect: it shows its own notice, and its saves go through once the person
+  // logs in again in another tab (the login cookie is shared by all tabs of the site).
+  let holdIf = null;
+  let holdNotice = null;
+  function holdWhile(isHolding, notice) { holdIf = isHolding; holdNotice = notice; }
+
   const realFetch = root.fetch.bind(root);
   root.fetch = async function (...args) {
     const res = await realFetch(...args);
     if (res.status === 401 && !leaving) {
-      leaving = true;
-      location.href = loginUrl();
+      if (holdIf && holdIf()) {
+        if (holdNotice) holdNotice();
+      } else {
+        leaving = true;
+        location.href = loginUrl();
+      }
     }
     return res;
   };
@@ -37,5 +48,5 @@
     return excel;
   }
 
-  root.NiecSession = { logout, loadExcel };
+  root.NiecSession = { logout, loadExcel, holdWhile };
 })(this);

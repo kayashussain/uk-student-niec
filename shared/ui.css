@@ -3,8 +3,8 @@
    colours, so it works the same on every page and in dark mode. */
 :root {
   --ui-blue: #0077a8;
-  --ui-orange: #fc6e1f;
-  --ui-orange-dark: #e85f12;
+  --ui-orange: #cc4a0a;
+  --ui-orange-dark: #b54008;
   --ui-text: #1c2126;
   --ui-dim: #6b7280;
   --ui-panel: #ffffff;
@@ -18,8 +18,8 @@
 @media (prefers-color-scheme: dark) {
   :root {
     --ui-blue: #6fd0f7;
-    --ui-orange: #ff8a47;
-    --ui-orange-dark: #ff9a5c;
+    --ui-orange: #cc4a0a;
+    --ui-orange-dark: #e0561a;
     --ui-text: #e7eaee;
     --ui-dim: #9aa2ad;
     --ui-panel: #1f2530;
@@ -43,6 +43,9 @@ input[type="checkbox"]:focus-visible, input[type="radio"]:focus-visible, [role="
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; scroll-behavior: auto !important; }
 }
+
+/* Text for screen readers only (page headings the design doesn't show, names for icon-only controls). */
+.sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 
 /* ---- notices (toasts) ---- */
 .ui-toasts {

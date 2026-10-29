@@ -117,6 +117,9 @@
   const canEditCol = (col, row = null) => Teams.canEdit(me, col, row); // row: a student the person's team added can have its basics filled in
   let saving = false;
   let saveQueued = false;
+  let loginEnded = false; // a save was refused because the login ran out (see NiecSession.holdWhile)
+  let loginNoticeShown = false; // the pop-up once per login ending, not at every retry
+  const LOGIN_ENDED_TEXT = 'Your login ended. Log in again in another tab: your changes then save by themselves.';
   let changeCount = 0;
   let conflicted = false;
   let columnFilters = {}; // col -> Set of allowed values (absent = no filter); per-sheet, reset on switch
@@ -313,6 +316,7 @@
     const input = document.createElement('input');
     input.type = 'date';
     input.className = 'date-input';
+    input.setAttribute('aria-label', `${columnLabel(col)} for ${describeRow(rows[rowIdx])}`);
     input.value = original;
     input.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -412,6 +416,7 @@
     td.classList.add('lang-test');
 
     const select = document.createElement('select');
+    select.setAttribute('aria-label', `Language test for ${describeRow(rows[rowIdx])}`);
     select.className = 'status-select ' + (LANGUAGE_TEST_NO_DATE.has(choice) ? 'badge-green' : choice ? 'badge-blue' : 'badge-gray');
     const choices = choice && !LANGUAGE_TEST_CHOICES.includes(choice) ? [...LANGUAGE_TEST_CHOICES, choice] : LANGUAGE_TEST_CHOICES;
     [['', 'Select'], ...choices.map((c) => [c, c])].forEach(([value, label]) => {
@@ -448,6 +453,7 @@
     input.className = 'date-input';
     input.value = toISODate(val);
     input.title = 'Test date';
+    input.setAttribute('aria-label', `Language test date for ${describeRow(rows[rowIdx])}`);
     input.disabled = !canEditCol(col, rows[rowIdx]);
     input.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -779,8 +785,7 @@
     shownSheets().forEach((sheet) => {
       const tab = document.createElement('div');
       tab.className = 'sheet-tab' + (sheet.id === activeSheetId ? ' active' : '');
-      tab.setAttribute('role', 'tab');
-      tab.setAttribute('aria-selected', String(sheet.id === activeSheetId));
+      if (sheet.id === activeSheetId) tab.setAttribute('aria-current', 'true');
       tab.tabIndex = 0;
       tab.addEventListener('keydown', (e) => {
         if (e.target !== tab) return;
@@ -1049,6 +1054,8 @@
     setTimeout(() => document.addEventListener('mousedown', onDocMouseDown, true), 0);
   }
 
+  // The rows to show, after the search, filters and sort. Worked out when the table is drawn (renderBody) and
+  // kept in `viewIndices`: moving around with the keyboard must not re-sort thousands of students on every key.
   function getFilteredSortedIndices() {
     const q = searchEl.value.trim().toLowerCase();
     let indices = rows.map((_, i) => i);
@@ -1276,6 +1283,7 @@
         renderLanguageTestCell(td, rowIdx);
       } else if (SELECT_COLS[col]) {
         const select = document.createElement('select');
+        select.setAttribute('aria-label', `${columnLabel(col)} for ${describeRow(rows[rowIdx])}`);
         select.className = 'status-select ' + badgeClass(val);
         // Only the current value is put in at first; the full list of choices is added the moment the
         // dropdown is clicked or focused. Thousands of rows × every choice was most of the page's weight.
@@ -1390,7 +1398,7 @@
 
   // Each range as a rectangle of on-screen positions (top/bottom index into `indices`, left/right
   // column index). A range whose end has been hidden by a search or filter is skipped.
-  function rangeRects(indices = getFilteredSortedIndices()) {
+  function rangeRects(indices = viewIndices) {
     const pos = new Map(indices.map((rowIdx, p) => [rowIdx, p]));
     return selRanges.map(({ anchor, focus }) => {
       const pa = pos.get(anchor.rowIdx);
@@ -1402,7 +1410,7 @@
     }).filter(Boolean);
   }
 
-  function selectedCells(indices = getFilteredSortedIndices()) {
+  function selectedCells(indices = viewIndices) {
     const seen = new Set();
     const cells = [];
     rangeRects(indices).forEach((r) => {
@@ -1420,7 +1428,7 @@
 
   // Redraws the selection highlight without rebuilding the table, and keeps `selectedRows` (used by
   // "Delete rows") in step with it: every row the selection touches counts as selected.
-  function applySelectionClasses(indices = getFilteredSortedIndices()) {
+  function applySelectionClasses(indices = viewIndices) {
     const rects = rangeRects(indices);
     const multi = rects.length > 1 || rects.some((r) => r.top !== r.bottom || r.left !== r.right);
     selectedRows = new Set();
@@ -1478,7 +1486,7 @@
   // Shift+Arrow: grows/shrinks the latest range from its far end; the cell cursor stays put.
   function extendSelection(dRow, dCol) {
     if (!activeCell) return;
-    const indices = getFilteredSortedIndices();
+    const indices = viewIndices;
     if (!selRanges.length) selRanges = [singleRange(activeCell.rowIdx, activeCell.col)];
     const last = selRanges[selRanges.length - 1];
     let p = indices.indexOf(last.focus.rowIdx);
@@ -1494,7 +1502,7 @@
   }
 
   function selectAllCells() {
-    const indices = getFilteredSortedIndices();
+    const indices = viewIndices;
     if (!indices.length || !columns.length) return;
     rowSelectMode = false;
     selRanges = [{
@@ -1552,7 +1560,7 @@
 
   // Moves through rows in the order they're shown (after search, filters and sorting).
   function moveActiveCell(dRow, dCol) {
-    const indices = getFilteredSortedIndices();
+    const indices = viewIndices;
     if (!indices.length || !columns.length) return;
     let pos = activeCell ? indices.indexOf(activeCell.rowIdx) : -1;
     let ci = activeCell ? columns.indexOf(activeCell.col) : -1;
@@ -1682,7 +1690,7 @@
 
   // Copy/paste as tab-separated text, so ranges move to and from Excel and Google Sheets.
   function selectionToTsv() {
-    const indices = getFilteredSortedIndices();
+    const indices = viewIndices;
     const rects = rangeRects(indices);
     if (!rects.length) return null;
     const r = rects[rects.length - 1]; // several separate ranges: copy the latest, as Sheets does
@@ -1700,7 +1708,7 @@
   // Pastes from the top-left of the selection. A single copied value fills the whole selection.
   function pasteIntoSelection(text) {
     const data = text.replace(/\r\n?/g, '\n').replace(/\n$/, '').split('\n').map((line) => line.split('\t'));
-    const indices = getFilteredSortedIndices();
+    const indices = viewIndices;
     const rects = rangeRects(indices);
     const r = rects[rects.length - 1];
     if (!r) return;
@@ -1756,7 +1764,8 @@
     }
     statusSummaryEl.hidden = false;
     // Only rows with a first or last name count as students, so blank added rows are ignored.
-    const indices = getFilteredSortedIndices().filter((i) => (
+    // viewIndices can be a moment behind (rows just deleted, before the table is redrawn): skip any that are gone.
+    const indices = viewIndices.filter((i) => rows[i] && (
       String(rows[i]['FIRST NAME'] || '').trim() || String(rows[i]['LAST NAME'] || '').trim()
     ));
     statusSummaryEl.innerHTML = '';
@@ -1775,6 +1784,9 @@
       el.innerHTML = `<span class="stat-group-title">${title}</span>`;
       const cards = document.createElement('div');
       cards.className = 'stat-group-cards';
+      cards.tabIndex = 0; // the row of cards scrolls sideways: reachable from the keyboard
+      cards.setAttribute('role', 'group');
+      cards.setAttribute('aria-label', title);
       el.appendChild(cards);
       statusSummaryEl.appendChild(el);
       return cards;
@@ -1866,9 +1878,11 @@
         statusEl.textContent = 'All changes saved';
         statusEl.className = 'save-status';
       }
+      loginNoticeShown = false;
+      loginEnded = false;
       if (reloadWanted) setTimeout(checkForRemoteChanges, 0);
     } catch (e) {
-      statusEl.textContent = 'Save failed. Retrying…';
+      statusEl.textContent = loginEnded ? LOGIN_ENDED_TEXT : 'Save failed. Retrying…';
       statusEl.className = 'save-status error';
       saveTimer = setTimeout(saveData, 3000);
     } finally {
@@ -2462,6 +2476,17 @@
     if (/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName)) return;
     e.preventDefault();
     showShortcuts();
+  });
+
+  // If the login runs out with changes not saved yet, stay on the page instead of being sent away and losing them:
+  // saving carries on by itself once the person logs in again in another tab.
+  NiecSession.holdWhile(() => dirty || saving, () => {
+    loginEnded = true;
+    statusEl.textContent = LOGIN_ENDED_TEXT;
+    statusEl.className = 'save-status error';
+    if (loginNoticeShown) return;
+    loginNoticeShown = true;
+    NiecUI.toast('Your login has ended. Open the site in another tab and log in again: your changes are kept and will save by themselves.', { type: 'error', duration: 12000 });
   });
 
   $('#reloadBtn').addEventListener('click', () => {

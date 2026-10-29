@@ -15,7 +15,7 @@
     --border: #dfe3e8;
     --border-strong: #c7ccd4;
     --text: #1c2126;
-    --text-dim: #6b7280;
+    --text-dim: #5b6472;
     --accent: #fc6e1f;
     --accent-dim: #fff0e5;
     --focus: #2563eb;
@@ -64,7 +64,7 @@
   }
   .wrap { max-width: 1500px; margin: 0 auto; padding: 20px; }
 
-  header.top {
+  .top {
     display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;
     padding: 10px 16px; margin: -20px -20px 16px; background: var(--panel); border-bottom: 1px solid var(--border);
   }
@@ -72,13 +72,13 @@
   .brand h1 { font-size: 16px; margin: 0; text-transform: uppercase; letter-spacing: 0.02em; }
 
   /* The page's toolbar under the shared header (shared/header.css), matching Student Details. */
-  header.top { background: var(--panel); border-bottom: 1px solid var(--border); padding: 8px 18px; }
-  header.top .brand h1 { color: #0077a8; font-size: 16px; font-weight: 700; text-transform: none; letter-spacing: .01em; }
-  header.top .subtitle { color: var(--text-dim); font-size: 11px; }
+  .top { background: var(--panel); border-bottom: 1px solid var(--border); padding: 8px 18px; }
+  .top .brand h1 { color: #0077a8; font-size: 16px; font-weight: 700; text-transform: none; letter-spacing: .01em; }
+  .top .subtitle { color: var(--text-dim); font-size: 11px; }
   .btn:hover { background: #e8f7fe; border-color: #00adef; }
   .btn:disabled:hover { border-color: var(--border-strong); }
   @media (prefers-color-scheme: dark) {
-    header.top .brand h1 { color: #6fd0f7; }
+    .top .brand h1 { color: #6fd0f7; }
     .btn:hover { background: #173b4d; }
   }
 
@@ -139,7 +139,7 @@
   thead th.num { text-align: right; }
   /* Light-blue NIEC column headings, matching Student Details. */
   thead th { background: #e8f7fe; color: #0a5878; border-bottom: 2px solid #00adef; border-right-color: #cdebf8; }
-  thead th .info { color: #4f8aa3; }
+  thead th .info { color: #2f6f8a; }
   @media (prefers-color-scheme: dark) {
     thead th { background: #12303f; color: #bfe9fb; border-right-color: #1d4153; }
     thead th .info { color: #8fc9e3; }
@@ -202,7 +202,8 @@
   .summary-row.subtract .label::after { content: " (-)"; color: var(--danger); }
   .summary-row .hint { font-size: 10.5px; color: var(--text-dim); font-weight: 400; margin-left: 6px; }
   .summary-row.final { background: var(--accent-dim); }
-  .summary-row.final .label, .summary-row.final .value { color: var(--accent); font-weight: 700; }
+  .summary-row.final .label, .summary-row.final .value { color: #b54008; font-weight: 700; }
+  @media (prefers-color-scheme: dark) { .summary-row.final .label, .summary-row.final .value { color: var(--accent); } }
   .adv-input {
     width: 120px; text-align: right; padding: 5px 8px; border-radius: 6px;
     border: 1px solid var(--border-strong); background: var(--bg); font-size: 13px;
@@ -213,9 +214,9 @@
 </head>
 <body>
 <header class="niec-header" data-page="incentive"></header>
-<div class="wrap">
+<main class="wrap">
 
-  <header class="top">
+  <div class="top">
     <div class="brand">
       <div>
         <h1>Incentive History</h1>
@@ -223,13 +224,13 @@
       </div>
     </div>
     <div class="toolbar">
-      <input id="search" class="search" type="text" placeholder="Search student, university…">
+      <input id="search" class="search" type="text" placeholder="Search student, university…" aria-label="Search students and universities">
       <button class="btn" id="undoBtn" title="Undo (Ctrl+Z)" disabled>↶ Undo</button>
       <button class="btn" id="redoBtn" title="Redo (Ctrl+Y)" disabled>↷ Redo</button>
       <button class="btn" id="exportExcelBtn" hidden>Export Excel</button>
       <span class="live"><span class="dot" id="liveDot"></span><span id="liveText">connecting…</span></span>
     </div>
-  </header>
+  </div>
 
   <div id="syncBanner"></div>
   <div id="rateBanner"></div>
@@ -274,7 +275,7 @@
     </div>
     <div class="summary-row subtract">
       <span class="label">Previous Advance <span class="info" title="Money already paid to you in advance for this intake. Type it in.">ⓘ</span></span>
-      <input class="adv-input" id="advanceInput" type="number" step="0.01" value="0">
+      <input class="adv-input" id="advanceInput" type="number" step="0.01" value="0" aria-label="Previous advance already paid (NPR)">
     </div>
     <div class="summary-row final">
       <span class="label">Net Payable <span class="info" title="What is still to be paid to you: Net Incentives − TDS − Previous Advance.">ⓘ</span></span>
@@ -298,11 +299,11 @@
     </div>
     <div class="summary-row">
       <span class="label">Basic Salary (per month, NPR)</span>
-      <input class="adv-input" id="salaryInput" type="number" step="1" min="0">
+      <input class="adv-input" id="salaryInput" type="number" step="1" min="0" aria-label="Basic salary per month (NPR)">
     </div>
     <div class="summary-row">
       <span class="label">Total Months for this Intake</span>
-      <input class="adv-input" id="monthsInput" type="number" step="0.5" min="0">
+      <input class="adv-input" id="monthsInput" type="number" step="0.5" min="0" aria-label="Total months for this intake">
     </div>
     <div class="summary-row">
       <span class="label">Salary for this Intake</span>
@@ -322,7 +323,7 @@
     </div>
   </div>
 
-</div>
+</main>
 
 <script src="calc.js"></script>
 <script src="session.js"></script>
