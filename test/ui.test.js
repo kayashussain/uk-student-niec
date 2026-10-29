@@ -221,6 +221,32 @@ test('screens: log in, edit, delete, search, team rules, Fact File', { timeout: 
     await page.close();
   });
 
+  await t.test('the Manager sees every student but can change nothing, and goes to the Dashboard', async () => {
+    const made = await admin.request.post('/api/users', { data: { username: 'mgr', name: 'Manager Test', email: '', manager: true, departments: [] } });
+    const manager = await browser.newContext({ baseURL: base });
+    assert.ok((await manager.request.post('/api/login', { data: { username: 'mgr', password: (await made.json()).temporaryPassword } })).ok());
+    assert.ok((await manager.request.post('/api/login/new-password', { data: { password: 'Manager-Strong-2026' } })).ok());
+    const landing = await open(manager, '/');
+    await landing.waitForURL('**/dashboard');
+    await landing.close();
+    const page = await open(manager, '/students');
+    await page.waitForSelector('#body tr:not(.pad-row)');
+    assert.ok(await page.isVisible('#viewOnly'), 'marked as view only');
+    assert.ok(!(await page.isVisible('#addRow')), 'no Add student');
+    assert.ok(!(await page.isVisible('#delRow')), 'no Delete rows');
+    assert.match(await page.textContent('#rowCount'), /^\d+ of \d+ rows/);
+    const cell = page.locator('#body tr:not(.pad-row)').first().locator('td').nth(1);
+    const before = await cell.textContent();
+    await cell.click();
+    await page.keyboard.type('should not stick');
+    await page.keyboard.press('Enter');
+    await wait(900);
+    assert.strictEqual(await cell.textContent(), before, 'the cell did not change');
+    assert.strictEqual((await manager.request.post('/api/data', { data: { sheets: [], activeSheetId: 'x', baseRevision: 0 } })).status(), 403, 'the server refuses a save');
+    assert.deepStrictEqual(page.errors, []);
+    await page.close();
+  });
+
   await t.test('Admin can download a backup of the students and the Fact File; a team member cannot', async () => {
     const students = await admin.request.get('/api/backup/students.json');
     assert.ok(students.ok());
