@@ -88,11 +88,12 @@ the Render disk and survives redeploys.
 - Visa tracker: `https://your-app.onrender.com/`
 - Commission tracker: `https://your-app.onrender.com/commission`
 
-Both are behind the same login. Anyone you give the URL and password to can view and edit
-everything, so only share the password with people who should have full access.
+Both are behind the same login. Everyone has their own account (made by Admin on the Users page) and
+sees only what their access allows, as described above, so there is no shared password to pass around.
 
 After 20 wrong passwords from the same address within 15 minutes, that address is locked out for
-the rest of the 15 minutes (even with the right password), to stop anyone guessing it.
+the rest of the 15 minutes (even with the right password), to stop anyone guessing it. A single account
+is locked after 8 wrong passwords in 15 minutes.
 
 ## Email (setup details for new people)
 
