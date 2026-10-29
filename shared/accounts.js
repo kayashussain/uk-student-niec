@@ -223,6 +223,19 @@ function parseAccess(body) {
   return { role: manager ? 'manager' : 'staff', departments };
 }
 
+// Only plain values are kept from what a page sent: text, numbers, true/false, and lists of those. A nested
+// object (or one built to break String()) is dropped, so the handlers below can read fields without guarding each.
+function plainBody(body) {
+  const plain = (v) => ['string', 'number', 'boolean'].includes(typeof v);
+  const out = {};
+  Object.keys(body || {}).forEach((k) => {
+    const v = body[k];
+    if (plain(v)) out[k] = v;
+    else if (Array.isArray(v)) out[k] = v.filter(plain).slice(0, 50);
+  });
+  return out;
+}
+
 const USERNAME_RULE = /^[a-z0-9._@-]{3,60}$/;
 const USERNAME_HELP = 'Usernames use 3 to 60 letters, numbers, dots, dashes or @. Capital letters are fine; they are not case sensitive.';
 const cleanUsername = (s) => String(s || '').trim().toLowerCase();
@@ -467,7 +480,7 @@ function createAccounts({
       && !urlPath.startsWith('/api/users') && !urlPath.startsWith('/api/sessions')
       && urlPath !== '/api/me') return false;
     if (crossSite(req)) { bad(res, 403, 'Blocked: this request came from another website.'); return true; }
-    const body = method === 'POST' ? await readJSONBody(req, 8192).catch(() => ({})) : {};
+    const body = plainBody(method === 'POST' ? await readJSONBody(req, 8192).catch(() => ({})) : {});
     const ip = clientIp(req);
 
     // -- the login page --

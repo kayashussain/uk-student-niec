@@ -405,6 +405,8 @@ const server = http.createServer(async (req, res) => {
       req.url = '/login.html';
       return serveShared(req, res);
     }
+    // For an uptime monitor: answers without a login and says nothing about the data.
+    if (urlPath === '/healthz' && req.method === 'GET') return sendJSON(res, 200, { ok: true });
     if (urlPath === '/favicon.png') return serveStatic(req, res);
     if (PUBLIC_SHARED.has(urlPath)) return serveShared(req, res); // the logo, for the login page
     // Logging in, the login steps, /api/me, and Admin's people/devices/settings.
@@ -449,10 +451,10 @@ const server = http.createServer(async (req, res) => {
       activity.record(req, req.user, 'Cleared activity', { changes: ['Deleted the saved activity; the record starts again from here'] });
       return sendJSON(res, 200, { ok: true });
     }
-    if (urlPath === '/api/facts' || /^\/api\/facts\/[a-f0-9]{12}(\/delete)?$/.test(urlPath)) return handleFacts(req, res, urlPath);
+    if (urlPath === '/api/facts' || /^\/api\/facts\/[a-f0-9]{12}(\/delete)?$/.test(urlPath)) return await handleFacts(req, res, urlPath);
     if (urlPath === '/api/events' && req.method === 'GET') return handleEvents(req, res);
     if (urlPath === '/api/presence') {
-      if (req.method === 'POST') return handlePresence(req, res);
+      if (req.method === 'POST') return await handlePresence(req, res);
       return send(res, 405, 'Method not allowed');
     }
     if (urlPath === '/api/data' || urlPath === '/api/revision') {
@@ -465,7 +467,7 @@ const server = http.createServer(async (req, res) => {
         const full = servedWorkbook(req.user);
         return send(res, 200, full.json, JSON_HEADERS, full.gz);
       }
-      if (req.method === 'POST' && urlPath === '/api/data') return handleSave(req, res);
+      if (req.method === 'POST' && urlPath === '/api/data') return await handleSave(req, res);
       return send(res, 405, 'Method not allowed');
     }
     if (SHARED_FILES[urlPath]) return serveShared(req, res);
@@ -475,6 +477,11 @@ const server = http.createServer(async (req, res) => {
     if (!res.headersSent) send(res, 500, 'Server error');
   }
 });
+
+// One bad request must never stop the app for everyone: a failure nobody caught is written to the log and the
+// server keeps running (a request that failed this way is answered with a server error by the handler above).
+process.on('unhandledRejection', (err) => console.error('[unhandled]', err));
+process.on('uncaughtException', (err) => console.error('[uncaught]', err));
 
 server.listen(PORT, () => {
   console.log(`UK Student NIEC running at http://localhost:${PORT}`);
