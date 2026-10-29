@@ -221,6 +221,26 @@ test('screens: log in, edit, delete, search, team rules, Fact File', { timeout: 
     await page.close();
   });
 
+  await t.test('Admin can download a backup of the students and the Fact File; a team member cannot', async () => {
+    const students = await admin.request.get('/api/backup/students.json');
+    assert.ok(students.ok());
+    assert.match(students.headers()['content-disposition'], /attachment; filename="uk-student-niec-students-\d{4}-\d{2}-\d{2}\.json"/);
+    assert.ok(Array.isArray((await students.json()).sheets), 'the whole workbook is in the file');
+    const facts = await (await admin.request.get('/api/backup/fact-file.json')).json();
+    assert.ok(facts.universities.length > 50);
+    assert.strictEqual((await team.request.get('/api/backup/students.json')).status(), 403);
+    assert.strictEqual((await team.request.get('/api/backup/info')).status(), 403);
+    const log = await (await admin.request.get('/api/activity?q=backup')).json();
+    assert.ok(log.events.some((e) => e.action === 'Downloaded backup'), 'each download is in the Activity record');
+    const page = await open(admin, '/users#backup');
+    await page.waitForSelector('#panel-backup:not([hidden])');
+    assert.ok(await page.isVisible('#dlStudents'));
+    await page.waitForSelector('#backupCounts:not(:empty)');
+    assert.match(await page.textContent('#backupCounts'), /\d+ students?/);
+    assert.deepStrictEqual(page.errors, []);
+    await page.close();
+  });
+
   await t.test('every page opens for Admin without script errors', async () => {
     for (const url of ['/dashboard', '/users', '/activity', '/fact-file']) {
       const page = await open(admin, url);

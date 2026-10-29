@@ -4,7 +4,7 @@ const path = require('path');
 const zlib = require('zlib');
 const {
   sendJSON, send, SECURITY_HEADERS, createActivityLog, createStaticServer, SHARED_FILES, PUBLIC_SHARED, readJSONBody,
-  writeFileAtomic, snapshotDaily,
+  writeFileAtomic, snapshotDaily, localDate,
 } = require('../shared/server-utils');
 const { createAccounts } = require('../shared/accounts');
 const { makePatch, applyPatch } = require('../shared/patch');
@@ -450,6 +450,28 @@ const server = http.createServer(async (req, res) => {
       activity.clear();
       activity.record(req, req.user, 'Cleared activity', { changes: ['Deleted the saved activity; the record starts again from here'] });
       return sendJSON(res, 200, { ok: true });
+    }
+    // Admin's backups: a copy of all students or of the Fact File to keep, and what the server has copied by itself.
+    if (urlPath === '/api/backup/info' && req.method === 'GET') {
+      if (!isAdmin(req.user)) return sendJSON(res, 403, { error: 'Only Admin can make backups.' });
+      let daily = [];
+      try {
+        daily = fs.readdirSync(path.join(DATA_DIR, 'backups')).filter((f) => /^data-\d{4}-\d{2}-\d{2}\.json$/.test(f)).sort().reverse().slice(0, 14)
+          .map((name) => ({ name, bytes: fs.statSync(path.join(DATA_DIR, 'backups', name)).size }));
+      } catch (e) { /* none yet */ }
+      return sendJSON(res, 200, { daily, students: current ? current.sheets.reduce((n, s) => n + s.rows.length, 0) : 0, universities: facts.list().length });
+    }
+    const backupMatch = urlPath.match(/^\/api\/backup\/(students|fact-file)\.json$/);
+    if (backupMatch && req.method === 'GET') {
+      if (!isAdmin(req.user)) return sendJSON(res, 403, { error: 'Only Admin can make backups.' });
+      const which = backupMatch[1];
+      if (which === 'students' && !current) return sendJSON(res, 500, { error: 'Could not read the data file' });
+      const data = which === 'students' ? current : { universities: facts.all() };
+      activity.record(req, req.user, 'Downloaded backup', { changes: [which === 'students' ? 'Downloaded a copy of all students' : 'Downloaded a copy of the Fact File'] });
+      return send(res, 200, JSON.stringify(data, null, 1), {
+        'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store',
+        'Content-Disposition': `attachment; filename="uk-student-niec-${which}-${localDate()}.json"`,
+      });
     }
     if (urlPath === '/api/facts' || /^\/api\/facts\/[a-f0-9]{12}(\/delete)?$/.test(urlPath)) return await handleFacts(req, res, urlPath);
     if (urlPath === '/api/events' && req.method === 'GET') return handleEvents(req, res);
