@@ -10,7 +10,7 @@ const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), 'niec-facts-'));
 test('the Fact File starts with a list of universities, each with the usual application steps', () => {
   const facts = createFacts(tmp());
   const list = facts.list();
-  assert.deepStrictEqual(list.map((u) => u.name), [...STARTER_UNIVERSITIES].sort());
+  assert.deepStrictEqual(list.map((u) => u.name), [...STARTER_UNIVERSITIES].sort((a, b) => a.localeCompare(b)));
   const uni = facts.get(list[0].id);
   assert.deepStrictEqual(uni.process.slice(0, 3).map((s) => s.title), ['Application submitted', 'Offer letter received', 'Pre-CAS interview']);
 });
@@ -18,9 +18,9 @@ test('the Fact File starts with a list of universities, each with the usual appl
 test('a university page keeps what Admin enters, per intake, and only the known fields as plain text', () => {
   const dir = tmp();
   const facts = createFacts(dir);
-  const id = facts.list()[0].id;
+  const id = facts.list().find((u) => u.name === 'Northumbria University').id;
   const saved = facts.update(id, {
-    name: 'Bangor University', city: 'Bangor', website: 'https://www.bangor.ac.uk', entryRequirements: '- 60% in Class 12\r\n- No more than 2 years gap',
+    name: 'Test University', city: 'Bangor', website: 'https://www.bangor.ac.uk', entryRequirements: '- 60% in Class 12\r\n- No more than 2 years gap',
     languageTests: 'IELTS 6.0 overall', courses: 'MBA\nMSc Computing',
     intakes: [
       { name: 'September 2026', requirements: 'Standard', deadline: '31 July' },
@@ -33,7 +33,7 @@ test('a university page keeps what Admin enters, per intake, and only the known 
   assert.ok(!saved.error);
   const u = facts.get(id);
   assert.strictEqual(u.id, id, 'the id cannot be changed');
-  assert.strictEqual(u.name, 'Bangor University');
+  assert.strictEqual(u.name, 'Test University');
   assert.strictEqual(u.entryRequirements, '- 60% in Class 12\n- No more than 2 years gap');
   assert.deepStrictEqual(u.intakes.map((i) => i.name), ['September 2026', 'January 2027']);
   assert.strictEqual(u.intakes[1].courses, 'MBA only');
@@ -46,12 +46,12 @@ test('a university page keeps what Admin enters, per intake, and only the known 
 
 test('adding and removing universities, with no duplicates', () => {
   const facts = createFacts(tmp());
-  const made = facts.create('  University of Essex ', 'Kayas');
-  assert.strictEqual(made.university.name, 'University of Essex');
+  const made = facts.create('  University of Testshire ', 'Kayas');
+  assert.strictEqual(made.university.name, 'University of Testshire');
   assert.ok(made.university.process.length > 0);
-  assert.ok(facts.create('university of essex', 'x').error);
+  assert.ok(facts.create('university of testshire', 'x').error);
   assert.ok(facts.create('   ', 'x').error);
-  assert.ok(facts.update(facts.list()[0].id, { name: 'University of Essex' }, 'x').error);
+  assert.ok(facts.update(facts.list()[0].id, { name: 'University of Testshire' }, 'x').error);
   assert.ok(!facts.remove(made.university.id).error);
   assert.strictEqual(facts.get(made.university.id), null);
   assert.ok(facts.remove('nope').error);
@@ -63,7 +63,7 @@ test('University of West London starts with its fact file details filled in', ()
   assert.deepStrictEqual(uwl.programs.map((p) => p.name), ['UG', 'PG', 'Enhanced Extended PG', 'PG Placement Year']);
   assert.strictEqual(uwl.programs[0].tuition, '£16,750');
   assert.strictEqual(uwl.process.length, 7);
-  assert.deepStrictEqual(uwl.intakes.map((i) => i.name), ['February 2027']);
+  assert.deepStrictEqual(uwl.intakes.map((i) => i.name), ['February 2027', 'January 2027']);
   assert.match(uwl.intakes[0].courses, /BSc Computer Science/);
   // the other starter universities are still just names
   const other = facts.get(facts.list().find((u) => u.name === 'Bangor University').id);
@@ -128,4 +128,38 @@ test('York St John University comes with its MRes February 2027 details, and is 
   assert.ok(!createFacts(dir).list().some((u) => u.name === 'York St John University'));
   // the university of York is a different place and is untouched
   assert.ok(!facts.list().some((u) => u.name === 'University of York'));
+});
+
+test('every university from the January 2027 sheet has its criteria table, courses and no empty names', () => {
+  const facts = createFacts(tmp());
+  const list = facts.list();
+  assert.ok(list.length >= 50);
+  assert.strictEqual(new Set(list.map((u) => u.name.toLowerCase())).size, list.length, 'no duplicate names');
+  const aston = facts.get(list.find((u) => u.name === 'Aston University').id);
+  assert.deepStrictEqual(aston.programs.map((p) => p.name), ['Postgraduate (Birmingham Campus)', 'Postgraduate (London Campus)']);
+  assert.strictEqual(aston.interview, 'No pre-CAS interview.');
+  assert.ok(!aston.process.some((s) => s.title === 'Pre-CAS interview'));
+  const regent = facts.get(list.find((u) => u.name === 'Regent College London').id);
+  assert.match(regent.intakes[0].notes, /Course application deadline: 30 October 2026/);
+  for (const u of list) {
+    const full = facts.get(u.id);
+    if (full.name === 'Bangor University' || full.name === 'University of York' || full.name === 'Northumbria University') continue;
+    assert.ok(full.programs.length > 0 && full.intakes[0].courses.includes('\n'), `${full.name} has its table and courses`);
+    assert.ok(full.programs.every((p) => p.name), `${full.name} programs are named`);
+  }
+});
+
+test('a list made before the sheet gets the new universities once, and fills in empty UEL and Roehampton pages but not edited ones', () => {
+  const dir = tmp();
+  const old = (id, name, extra = {}) => ({ id, name, city: '', intakes: [], process: [], updatedAt: '2026-01-01T00:00:00.000Z', updatedBy: '', ...extra });
+  fs.writeFileSync(path.join(dir, 'fact-file.json'), JSON.stringify({
+    starterAdded: [...STARTER_UNIVERSITIES.slice(0, 6)],
+    universities: [old('dddddddddddd', 'University of East London'), old('eeeeeeeeeeee', 'University of Roehampton', { city: 'London', updatedBy: 'Kayas' })],
+  }));
+  const facts = createFacts(dir);
+  assert.ok(facts.get('dddddddddddd').programs.length >= 4, 'the empty UEL page is filled in');
+  assert.strictEqual(facts.get('eeeeeeeeeeee').programs.length, 0, 'the edited Roehampton page is left alone');
+  assert.ok(facts.list().some((u) => u.name === 'University of Worcester'));
+  const count = facts.list().length;
+  assert.strictEqual(createFacts(dir).list().length, count, 'nothing is added twice');
 });
