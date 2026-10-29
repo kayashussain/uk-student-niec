@@ -7,9 +7,13 @@ const path = require('path');
 const crypto = require('crypto');
 const { writeFileAtomic } = require('../shared/server-utils');
 const { UWL_DETAILS } = require('./fact-seed-uwl');
+const { YSJU_DETAILS } = require('./fact-seed-ysju');
 
 // Universities the list starts with the first time it is opened. Only names: the details are for Admin to enter.
-const STARTER_UNIVERSITIES = ['University of West London', 'Bangor University', 'University of Roehampton', 'University of East London', 'University of York'];
+const STARTER_UNIVERSITIES = ['University of West London', 'Bangor University', 'University of Roehampton', 'University of East London', 'University of York', 'York St John University'];
+
+// Universities that start with their details filled in (matched by name, ignoring case).
+const STARTER_DETAILS = { 'university of west london': UWL_DETAILS, 'york st john university': YSJU_DETAILS };
 
 // The usual steps for a student, as a starting point for each new university to adjust.
 const STARTER_STEPS = [
@@ -63,13 +67,14 @@ function clean(input, old = {}) {
   };
 }
 
-const isUwl = (name) => String(name || '').trim().toLowerCase() === 'university of west london';
+const startKey = (name) => String(name || '').trim().toLowerCase();
+const hasStarter = (name) => Object.prototype.hasOwnProperty.call(STARTER_DETAILS, startKey(name));
 // A page nobody has filled in yet (only its name and the starter steps).
 const isBlank = (u) => !(u.overview || u.entryRequirements || u.languageTests || u.courses || u.interview || u.notes || u.location
   || (u.programs && u.programs.length) || (u.intakes && u.intakes.length)
   || (u.process || []).some((s, i) => s.detail || s.title !== STARTER_STEPS[i]) || (u.process || []).length > STARTER_STEPS.length);
 const starterFields = (u) => JSON.stringify([u.city, u.location, u.overview, u.website, u.entryRequirements, u.languageTests, u.courses, u.interview, u.notes, u.programs || [], u.intakes || [], u.process || []]);
-const withStarterDetails = (u) => (isUwl(u.name) ? { ...u, ...clean({ ...UWL_DETAILS, name: u.name, website: u.website || 'https://www.uwl.ac.uk' }, u) } : u);
+const withStarterDetails = (u) => (hasStarter(u.name) ? { ...u, ...clean({ ...STARTER_DETAILS[startKey(u.name)], name: u.name, website: u.website || STARTER_DETAILS[startKey(u.name)].website || '' }, u) } : u);
 
 function createFacts(dir, { now = () => new Date() } = {}) {
   const file = path.join(dir, 'fact-file.json');
@@ -92,14 +97,25 @@ function createFacts(dir, { now = () => new Date() } = {}) {
         universities: STARTER_UNIVERSITIES.map((name) => ({
           ...withStarterDetails(clean({ name, process: STARTER_STEPS.map((title) => ({ title })) })), id: newId(), updatedAt: now().toISOString(), updatedBy: '',
         })),
+        starterAdded: [...STARTER_UNIVERSITIES],
       };
       write(data);
     } else {
-      // UWL's page is refreshed from the starter details only while nobody has edited it (still empty, or still
-      // exactly as it was seeded). Once Admin saves it, their version is kept.
+      // A university with starter details is refreshed from them only while nobody has edited its page (still
+      // empty, or still exactly as it was seeded). Once Admin saves it, their version is kept.
       let changed = false;
+      // Universities added to the starter list after this file was created are added once (not again if Admin deletes them).
+      const seen = new Set(data.starterAdded || STARTER_UNIVERSITIES.filter((n) => n !== 'York St John University'));
+      STARTER_UNIVERSITIES.filter((n) => !seen.has(n)).forEach((name) => {
+        if (!data.universities.some((u) => startKey(u.name) === startKey(name))) {
+          data.universities.push({ ...withStarterDetails(clean({ name, process: STARTER_STEPS.map((title) => ({ title })) })), id: newId(), updatedAt: now().toISOString(), updatedBy: '' });
+        }
+        seen.add(name);
+        changed = true;
+      });
+      data.starterAdded = [...seen];
       data.universities = data.universities.map((u) => {
-        if (!isUwl(u.name) || !(isBlank(u) || !u.updatedBy)) return u;
+        if (!hasStarter(u.name) || !(isBlank(u) || !u.updatedBy)) return u;
         const fresh = { ...withStarterDetails(u), id: u.id, updatedAt: u.updatedAt, updatedBy: u.updatedBy || '' };
         if (starterFields(fresh) === starterFields(u)) return u;
         changed = true;
