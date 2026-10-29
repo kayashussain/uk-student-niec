@@ -8,12 +8,27 @@ const crypto = require('crypto');
 const { writeFileAtomic } = require('../shared/server-utils');
 const { UWL_DETAILS } = require('./fact-seed-uwl');
 const { YSJU_DETAILS } = require('./fact-seed-ysju');
+// The January 2027 intake sheet: each university's criteria, fees, courses and key dates (see fact-seed-sheet.json).
+const SHEET = require('./fact-seed-sheet.json');
 
-// Universities the list starts with the first time it is opened. Only names: the details are for Admin to enter.
-const STARTER_UNIVERSITIES = ['University of West London', 'Bangor University', 'University of Roehampton', 'University of East London', 'University of York', 'York St John University'];
+// The hand-written pages (from each university's own fact file or flyer). The January 2027 sheet adds an intake to them.
+const HAND_DETAILS = { 'university of west london': UWL_DETAILS, 'york st john university': YSJU_DETAILS };
 
-// Universities that start with their details filled in (matched by name, ignoring case).
-const STARTER_DETAILS = { 'university of west london': UWL_DETAILS, 'york st john university': YSJU_DETAILS };
+// Universities that start with their details filled in (matched by name, ignoring case). Where there is a hand-written
+// page the sheet only adds its January 2027 intake; every other university takes the whole page from the sheet.
+const STARTER_DETAILS = {};
+Object.keys(SHEET).forEach((key) => {
+  const entry = SHEET[key];
+  const hand = HAND_DETAILS[key];
+  STARTER_DETAILS[key] = hand ? { ...hand, intakes: [...hand.intakes, ...entry.intakes] } : entry;
+});
+Object.keys(HAND_DETAILS).forEach((key) => { if (!STARTER_DETAILS[key]) STARTER_DETAILS[key] = HAND_DETAILS[key]; });
+
+// Names the list starts with: the first six were there before the sheet, the rest are added once to an existing list.
+const ORIGINAL_STARTERS = ['University of West London', 'Bangor University', 'University of Roehampton', 'University of East London', 'University of York'];
+const FIRST_ADDITION = 'York St John University';
+const STARTER_UNIVERSITIES = [...ORIGINAL_STARTERS, FIRST_ADDITION];
+Object.keys(SHEET).forEach((key) => { const n = SHEET[key].name; if (!STARTER_UNIVERSITIES.some((x) => x.toLowerCase() === key)) STARTER_UNIVERSITIES.push(n); });
 
 // The usual steps for a student, as a starting point for each new university to adjust.
 const STARTER_STEPS = [
@@ -70,7 +85,7 @@ function clean(input, old = {}) {
 const startKey = (name) => String(name || '').trim().toLowerCase();
 const hasStarter = (name) => Object.prototype.hasOwnProperty.call(STARTER_DETAILS, startKey(name));
 // A page nobody has filled in yet (only its name and the starter steps).
-const isBlank = (u) => !(u.overview || u.entryRequirements || u.languageTests || u.courses || u.interview || u.notes || u.location
+const isBlank = (u) => !(u.city || u.website || u.overview || u.entryRequirements || u.languageTests || u.courses || u.interview || u.notes || u.location
   || (u.programs && u.programs.length) || (u.intakes && u.intakes.length)
   || (u.process || []).some((s, i) => s.detail || s.title !== STARTER_STEPS[i]) || (u.process || []).length > STARTER_STEPS.length);
 const starterFields = (u) => JSON.stringify([u.city, u.location, u.overview, u.website, u.entryRequirements, u.languageTests, u.courses, u.interview, u.notes, u.programs || [], u.intakes || [], u.process || []]);
@@ -105,7 +120,7 @@ function createFacts(dir, { now = () => new Date() } = {}) {
       // empty, or still exactly as it was seeded). Once Admin saves it, their version is kept.
       let changed = false;
       // Universities added to the starter list after this file was created are added once (not again if Admin deletes them).
-      const seen = new Set(data.starterAdded || STARTER_UNIVERSITIES.filter((n) => n !== 'York St John University'));
+      const seen = new Set(data.starterAdded || ORIGINAL_STARTERS);
       STARTER_UNIVERSITIES.filter((n) => !seen.has(n)).forEach((name) => {
         if (!data.universities.some((u) => startKey(u.name) === startKey(name))) {
           data.universities.push({ ...withStarterDetails(clean({ name, process: STARTER_STEPS.map((title) => ({ title })) })), id: newId(), updatedAt: now().toISOString(), updatedBy: '' });
