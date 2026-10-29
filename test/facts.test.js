@@ -106,3 +106,26 @@ test('UWL takes the February 2027 flyer courses by level, and an older seeded pa
   facts.update(id, { ...facts.get(id), intakes: [{ name: 'February 2027', courses: 'Only this' }] }, 'Kayas');
   assert.strictEqual(createFacts(dir).get(id).intakes[0].courses, 'Only this');
 });
+
+test('York St John University comes with its MRes February 2027 details, and is added to an existing list once', () => {
+  const fresh = createFacts(tmp());
+  const ysju = fresh.get(fresh.list().find((u) => u.name === 'York St John University').id);
+  assert.strictEqual(ysju.programs[0].tuition, '£11,800');
+  assert.match(ysju.languageTests, /## London Campus/);
+  assert.match(ysju.entryRequirements, /Research proposal: mandatory/);
+  assert.match(ysju.intakes[0].courses, /MRes Management Studies/);
+  assert.match(ysju.process[0].detail, /1 reference dated within the last 12 months/);
+
+  // a list made before York St John was added gets it once; deleting it afterwards sticks
+  const dir = tmp();
+  fs.writeFileSync(path.join(dir, 'fact-file.json'), JSON.stringify({ universities: [
+    { id: 'cccccccccccc', name: 'Bangor University', city: '', intakes: [], process: [], updatedAt: '2026-01-01T00:00:00.000Z', updatedBy: 'Kayas' },
+  ] }));
+  const facts = createFacts(dir);
+  const added = facts.list().find((u) => u.name === 'York St John University');
+  assert.ok(added);
+  assert.ok(!facts.remove(added.id).error);
+  assert.ok(!createFacts(dir).list().some((u) => u.name === 'York St John University'));
+  // the university of York is a different place and is untouched
+  assert.ok(!facts.list().some((u) => u.name === 'University of York'));
+});
