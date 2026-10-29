@@ -1051,6 +1051,8 @@
     setTimeout(() => document.addEventListener('mousedown', onDocMouseDown, true), 0);
   }
 
+  // The rows to show, after the search, filters and sort. Worked out when the table is drawn (renderBody) and
+  // kept in `viewIndices`: moving around with the keyboard must not re-sort thousands of students on every key.
   function getFilteredSortedIndices() {
     const q = searchEl.value.trim().toLowerCase();
     let indices = rows.map((_, i) => i);
@@ -1393,7 +1395,7 @@
 
   // Each range as a rectangle of on-screen positions (top/bottom index into `indices`, left/right
   // column index). A range whose end has been hidden by a search or filter is skipped.
-  function rangeRects(indices = getFilteredSortedIndices()) {
+  function rangeRects(indices = viewIndices) {
     const pos = new Map(indices.map((rowIdx, p) => [rowIdx, p]));
     return selRanges.map(({ anchor, focus }) => {
       const pa = pos.get(anchor.rowIdx);
@@ -1405,7 +1407,7 @@
     }).filter(Boolean);
   }
 
-  function selectedCells(indices = getFilteredSortedIndices()) {
+  function selectedCells(indices = viewIndices) {
     const seen = new Set();
     const cells = [];
     rangeRects(indices).forEach((r) => {
@@ -1423,7 +1425,7 @@
 
   // Redraws the selection highlight without rebuilding the table, and keeps `selectedRows` (used by
   // "Delete rows") in step with it: every row the selection touches counts as selected.
-  function applySelectionClasses(indices = getFilteredSortedIndices()) {
+  function applySelectionClasses(indices = viewIndices) {
     const rects = rangeRects(indices);
     const multi = rects.length > 1 || rects.some((r) => r.top !== r.bottom || r.left !== r.right);
     selectedRows = new Set();
@@ -1481,7 +1483,7 @@
   // Shift+Arrow: grows/shrinks the latest range from its far end; the cell cursor stays put.
   function extendSelection(dRow, dCol) {
     if (!activeCell) return;
-    const indices = getFilteredSortedIndices();
+    const indices = viewIndices;
     if (!selRanges.length) selRanges = [singleRange(activeCell.rowIdx, activeCell.col)];
     const last = selRanges[selRanges.length - 1];
     let p = indices.indexOf(last.focus.rowIdx);
@@ -1497,7 +1499,7 @@
   }
 
   function selectAllCells() {
-    const indices = getFilteredSortedIndices();
+    const indices = viewIndices;
     if (!indices.length || !columns.length) return;
     rowSelectMode = false;
     selRanges = [{
@@ -1555,7 +1557,7 @@
 
   // Moves through rows in the order they're shown (after search, filters and sorting).
   function moveActiveCell(dRow, dCol) {
-    const indices = getFilteredSortedIndices();
+    const indices = viewIndices;
     if (!indices.length || !columns.length) return;
     let pos = activeCell ? indices.indexOf(activeCell.rowIdx) : -1;
     let ci = activeCell ? columns.indexOf(activeCell.col) : -1;
@@ -1685,7 +1687,7 @@
 
   // Copy/paste as tab-separated text, so ranges move to and from Excel and Google Sheets.
   function selectionToTsv() {
-    const indices = getFilteredSortedIndices();
+    const indices = viewIndices;
     const rects = rangeRects(indices);
     if (!rects.length) return null;
     const r = rects[rects.length - 1]; // several separate ranges: copy the latest, as Sheets does
@@ -1703,7 +1705,7 @@
   // Pastes from the top-left of the selection. A single copied value fills the whole selection.
   function pasteIntoSelection(text) {
     const data = text.replace(/\r\n?/g, '\n').replace(/\n$/, '').split('\n').map((line) => line.split('\t'));
-    const indices = getFilteredSortedIndices();
+    const indices = viewIndices;
     const rects = rangeRects(indices);
     const r = rects[rects.length - 1];
     if (!r) return;
@@ -1759,7 +1761,8 @@
     }
     statusSummaryEl.hidden = false;
     // Only rows with a first or last name count as students, so blank added rows are ignored.
-    const indices = getFilteredSortedIndices().filter((i) => (
+    // viewIndices can be a moment behind (rows just deleted, before the table is redrawn): skip any that are gone.
+    const indices = viewIndices.filter((i) => rows[i] && (
       String(rows[i]['FIRST NAME'] || '').trim() || String(rows[i]['LAST NAME'] || '').trim()
     ));
     statusSummaryEl.innerHTML = '';

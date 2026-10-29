@@ -34,6 +34,43 @@
     });
   }
 
+  // ---- sharing ----
+  // A short plain-text summary (*bold* for WhatsApp) of the fees, requirements and intakes of this university.
+  const flat = (t) => String(t || '').split('\n').map((l) => l.replace(/^\s*(?:[-*\u2022]\s+|##\s+)/, '').trim()).filter(Boolean).join('; ');
+  function summaryText() {
+    const out = [`*${uni.name}*${has(uni.city) ? ` (${uni.city})` : ''}`];
+    if (has(uni.website)) out.push(uni.website);
+    (uni.programs || []).forEach((p) => {
+      out.push('', `*${p.name}${has(p.duration) ? ` (${p.duration})` : ''}*`);
+      [['Tuition fee', p.tuition], ['Scholarship', p.scholarship], ['Entry', p.academic], ['English', p.english], ['Deposit', p.deposit]]
+        .forEach(([label, value]) => { if (has(value)) out.push(`${label}: ${flat(value)}`); });
+    });
+    if (!(uni.programs || []).length) [['Entry requirements', uni.entryRequirements], ['Language test', uni.languageTests]].forEach(([label, value]) => { if (has(value)) out.push('', `*${label}*`, flat(value)); });
+    if (uni.intakes.length) {
+      out.push('', '*Intakes*');
+      uni.intakes.forEach((i) => out.push(`- ${i.name}${has(i.deadline) ? `, apply by ${i.deadline}` : ''}`));
+    }
+    out.push('', 'Nepal International Education Consultancy');
+    return out.join('\n');
+  }
+  async function copySummary() {
+    const text = summaryText();
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch (e) { // clipboard blocked: the old way still works
+      const box = document.createElement('textarea');
+      box.value = text;
+      box.style.cssText = 'position:fixed;opacity:0';
+      document.body.appendChild(box);
+      box.select();
+      let ok = false;
+      try { ok = document.execCommand('copy'); } catch (err) { /* below */ }
+      box.remove();
+      if (!ok) { NiecUI.toast('Could not copy. Your browser may be blocking clipboard access.', { type: 'error' }); return; }
+    }
+    NiecUI.toast('Summary copied. Paste it into WhatsApp or an email.', { type: 'success' });
+  }
+
   // ---- reading ----
   function section(doc, title, text, { force = false, allBullets = false } = {}) {
     if (!has(text) && !(force && isAdmin)) return;
@@ -163,6 +200,11 @@
 
     const bar = $('toolbar');
     bar.replaceChildren();
+    const copy = el('button', 'btn', 'Copy summary');
+    copy.type = 'button';
+    copy.title = 'Copies a short summary to paste into WhatsApp or an email';
+    copy.addEventListener('click', copySummary);
+    bar.append(copy);
     const print = el('button', 'btn', 'Print or save as PDF');
     print.type = 'button';
     print.addEventListener('click', () => window.print());

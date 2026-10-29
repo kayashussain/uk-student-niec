@@ -104,7 +104,8 @@ test('screens: log in, edit, delete, search, team rules, Fact File', { timeout: 
     await page.click('#delRow');
     await page.waitForSelector('dialog.ui-dialog[open]');
     await page.click('.ui-dialog .ui-ok');
-    await page.waitForFunction(() => document.querySelector('#status').textContent.includes('All changes saved'), null, { timeout: 10000 });
+    // The box closes a moment before the change is made, so wait for the server to have it (not just for "saved").
+    for (let i = 0; i < 50 && (await rowCount()) !== 11; i += 1) await wait(200);
     assert.strictEqual(await rowCount(), 11, 'confirmed: one student removed');
     assert.deepStrictEqual(page.errors, []);
     await page.close();
@@ -150,6 +151,10 @@ test('screens: log in, edit, delete, search, team rules, Fact File', { timeout: 
     assert.match(await page.textContent('#count'), /universities match/);
     await page.locator('.uni-card').first().click();
     await page.waitForSelector('.doc');
+    await admin.grantPermissions(['clipboard-read', 'clipboard-write']);
+    await page.click('button:has-text("Copy summary")');
+    await page.waitForSelector('.ui-toast.success');
+    assert.match(await page.evaluate(() => navigator.clipboard.readText()), /^\*.+\*[\s\S]*Nepal International Education Consultancy$/, 'a WhatsApp-ready summary was copied');
     await page.click('text=Edit');
     await page.waitForSelector('.editor');
     await page.fill('.editor textarea >> nth=0', 'A change that is not saved');
