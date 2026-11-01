@@ -270,9 +270,17 @@
   function applySnapshot(snap) {
     // Keep the cell cursor on the same student after Ctrl+Z (row positions can shift, ids don't).
     const keep = activeCell && rows[activeCell.rowIdx] ? { id: rows[activeCell.rowIdx]._id, col: activeCell.col } : null;
+    // Undo/redo changes data, not the view: keep the search, filters and sort as they were, as long as
+    // we stay on the same sheet (undoing a sheet add/delete moves to another sheet, which starts fresh).
+    const view = { sheetId: activeSheetId, filters: columnFilters, sortCol, sortDir, search: searchEl.value };
     sheets = snap.sheets.map((json) => JSON.parse(json));
     activeSheetId = snap.activeSheetId;
     syncActiveSheet();
+    if (view.sheetId === activeSheetId) {
+      columnFilters = Object.fromEntries(Object.entries(view.filters).filter(([col]) => columns.includes(col)));
+      if (columns.includes(view.sortCol)) { sortCol = view.sortCol; sortDir = view.sortDir; }
+      searchEl.value = view.search;
+    }
     if (keep) {
       const idx = rows.findIndex((r) => r._id === keep.id);
       if (idx !== -1 && columns.includes(keep.col)) activeCell = { rowIdx: idx, col: keep.col };
