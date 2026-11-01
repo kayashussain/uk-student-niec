@@ -29,11 +29,18 @@
 
   // known: every value already in the column (repeats count, the most used spelling wins).
   // Returns { value, reason: 'capitals' | 'spelling' } or null when the entry is fine as it is.
+  // Counts the values of a column once, so many entries (a big paste) can be checked against it quickly.
+  function tally(known) {
+    const counts = new Map();
+    (known || []).forEach((k) => { const c = clean(k); if (c) counts.set(c, (counts.get(c) || 0) + 1); });
+    return counts;
+  }
+
+  // known: a list of values, or the result of tally().
   function suggest(typed, known) {
     const value = clean(typed);
     if (!value) return null;
-    const counts = new Map();
-    (known || []).forEach((k) => { const c = clean(k); if (c) counts.set(c, (counts.get(c) || 0) + 1); });
+    const counts = known instanceof Map ? known : tally(known);
     if (counts.has(value)) return null; // exactly something that is already used
     const lower = value.toLowerCase();
     const best = (list) => list.sort((a, b) => counts.get(b) - counts.get(a) || a.localeCompare(b))[0];
@@ -56,7 +63,7 @@
     return null;
   }
 
-  const api = { suggest, titleCase };
+  const api = { suggest, tally, titleCase };
   if (typeof module === 'object' && module.exports) module.exports = api;
   else root.NiecSuggest = api;
 })(this);

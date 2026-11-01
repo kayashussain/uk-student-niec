@@ -23,3 +23,10 @@ test('a new but properly written value is left alone, a badly capitalised new on
   assert.deepStrictEqual(suggest('university of Brunel', []), { value: 'University of Brunel', reason: 'capitals' });
   assert.strictEqual(suggest('MSc Computing', []), null);
 });
+
+test('tally can be reused for many entries', () => {
+  const { suggest, tally } = require('../student-details/suggest');
+  const t = tally(known);
+  assert.strictEqual(suggest('coventry university', t).value, 'Coventry University');
+  assert.strictEqual(suggest('Coventry University', t), null);
+});

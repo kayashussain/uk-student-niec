@@ -1647,13 +1647,16 @@
     return sheets.flatMap((s) => s.rows.map((r) => r[col]));
   }
 
+  // Emails are always small letters, whoever typed them.
+  const normaliseTyped = (col, val) => (col === 'EMAIL' ? val.toLowerCase() : val);
+
   function commitEdit({ move = null, refocus = true } = {}) {
     if (!editing) return;
     const { td, rowIdx, col, original } = editing;
     editing = null;
     td.removeAttribute('contenteditable');
     td.classList.remove('editing');
-    const newVal = td.textContent.trim();
+    const newVal = normaliseTyped(col, td.textContent.trim());
     if (rows[rowIdx] && newVal !== original) {
       const row = rows[rowIdx];
       const save = (value) => confirmChange(() => {
@@ -1747,7 +1750,7 @@
         const raw = fill ? data[0][0] : data[dr][dc];
         const col = columns[r.left + dc];
         if (raw === undefined || CALC_COLS[col]) continue;
-        let val = raw.trim();
+        let val = normaliseTyped(col, raw.trim());
         if (DATE_COLS.has(col) && val) val = toISODate(val) || val;
         if (col === LANGUAGE_TEST_COL && val && !toISODate(val)) val = languageTestChoice(val);
         if (SELECT_COLS[col] && val) {
@@ -1761,8 +1764,19 @@
       }
     }
     if (!changes.length) return;
-    confirmChange(() => {
+
+    // Pasted names that look mistyped (wrong capitals or a small slip): offer the likely fix for all of them at once.
+    const known = new Map();
+    const fixes = [];
+    changes.forEach((ch) => {
+      if (!SUGGEST_COLS.has(ch.col) || !ch.val) return;
+      if (!known.has(ch.col)) known.set(ch.col, window.NiecSuggest.tally(knownValues(ch.col)));
+      const hint = window.NiecSuggest.suggest(ch.val, known.get(ch.col));
+      if (hint) fixes.push({ ch, hint });
+    });
+    const applyAll = (useFixes) => confirmChange(() => {
       pushUndo();
+      if (useFixes) fixes.forEach(({ ch, hint }) => { ch.val = hint.value; });
       changes.forEach(({ rowIdx, col, val }) => { rows[rowIdx][col] = val; });
       const bottom = Math.min(indices.length - 1, r.top + height - 1);
       const right = Math.min(columns.length - 1, r.left + width - 1);
@@ -1772,6 +1786,12 @@
       markDirty();
       renderBody();
     });
+    if (!fixes.length) { applyAll(false); return; }
+    const sample = fixes.slice(0, 3).map(({ ch, hint }) => `"${ch.val}" → "${hint.value}"`).join('\n');
+    const more = fixes.length > 3 ? `\n…and ${fixes.length - 3} more` : '';
+    NiecUI.confirm(`${fixes.length} pasted value${fixes.length === 1 ? '' : 's'} may have a capitalization or spelling error:\n\n${sample}${more}\n\nDo you want to change ${fixes.length === 1 ? 'it' : 'them'} to the suggestion?`,
+      { title: 'Is this what you meant?', confirmText: 'Yes, change them', cancelText: 'No, keep as pasted' })
+      .then(applyAll);
   }
 
   function flashStatus(text) {
