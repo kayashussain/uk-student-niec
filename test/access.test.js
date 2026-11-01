@@ -555,3 +555,15 @@ test('too many wrong passwords still lock the account when no authenticator is u
   for (let i = 0; i < 3; i += 1) await other.call('POST', '/api/login', { username: 'kayas', password: 'nope nope nope' });
   assert.strictEqual((await other.call('POST', '/api/login', { username: 'kayas', password: 'a long admin password' })).status, 429);
 });
+
+test('only Admin can change an existing student source', () => {
+  const src = 'STUDENT SOURCE';
+  const row = { _id: 'a', [src]: 'Chitwan Branch', [S]: 'Application Stage', _addedByTeam: 'application' };
+  assert.ok(Teams.canEdit({ role: 'admin', departments: [] }, src, row));
+  ['application', 'mock', 'followup', 'chitwan', 'pokhara'].forEach((d) => {
+    assert.ok(!Teams.canEdit({ role: 'staff', departments: [d] }, src, row), d);
+  });
+  assert.ok(!Teams.canEdit({ role: 'manager', departments: ['application'] }, src, row));
+  // a blank source on a student the department just added can still be set once
+  assert.ok(Teams.canEdit({ role: 'staff', departments: ['application'] }, src, { ...row, [src]: '' }));
+});

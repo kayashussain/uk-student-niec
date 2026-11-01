@@ -133,6 +133,11 @@
     const team = teamOf(x);
     if (!team) return true;
     if (team.readOnly) return false;
+    // Only Admin can change a student's source (Branch, Head Office, ...). Others may only set it once, while
+    // it is still blank, on a student their own department added.
+    if (col === SOURCE && row) {
+      return isBlank(row[SOURCE]) && team.departments.includes(row._addedByTeam) && NEW_STUDENT_COLUMNS.includes(col);
+    }
     // Their own branch's students: every column but the Student Source.
     if (row && ownedByBranch(team, row)) return col !== SOURCE;
     // A Manager who also works in a team changes only that team's students (the rest are view only).
