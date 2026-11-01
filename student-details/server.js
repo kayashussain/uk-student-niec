@@ -43,6 +43,7 @@ const serveStatic = createStaticServer(ROOT, {
   '/fact-university.js': 'text/javascript; charset=utf-8',
   '/fact-file.css': 'text/css; charset=utf-8',
   '/calc.js': 'text/javascript; charset=utf-8',
+  '/suggest.js': 'text/javascript; charset=utf-8',
   '/style.css': 'text/css; charset=utf-8',
   '/favicon.png': 'image/png',
   '/apple-touch-icon.png': 'image/png',

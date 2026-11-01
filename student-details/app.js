@@ -1640,6 +1640,13 @@
     sel.addRange(range);
   }
 
+  // Columns where people type the same names again and again, so a slip can be matched against the sheet.
+  const SUGGEST_COLS = new Set(['UNIVERSITY NAME', 'COURSE NAME', 'RECEIVING PARTNER', 'UNIVERSITY PARTNER']);
+  // Every value already in this column, across all the sheets this account can see.
+  function knownValues(col) {
+    return sheets.flatMap((s) => s.rows.map((r) => r[col]));
+  }
+
   function commitEdit({ move = null, refocus = true } = {}) {
     if (!editing) return;
     const { td, rowIdx, col, original } = editing;
@@ -1649,15 +1656,25 @@
     const newVal = td.textContent.trim();
     if (rows[rowIdx] && newVal !== original) {
       const row = rows[rowIdx];
-      confirmChange(() => {
+      const save = (value) => confirmChange(() => {
         if (!rows.includes(row)) return;
         pushUndo();
-        row[col] = newVal;
+        row[col] = value;
         markDirty();
         skipRefocus = true; // the caller decides where focus goes next
         renderRow(rows.indexOf(row), col); // recalculates the fee columns and redraws status badges
         skipRefocus = false;
       }, () => restoreCell(td, rows.indexOf(row), col, original));
+      const hint = SUGGEST_COLS.has(col) ? window.NiecSuggest.suggest(newVal, knownValues(col)) : null;
+      if (hint) {
+        // Looks mistyped: offer what was most likely meant. OK saves that, Keep mine saves what was typed.
+        const why = hint.reason === 'capitals' ? 'a capitalization error' : 'a spelling mistake';
+        NiecUI.confirm(`"${newVal}" looks like it has ${why}.\n\nDo you want to change it to "${hint.value}"?`,
+          { title: 'Is this what you meant?', confirmText: 'Yes, change it', cancelText: 'No, keep mine' })
+          .then((yes) => save(yes ? hint.value : newVal));
+      } else {
+        save(newVal);
+      }
     } else {
       restoreCell(td, rowIdx, col, original);
     }
