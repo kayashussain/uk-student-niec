@@ -168,12 +168,12 @@ function handleTeamSave(req, res, parsed) {
     return sendJSON(res, 409, { error: 'conflict', revision: current.revision });
   }
   if (!mineView || !Array.isArray(mineView.sheets)) return sendJSON(res, 400, { error: 'invalid payload' });
-  const { changes, adds, errors } = teamChanges(req.user, baseView, mineView, CALCULATED_COLUMNS);
+  const { changes, adds, deletes, errors } = teamChanges(req.user, baseView, mineView, CALCULATED_COLUMNS);
   if (errors.length) {
     activity.record(req, req.user, 'Change refused', { app: 'Student Details', changes: errors });
     return sendJSON(res, 403, { error: errors.join(' ') });
   }
-  if (!changes.length && !adds.length) return sendJSON(res, 200, { ok: true, revision: current.revision });
+  if (!changes.length && !adds.length && !deletes.length) return sendJSON(res, 200, { ok: true, revision: current.revision });
   // Every changed student must still be one this team sees now (someone may have moved them meanwhile).
   const rowsNow = new Map();
   current.sheets.forEach((s) => s.rows.forEach((r) => rowsNow.set(`${s.id}\u0000${r._id}`, r)));
@@ -185,6 +185,16 @@ function handleTeamSave(req, res, parsed) {
       return sendJSON(res, 409, { error: 'conflict', revision: current.revision });
     }
     updates.set(key, { ...(updates.get(key) || {}), [c.col]: c.value });
+  }
+  // A student deleted by the team must still exist and still be one this team sees.
+  const removed = new Set();
+  for (const d of deletes) {
+    const key = `${d.sheetId}\u0000${d.rowId}`;
+    const row = rowsNow.get(key);
+    if (!row || !viewFor(req.user, { sheets: [{ rows: [row] }] }).sheets[0].rows.length) {
+      return sendJSON(res, 409, { error: 'conflict', revision: current.revision });
+    }
+    removed.add(key);
   }
   // New students go at the end of their (visible) sheet, with an id no other student has.
   const allIds = new Set(current.sheets.flatMap((s) => s.rows.map((r) => r._id)));
@@ -204,7 +214,7 @@ function handleTeamSave(req, res, parsed) {
     sheets: current.sheets.map((s) => ({
       ...s,
       rows: [
-        ...s.rows.map((r) => {
+        ...s.rows.filter((r) => !removed.has(`${s.id}\u0000${r._id}`)).map((r) => {
           const u = updates.get(`${s.id}\u0000${r._id}`);
           return u ? { ...r, ...u } : r;
         }),
@@ -216,7 +226,7 @@ function handleTeamSave(req, res, parsed) {
   recordChanges(req, before, next);
   // A student moved to another stage leaves this team's view, and a new one is stored as the server
   // checked it: either way the page fetches its fresh view.
-  const reload = adds.length > 0 || changes.some((c) => c.col === 'APPLICATION STATUS');
+  const reload = adds.length > 0 || deletes.length > 0 || changes.some((c) => c.col === 'APPLICATION STATUS');
   return sendJSON(res, 200, { ok: true, revision: next.revision, reload });
 }
 

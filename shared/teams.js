@@ -69,6 +69,9 @@
     { dept: 'application', from: 'Application Stage', to: 'Mock Stage', warnIfBlank: APPLICATION_COLUMNS.filter((c) => c !== 'REMARKS') },
     // Moving on is refused until all of these are filled.
     { dept: 'mock', from: 'Mock Stage', to: 'Payment Stage', mustFill: MOCK_COLUMNS },
+    // Back to Application: a student who failed with one university and applies to another.
+    { dept: 'application', from: 'Mock Stage', to: 'Application Stage' },
+    { dept: 'mock', from: 'Mock Stage', to: 'Application Stage' },
   ];
 
   const isBlank = (v) => String(v ?? '').trim() === '';
@@ -145,6 +148,15 @@
     if (team.editable.has(col)) return true;
     if (!row && team.sources.size) return col !== SOURCE; // asked in general (not about one student)
     return Boolean(row && team.departments.includes(row._addedByTeam) && NEW_STUDENT_COLUMNS.includes(col));
+  }
+
+  // Application and Mock staff can delete a student they can see (a duplicate entry), one at a time.
+  // Admin can delete freely; a view-only Manager cannot.
+  const DELETE_DEPARTMENTS = ['application', 'mock'];
+  function canDelete(x) {
+    const team = teamOf(x);
+    if (!team) return true;
+    return !team.readOnly && team.departments.some((d) => DELETE_DEPARTMENTS.includes(d));
   }
 
   // The departments a person can add a new student for (Admin adds without a department).
@@ -230,9 +242,10 @@
   // { changes: [{ sheetId, rowId, col, value }], adds: [{ sheetId, row }], errors: [text] }
   function teamChanges(x, baseView, mineView, calculated = []) {
     const team = teamOf(x);
-    if (team && team.readOnly) return { changes: [], adds: [], errors: ['Your account can only view students.'] };
+    if (team && team.readOnly) return { changes: [], adds: [], deletes: [], errors: ['Your account can only view students.'] };
     const changes = [];
     const adds = [];
+    const deletes = [];
     const errors = [];
     const skip = new Set(calculated);
     const baseSheets = new Map(baseView.sheets.map((s) => [s.id, s]));
@@ -279,20 +292,25 @@
           changes.push({ sheetId: sheet.id, rowId: row._id, col, value: row[col] ?? '' });
         });
       });
-      base.rows.forEach((r) => { if (!mineRowIds.has(r._id)) errors.push('Only Admin can delete students.'); });
+      base.rows.forEach((r) => {
+        if (mineRowIds.has(r._id)) return;
+        if (canDelete(x)) deletes.push({ sheetId: sheet.id, rowId: r._id });
+        else errors.push('Only Admin can delete students.');
+      });
     });
+    if (deletes.length > 1) errors.push('You can delete one student at a time.');
     if (team && team.manager) {
       const current = newestSheet(baseView.sheets);
-      if (changes.some((c) => c.sheetId !== (current && current.id)) || adds.some((a) => a.sheetId !== (current && current.id))) {
+      if (changes.some((c) => c.sheetId !== (current && current.id)) || adds.some((a) => a.sheetId !== (current && current.id)) || deletes.some((d) => d.sheetId !== (current && current.id))) {
         errors.push('You can only change students in the current intake.');
       }
     }
-    return { changes, adds, errors: [...new Set(errors)] };
+    return { changes, adds, deletes, errors: [...new Set(errors)] };
   }
 
   return {
     DEPARTMENTS, MOVES, STATUS, NEW_STUDENT_COLUMNS,
-    who, isAdmin, isManager, isReadOnly, teamOf, viewKey, seesRow, canEdit, addableDepartments, newStudentStatus,
+    who, canDelete, isAdmin, isManager, isReadOnly, teamOf, viewKey, seesRow, canEdit, addableDepartments, newStudentStatus,
     statusChoices, checkMove, newestSheet, viewFor, teamChanges,
   };
 });

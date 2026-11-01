@@ -103,7 +103,7 @@ test('a team save is checked cell by cell', () => {
   mine.sheets[0].rows[0]['NOC NUMBER'] = 'N-1';
   mine.sheets[0].rows[0]['FEE AFTER SCHOLARSHIP'] = '1.00'; // recalculated by the page: ignored
   let out = teamChanges('application', base, mine, ['FEE AFTER SCHOLARSHIP']);
-  assert.deepStrictEqual(out, { changes: [{ sheetId: 'a', rowId: 'r1', col: 'NOC NUMBER', value: 'N-1' }], adds: [], errors: [] });
+  assert.deepStrictEqual(out, { changes: [{ sheetId: 'a', rowId: 'r1', col: 'NOC NUMBER', value: 'N-1' }], adds: [], deletes: [], errors: [] });
 
   const sneaky = clone(base);
   sneaky.sheets[0].rows[0]['GROSS FEE'] = '1';
@@ -113,7 +113,9 @@ test('a team save is checked cell by cell', () => {
 
   const deleted = clone(base);
   deleted.sheets[0].rows = [];
-  assert.ok(teamChanges('application', base, deleted).errors.some((e) => /delete students/.test(e)));
+  const del = teamChanges('application', base, deleted);
+  assert.ok(del.errors.some((e) => /one student at a time/.test(e)) || base.sheets[0].rows.length === 1, 'several at once is refused');
+  assert.ok(teamChanges('followup', base, deleted).errors.some((e) => /Only Admin can delete/.test(e)), 'Follow-up cannot delete');
   const added = clone(base);
   added.sheets[0].rows.push({ _id: 'n', 'FIRST NAME': 'x' }); // a new student: allowed (see below)
   assert.deepStrictEqual(teamChanges('application', base, added).adds.map((a) => a.row[S]), ['Application Stage']);

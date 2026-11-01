@@ -229,7 +229,7 @@ test('someone in two teams sees both teams students and may use both teams moves
   assert.deepStrictEqual(ids(Teams.viewFor(both, book())), ['1', '2']);
   assert.deepStrictEqual(ids(Teams.viewFor({ role: 'staff', departments: ['application', 'followup'] }, book())), ['1', '3']);
   assert.deepStrictEqual(Teams.statusChoices(both, 'Application Stage', []), ['Application Stage', 'Mock Stage']);
-  assert.deepStrictEqual(Teams.statusChoices(both, 'Mock Stage', []), ['Mock Stage', 'Payment Stage']);
+  assert.deepStrictEqual(Teams.statusChoices(both, 'Mock Stage', []), ['Mock Stage', 'Payment Stage', 'Application Stage']);
   assert.ok(Teams.canEdit(both, 'STUDENT ID') && Teams.canEdit(both, 'MOCK SCHEDULE 1') && !Teams.canEdit(both, 'GROSS FEE'));
   assert.strictEqual(Teams.viewKey({ role: 'staff', departments: ['mock', 'application'] }), Teams.viewKey(both));
 });
@@ -566,4 +566,24 @@ test('only Admin can change an existing student source', () => {
   assert.ok(!Teams.canEdit({ role: 'manager', departments: ['application'] }, src, row));
   // a blank source on a student the department just added can still be set once
   assert.ok(Teams.canEdit({ role: 'staff', departments: ['application'] }, src, { ...row, [src]: '' }));
+});
+
+test('application and mock staff delete one student at a time and can send Mock Stage back to Application Stage', () => {
+  const rowsOf = (n) => Array.from({ length: n }, (_, i) => ({ _id: 'r' + i, [S]: 'Mock Stage', 'FIRST NAME': 'S' + i }));
+  const wb = (n) => ({ revision: 1, sheets: [{ id: 'sheet-mjzzzzzzaaaaa', name: 'Jan', columns: ['FIRST NAME', S], rows: rowsOf(n) }] });
+  const both = { role: 'staff', departments: ['application', 'mock'] };
+  const base = Teams.viewFor(both, wb(3));
+  const one = JSON.parse(JSON.stringify(base)); one.sheets[0].rows.splice(0, 1);
+  const two = JSON.parse(JSON.stringify(base)); two.sheets[0].rows.splice(0, 2);
+  assert.deepStrictEqual(Teams.teamChanges(both, base, one).deletes, [{ sheetId: 'sheet-mjzzzzzzaaaaa', rowId: 'r0' }]);
+  assert.ok(Teams.teamChanges(both, base, two).errors.some((e) => /one student at a time/.test(e)));
+  ['application', 'mock'].forEach((d) => assert.ok(Teams.canDelete({ role: 'staff', departments: [d] }), d));
+  assert.ok(!Teams.canDelete({ role: 'staff', departments: ['followup'] }));
+  assert.ok(!Teams.canDelete({ role: 'manager', departments: [] }));
+  ['application', 'mock'].forEach((d) => {
+    const w = { role: 'staff', departments: [d] };
+    assert.ok(Teams.statusChoices(w, 'Mock Stage', ['x']).includes('Application Stage'), d);
+    assert.ok(Teams.checkMove(w, { [S]: 'Mock Stage' }, 'Application Stage').ok, d);
+  });
+  assert.ok(Teams.statusChoices(both, 'Mock Stage', ['x']).includes('Payment Stage'));
 });

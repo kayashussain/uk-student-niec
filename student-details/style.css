@@ -642,7 +642,7 @@ body:not([data-role]) #addRow,
 body[data-viewonly] #addRow,
 body[data-viewonly] #undoBtn,
 body[data-viewonly] #redoBtn,
-body:not([data-role="admin"]) #delRow,
+body:not([data-role="admin"]):not([data-candelete]) #delRow,
 body:not([data-role="admin"]) #addSheet,
 body:not([data-role="admin"]) .sheet-tab-menu-btn { display: none; }
 

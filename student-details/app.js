@@ -597,6 +597,7 @@
         document.body.dataset.role = me.role;
         $('#viewOnly').hidden = !Teams.isReadOnly(me);
         document.body.toggleAttribute('data-viewonly', Teams.isReadOnly(me));
+        document.body.toggleAttribute('data-candelete', Teams.canDelete(me));
       }
       if (!res.ok || !me) throw new Error('HTTP ' + res.status);
       json = await res.json();
@@ -2118,12 +2119,19 @@
       NiecUI.toast('Click a row number (S.N) first, or Ctrl+Click several, then press Delete rows.');
       return;
     }
+    // Teams delete one student at a time (an Admin can delete several).
+    if (isTeam() && selectedRows.size > 1) {
+      NiecUI.toast('You can delete one student at a time. Click just one row number (S.N).');
+      return;
+    }
     const indicesToDelete = Array.from(selectedRows).sort((a, b) => b - a); // descending, so splice indices stay valid
     const picked = indicesToDelete.map((i) => rows[i]);
     const label = indicesToDelete.length === 1
       ? describeRow(rows[indicesToDelete[0]])
       : `${indicesToDelete.length} students`;
-    const yes = await NiecUI.confirm(`${label} will be removed from this sheet. You can undo it with Ctrl+Z right after.`,
+    const yes = await NiecUI.confirm(isTeam()
+      ? `${label} will be removed from this sheet. Use this for a duplicate entry. It can't be undone from here.`
+      : `${label} will be removed from this sheet. You can undo it with Ctrl+Z right after.`,
       { title: indicesToDelete.length === 1 ? 'Delete this student?' : `Delete ${indicesToDelete.length} students?`, confirmText: 'Delete', danger: true });
     if (!yes) return;
     // The sheet may have changed while the question was open (someone else's save, a redraw): delete the
@@ -2136,7 +2144,15 @@
     selRanges = [];
     rowSelectMode = false;
     activeCell = null;
-    markDirty();
+    if (isTeam()) {
+      // Undoing would bring back a copy the server no longer has, so a team's undo history starts fresh.
+      undoStack = [];
+      redoStack = [];
+      updateUndoRedoButtons();
+      markDirtyAndSaveNow();
+    } else {
+      markDirty();
+    }
     renderBody();
   }
 
@@ -2207,7 +2223,7 @@
   }
 
   $('#addRow').addEventListener('click', addRow);
-  $('#delRow').addEventListener('click', () => { if (!isTeam()) deleteRow(); });
+  $('#delRow').addEventListener('click', () => { if (Teams.canDelete(me)) deleteRow(); });
   $('#exportExcel').addEventListener('click', exportExcel);
   $('#addSheet').addEventListener('click', () => { if (!isTeam()) addSheet(); });
   if (undoBtn) undoBtn.addEventListener('click', undo);
