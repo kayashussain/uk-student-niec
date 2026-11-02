@@ -41,7 +41,8 @@ never touches it. `/healthz` answers `{"ok":true}` for an uptime monitor.
 ## Claude Strategy Advisor connector (read-only)
 
 Lets a Claude Project read the live sheet (every tab, row and column), the Dashboard numbers and the Fact File. It cannot
-change anything. It is off until you set `NIEC_ADVISOR_TOKEN` (a random secret of 32 or more characters) in the host
+change any student or the Fact File. The only thing it can write is the Advisor's own notebook (`advisor-memory/` in the data
+folder: preferences, how NIEC works, lessons; notes with emails or phone numbers are refused, and every save keeps a backup). It is off until you set `NIEC_ADVISOR_TOKEN` (a random secret of 32 or more characters) in the host
 settings and restart. Then add this address in claude.ai (Settings, Connectors, Add custom connector):
 
 ```

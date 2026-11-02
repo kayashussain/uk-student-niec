@@ -1,13 +1,20 @@
-// A read-only door for the Claude "Strategy Advisor" project (an MCP connector).
+// A door for the Claude "Strategy Advisor" project (an MCP connector).
 //
-// It lets Claude read the live UK Student NIEC sheet (every tab, row and column), the Dashboard numbers
-// and the Fact File. It can NOT change anything: there is no tool that writes.
+// It lets Claude READ the live UK Student NIEC sheet (every tab, row and column), the Dashboard numbers
+// and the Fact File. It can NOT change any student or the Fact File.
+//
+// The one thing it can write is the Advisor's own notebook ("memory"): short notes about the owner's
+// preferences, how NIEC works, decisions and lessons, kept in advisor-memory/ next to the data. Notes that
+// look like personal data (emails, phone numbers) are refused, every save keeps a backup, and the notebook
+// has size limits. It never touches the student data.
 //
 // It is OFF unless NIEC_ADVISOR_TOKEN is set (a long random secret, at least 32 characters). The secret is
 // part of the address: https://<your-site>/advisor-mcp/<NIEC_ADVISOR_TOKEN>. Anyone with that address can
 // read all students, so keep it private; to cut access off, change or remove the variable and restart.
 
 const crypto = require('crypto');
+const fs = require('fs');
+const path = require('path');
 
 const PROTOCOL = '2025-03-26';
 const PREFIX = '/advisor-mcp/';
@@ -15,8 +22,38 @@ const MAX_BODY = 256 * 1024;
 const DEFAULT_LIMIT = 200;
 const MAX_LIMIT = 1000;
 const MAX_REPLY_CHARS = 400000;
+const MEMORY_MAX_SECTIONS = 40;
+const MEMORY_MAX_SECTION_CHARS = 8000;
+const MEMORY_MAX_TOTAL_CHARS = 60000;
+const MEMORY_KEEP_BACKUPS = 30;
+const EMAIL_RE = /[^\s@]{1,64}@[^\s@]{1,200}\.[^\s@]{2,}/;
+const LONG_NUMBER_RE = /(?:\+?\d[\s-]?){9,}/;
 
 const TOOLS = [
+  {
+    name: 'read_memory',
+    description: 'Reads the Advisor\'s notebook: what has been learned so far about the owner\'s preferences, how NIEC works (hierarchy, culture, decisions), targets, lessons and open questions. CALL THIS AT THE START OF EVERY CONVERSATION, before advising.',
+    inputSchema: { type: 'object', properties: {}, additionalProperties: false },
+  },
+  {
+    name: 'save_memory',
+    description: 'Saves a durable note in the Advisor\'s notebook under a section title (for example "Preferences", "Hierarchy and decisions", "Culture", "Targets", "Lessons", "Open questions", "Decisions log"). Use mode "append" to add a dated line to a section, or "replace" to rewrite the whole section. Save things that will make future advice better. NEVER save students\' names, phone numbers, emails or passport details; they are refused. Tell the owner briefly what you saved.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        section: { type: 'string', maxLength: 60 },
+        text: { type: 'string', maxLength: MEMORY_MAX_SECTION_CHARS },
+        mode: { type: 'string', enum: ['append', 'replace'] },
+      },
+      required: ['section', 'text'],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: 'forget_memory',
+    description: 'Removes a whole section from the Advisor\'s notebook (use only when the owner asks, or a section is wrong or out of date). A backup is kept.',
+    inputSchema: { type: 'object', properties: { section: { type: 'string' } }, required: ['section'], additionalProperties: false },
+  },
   {
     name: 'get_overview',
     description: 'Start here. Lists every tab (intake) of the UK Student NIEC sheet with its id, name, whether it is hidden (an earlier intake), the number of students and the exact column names, plus the sheet revision and the time of this read. Use the tab ids and column names in the other tools.',
@@ -103,12 +140,79 @@ function unknownColumns(sheets, cols) {
   return [...new Set(cols)].filter((c) => !known.has(c));
 }
 
-function createAdvisorMcp({ getWorkbook, getDashboard, facts, token, log = console.log }) {
+const cleanTitle = (t) => String(t || '').replace(/[\u0000-\u001f]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 60);
+const cleanText = (t) => String(t || '').replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, '').trim();
+
+function createMemory(dir, log) {
+  const file = dir && path.join(dir, 'memory.json');
+  const load = () => {
+    try {
+      const m = JSON.parse(fs.readFileSync(file, 'utf8'));
+      return m && typeof m.sections === 'object' && m.sections ? m : { sections: {} };
+    } catch (e) {
+      if (e.code !== 'ENOENT') log(`[advisor-mcp] could not read the notebook: ${e.message}`);
+      return { sections: {} };
+    }
+  };
+  const total = (m) => Object.values(m.sections).reduce((n, v) => n + v.text.length, 0);
+  function save(m) {
+    fs.mkdirSync(path.join(dir, 'backups'), { recursive: true });
+    if (fs.existsSync(file)) fs.copyFileSync(file, path.join(dir, 'backups', `memory-${new Date().toISOString().replace(/[:.]/g, '-')}.json`));
+    const old = fs.readdirSync(path.join(dir, 'backups')).filter((f) => /^memory-.*\.json$/.test(f)).sort();
+    old.slice(0, Math.max(0, old.length - MEMORY_KEEP_BACKUPS)).forEach((f) => { try { fs.unlinkSync(path.join(dir, 'backups', f)); } catch (e) { /* ignore */ } });
+    m.updatedAt = new Date().toISOString();
+    const tmp = `${file}.tmp`;
+    fs.writeFileSync(tmp, JSON.stringify(m, null, 1));
+    fs.renameSync(tmp, file);
+  }
+  return {
+    available: Boolean(dir),
+    read() {
+      const m = load();
+      return { updatedAt: m.updatedAt || null, sections: Object.entries(m.sections).map(([title, v]) => ({ title, updatedAt: v.updatedAt, text: v.text })) };
+    },
+    write(sectionRaw, textRaw, mode) {
+      const title = cleanTitle(sectionRaw);
+      const text = cleanText(textRaw);
+      if (!title) return { error: 'A section title is needed.' };
+      if (!text) return { error: 'The note is empty.' };
+      if (EMAIL_RE.test(text) || LONG_NUMBER_RE.test(text)) return { error: 'Refused: the note looks like it contains an email or a phone/ID number. The notebook must not hold personal data. Rewrite it without names, emails or numbers.' };
+      const m = load();
+      const had = m.sections[title];
+      const day = new Date().toISOString().slice(0, 10);
+      const next = mode === 'replace' || !had ? text : `${had.text}\n- ${day}: ${text}`;
+      if (next.length > MEMORY_MAX_SECTION_CHARS) return { error: `That section would be over ${MEMORY_MAX_SECTION_CHARS} characters. Summarise it with mode "replace".` };
+      if (!had && Object.keys(m.sections).length >= MEMORY_MAX_SECTIONS) return { error: `The notebook already has ${MEMORY_MAX_SECTIONS} sections. Merge some first.` };
+      m.sections[title] = { text: next, updatedAt: new Date().toISOString() };
+      if (total(m) > MEMORY_MAX_TOTAL_CHARS) return { error: 'The notebook is full. Summarise older sections with mode "replace" first.' };
+      save(m);
+      return { ok: true, section: title, characters: next.length };
+    },
+    forget(sectionRaw) {
+      const title = cleanTitle(sectionRaw);
+      const m = load();
+      if (!m.sections[title]) return { error: `No section "${title}". Sections: ${Object.keys(m.sections).join(', ') || '(none)'}.` };
+      delete m.sections[title];
+      save(m);
+      return { ok: true, removed: title };
+    },
+  };
+}
+
+function createAdvisorMcp({ getWorkbook, getDashboard, facts, token, memoryDir, log = console.log }) {
+  const memory = createMemory(memoryDir, log);
   const enabled = typeof token === 'string' && token.length >= 32;
   if (token && !enabled) log('[advisor-mcp] NIEC_ADVISOR_TOKEN is shorter than 32 characters, so the Advisor connector stays off.');
 
   function callTool(name, args) {
     const a = args && typeof args === 'object' ? args : {};
+    if (name === 'read_memory' || name === 'save_memory' || name === 'forget_memory') {
+      if (!memory.available) return errorResult('The notebook is not set up on this server.');
+      if (name === 'read_memory') return textResult({ pulledAt: new Date().toISOString(), ...memory.read() });
+      const done = name === 'save_memory' ? memory.write(a.section, a.text, a.mode === 'replace' ? 'replace' : 'append') : memory.forget(a.section);
+      return done.error ? errorResult(done.error) : textResult(done);
+    }
+
     const workbook = getWorkbook();
     if (!workbook) return errorResult('The sheet data could not be read right now.');
 
@@ -187,7 +291,7 @@ function createAdvisorMcp({ getWorkbook, getDashboard, facts, token, log = conso
           protocolVersion: PROTOCOL,
           capabilities: { tools: { listChanged: false } },
           serverInfo: { name: 'niec-advisor', version: '1.0.0' },
-          instructions: 'Read-only, live access to the UK Student NIEC sheet and Fact File. Call get_overview first. Prefer count_by for numbers and get_students with "columns" and "where" for rows. Always say when the data was pulled (pulledAt).',
+          instructions: 'Read-only, live access to the UK Student NIEC sheet and Fact File, plus a notebook you may write to. Call read_memory first in every conversation, then get_overview. Save durable preferences and lessons with save_memory (never personal data). Prefer count_by for numbers and get_students with "columns" and "where" for rows. Always say when the data was pulled (pulledAt).',
         });
       case 'ping':
         return ok({});

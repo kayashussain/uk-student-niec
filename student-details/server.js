@@ -70,6 +70,7 @@ const advisor = createAdvisorMcp({
   getWorkbook: () => current,
   getDashboard: (intake) => buildDashboard(current, { sheetId: intake, includeHidden: true }),
   facts,
+  memoryDir: path.join(DATA_DIR, 'advisor-memory'),
 });
 
 function recordChanges(req, before, after) {

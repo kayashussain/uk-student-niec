@@ -18,8 +18,8 @@ const workbook = {
     { id: 'sheet-b', name: 'Sep 2026', hidden: true, columns: ['APPLICATION STATUS', 'FIRST NAME'], rows: [{ _id: 'r4', 'APPLICATION STATUS': 'Visa', 'FIRST NAME': 'Dil' }] },
   ],
 };
-const make = (token = TOKEN) => createAdvisorMcp({
-  token, getWorkbook: () => workbook, getDashboard: (i) => ({ intake: i }),
+const make = (token = TOKEN, memoryDir = fs.mkdtempSync(path.join(os.tmpdir(), 'niec-mem-'))) => createAdvisorMcp({
+  token, memoryDir, getWorkbook: () => workbook, getDashboard: (i) => ({ intake: i }),
   facts: createFacts(fs.mkdtempSync(path.join(os.tmpdir(), 'niec-adv-'))), log: () => {},
 });
 const call = (m, name, args) => JSON.parse(m.rpc({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name, arguments: args } }).result.content[0].text);
@@ -30,10 +30,38 @@ test('off without a long enough secret', () => {
   assert.strictEqual(make().enabled, true);
 });
 
-test('lists only read tools', () => {
+test('lists the read tools and only the notebook tools write', () => {
   const tools = make().rpc({ jsonrpc: '2.0', id: 1, method: 'tools/list' }).result.tools.map((t) => t.name);
-  assert.deepStrictEqual([...tools].sort(), ['count_by', 'get_dashboard', 'get_fact_file', 'get_overview', 'get_students']);
-  assert.ok(tools.every((n) => /^(get_|count_)/.test(n)));
+  assert.deepStrictEqual([...tools].sort(), ['count_by', 'forget_memory', 'get_dashboard', 'get_fact_file', 'get_overview', 'get_students', 'read_memory', 'save_memory']);
+});
+
+test('the notebook saves, appends, replaces, forgets and keeps backups', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'niec-mem-'));
+  const m = make(TOKEN, dir);
+  const ask = (name, args) => m.rpc({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name, arguments: args } }).result;
+  assert.deepStrictEqual(JSON.parse(ask('read_memory', {}).content[0].text).sections, []);
+  assert.ok(JSON.parse(ask('save_memory', { section: 'Preferences', text: 'Wants short steps' }).content[0].text).ok);
+  ask('save_memory', { section: 'Preferences', text: 'Likes tables' });
+  let sections = JSON.parse(ask('read_memory', {}).content[0].text).sections;
+  assert.match(sections[0].text, /Wants short steps\n- \d{4}-\d{2}-\d{2}: Likes tables/);
+  ask('save_memory', { section: 'Preferences', text: 'Short steps and tables', mode: 'replace' });
+  assert.strictEqual(JSON.parse(ask('read_memory', {}).content[0].text).sections[0].text, 'Short steps and tables');
+  assert.ok(fs.readdirSync(path.join(dir, 'backups')).length >= 2);
+  assert.ok(ask('forget_memory', { section: 'Nope' }).isError);
+  ask('forget_memory', { section: 'Preferences' });
+  sections = JSON.parse(ask('read_memory', {}).content[0].text).sections;
+  assert.deepStrictEqual(sections, []);
+});
+
+test('the notebook refuses personal data and oversize notes, and never touches the sheet', () => {
+  const before = JSON.stringify(workbook);
+  const m = make();
+  const ask = (args) => m.rpc({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'save_memory', arguments: args } }).result;
+  assert.ok(ask({ section: 'X', text: 'Call Asha on asha@example.com' }).isError);
+  assert.ok(ask({ section: 'X', text: 'Her number is +977 9812345678' }).isError);
+  assert.ok(ask({ section: 'X', text: 'a'.repeat(9000) }).isError);
+  assert.ok(ask({ section: '', text: 'hello' }).isError);
+  assert.strictEqual(JSON.stringify(workbook), before);
 });
 
 test('overview shows every tab, hidden ones too, with columns', () => {
