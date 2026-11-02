@@ -11,6 +11,7 @@ const { makePatch, applyPatch } = require('../shared/patch');
 const { isAdmin, isManager, isReadOnly, teamOf, viewKey, viewFor, teamChanges } = require('../shared/teams');
 const { buildDashboard } = require('./dashboard-stats');
 const { createFacts } = require('./facts');
+const { createAdvisorMcp } = require('./advisor-mcp');
 const {
   blankWorkbook, ensureRowIds, migrateWorkbook, isValidWorkbook, mergeWorkbooks, createHistory, describeChanges,
 } = require('./workbook');
@@ -62,6 +63,15 @@ const activity = createActivityLog(DATA_DIR);
 const accounts = createAccounts({ dir: DATA_DIR, activity });
 const { requireAuth } = accounts;
 const facts = createFacts(DATA_DIR);
+
+// Read-only door for the Claude Strategy Advisor project. Off unless NIEC_ADVISOR_TOKEN is set (see advisor-mcp.js).
+const advisor = createAdvisorMcp({
+  token: process.env.NIEC_ADVISOR_TOKEN,
+  getWorkbook: () => current,
+  getDashboard: (intake) => buildDashboard(current, { sheetId: intake, includeHidden: true }),
+  facts,
+  memoryDir: path.join(DATA_DIR, 'advisor-memory'),
+});
 
 function recordChanges(req, before, after) {
   const changes = describeChanges(before, after);
@@ -420,6 +430,8 @@ const server = http.createServer(async (req, res) => {
     if (urlPath === '/healthz' && req.method === 'GET') return sendJSON(res, 200, { ok: true });
     if (urlPath === '/favicon.png') return serveStatic(req, res);
     if (PUBLIC_SHARED.has(urlPath)) return serveShared(req, res); // the logo, for the login page
+    // The Advisor connector checks its own secret in the address, so it answers before the login.
+    if (await advisor.handle(req, res, urlPath)) return;
     // Logging in, the login steps, /api/me, and Admin's people/devices/settings.
     if (await accounts.handleApi(req, res, urlPath)) return;
     if (!requireAuth(req, res)) return;

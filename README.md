@@ -38,6 +38,20 @@ team and Manager rules, Fact File, Incentive, accessibility) run where Playwrigh
 Both explain accounts, backups, email and what is stored where. Data lives outside the code folder, so an update
 never touches it. `/healthz` answers `{"ok":true}` for an uptime monitor.
 
+## Claude Strategy Advisor connector (read-only)
+
+Lets a Claude Project read the live sheet (every tab, row and column), the Dashboard numbers and the Fact File. It cannot
+change any student or the Fact File. The only thing it can write is the Advisor's own notebook (`advisor-memory/` in the data
+folder: preferences, how NIEC works, lessons; notes with emails or phone numbers are refused, and every save keeps a backup). It is off until you set `NIEC_ADVISOR_TOKEN` (a random secret of 32 or more characters) in the host
+settings and restart. Then add this address in claude.ai (Settings, Connectors, Add custom connector):
+
+```
+https://<your-site>/advisor-mcp/<NIEC_ADVISOR_TOKEN>
+```
+
+Anyone with that address can read all students, so keep it private. To cut access off, remove or change the variable and restart.
+Make a secret with `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`.
+
 ## Where things are
 
 - `student-details/app.js`: the sheet. `facts.js` and `fact-*.js`: the Fact File. `fact-seed-*.js(on)`: the starting
