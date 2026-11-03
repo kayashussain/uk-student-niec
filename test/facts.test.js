@@ -214,3 +214,17 @@ test('Bangor University comes with its January 2027 flyer details, and an edited
   fs.writeFileSync(path.join(dir2, 'fact-file.json'), JSON.stringify({ starterAdded: [...STARTER_UNIVERSITIES], universities: [old('aaaaaaaaaaaa', { city: 'Edited', updatedBy: 'Kayas' })] }));
   assert.strictEqual(createFacts(dir2).get('aaaaaaaaaaaa').city, 'Edited');
 });
+
+test('Salford January 2027 lists the closed courses as closed, and none of them as open', () => {
+  const facts = createFacts(tmp());
+  const salford = facts.get(facts.list().find((u) => u.name === 'University of Salford').id);
+  const [open, closed] = salford.intakes[0].courses.split('## Postgraduate (Closed) - Manchester\n');
+  [
+    'MSc Accounting and Finance', 'MSc Digital Marketing', 'MSc International Business', 'MSc Operations Management and Business Analytics',
+    'MSc Procurement, Logistics and Supply Chain Management', 'MSc Project Management', 'MSc Human Resource Management',
+    'MA Nursing (Adult)', 'BSc (Hons) Nursing Studies (Top-Up)',
+  ].forEach((c) => {
+    assert.ok(closed.split('\n').includes(c), `${c} is closed`);
+    assert.ok(!open.split('\n').includes(c), `${c} is not listed as open`);
+  });
+});
