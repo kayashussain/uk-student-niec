@@ -66,7 +66,7 @@ test('University of West London starts with its fact file details filled in', ()
   assert.deepStrictEqual(uwl.intakes.map((i) => i.name), ['February 2027', 'January 2027']);
   assert.match(uwl.intakes[0].courses, /BSc Computer Science/);
   // the other starter universities are still just names
-  const other = facts.get(facts.list().find((u) => u.name === 'Bangor University').id);
+  const other = facts.get(facts.list().find((u) => u.name === 'University of York').id);
   assert.strictEqual(other.programs.length, 0);
 });
 
@@ -143,7 +143,7 @@ test('every university from the January 2027 sheet has its criteria table, cours
   assert.match(regent.intakes[0].notes, /Course application deadline: 30 October 2026/);
   for (const u of list) {
     const full = facts.get(u.id);
-    if (full.name === 'Bangor University' || full.name === 'University of York' || full.name === 'Northumbria University') continue;
+    if (full.name === 'University of York' || full.name === 'Northumbria University') continue;
     assert.ok(full.programs.length > 0 && full.intakes[0].courses.includes('\n'), `${full.name} has its table and courses`);
     assert.ok(full.programs.every((p) => p.name), `${full.name} programs are named`);
   }
@@ -188,10 +188,29 @@ test('a damaged Fact File is set aside, not overwritten, and the list starts aga
 test('the Fact File is read from disk again when the file changes outside this process', () => {
   const dir = tmp();
   const facts = createFacts(dir);
-  const id = facts.list().find((u) => u.name === 'Bangor University').id; // no starter details: nothing refreshes it
+  const id = facts.list().find((u) => u.name === 'University of York').id; // no starter details: nothing refreshes it
   const file = path.join(dir, 'fact-file.json');
   const data = JSON.parse(fs.readFileSync(file, 'utf8'));
   data.universities.find((u) => u.id === id).city = 'Newcastle (changed by hand)';
   fs.writeFileSync(file, JSON.stringify(data, null, 2) + '\n'); // a different size: seen by the cache check
   assert.strictEqual(facts.get(id).city, 'Newcastle (changed by hand)');
+});
+
+test('Bangor University comes with its January 2027 flyer details, and an edited page is left alone', () => {
+  const fresh = createFacts(tmp());
+  const bangor = fresh.get(fresh.list().find((u) => u.name === 'Bangor University').id);
+  assert.strictEqual(bangor.intakes[0].name, 'January 2027');
+  assert.match(bangor.intakes[0].requirements, /Application deadline: 4 December 2026/);
+  assert.match(bangor.intakes[0].requirements, /CAS deadline: 23 December 2026/);
+  assert.match(bangor.intakes[0].courses, /Electronic Engineering MSc: £22,500/);
+  assert.match(bangor.intakes[0].courses, /Business Data Analytics MSc/);
+  assert.match(bangor.programs[0].scholarship, /Vice Chancellor Scholarship: £10,000/);
+  // an existing page that is still empty is filled in; one Admin has saved is not touched
+  const dir = tmp();
+  const old = (id, extra = {}) => ({ id, name: 'Bangor University', city: '', intakes: [], process: [], updatedAt: '2026-01-01T00:00:00.000Z', updatedBy: '', ...extra });
+  fs.writeFileSync(path.join(dir, 'fact-file.json'), JSON.stringify({ starterAdded: [...STARTER_UNIVERSITIES], universities: [old('ffffffffffff')] }));
+  assert.strictEqual(createFacts(dir).get('ffffffffffff').intakes[0].name, 'January 2027');
+  const dir2 = tmp();
+  fs.writeFileSync(path.join(dir2, 'fact-file.json'), JSON.stringify({ starterAdded: [...STARTER_UNIVERSITIES], universities: [old('aaaaaaaaaaaa', { city: 'Edited', updatedBy: 'Kayas' })] }));
+  assert.strictEqual(createFacts(dir2).get('aaaaaaaaaaaa').city, 'Edited');
 });
