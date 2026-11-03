@@ -197,3 +197,10 @@ test('history keeps recent revisions but never more than its memory budget', () 
   again.remember(wb(1)); again.remember(wb(1)); again.remember(wb(1));
   assert.ok(again.get(1));
 });
+
+test('describeChanges records a row colour change', () => {
+  const { describeChanges } = require('../student-details/workbook');
+  const before = workbook([{ _id: 'r1', 'FIRST NAME': 'Asha' }]);
+  const after = workbook([{ _id: 'r1', 'FIRST NAME': 'Asha', _color: 'green' }]);
+  assert.deepStrictEqual(describeChanges(before, after), ['Jan › Asha › Row colour: (blank) → "green"']);
+});

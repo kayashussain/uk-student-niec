@@ -30,6 +30,7 @@
   --amber-bg: #fef3e0; --amber-fg: #b45309;
   --gray-bg: #eef0f2; --gray-fg: #5b6472;
   --red-bg: #fce8e8; --red-fg: #b91c1c;
+  --rc-green: #bbf0c8; --rc-yellow: #fdf0a6; --rc-orange: #fdd5a8; --rc-red: #fbc4c4; --rc-blue: #c3dafc; --rc-purple: #ddd0fa; --rc-grey: #d6dae0;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -56,6 +57,7 @@
     --amber-bg: #3a2a10; --amber-fg: #f2b705;
     --gray-bg: #262b33; --gray-fg: #aab1bb;
     --red-bg: #3a1616; --red-fg: #f87171;
+    --rc-green: #1d5a35; --rc-yellow: #5c5415; --rc-orange: #5e3a14; --rc-red: #5e2222; --rc-blue: #223e72; --rc-purple: #41307a; --rc-grey: #3b414b;
   }
 }
 
@@ -303,6 +305,15 @@ tbody tr.alt td { background: var(--row-alt); }
 tbody tr.pad-row td { padding: 0; border: none; background: none; height: 0; }
 tbody tr.pad-row:hover td { background: none; }
 tbody tr:hover td { background: var(--row-hover); }
+/* Rows the team has coloured (Colour rows in the toolbar). Selecting a row still shows the selection on top. */
+tbody tr.rc-green td { background: var(--rc-green); }
+tbody tr.rc-yellow td { background: var(--rc-yellow); }
+tbody tr.rc-orange td { background: var(--rc-orange); }
+tbody tr.rc-red td { background: var(--rc-red); }
+tbody tr.rc-blue td { background: var(--rc-blue); }
+tbody tr.rc-purple td { background: var(--rc-purple); }
+tbody tr.rc-grey td { background: var(--rc-grey); }
+tbody tr[class*="rc-"]:hover td { filter: brightness(0.95); }
 tbody tr.selected td { background: var(--focus-dim); }
 
 /* Whole rows picked from their S.N: Delete clears these rows, so they look clearly different from the
@@ -639,6 +650,8 @@ body:not([data-role="admin"]):not([data-role="manager"]) #exportExcel { display:
 td.locked { color: var(--text-dim); cursor: default; }
 select.status-select:disabled { opacity: 0.85; cursor: default; }
 body:not([data-role]) #addRow,
+body:not([data-role]) #colorRow,
+body[data-viewonly] #colorRow,
 body[data-viewonly] #addRow,
 body[data-viewonly] #undoBtn,
 body[data-viewonly] #redoBtn,
@@ -683,3 +696,17 @@ body:not([data-role="admin"]) .sheet-tab-menu-btn { display: none; }
 /* The page's one main area: the toolbar, the sheet and the footer, stacked as they were before it was a landmark. */
 .app-main { display: flex; flex-direction: column; flex: 1; min-height: 0; }
 .table-wrap:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+
+/* Colour rows: the button's dot, and the swatches in its menu. */
+.swatch-dot { display: inline-block; width: 10px; height: 10px; margin-right: 6px; border-radius: 50%; vertical-align: -1px; background: conic-gradient(var(--rc-green) 0 25%, var(--rc-yellow) 0 50%, var(--rc-orange) 0 75%, var(--rc-blue) 0); border: 1px solid var(--border-strong); }
+.color-menu { min-width: 170px; }
+.color-menu .sheet-menu-item { display: flex; align-items: center; gap: 8px; }
+.color-menu .swatch { width: 16px; height: 16px; border-radius: 4px; border: 1px solid var(--border-strong); background: var(--panel); flex: none; }
+.color-menu .swatch.none { background: repeating-linear-gradient(45deg, transparent 0 3px, var(--border-strong) 3px 4px); }
+.color-menu .swatch.rc-green { background: var(--rc-green); }
+.color-menu .swatch.rc-yellow { background: var(--rc-yellow); }
+.color-menu .swatch.rc-orange { background: var(--rc-orange); }
+.color-menu .swatch.rc-red { background: var(--rc-red); }
+.color-menu .swatch.rc-blue { background: var(--rc-blue); }
+.color-menu .swatch.rc-purple { background: var(--rc-purple); }
+.color-menu .swatch.rc-grey { background: var(--rc-grey); }
