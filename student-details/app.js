@@ -27,7 +27,7 @@
   const SELECT_COLS = {
     'APPLICATION STATUS': [
       'Inquiry', 'Application Stage', 'Mock Stage', 'Payment Stage',
-      'CAS Stage', 'CAS Issued', 'Visa Lodge', 'Visa Issued', 'Visa Rejected', 'Defer', 'Withdrawn',
+      'CAS Stage', 'CAS Issued', 'Visa Lodge', 'Visa Issued', 'Visa Rejected', 'Defer', 'Hold', 'Withdrawn',
     ],
     'PRE CAS INTERVIEW': ['Passed', 'Fail'],
     'NOC': ['Submitted'],

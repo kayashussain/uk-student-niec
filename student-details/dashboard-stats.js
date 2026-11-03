@@ -17,7 +17,7 @@ const { newestSheet } = require('../shared/teams');
 
 // The stages in the order a student moves through them, then the ones that leave the pipeline.
 const PIPELINE = ['Inquiry', 'Application Stage', 'Mock Stage', 'Payment Stage', 'CAS Stage', 'CAS Issued', 'Visa Lodge', 'Visa Issued'];
-const LEFT = ['Visa Rejected', 'Defer', 'Withdrawn'];
+const LEFT = ['Visa Rejected', 'Defer', 'Hold', 'Withdrawn'];
 // Sheets whose Student Source column is hidden on the Student Details page (see HIDDEN_COLUMNS_BY_SHEET in app.js).
 const SOURCE_HIDDEN = (sheetName) => /\bsep/i.test(sheetName || '') && /2026/.test(sheetName || '');
 const TOP_N = 8;

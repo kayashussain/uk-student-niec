@@ -587,3 +587,11 @@ test('application and mock staff delete one student at a time and can send Mock 
   });
   assert.ok(Teams.statusChoices(both, 'Mock Stage', ['x']).includes('Payment Stage'));
 });
+
+test('a student on Hold is counted on the dashboard as not moving forward, not as an active application', () => {
+  const row = (extra) => ({ _id: Math.random().toString(36), 'FIRST NAME': 'A', 'LAST NAME': 'B', ...extra });
+  const wb = { sheets: [{ id: 'jan', name: 'Jan Intake 2027', rows: [row({ [S]: 'Hold' }), row({ [S]: 'Hold' }), row({ [S]: 'Application Stage' })] }], activeSheetId: 'jan' };
+  const d = buildDashboard(wb, { today: new Date('2026-10-28T00:00:00') });
+  assert.deepStrictEqual(d.left.find((s) => s.label === 'Hold'), { label: 'Hold', count: 2 });
+  assert.strictEqual(d.kpis.students, 3);
+});
