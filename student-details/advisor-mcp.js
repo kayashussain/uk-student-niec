@@ -155,9 +155,10 @@ function createMemory(dir, log) {
     }
   };
   const total = (m) => Object.values(m.sections).reduce((n, v) => n + v.text.length, 0);
+  let backupCount = 0; // saves in the same millisecond must not overwrite each other's backup
   function save(m) {
     fs.mkdirSync(path.join(dir, 'backups'), { recursive: true });
-    if (fs.existsSync(file)) fs.copyFileSync(file, path.join(dir, 'backups', `memory-${new Date().toISOString().replace(/[:.]/g, '-')}.json`));
+    if (fs.existsSync(file)) fs.copyFileSync(file, path.join(dir, 'backups', `memory-${new Date().toISOString().replace(/[:.]/g, '-')}-${String((backupCount += 1) % 1000).padStart(3, '0')}.json`));
     const old = fs.readdirSync(path.join(dir, 'backups')).filter((f) => /^memory-.*\.json$/.test(f)).sort();
     old.slice(0, Math.max(0, old.length - MEMORY_KEEP_BACKUPS)).forEach((f) => { try { fs.unlinkSync(path.join(dir, 'backups', f)); } catch (e) { /* ignore */ } });
     m.updatedAt = new Date().toISOString();
