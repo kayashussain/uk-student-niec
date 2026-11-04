@@ -646,15 +646,6 @@ const server = http.createServer(async (req, res) => {
       return sendJSON(res, 200, { ok: true });
     }
     // Admin's backups: a copy of all students or of the Fact File to keep, and what the server has copied by itself.
-    if (urlPath === '/api/backup/info' && req.method === 'GET') {
-      if (!isAdmin(req.user)) return sendJSON(res, 403, { error: 'Only Admin can make backups.' });
-      let daily = [];
-      try {
-        daily = fs.readdirSync(path.join(DATA_DIR, 'backups')).filter((f) => /^data-\d{4}-\d{2}-\d{2}\.json$/.test(f)).sort().reverse().slice(0, 14)
-          .map((name) => ({ name, bytes: fs.statSync(path.join(DATA_DIR, 'backups', name)).size }));
-      } catch (e) { /* none yet */ }
-      return sendJSON(res, 200, { daily, students: current ? current.sheets.reduce((n, s) => n + s.rows.length, 0) : 0, universities: facts.list().length });
-    }
     const backupMatch = urlPath.match(/^\/api\/backup\/(students|fact-file)\.json$/);
     if (backupMatch && req.method === 'GET') {
       if (!isAdmin(req.user)) return sendJSON(res, 403, { error: 'Only Admin can make backups.' });

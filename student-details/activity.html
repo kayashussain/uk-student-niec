@@ -75,6 +75,12 @@
           <button class="btn btn-primary" type="button" id="backupNow">Back up now</button>
           <span class="hint" id="restoreNow"></span>
         </div>
+        <h3 style="margin:16px 0 4px;font-size:14px">A copy for your own computer</h3>
+        <p>The backups above are kept on the server. Now and then, download a copy to keep somewhere safe of your own (before a big change, or in case the hosting account is ever lost). It holds personal details, so keep it private. Every download is written to the Activity record.</p>
+        <div class="form-actions">
+          <a class="btn" id="dlStudents" href="/api/backup/students.json" download>Download all students</a>
+          <a class="btn" id="dlFacts" href="/api/backup/fact-file.json" download>Download the Fact File</a>
+        </div>
         <div class="msg" id="restoreMsg" role="status"></div>
       </div>
       <div class="card">
