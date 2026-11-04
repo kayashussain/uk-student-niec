@@ -64,13 +64,30 @@ function clean(input, old = {}) {
   };
 }
 
-function createDirect(dir, { now = () => new Date() } = {}) {
+// The list starts with NIEC's direct universities (names and campuses only; Admin fills in the commission). They are
+// added once, when the list is first created: a university Admin later removes is not added back.
+const STARTERS = [
+  { name: 'Ulster University (QA)', campuses: [{ name: 'London', city: 'London' }, { name: 'Birmingham', city: 'Birmingham' }, { name: 'Manchester', city: 'Manchester' }], notes: 'Delivered with QA.' },
+  { name: 'Northumbria University London (QA)', campuses: [{ name: 'London Campus', city: 'London' }], notes: 'Delivered with QA.' },
+  { name: 'University of West London', campuses: [{ name: 'Ealing', city: 'London' }, { name: 'Brentford', city: 'London' }, { name: 'Reading', city: 'Reading' }] },
+  { name: 'Bangor University', campuses: [{ name: 'Main Campus', city: 'Bangor, Wales' }] },
+  { name: 'Middlesex University', campuses: [{ name: 'London Campus', city: 'London' }] },
+];
+
+function createDirect(dir, { now = () => new Date(), starters = STARTERS } = {}) {
   const file = path.join(dir, 'direct-universities.json');
   let cache = null; // { mtimeMs, size, data }
 
+  function start() {
+    const universities = starters.map((u) => ({ ...clean({ country: 'United Kingdom', ...u }), id: newId(), updatedAt: now().toISOString(), updatedBy: '' }));
+    const data = { universities };
+    if (universities.length) write(data);
+    return data;
+  }
+
   function load() {
     let stat;
-    try { stat = fs.statSync(file); } catch (e) { return { universities: [] }; } // first time: an empty list
+    try { stat = fs.statSync(file); } catch (e) { return start(); } // first time: the starting list
     if (cache && cache.mtimeMs === stat.mtimeMs && cache.size === stat.size) return cache.data;
     try {
       const data = JSON.parse(fs.readFileSync(file, 'utf8'));
@@ -130,4 +147,4 @@ function createDirect(dir, { now = () => new Date() } = {}) {
   };
 }
 
-module.exports = { createDirect, clean, STATUSES };
+module.exports = { createDirect, clean, STATUSES, STARTERS };

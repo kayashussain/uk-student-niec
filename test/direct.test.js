@@ -7,13 +7,13 @@ const fs = require('node:fs');
 const net = require('node:net');
 const path = require('node:path');
 const { spawn } = require('node:child_process');
-const { createDirect } = require('../student-details/direct');
+const { createDirect, STARTERS } = require('../student-details/direct');
 
 const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), 'niec-direct-'));
 
 test('the list starts empty and keeps campuses, slabs and contacts as plain text within the known fields', () => {
   const dir = tmp();
-  const direct = createDirect(dir);
+  const direct = createDirect(dir, { starters: [] });
   assert.deepStrictEqual(direct.list(), []);
   const { university } = direct.create('  Bangor University ', 'Kayas');
   assert.strictEqual(university.name, 'Bangor University');
@@ -31,13 +31,24 @@ test('the list starts empty and keeps campuses, slabs and contacts as plain text
   assert.deepStrictEqual(direct.list()[0].campuses, ['Main Campus, Bangor, Wales']);
   assert.strictEqual(direct.list()[0].slabCount, 1);
   // survives a restart
-  assert.strictEqual(createDirect(dir).get(university.id).contacts[0].name, 'Braj Jha');
+  assert.strictEqual(createDirect(dir, { starters: [] }).get(university.id).contacts[0].name, 'Braj Jha');
   // a made-up status is not kept
   assert.strictEqual(direct.update(university.id, { status: 'Whatever' }, 'Kayas').university.status, 'Active');
 });
 
+test('a new list starts with the five direct universities, once, and a removed one is not added back', () => {
+  const dir = tmp();
+  const direct = createDirect(dir);
+  assert.deepStrictEqual(direct.list().map((u) => u.name).sort(), STARTERS.map((u) => u.name).sort());
+  assert.deepStrictEqual(STARTERS.map((u) => u.name), ['Ulster University (QA)', 'Northumbria University London (QA)', 'University of West London', 'Bangor University', 'Middlesex University']);
+  assert.ok(direct.list().every((u) => u.campuses.length > 0 && u.slabCount === 0), 'campuses filled in, no commission invented');
+  const mid = direct.list().find((u) => u.name === 'Middlesex University');
+  direct.remove(mid.id);
+  assert.strictEqual(createDirect(dir).list().length, 4);
+});
+
 test('duplicate and empty names are refused, and a university can be removed', () => {
-  const direct = createDirect(tmp());
+  const direct = createDirect(tmp(), { starters: [] });
   const a = direct.create('Aston University', 'Kayas').university;
   assert.ok(direct.create('aston university', 'Kayas').error);
   assert.ok(direct.create('   ', 'Kayas').error);
@@ -87,12 +98,12 @@ test('only Admin can open the page or read and change the list on the real serve
 
   // Admin: the page and the full cycle.
   assert.strictEqual((await admin('GET', '/university-partners')).status, 200);
-  const made = await admin('POST', '/api/direct', { name: 'Bangor University' });
+  const made = await admin('POST', '/api/direct', { name: 'Aston University' });
   assert.strictEqual(made.status, 200);
   const id = made.json.id;
-  assert.strictEqual((await admin('POST', `/api/direct/${id}`, { name: 'Bangor University', slabs: [{ level: 'UG', students: '1 to 5', commission: '12%' }] })).status, 200);
+  assert.strictEqual((await admin('POST', `/api/direct/${id}`, { name: 'Aston University', slabs: [{ level: 'UG', students: '1 to 5', commission: '12%' }] })).status, 200);
   assert.strictEqual((await admin('GET', `/api/direct/${id}`)).json.slabs[0].commission, '12%');
-  assert.strictEqual((await admin('GET', '/api/direct')).json.length, 1);
+  assert.strictEqual((await admin('GET', '/api/direct')).json.length, 6, 'the five starters and the one just added');
 
   // Not logged in: nothing.
   const nobody = person();
@@ -121,5 +132,5 @@ test('only Admin can open the page or read and change the list on the real serve
 
   // Admin removes it.
   assert.strictEqual((await admin('POST', `/api/direct/${id}/delete`, {})).status, 200);
-  assert.strictEqual((await admin('GET', '/api/direct')).json.length, 0);
+  assert.strictEqual((await admin('GET', '/api/direct')).json.length, 5);
 });
