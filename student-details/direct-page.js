@@ -1,4 +1,4 @@
-// The Direct University List page (direct.html, Admin only). The server refuses every other account;
+// The University Partners page (direct.html, Admin only). The server refuses every other account;
 // everything shown is put on the page as text, never as HTML.
 (function () {
   const $ = (id) => document.getElementById(id);
@@ -28,7 +28,7 @@
       const body = $('rows');
       if (!list.length) {
         body.replaceChildren(Object.assign(el('tr'), {}));
-        const td = el('td', 'muted', 'No direct universities yet. Add the first one above.');
+        const td = el('td', 'muted', 'No university partners yet. Add the first one above.');
         td.colSpan = 6;
         body.firstChild.append(td);
         return;
@@ -158,7 +158,7 @@
 
     close.addEventListener('click', () => { ed.hidden = true; uni = null; });
     del.addEventListener('click', async () => {
-      if (!(await window.NiecUI.confirm(`Remove ${uni.name} from the Direct University List?`, { danger: true }))) return;
+      if (!(await window.NiecUI.confirm(`Remove ${uni.name} from University Partners?`, { danger: true }))) return;
       try { await api(`/api/direct/${uni.id}/delete`, {}); ed.hidden = true; uni = null; window.NiecUI.toast('Removed', { type: 'success' }); loadList(); } catch (e) { say('editMsg', e.message, true); }
     });
     form.addEventListener('submit', async (e) => {

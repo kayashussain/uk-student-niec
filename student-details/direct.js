@@ -1,4 +1,4 @@
-// The Direct University List: the universities NIEC has a direct agreement with, each with its campuses,
+// The University Partners list: the universities NIEC has a direct agreement with, each with its campuses,
 // commission slabs and the other details a consultancy needs (agreement, contacts, payment terms, conditions).
 // Admin only: the server refuses every other account (see server.js). Kept in direct-universities.json in the
 // data folder, written whole and atomically. Nothing here is shared with the Advisor connector or the Fact File.
