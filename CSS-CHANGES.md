@@ -9,6 +9,15 @@ Format: **date · file · what · from → to · why**
 
 ---
 
+## 2026-11-04 · `counselor-incentive/index.html` · Payments Received card: exchange rate note
+
+- **What:** a small explanation line at the top of the Payments Received card, saying whether the exchange rate is live (updated every hour) or fixed from the first payment.
+- **From:** nothing → **to:** 12px grey text (same grey as the other hints), 12px 16px padding, a thin line under it.
+- **Also (not CSS):** the "Previous Advance" row and box were removed from the Payment Summary, so that row's look is gone.
+- **In the code:** marked with `🔴 CSS CHANGED` at the end of the `<style>` block of `counselor-incentive/index.html`.
+
+---
+
 ## 2026-11-04 · `counselor-incentive/index.html` · Company Earnings: branch list shown as a table
 
 - **What:** the "Taken by the branches" list under Total Commission from Universities.

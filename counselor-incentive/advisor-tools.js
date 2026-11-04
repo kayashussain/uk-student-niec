@@ -62,17 +62,22 @@ const NAMES = new Set(INCENTIVE_TOOLS.map((t) => t.name));
 //   getRate()         the exchange rate last saved by the Incentive page, { rate, date }, or null
 function createIncentiveTools({ getSync, getCommissions, getAdvances, getRate }) {
   // Every visa-issued student with their saved incentives and the worked-out amounts.
-  function load(rate) {
-    const gbpToNpr = rate ? rate.rate : null;
+  function load(liveRate) {
     const sync = getSync();
     if (!sync || !sync.ok) return { error: (sync && sync.error) || 'The Student Details data could not be read right now.' };
     const commissions = getCommissions();
     if (!commissions) return { error: 'The Incentive data (commissions and advances) could not be found on this server, so incentives cannot be shown. The Incentive data folder must be reachable from the Student Details app (see COUNSELOR_DATA_DIR).' };
     const advances = getAdvances() || {};
     return {
-      intakes: (sync.intakes || []).map((name) => ({
+      intakes: (sync.intakes || []).map((name) => {
+        const locked = (advances[name] || {}).lockedRate;
+        const rate = locked && locked.rate > 0 ? locked : liveRate;
+        const gbpToNpr = rate ? rate.rate : null;
+        return {
         name,
         advance: advances[name] || {},
+        // From the first payment on, an intake keeps the rate it had then; before that it follows the live rate.
+        rateFixed: Boolean(advances[name] && advances[name].lockedRate && advances[name].lockedRate.rate > 0),
         students: (sync.byIntake[name] || []).map((s) => {
           const c = commissions[s.id] || {};
           const commissionGbp = calc.universityCommission(s.tuitionFee, c.uniCommissionRate);
@@ -111,7 +116,9 @@ function createIncentiveTools({ getSync, getCommissions, getAdvances, getRate })
             _record: c,
           };
         }),
-      })),
+        rate,
+        };
+      }),
     };
   }
 
@@ -125,7 +132,8 @@ function createIncentiveTools({ getSync, getCommissions, getAdvances, getRate })
 
   const publicRow = ({ _record, ...row }) => row;
 
-  function summaryOf(intake, rate) {
+  function summaryOf(intake) {
+    const rate = intake.rate;
     const gbpToNpr = rate ? rate.rate : null;
     const s = calc.computeSummary(intake.students.map((st) => st._record), intake.advance.previousAdvance,
       { gbpToNpr, commissionsGbp: intake.students.map((st) => st.uniCommissionAmountGbp), payments: intake.advance.payments });
@@ -149,7 +157,8 @@ function createIncentiveTools({ getSync, getCommissions, getAdvances, getRate })
         // The working, so the figures can be checked: total = rupee incentives + (pound and percent incentives, in pounds) x the rate.
         working: {
           incentivesEnteredInRupeesNpr: round2(s.nprEntered), incentivesInPoundsGbp: s.gbpEntered,
-          exchangeRateGbpToNpr: gbpToNpr, poundIncentivesConvertedNpr: round2(s.gbpConverted),
+          exchangeRateGbpToNpr: gbpToNpr, exchangeRateFetchedAt: rate ? rate.fetchedAt || null : null,
+          rateFixedFromFirstPayment: Boolean(intake.rateFixed), poundIncentivesConvertedNpr: round2(s.gbpConverted),
         },
         paymentHistory: (intake.advance.payments || []).map((p) => ({ date: p.date, amountNpr: p.amount, ...(p.note ? { note: p.note } : {}) })),
         ...(s.needsRate ? { warning: 'Some incentives are in pounds or percent and there is no exchange rate, so they are not counted.' } : {}),
@@ -209,7 +218,7 @@ function createIncentiveTools({ getSync, getCommissions, getAdvances, getRate })
       return textResult({
         pulledAt,
         exchangeRate: rate ? { gbpToNpr: rate.rate, date: rate.date || null, fetchedAt: rate.fetchedAt || null } : null,
-        intakes: picked.intakes.map((i) => summaryOf(i, rate)),
+        intakes: picked.intakes.map((i) => summaryOf(i)),
       });
     }
 

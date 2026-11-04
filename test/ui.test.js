@@ -433,10 +433,33 @@ test('screens: log in, edit, delete, search, team rules, Fact File', { timeout: 
     await again.click('.eg-ok');
     await again.waitForFunction(() => document.querySelector('#sumNetPayable').textContent.trim() === '10,000.00', null, { timeout: 8000 });
     assert.strictEqual(await again.locator('.pay-item').count(), 1);
+    // The rate is fixed from the first payment: the market moving to Rs 250 changes nothing for this intake.
+    for (let i = 0; i < 40; i++) {
+      const a = await (await admin.request.get(incentiveBase + '/api/advances')).json();
+      if (Object.values(a).some((e) => e.lockedRate && e.lockedRate.rate === 200 && e.payments && e.payments.length === 1)) break;
+      await new Promise((r) => setTimeout(r, 250));
+    }
+    const cacheFile = path.join(dir, 'incentive', 'exchange-rate-cache.json');
+    fs.writeFileSync(cacheFile, JSON.stringify({ date: localDate(), rate: 250, fetchedOn: localDate(), fetchedAt: new Date().toISOString() }));
+    await again.close();
+    assert.ok((await admin.request.post(incentiveBase + '/api/unlock', { data: { password: 'Test Gate Pass 1' } })).ok());
+    const fixedPage = await open(admin, incentiveBase + '/');
+    await fixedPage.waitForSelector('#rows tr');
+    await fixedPage.waitForFunction(() => /fixed since the first payment/.test(document.querySelector('#sumRateTime').textContent), null, { timeout: 8000 });
+    assert.match(await fixedPage.textContent('#sumRate'), /£1 = Rs 200/, 'still Rs 200, not the live Rs 250');
+    assert.strictEqual((await fixedPage.textContent('#sumTotalCommissions')).trim(), '157,000.00', 'the amount did not move');
+    assert.strictEqual(await fixedPage.locator('#advanceInput').count(), 0, 'there is no Previous Advance box any more');
+    // Remove the payment: the intake follows the live rate again.
+    await fixedPage.locator('.pay-item').first().locator('[data-remove]').click();
+    await fixedPage.waitForSelector('.eg-box');
+    await fixedPage.click('.eg-ok');
+    await fixedPage.waitForFunction(() => /£1 = Rs 250/.test(document.querySelector('#sumRate').textContent), null, { timeout: 8000 });
+    assert.strictEqual((await fixedPage.textContent('#sumTotalCommissions')).trim(), '195,000.00', '£760 at Rs 250 + Rs 5,000');
     // A payment that is not a positive amount is refused by the server.
     const bad = await admin.request.put(incentiveBase + '/api/advances/' + encodeURIComponent(Object.keys(savedPay)[0] || 'x'), { data: { payments: [{ date: 'nope', amount: -5 }] } });
     assert.strictEqual(bad.status(), 400);
-    await again.close();
+    await fixedPage.close();
+
   });
 
   await t.test('a team member colours a student row and Admin sees the colour', async () => {

@@ -26,6 +26,7 @@ const { syncFromWorkbook } = require('./incentive-data');
 
 const EXCHANGE_RATE_URL = 'https://api.exchangerate-api.com/v4/latest/GBP';
 const MAX_BODY_BYTES = 1024 * 1024;
+const RATE_MAX_AGE_MS = 60 * 60 * 1000; // the exchange rate is refreshed every hour
 // Names that would change the stored object's prototype instead of adding an entry.
 const RESERVED_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
 
@@ -179,9 +180,11 @@ function createIncentive({ dataDir, studentDataFile, getWorkbook, activity }) {
   // Fee Payment doesn't hit the external API on every edit.
   async function getGbpToNprRate() {
     // fetchedOn is our own calendar day; `date` is the rate's own date from the API, which can lag a day.
+    // The rate is fetched again once the saved one is an hour old.
     const today = localDate();
     const cache = readJSON(EXCHANGE_RATE_FILE, null);
-    if (cache && cache.fetchedOn === today && typeof cache.rate === 'number') {
+    const age = cache && cache.fetchedAt ? Date.now() - Date.parse(cache.fetchedAt) : Infinity;
+    if (cache && typeof cache.rate === 'number' && age >= 0 && age < RATE_MAX_AGE_MS) {
       return { ok: true, rate: cache.rate, date: cache.date, fetchedAt: cache.fetchedAt || null, cached: true };
     }
     try {
@@ -304,6 +307,22 @@ function createIncentive({ dataDir, studentDataFile, getWorkbook, activity }) {
           const list = cleanPayments(body.payments);
           if (!list) return sendJSON(res, 400, { error: 'payments must be a list of { date, amount }' });
           entry.payments = list;
+          // The pound rate is fixed from the first payment on, so the amounts owed stay the same for the accounts. It is
+          // the rate the page was showing when the payment was added (or the latest one if the page did not say), kept
+          // until every payment is removed again.
+          if (!list.length) {
+            delete entry.lockedRate;
+          } else if (!(existing.lockedRate && existing.lockedRate.rate > 0)) {
+            const sent = body.lockedRate;
+            let locked = null;
+            if (sent && Number.isFinite(Number(sent.rate)) && Number(sent.rate) > 0 && Number(sent.rate) < 100000) {
+              locked = { rate: Number(sent.rate), date: String(sent.date || '').slice(0, 10), fetchedAt: String(sent.fetchedAt || '').slice(0, 40) || null };
+            } else {
+              const live = await getGbpToNprRate();
+              if (live.ok) locked = { rate: live.rate, date: live.date, fetchedAt: live.fetchedAt || null };
+            }
+            if (locked) { locked.lockedAt = new Date().toISOString(); entry.lockedRate = locked; paymentLines.push(`${intake} › Exchange rate fixed at £1 = Rs ${locked.rate} from the first payment`); }
+          }
           const had = new Set((existing.payments || []).map((p) => p.id));
           const has = new Set(list.map((p) => p.id));
           list.filter((p) => !had.has(p.id)).forEach((p) => paymentLines.push(`${intake} › Payment received: ${p.date} · Rs ${p.amount}${p.note ? ' · ' + p.note : ''}`));

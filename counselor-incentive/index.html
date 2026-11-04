@@ -248,6 +248,8 @@
   .branch-table tr.sub td { background: var(--bg); font-weight: 600; }
   .branch-table tr.grand td { background: var(--accent-dim); font-weight: 700; border-bottom: none; }
   .branch-table .hint { font-size: 11px; font-weight: 400; color: var(--text-dim); margin-left: 6px; }
+  /* 🔴 CSS CHANGED (2026-11-04): small explanation line at the top of the Payments Received card about the exchange rate | from: none (did not exist) | to: 12px grey text, 12px 16px padding, a thin line under it, same grey as the other hints */
+  .pay-rate-note { margin: 0; padding: 12px 16px; font-size: 12px; line-height: 1.5; color: var(--text-dim); border-bottom: 1px solid var(--border); }
 </style>
 <link rel="stylesheet" href="theme.css" />
 </head>
@@ -330,21 +332,18 @@
       <span class="value" id="sumTds">0.00</span>
     </div>
     <div class="summary-row subtract">
-      <span class="label">Previous Advance <span class="info" title="An advance paid before the payments below. Type it in, or leave it at 0 and add each payment below instead.">ⓘ</span></span>
-      <input class="adv-input" id="advanceInput" type="number" step="0.01" value="0" aria-label="Previous advance already paid (NPR)">
-    </div>
-    <div class="summary-row subtract">
       <span class="label">Payments received<span class="hint" id="sumPaymentsCount"></span></span>
       <span class="value" id="sumPayments">0.00</span>
     </div>
     <div class="summary-row final">
-      <span class="label">Net Payable <span class="info" title="What is still to be paid to you: Net Incentives − TDS − Previous Advance − Payments received.">ⓘ</span></span>
+      <span class="label">Net Payable <span class="info" title="What is still to be paid to you: Net Incentives − TDS − Payments received.">ⓘ</span></span>
       <span class="value" id="sumNetPayable">0.00</span>
     </div>
   </div>
 
   <p class="summary-title earnings-title" id="paymentsTitle">Payments Received</p>
   <div class="summary-card">
+    <p class="pay-rate-note" id="payRateNote"></p>
     <form class="summary-row pay-form" id="payForm">
       <span class="label">Add a payment</span>
       <span class="pay-fields">
@@ -481,7 +480,6 @@ const gridStatusEl = $('#gridStatus');
 const gridHintEl = $('#gridHint');
 const liveDot = $('#liveDot');
 const liveText = $('#liveText');
-const advanceInput = $('#advanceInput');
 const undoBtn = $('#undoBtn');
 const redoBtn = $('#redoBtn');
 
@@ -636,7 +634,7 @@ const scheduleSaveAdvance = createSaver(pendingAdvances, (intake) => fetch(BASE 
 // Only fields that have been set are sent, so an unset salary keeps following the default.
 function advanceBody(entry) {
   const body = { previousAdvance: num(entry.previousAdvance) };
-  if (Array.isArray(entry.payments)) body.payments = entry.payments;
+  if (Array.isArray(entry.payments)) { body.payments = entry.payments; body.lockedRate = entry.lockedRate || null; }
   ['basicSalary', 'salaryMonths'].forEach((f) => { if (entry[f] !== undefined) body[f] = num(entry[f]); });
   return body;
 }
@@ -672,6 +670,10 @@ function applyAction(action, dir) {
   } else if (action.kind === 'advance') {
     if (!state.advances[action.intake]) state.advances[action.intake] = {};
     state.advances[action.intake][action.field || 'previousAdvance'] = action[dir];
+    if (action.field === 'payments') {
+      const lock = dir === 'from' ? action.lockFrom : action.lockTo;
+      if (lock) state.advances[action.intake].lockedRate = lock; else delete state.advances[action.intake].lockedRate;
+    }
     scheduleSaveAdvance(action.intake);
   }
   render();
@@ -696,21 +698,21 @@ function redo() {
 // Cached per calendar day on top of the server's own daily cache.
 // Returns { rate, date, stale } (stale: today's rate couldn't be fetched, so this is the last known one),
 // or null when there's no rate at all.
-let exchangeRateCache = null; // { result, day }
+let exchangeRateCache = null; // { result, at }
 function localDay() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 async function getExchangeRate() {
-  const today = localDay();
-  if (exchangeRateCache && exchangeRateCache.day === today) return exchangeRateCache.result;
+  // The server fetches a new rate every hour; asking it every few minutes keeps this page within that hour.
+  if (exchangeRateCache && Date.now() - exchangeRateCache.at < 5 * 60 * 1000) return exchangeRateCache.result;
   try {
     const res = await fetch(BASE + '/api/exchange-rate');
     const data = await res.json();
     if (data.ok) {
       const result = { rate: data.rate, date: data.date, fetchedAt: data.fetchedAt || null, stale: Boolean(data.stale) };
       // A stale rate isn't cached here, so the next edit tries for today's again.
-      if (!result.stale) exchangeRateCache = { result, day: today };
+      if (!result.stale) exchangeRateCache = { result, at: Date.now() };
       return result;
     }
   } catch (e) { /* fall through */ }
@@ -863,6 +865,7 @@ let renderPending = false;
 function render() {
   // Rebuilding the table would throw away a cell that's being typed in: wait until it's finished.
   if (editing) { renderPending = true; return; }
+  syncRate();
   renderTabs();
   $('#summaryTitle').textContent = state.activeIntake ? `Payment Summary (NPR) · ${state.activeIntake}` : 'Payment Summary (NPR)';
 
@@ -915,9 +918,6 @@ function render() {
   rowsEl.innerHTML = '';
   rowsEl.appendChild(frag);
 
-  if (document.activeElement !== advanceInput) {
-    advanceInput.value = num((state.advances[state.activeIntake] || {}).previousAdvance);
-  }
   recalc(intakeStudents());
   applySelectionClasses();
   if (hadGridFocus) focusActiveCell({ scroll: false });
@@ -952,30 +952,40 @@ function fetchedText(fx) {
 
 function renderPayments() {
   const list = paymentsOf().slice().sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
-  const total = IncentiveCalc.paymentsTotal(list);
+  const legacy = num((state.advances[state.activeIntake] || {}).previousAdvance); // an advance typed in before payments were recorded
+  const total = IncentiveCalc.paymentsTotal(list) + legacy;
   $('#paymentsTitle').textContent = state.activeIntake ? `Payments Received · ${state.activeIntake}` : 'Payments Received';
   const host = $('#payList');
-  if (!list.length) {
+  if (!list.length && !legacy) {
     host.innerHTML = '<div class="empty-state pay-empty">No payments yet. Add each payment you receive, with its date, and Net Payable updates by itself.</div>';
     return;
   }
-  host.innerHTML = list.map((p) => `<div class="summary-row pay-item" data-pay="${esc(p.id)}">
+  const legacyRow = legacy ? `<div class="summary-row pay-item"><span class="label">Earlier advance<span class="hint">entered before payments were recorded, no date</span></span>
+      <span class="pay-right"><span class="value">${esc(fmt(legacy))}</span><button type="button" class="pay-remove" data-remove-advance="1" aria-label="Remove the earlier advance of ${esc(fmt(legacy))}">Remove</button></span></div>` : '';
+  host.innerHTML = legacyRow + list.map((p) => `<div class="summary-row pay-item" data-pay="${esc(p.id)}">
       <span class="label">${esc(niceDate(p.date))}${p.note ? `<span class="hint">${esc(p.note)}</span>` : ''}</span>
       <span class="pay-right"><span class="value">${esc(fmt(p.amount))}</span><button type="button" class="pay-remove" data-remove="${esc(p.id)}" aria-label="Remove the payment of ${esc(fmt(p.amount))} on ${esc(niceDate(p.date))}">Remove</button></span>
     </div>`).join('')
-    + `<div class="summary-row final"><span class="label">Total received (${list.length} payment${list.length === 1 ? '' : 's'})</span><span class="value">${esc(fmt(total))}</span></div>`;
+    + `<div class="summary-row final"><span class="label">Total received (${list.length + (legacy ? 1 : 0)} payment${list.length + (legacy ? 1 : 0) === 1 ? '' : 's'})</span><span class="value">${esc(fmt(total))}</span></div>`;
 }
 
 function recalc(students) {
+  syncRate();
   const s = computeSummary(students);
   $('#sumRate').textContent = earningsRate ? `£1 = Rs ${earningsRate.rate}` : 'not available right now';
-  $('#sumRateTime').textContent = earningsRate ? ` fetched ${fetchedText(earningsRate)}${earningsRate.stale ? ' (last known rate)' : ''}` : '';
+  $('#sumRateTime').textContent = !earningsRate ? ''
+    : earningsRate.locked ? ` fixed since the first payment (rate fetched ${fetchedText(earningsRate)})`
+    : ` fetched ${fetchedText(earningsRate)}${earningsRate.stale ? ' (last known rate)' : ''}, updated every hour`;
+  $('#payRateNote').textContent = earningsRate && earningsRate.locked
+    ? `The exchange rate for this intake is fixed at £1 = Rs ${earningsRate.rate} (rate fetched ${fetchedText(earningsRate)}), from when the first payment was added on ${niceDate(String(earningsRate.lockedAt || '').slice(0, 10))}. It stays the same, whatever the market does, so the amounts you give stay the same. It follows the live rate again only if every payment is removed.`
+    : 'Until the first payment is added, the exchange rate follows the live rate and is updated every hour. When you add the first payment, the rate is fixed for this intake.';
   $('#sumNprEntered').textContent = fmt(s.nprEntered);
   $('#sumGbpEntered').textContent = '£' + fmt(s.gbpEntered);
   $('#sumGbpConverted').textContent = fmt(s.gbpConverted);
   $('#sumGbpWorking').textContent = s.gbpToNpr ? `£${fmt(s.gbpEntered)} × ${s.gbpToNpr}` : 'needs the exchange rate';
-  $('#sumPayments').textContent = fmt(s.paymentsReceived);
-  $('#sumPaymentsCount').textContent = paymentsOf().length ? `${paymentsOf().length} payment${paymentsOf().length === 1 ? '' : 's'}, listed below` : 'none yet';
+  const paidCount = paymentsOf().length + (s.previousAdvance ? 1 : 0);
+  $('#sumPayments').textContent = fmt(s.paymentsReceived + s.previousAdvance);
+  $('#sumPaymentsCount').textContent = paidCount ? `${paidCount} payment${paidCount === 1 ? '' : 's'}, listed below` : 'none yet';
   renderPayments();
   $('#sumTotalCommissions').textContent = fmt(s.totalCommissions);
   $('#sumLoanPayable').textContent = fmt(s.loanPayable);
@@ -991,7 +1001,17 @@ function recalc(students) {
 // against the counselor's salary for the intake period plus their incentives.
 const salaryInput = $('#salaryInput');
 const monthsInput = $('#monthsInput');
-let earningsRate = null; // { rate, date, stale } once fetched
+let liveRate = null; // the live rate { rate, date, fetchedAt, stale } once fetched, refreshed every hour
+let earningsRate = null; // the rate this intake uses: its fixed rate once a payment is recorded, otherwise the live one
+// From the first payment on, an intake keeps the rate it had then, so the amount owed does not move between payments.
+function lockedRateOf(intake) {
+  const l = (state.advances[intake] || {}).lockedRate;
+  return l && l.rate > 0 ? l : null;
+}
+function syncRate() {
+  const l = lockedRateOf(state.activeIntake);
+  earningsRate = l ? { rate: l.rate, date: l.date, fetchedAt: l.fetchedAt, lockedAt: l.lockedAt, locked: true } : liveRate;
+}
 
 function intakeSetting(field, fallback) {
   const v = (state.advances[state.activeIntake] || {})[field];
@@ -1033,7 +1053,7 @@ function renderEarnings(students, summary) {
   $('#earnHead').textContent = '£' + fmt(e.headOfficeGbp);
   $('#earnNpr').textContent = e.companyNpr === null ? '-' : fmt(e.companyNpr);
   $('#earnRateHint').textContent = earningsRate
-    ? `£1 = ${earningsRate.rate} NPR, fetched ${fetchedText(earningsRate)}${earningsRate.stale ? ' (last known)' : ''}`
+    ? `£1 = ${earningsRate.rate} NPR, ${earningsRate.locked ? 'fixed from the first payment, rate ' : ''}fetched ${fetchedText(earningsRate)}${earningsRate.stale ? ' (last known)' : ''}`
     : 'exchange rate not available right now';
   if (document.activeElement !== salaryInput) salaryInput.value = intakeSetting('basicSalary', DEFAULT_BASIC_SALARY);
   if (document.activeElement !== monthsInput) monthsInput.value = intakeSetting('salaryMonths', DEFAULT_SALARY_MONTHS);
@@ -1071,7 +1091,16 @@ function renderBranchList(students) {
   anchor.parentNode.insertBefore(wrap, anchor);
 }
 
-getExchangeRate().then((fx) => { earningsRate = fx; if (editing) recalc(intakeStudents()); else render(); }); // render: pound and percent cells say what they come to
+function refreshRate() {
+  getExchangeRate().then((fx) => {
+    const changed = !liveRate !== !fx || (fx && liveRate && (fx.rate !== liveRate.rate || fx.fetchedAt !== liveRate.fetchedAt));
+    liveRate = fx || liveRate;
+    if (!changed) return;
+    if (editing) recalc(intakeStudents()); else render();
+  });
+}
+refreshRate();
+setInterval(refreshRate, 5 * 60 * 1000); // render: pound and percent cells say what they come to
 
 function bindIntakeSetting(input, field, fallback) {
   input.addEventListener('change', () => {
@@ -1092,21 +1121,6 @@ function bindIntakeSetting(input, field, fallback) {
 bindIntakeSetting(salaryInput, 'basicSalary', DEFAULT_BASIC_SALARY);
 bindIntakeSetting(monthsInput, 'salaryMonths', DEFAULT_SALARY_MONTHS);
 
-advanceInput.addEventListener('change', () => {
-  const intake = state.activeIntake;
-  if (!intake) return;
-  const v = num(advanceInput.value);
-  const prev = num((state.advances[intake] || {}).previousAdvance);
-  if (v === prev) return;
-  confirmChange(() => {
-    pushUndo({ kind: 'advance', intake, from: prev, to: v });
-    if (!state.advances[intake]) state.advances[intake] = {};
-    state.advances[intake].previousAdvance = v;
-    recalc(intakeStudents());
-    scheduleSaveAdvance(intake);
-  }, () => { advanceInput.value = prev; });
-});
-
 // Part payments: each one is a date and an amount. The whole list is saved together with the intake's settings.
 const payForm = $('#payForm');
 const payDate = $('#payDate');
@@ -1116,10 +1130,14 @@ function changePayments(next) {
   const intake = state.activeIntake;
   if (!intake) return;
   const prev = paymentsOf();
+  const lockFrom = lockedRateOf(intake);
+  // The first payment fixes the rate shown now; removing every payment lets it follow the live rate again.
+  const lockTo = !next.length ? null : lockFrom || (liveRate ? { rate: liveRate.rate, date: liveRate.date, fetchedAt: liveRate.fetchedAt, lockedAt: new Date().toISOString() } : null);
   confirmChange(() => {
-    pushUndo({ kind: 'advance', intake, field: 'payments', from: prev, to: next });
+    pushUndo({ kind: 'advance', intake, field: 'payments', from: prev, to: next, lockFrom, lockTo });
     if (!state.advances[intake]) state.advances[intake] = {};
     state.advances[intake].payments = next;
+    if (lockTo) state.advances[intake].lockedRate = lockTo; else delete state.advances[intake].lockedRate;
     recalc(intakeStudents());
     scheduleSaveAdvance(intake);
   }, () => {});
@@ -1135,6 +1153,16 @@ payForm.addEventListener('submit', (ev) => {
 $('#payList').addEventListener('click', (ev) => {
   const btn = ev.target.closest('[data-remove]');
   if (btn) changePayments(paymentsOf().filter((p) => p.id !== btn.dataset.remove));
+  if (ev.target.closest('[data-remove-advance]')) {
+    const intake = state.activeIntake;
+    const prev = num((state.advances[intake] || {}).previousAdvance);
+    confirmChange(() => {
+      pushUndo({ kind: 'advance', intake, from: prev, to: 0 });
+      state.advances[intake].previousAdvance = 0;
+      recalc(intakeStudents());
+      scheduleSaveAdvance(intake);
+    }, () => {});
+  }
 });
 
 // ---------------------------------------------------------------------------------------------
@@ -1596,13 +1624,13 @@ undoBtn.addEventListener('click', undo);
 redoBtn.addEventListener('click', redo);
 searchInput.addEventListener('input', render);
 
-// Google Sheets-style undo/redo hotkeys. Skipped while typing in the search box, the Previous Advance
+// Google Sheets-style undo/redo hotkeys. Skipped while typing in the search box, the Basic Salary
 // field, or a cell, so ordinary text undo still works there.
 document.addEventListener('keydown', (e) => {
   if (!(e.ctrlKey || e.metaKey)) return;
   const key = e.key.toLowerCase();
   if (key !== 'z' && key !== 'y') return;
-  if (editing || document.activeElement === searchInput || document.activeElement === advanceInput) return;
+  if (editing || document.activeElement === searchInput) return;
   e.preventDefault();
   if (key === 'y' || (key === 'z' && e.shiftKey)) redo();
   else undo();
@@ -1688,7 +1716,7 @@ $('#exportExcelBtn').addEventListener('click', async () => {
   titleRow.getCell(2).alignment = { vertical: 'middle' };
 
   addExcelSummaryRow(ws, 'Exchange rate (£1 = Rs)', earningsRate ? earningsRate.rate : 'not available');
-  if (earningsRate) addExcelSummaryRow(ws, 'Exchange rate fetched', fetchedText(earningsRate));
+  if (earningsRate) addExcelSummaryRow(ws, earningsRate.locked ? 'Exchange rate fixed from the first payment, rate fetched' : 'Exchange rate fetched', fetchedText(earningsRate));
   addExcelSummaryRow(ws, 'Incentives entered in rupees (NPR)', s.nprEntered);
   addExcelSummaryRow(ws, 'Incentives entered in pounds (£)', s.gbpEntered);
   addExcelSummaryRow(ws, 'Pounds changed to rupees', s.gbpConverted);
@@ -1696,9 +1724,9 @@ $('#exportExcelBtn').addEventListener('click', async () => {
   addExcelSummaryRow(ws, 'Loan Incentive to Share (-)', s.loanPayable, { color: 'FFDC2626' });
   addExcelSummaryRow(ws, 'Net Incentives', s.netCommissions);
   addExcelSummaryRow(ws, 'TDS 15% (-)', s.tds, { color: 'FFDC2626' });
-  addExcelSummaryRow(ws, 'Previous Advance (-)', s.previousAdvance, { color: 'FFDC2626' });
+  if (s.previousAdvance) addExcelSummaryRow(ws, 'Earlier advance (-)', s.previousAdvance, { color: 'FFDC2626' });
   paymentsOf().slice().sort((a, b) => (a.date < b.date ? -1 : 1)).forEach((p) => addExcelSummaryRow(ws, `Payment received ${niceDate(p.date)}${p.note ? ' (' + p.note + ')' : ''} (-)`, p.amount, { color: 'FFDC2626' }));
-  addExcelSummaryRow(ws, 'Payments received (-)', s.paymentsReceived, { color: 'FFDC2626' });
+  addExcelSummaryRow(ws, 'Payments received (-)', s.paymentsReceived + s.previousAdvance, { color: 'FFDC2626' });
   addExcelSummaryRow(ws, 'Net Payable', s.netPayable, { bold: true, color: 'FF1D4ED8', fill: 'FFEAF1FF' });
 
   const e = computeEarnings(students, s);
