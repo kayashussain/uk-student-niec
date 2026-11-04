@@ -3,7 +3,7 @@
 // is dashboard, sheet, incentive, users, activity or direct), loads header.css and this file (after
 // session.js), and the header fills itself in.
 //
-// Navigation depends on the account: Admin sees every page, the Manager the Dashboard, Student Details and
+// Navigation depends on the account: Admin sees every page (Users and Activity in the account menu), the Manager the Dashboard, Student Details and
 // Fact File, and the teams Student Details and Fact File.
 (function () {
   const header = document.querySelector('.niec-header');
@@ -21,10 +21,14 @@
 
   const LINKS = {
     admin: [['dashboard', '/dashboard', 'Dashboard'], ['sheet', '/students', 'Student Details'],
-      ['direct', '/partner-universities', 'Partner Universities'],
-      ['users', '/users', 'Users'], ['activity', '/activity', 'Activity'], ['factfile', '/fact-file', 'Fact File']],
+      ['direct', '/partner-universities', 'Partner Universities'], ['factfile', '/fact-file', 'Fact File']],
     manager: [['dashboard', '/dashboard', 'Dashboard'], ['sheet', '/students', 'Student Details'], ['factfile', '/fact-file', 'Fact File']],
     staff: [['sheet', '/students', 'Student Details'], ['factfile', '/fact-file', 'Fact File']],
+  };
+
+  // Admin's own pages (people and the record of what happened) are in the account menu, not in the top menu.
+  const MENU_LINKS = {
+    admin: [['users', '/users', 'Users'], ['activity', '/activity', 'Activity']],
   };
 
   function render(me) {
@@ -52,9 +56,11 @@
       </button>
       <div class="niec-menu" role="menu" hidden>
         <div class="niec-menu-head"><b>${esc(me.name)}</b><span>${esc(me.username)} · ${esc(me.roleLabel)}</span></div>
+        ${(MENU_LINKS[me.role] || []).map(([id, href, label]) => `<a role="menuitem" href="${href}"${id === page ? ' aria-current="page"' : ''}>${label}</a>`).join('')}
         <button type="button" role="menuitem" class="niec-logout">Log out</button>
       </div>`;
     const btn = account.querySelector('.niec-account-btn');
+    if ((MENU_LINKS[me.role] || []).some(([id]) => id === page)) btn.setAttribute('aria-current', 'page'); // the page open is in this menu
     const menu = account.querySelector('.niec-menu');
     const setOpen = (open) => { menu.hidden = !open; btn.setAttribute('aria-expanded', String(open)); };
     btn.addEventListener('click', (e) => { e.stopPropagation(); setOpen(menu.hidden); });
