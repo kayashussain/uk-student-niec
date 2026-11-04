@@ -12,9 +12,9 @@
 }
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
-.page { max-width: 1040px; margin: 0 auto; padding: 20px 16px 56px; }
+.page { max-width: 1200px; margin: 0 auto; padding: 20px 16px 56px; }
 .page-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
-.page-head h1 { margin: 0; font-size: 22px; }
+.page-head h1 { margin: 0; font-size: 26px; font-weight: 700; letter-spacing: -.015em; line-height: 1.2; }
 .page-head p { margin: 2px 0 0; color: var(--dim); max-width: 64ch; }
 .toolbar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 

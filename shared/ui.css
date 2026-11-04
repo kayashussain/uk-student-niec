@@ -32,6 +32,13 @@
   }
 }
 
+/* Crisper text, a calmer text selection, and buttons that answer a press. */
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+::selection { background: rgba(0, 173, 239, .22); }
+button, a, select, input, summary { transition: background-color .15s ease, border-color .15s ease, color .15s ease, box-shadow .15s ease, opacity .15s ease; }
+button:not(:disabled):active { transform: translateY(1px); }
+button:disabled { cursor: not-allowed; }
+
 /* Keyboard focus: one clear ring everywhere (the mouse doesn't trigger it). */
 a:focus-visible, button:focus-visible, select:focus-visible, summary:focus-visible,
 input[type="checkbox"]:focus-visible, input[type="radio"]:focus-visible, [role="button"]:focus-visible {

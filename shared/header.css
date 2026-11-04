@@ -8,7 +8,8 @@
   --h-bg: #ffffff;
   --h-hover: #eef6fb;
   --h-border: #dfe3e8;
-  position: relative;
+  position: sticky;
+  top: 0;
   z-index: 30;
   display: flex;
   align-items: center;
