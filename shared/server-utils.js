@@ -102,7 +102,7 @@ function describeDevice(userAgent) {
 // Each entry has a category, used by the page's filter: logins (logged in or out), security (failed
 // logins, refused changes, wrong hidden-sheet password, hidden sheets opened), changes (cell and sheet
 // edits) and accounts (people added, access changed, passwords and settings).
-const SECURITY_ACTIONS = new Set(['Failed login', 'Change refused', 'Wrong hidden-sheet password', 'Opened hidden sheets', 'Test email failed']);
+const SECURITY_ACTIONS = new Set(['Failed login', 'Change refused', 'Wrong hidden-sheet password', 'Opened hidden sheets', 'Test email failed', 'Opened Incentive', 'Wrong Incentive password']);
 function activityCategory(action) {
   if (action === 'Logged in' || action === 'Logged out') return 'logins';
   if (SECURITY_ACTIONS.has(action)) return 'security';
@@ -366,6 +366,7 @@ module.exports = {
   send,
   sendJSON,
   safeEqual,
+  isSecureRequest,
   clientIp,
   createActivityLog,
   activityCategory,

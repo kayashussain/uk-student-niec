@@ -6,6 +6,7 @@
 <title>Incentive · UK Student NIEC</title>
 <link rel="icon" type="image/png" href="favicon.png" />
 <link rel="apple-touch-icon" href="apple-touch-icon.png" />
+<link rel="stylesheet" href="header.css" />
 <link rel="stylesheet" href="ui.css" />
 <style>
   :root {
@@ -217,6 +218,7 @@
 <link rel="stylesheet" href="theme.css" />
 </head>
 <body>
+<header class="niec-header" data-page="incentive"></header>
 <main class="wrap">
 
   <div class="top">
@@ -330,6 +332,7 @@
 
 <script src="calc.js"></script>
 <script src="session.js"></script>
+<script src="header.js"></script>
 <script src="ui.js"></script>
 <script>
 // Exporting everything is for Admin only. /api/me is answered by Student Details (at the site's root).
@@ -638,6 +641,7 @@ async function loadAll() {
   try {
     const [syncRes, commRes, advRes] = await Promise.all(['/api/sync', '/api/commissions', '/api/advances'].map((p) =>
       fetch(BASE + p, { cache: 'no-store' }).then((r) => {
+        if (r.status === 403) { location.reload(); throw new Error('locked'); } // the password window ended: show the password page
         if (!r.ok) throw new Error('HTTP ' + r.status);
         return r.json();
       })));

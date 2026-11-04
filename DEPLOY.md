@@ -1,18 +1,12 @@
 # Deploying UK Student NIEC online (Render)
 
-There are two supported ways to host this: **Render** (this file: one service, with the `gateway/`
-in front of both apps) or **cPanel / Nest Nepal** (see `CPANEL_DEPLOY.md`: two separate cPanel apps,
-no gateway). Pick one; you don't need both.
+There are two supported ways to host this: **Render** (this file) or **cPanel / Nest Nepal** (see
+`CPANEL_DEPLOY.md`). Pick one; you don't need both.
 
-This repo runs **two apps together** behind one gateway, both behind the same login page:
-
-- `student-details/`: the visa application tracker
-- `counselor-incentive/`: the commission tracker (reads `student-details`'s data directly off disk)
-- `gateway/`: the one public entry point: routes each request to whichever app owns it
-
-Locally, nothing changes. Keep running each app the way you always have
-(`node server.js` inside each folder, on ports 4173 and 5173). The gateway is only used
-by the hosted deployment.
+It is **one app**: `student-details/` (the visa application tracker, Fact File, Dashboard, Users and Activity), with the
+Incentive page from `counselor-incentive/` running inside it at `/incentive`. Incentive is Admin only and behind its own
+password: set the `INCENTIVE_PASSWORD` environment variable on the service. `npm start` (the `gateway/` file) just starts
+that one app on the port the host expects.
 
 ## One-time setup: Render
 
@@ -86,7 +80,7 @@ the Render disk and survives redeploys.
 ## Using it day to day
 
 - Visa tracker: `https://your-app.onrender.com/`
-- Commission tracker: `https://your-app.onrender.com/commission`
+- Incentive (Admin only, asks for the Incentive password): `https://your-app.onrender.com/incentive/`
 
 Both are behind the same login. Everyone has their own account (made by Admin on the Users page) and
 sees only what their access allows, as described above, so there is no shared password to pass around.

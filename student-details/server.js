@@ -3,7 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const zlib = require('zlib');
 const {
-  sendJSON, send, SECURITY_HEADERS, createActivityLog, createStaticServer, SHARED_FILES, PUBLIC_SHARED, readJSONBody,
+  sendJSON, send, isSecureRequest, SECURITY_HEADERS, createActivityLog, createStaticServer, SHARED_FILES, PUBLIC_SHARED, readJSONBody,
   writeFileAtomic, snapshotDaily, localDate,
 } = require('../shared/server-utils');
 const { createAccounts } = require('../shared/accounts');
@@ -15,6 +15,8 @@ const { createDirect, viewDirect, MAX_FILE_BYTES } = require('./direct');
 const { createBackups, ID: BACKUP_ID, HOUR: BACKUP_HOUR, KEEP_DAYS } = require('./backups');
 const { createAdvisorMcp } = require('./advisor-mcp');
 const { advancesByName } = require('../counselor-incentive/advances');
+const { createIncentive } = require('../counselor-incentive/incentive');
+const { createIncentiveLock } = require('../shared/incentive-lock');
 const {
   blankWorkbook, ensureRowIds, migrateWorkbook, isValidWorkbook, mergeWorkbooks, createHistory, describeChanges,
 } = require('./workbook');
@@ -101,6 +103,45 @@ const advisor = createAdvisorMcp({
   },
   memoryDir: path.join(DATA_DIR, 'advisor-memory'),
 });
+
+// The Incentive page lives here, at /incentive: Admin only, and behind its own password (INCENTIVE_PASSWORD) on top of the
+// login. The Claude connector above does not go through any of this: it reads the same data folder with its own secret address.
+const incentiveLock = createIncentiveLock();
+const incentive = createIncentive({ dataDir: INCENTIVE_DIR, studentDataFile: DATA_FILE, getWorkbook: () => current, activity });
+
+async function handleIncentive(req, res, urlPath) {
+  const query = req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : '';
+  const inner = urlPath.slice('/incentive'.length);
+  if (inner === '') return send(res, 301, '', { Location: '/incentive/' + query }); // so the page's relative links resolve here
+  req.url = inner + query;
+  if (SHARED_FILES[inner]) return serveShared(req, res); // header, styles, logo: nothing private in them
+  const api = inner.startsWith('/api/');
+  if (!isAdmin(req.user)) {
+    if (api) return sendJSON(res, 403, { error: 'Only Admin can see the Incentive page.' });
+    return send(res, 302, '', { Location: '/' });
+  }
+  if (inner === '/api/unlock' && req.method === 'POST') {
+    let body;
+    try {
+      body = await readJSONBody(req, 2048);
+    } catch (e) {
+      return sendJSON(res, e.statusCode || 400, { error: e.message });
+    }
+    const result = incentiveLock.unlock(req, res, body && body.password, { secure: isSecureRequest(req) });
+    if (result.ok) {
+      activity.record(req, req.user, 'Opened Incentive', { changes: ['Entered the Incentive password'] });
+      return sendJSON(res, 200, { ok: true });
+    }
+    if (result.wrong) activity.record(req, req.user, 'Wrong Incentive password', { changes: ['Typed a wrong Incentive password'] });
+    return sendJSON(res, result.status, { error: result.error });
+  }
+  if (!incentiveLock.isUnlocked(req)) {
+    if (api) return sendJSON(res, 403, { error: 'Enter the Incentive password first.', locked: true });
+    if (inner === '/' || inner === '/index.html') return incentive.serveLocked(req, res);
+    return send(res, 302, '', { Location: '/incentive/' });
+  }
+  return incentive.handle(req, res, inner);
+}
 
 function recordChanges(req, before, after) {
   const changes = describeChanges(before, after);
@@ -625,6 +666,9 @@ const server = http.createServer(async (req, res) => {
     // Logging in, the login steps, /api/me, and Admin's people/devices/settings.
     if (await accounts.handleApi(req, res, urlPath)) return;
     if (!requireAuth(req, res)) return;
+
+    if (urlPath === '/commission' || urlPath.startsWith('/commission/')) return send(res, 301, '', { Location: '/incentive/' }); // the old address of Incentive
+    if (urlPath === '/incentive' || urlPath.startsWith('/incentive/')) return await handleIncentive(req, res, urlPath);
 
     // The pages. The Manager lands on the dashboard; Admin-only pages send anyone else back home.
     const home = req.user.role === 'manager' ? '/dashboard' : '/students';

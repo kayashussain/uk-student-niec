@@ -7,14 +7,14 @@ One login for everyone; each person sees only what their account allows.
 |---|---|
 | **Student Details** (`student-details/`) | The sheet of students by intake, with live co-editing, the Dashboard, the Users and Activity pages (Admin), and the **Fact File** (one page per university: fees, entry requirements, English tests, courses, intakes and the application process, searchable by course). |
 | **Partner Universities** (`student-details/direct.js`, `direct-page.js`) | Admin only: the universities NIEC works with directly, with campus locations, commission slabs, payment terms, agreement dates and contacts. Agreement files (PDF, Word, image, up to 10 MB) can be uploaded per university. Stored in `direct-universities.json` and `direct-files/` in the data folder (never in git, never served as pages); not in the Advisor connector, and the Backup tab does not include them. |
-| **Incentive** (`counselor-incentive/`) | Counsellor incentives and company earnings per intake (Admin only). Reads the students from Student Details. |
+| **Incentive** (`counselor-incentive/`) | Counsellor incentives and company earnings per intake. Runs inside the main app at `/incentive`: Admin only, behind its own password (`INCENTIVE_PASSWORD`). Reads the students from Student Details. |
 | **Shared** (`shared/`) | Accounts and login, the header, the team access rules, notices and confirmation boxes, the server helpers. |
-| **Gateway** (`gateway/`) | Runs both apps behind one address (used by the Render and VPS setups; cPanel runs the two apps separately). |
+| **Gateway** (`gateway/`) | Just starts the one app on the port a host expects (Render, VPS). |
 
 ## Run it on your computer
 
 ```bash
-npm start            # both apps on http://localhost:8080
+npm start            # the site on http://localhost:8080 (Incentive at /incentive, set INCENTIVE_PASSWORD to open it)
 ```
 
 The first time, the server writes a one-time setup code to `first-admin-code.txt` in its data folder (and prints it

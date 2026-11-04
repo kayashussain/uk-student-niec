@@ -15,3 +15,5 @@ services:
         value: /data/student-details
       - key: COUNSELOR_DATA_DIR
         value: /data/counselor-incentive
+      - key: INCENTIVE_PASSWORD
+        sync: false # set in the Render dashboard, never in git

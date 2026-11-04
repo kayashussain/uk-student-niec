@@ -28,7 +28,7 @@
 
   // Admin's own pages (people and the record of what happened) are in the account menu, not in the top menu.
   const MENU_LINKS = {
-    admin: [['users', '/users', 'Users'], ['activity', '/activity', 'Activity']],
+    admin: [['users', '/users', 'Users'], ['activity', '/activity', 'Activity'], ['incentive', '/incentive/', 'Incentive']],
   };
 
   function render(me) {

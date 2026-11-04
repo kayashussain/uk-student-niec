@@ -24,19 +24,13 @@ test('screens: log in, edit, delete, search, team rules, Fact File', { timeout: 
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'niec-ui-'));
   const port = await freePort();
   const server = spawn(process.execPath, ['server.js'], {
-    cwd: path.join(__dirname, '..', 'student-details'), env: { ...process.env, PORT: String(port), STUDENT_DETAILS_DATA_DIR: dir }, stdio: 'ignore',
+    cwd: path.join(__dirname, '..', 'student-details'),
+    env: { ...process.env, PORT: String(port), STUDENT_DETAILS_DATA_DIR: dir, COUNSELOR_DATA_DIR: path.join(dir, 'incentive'), INCENTIVE_PASSWORD: 'Kuber Test Pass' }, stdio: 'ignore',
   });
-  // The Incentive app shares the accounts and the student data with Student Details, as it does when deployed.
-  const incentivePort = await freePort();
-  const incentive = spawn(process.execPath, ['server.js'], {
-    cwd: path.join(__dirname, '..', 'counselor-incentive'),
-    env: { ...process.env, PORT: String(incentivePort), COUNSELOR_DATA_DIR: path.join(dir, 'incentive'), STUDENT_DETAILS_DATA_DIR: dir }, stdio: 'ignore',
-  });
-  t.after(async () => { server.kill(); incentive.kill(); await browser.close(); });
+  t.after(async () => { server.kill(); await browser.close(); });
   const base = `http://127.0.0.1:${port}`;
-  const incentiveBase = `http://127.0.0.1:${incentivePort}`;
+  const incentiveBase = base + '/incentive'; // inside the same app, behind Admin and the Incentive password
   for (let i = 0; i < 60; i += 1) { try { if ((await fetch(base + '/login')).ok) break; } catch (e) { /* not up yet */ } await wait(250); }
-  for (let i = 0; i < 60; i += 1) { try { await fetch(incentiveBase + '/', { redirect: 'manual' }); break; } catch (e) { await wait(250); } }
 
   // ---- an Admin, a team member and some students, made through the same API the login page uses ----
   const admin = await browser.newContext({ baseURL: base });
@@ -198,11 +192,24 @@ test('screens: log in, edit, delete, search, team rules, Fact File', { timeout: 
   });
 
   await t.test('Incentive: a visa-issued student appears, an incentive is confirmed, saved and added up with TDS', async () => {
+    // Admin is asked for the Incentive password (and nothing else) before the page opens.
+    const gate = await open(admin, incentiveBase + '/');
+    await gate.waitForSelector('#pw');
+    assert.strictEqual(await gate.locator('#rows').count(), 0, 'the figures are not on the page before the password');
+    await gate.fill('#pw', 'not the password');
+    await gate.click('#go');
+    await gate.waitForFunction(() => document.querySelector('#err').textContent.length > 0);
+    assert.match(await gate.textContent('#err'), /not right/);
+    await gate.fill('#pw', 'Kuber Test Pass');
+    await gate.click('#go');
+    await gate.waitForSelector('#rows tr');
+    assert.deepStrictEqual(gate.errors.filter((e) => !/40[13]/.test(e)), []);
+    await gate.close();
     const page = await open(admin, incentiveBase + '/');
     await page.waitForSelector('#rows tr');
     assert.strictEqual(await page.locator('#rows tr').count(), 1, 'only the Visa Issued student is listed');
-    // The Incentive page is its own page: no NIEC header or menu, a Student Source column, and no (i) on University Partner.
-    assert.strictEqual(await page.locator('.niec-header').count(), 0, 'no shared NIEC header on the Incentive page');
+    // The Incentive page has the shared NIEC header, a Student Source column, and no (i) on University Partner.
+    assert.strictEqual(await page.locator('.niec-header').count(), 1, 'the shared NIEC header is on the Incentive page');
     const heads = await page.locator('#headRow th').allTextContents();
     assert.ok(heads.some((h) => h.trim() === 'University Partner'), 'University Partner has no (i) button');
     assert.deepStrictEqual(heads.slice(0, 5).map((h) => h.trim()), ['S.N', 'Student Source', 'Student Name', 'Course Name', 'University Name'], 'Student Source comes first, right after S.N');

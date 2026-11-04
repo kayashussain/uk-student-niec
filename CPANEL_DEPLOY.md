@@ -2,12 +2,10 @@
 
 This is one of two supported ways to host the apps; the other is Render (`DEPLOY.md`). Pick one.
 
-cPanel's "Setup Node.js App" runs each app as its own independent process (via
-Passenger), so, unlike the Render setup, **each app is created separately in cPanel**,
-both under the same domain, at different URL paths. No custom gateway needed here.
+cPanel's "Setup Node.js App" runs the site as **one app**: Student Details, with the **Incentive** page
+inside it at `/incentive` (Admin only, behind its own password). There is no separate Incentive app any more.
 
-- `student-details` → `https://niec.duckdns.org/`
-- `counselor-incentive` → `https://niec.duckdns.org/commission`
+- `student-details` → `https://niec.duckdns.org/` (and `https://niec.duckdns.org/incentive/`)
 
 ## 1. Get the code onto the server
 
@@ -57,32 +55,27 @@ Click **Create**. Then scroll to **Environment Variables** on the same page and 
 
 Click **Save**, then **Run NPM Install**, then **Restart**.
 
-## 3. Create the second app: counselor-incentive
+## 3. The Incentive page (no second app)
 
-Same screen, **Create Application** again:
+If you used to have a separate **counselor-incentive** app in cPanel, **delete that app** (Setup Node.js App → the app's
+Delete button). Keep its **data folder** `~/niec_data/counselor-incentive`: your commissions and advances live there, and
+the main app reads it from the same place. (`COUNSELOR_DATA_DIR` is only needed if the folder is anywhere else.)
 
-| Field | Value |
-|---|---|
-| Node.js version | same as above |
-| Application mode | Production |
-| Application root | `uk-student-niec/counselor-incentive` |
-| Application URL | `niec.duckdns.org` with path `/commission` (any path works, just match it below) |
-| Application startup file | `server.js` |
-
-Environment variables for this one:
+Add this to the **student-details** app's Environment Variables, then **Restart**:
 
 | Name | Value |
 |---|---|
-| `COUNSELOR_DATA_DIR` | `/home/YOUR_CPANEL_USERNAME/niec_data/counselor-incentive` |
-| `STUDENT_DETAILS_DATA_DIR` | **exact same value** as in step 2, this is how it finds the student data |
-| `BASE_PATH` | **must exactly match the path above**, e.g. `/commission` (or `/incentive` if that's what you used) |
+| `INCENTIVE_PASSWORD` | the password Admin types to open Incentive |
 
-`BASE_PATH` matters: this host doesn't strip the sub-path prefix before handing the
-request to the app, so the app needs to be told what its own mount path is (both server
-and client-side routing account for it, but only if this env var matches what you put
-in Application URL above).
+How Incentive works now:
 
-Save → **Run NPM Install** → **Restart**.
+- Only the **Admin** account can open it (account menu → **Incentive**). Nobody else can, whatever they know.
+- Admin types **only that password** (no username). It then stays open for 4 hours on that login. Five wrong tries
+  in a row make the person wait 15 minutes. Changing `INCENTIVE_PASSWORD` and restarting locks it again everywhere.
+- If `INCENTIVE_PASSWORD` is not set, Incentive stays locked and says so. The password is never in the code or in git.
+- The old address `/commission` forwards to `/incentive/`.
+- The **Claude connector** (`/advisor-mcp/<token>`) reads the same data folder directly with its own secret address,
+  so it never asks for this password. It is unchanged.
 
 Everyone has **their own account**; there are no shared logins. Logging in takes the person's
 password (at least 10 characters). There is no second step by default. To also ask for the 6-digit code from
@@ -192,7 +185,7 @@ site isn't possible any more, since uploads need a login.)
 ## 5. Check it
 
 - `https://niec.duckdns.org/` should show the login page, then the tracker
-- `https://niec.duckdns.org/commission` should do the same (or go straight in if you're already logged in), showing the commission tracker
+- `https://niec.duckdns.org/incentive/` should (as Admin) ask for the Incentive password, then show the incentive page
 
 ## Updating the code later
 
@@ -201,5 +194,5 @@ cd ~/uk-student-niec
 git pull
 ```
 
-Then in cPanel's Node.js App screen, hit **Restart** on whichever app changed (and
+Then in cPanel's Node.js App screen, hit **Restart** on the app (and
 **Run NPM Install** again if `package.json` changed).

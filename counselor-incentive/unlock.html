@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex, nofollow" />
+<title>Incentive · UK Student NIEC</title>
+<link rel="icon" type="image/png" href="favicon.png" />
+<link rel="stylesheet" href="header.css" />
+<link rel="stylesheet" href="ui.css" />
+<link rel="stylesheet" href="theme.css" />
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body { margin: 0; min-height: 100%; }
+  body { font: 14px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  .gate { display: grid; place-items: center; padding: 72px 16px; }
+  .box { width: 100%; max-width: 400px; padding: 40px 34px 32px; text-align: center; background: var(--panel); border: 1px solid var(--border); border-radius: 20px; box-shadow: var(--sh-3); animation: t-rise .5s var(--ease) both; }
+  .lock { display: grid; place-items: center; width: 52px; height: 52px; margin: 0 auto 18px; border-radius: 50%; background: var(--ink); color: var(--panel); }
+  h1 { margin: 0 0 6px; font-size: 30px; font-weight: 500; letter-spacing: -.02em; }
+  p { margin: 0 0 22px; color: var(--text-dim); }
+  form { display: grid; gap: 12px; }
+  .field { position: relative; }
+  input { width: 100%; height: 46px; padding: 0 64px 0 16px; font: inherit; color: var(--text); text-align: left; }
+  .show { position: absolute; right: 6px; top: 6px; height: 34px; padding: 0 12px; }
+  button.go { height: 46px; font-size: 15px; }
+  .err { min-height: 20px; margin: 0; font-size: 13px; color: var(--red-fg, #b91c1c); }
+</style>
+</head>
+<body>
+<header class="niec-header" data-page="incentive"></header>
+<main class="gate">
+  <div class="box">
+    <div class="lock" aria-hidden="true">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4.5" y="10.5" width="15" height="10" rx="2.5"/><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5"/></svg>
+    </div>
+    <h1>Incentive</h1>
+    <p>This part is private. Enter the password to continue.</p>
+    <form id="form" autocomplete="off">
+      <div class="field">
+        <label class="sr-only" for="pw">Incentive password</label>
+        <input id="pw" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Password" required autofocus />
+        <button type="button" class="btn show" id="show">Show</button>
+      </div>
+      <button type="submit" class="btn btn-primary go" id="go">Open Incentive</button>
+      <p class="err" id="err" role="alert"></p>
+    </form>
+  </div>
+</main>
+<script src="session.js"></script>
+<script src="header.js"></script>
+<script>
+(function () {
+  const pw = document.getElementById('pw');
+  const err = document.getElementById('err');
+  const go = document.getElementById('go');
+  document.getElementById('show').addEventListener('click', (e) => {
+    const hidden = pw.type === 'password';
+    pw.type = hidden ? 'text' : 'password';
+    e.currentTarget.textContent = hidden ? 'Hide' : 'Show';
+    pw.focus();
+  });
+  document.getElementById('form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    err.textContent = '';
+    go.disabled = true;
+    try {
+      const res = await fetch('/incentive/api/unlock', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password: pw.value }),
+      });
+      if (res.ok) { location.replace('/incentive/'); return; }
+      const body = await res.json().catch(() => ({}));
+      err.textContent = body.error || 'Could not open Incentive. Try again.';
+      pw.select();
+    } catch (x) {
+      err.textContent = 'Could not reach the server. Check your connection and try again.';
+    }
+    go.disabled = false;
+  });
+})();
+</script>
+</body>
+</html>
