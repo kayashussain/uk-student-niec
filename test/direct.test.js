@@ -1,4 +1,4 @@
-// The Partnered Universities page is for Admin only: the store keeps what Admin enters as plain text, and the real server
+// The Partner Universities page is for Admin only: the store keeps what Admin enters as plain text, and the real server
 // refuses everyone else (logged out, staff, Manager) for the page and the data.
 const test = require('node:test');
 const assert = require('node:assert');
@@ -107,7 +107,7 @@ test('only Admin can open the page or read and change the list on the real serve
   await admin('POST', '/api/login/new-password', { password: 'Strong-Pass-2026' });
 
   // Admin: the page and the full cycle.
-  assert.strictEqual((await admin('GET', '/partnered-universities')).status, 200);
+  assert.strictEqual((await admin('GET', '/partner-universities')).status, 200);
   const made = await admin('POST', '/api/direct', { name: 'Aston University' });
   assert.strictEqual(made.status, 200);
   const id = made.json.id;
@@ -129,7 +129,7 @@ test('only Admin can open the page or read and change the list on the real serve
 
   // Not logged in: nothing.
   const nobody = person();
-  assert.notStrictEqual((await nobody('GET', '/partnered-universities')).status, 200);
+  assert.notStrictEqual((await nobody('GET', '/partner-universities')).status, 200);
   assert.notStrictEqual((await nobody('GET', '/api/direct')).status, 200);
   assert.notStrictEqual((await nobody('GET', `/api/direct/${id}`)).status, 200);
   assert.notStrictEqual((await nobody('POST', '/api/direct', { name: 'X University' })).status, 200);
@@ -142,7 +142,7 @@ test('only Admin can open the page or read and change the list on the real serve
     const them = person();
     assert.strictEqual((await them('POST', '/api/login', { username, password: made2.json.temporaryPassword })).json.stage, 'new-password');
     await them('POST', '/api/login/new-password', { password: 'Another-Long-Pass-2026' });
-    const page = await them('GET', '/partnered-universities');
+    const page = await them('GET', '/partner-universities');
     assert.strictEqual(page.status, 302, `${role} is sent away from the page`);
     assert.ok(/^\/(students|dashboard)/.test(page.location), `${role} goes home`);
     assert.strictEqual((await them('GET', '/api/direct')).status, 403, `${role} cannot read the list`);

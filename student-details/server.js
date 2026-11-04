@@ -66,7 +66,7 @@ const activity = createActivityLog(DATA_DIR);
 const accounts = createAccounts({ dir: DATA_DIR, activity });
 const { requireAuth } = accounts;
 const facts = createFacts(DATA_DIR);
-// Partnered Universities: Admin only, kept out of the Advisor connector and every other account's reach.
+// Partner Universities: Admin only, kept out of the Advisor connector and every other account's reach.
 const direct = createDirect(DATA_DIR);
 
 // Read-only door for the Claude Strategy Advisor project. Off unless NIEC_ADVISOR_TOKEN is set (see advisor-mcp.js).
@@ -430,9 +430,9 @@ function readRawBody(req, maxBytes) {
   });
 }
 
-// Partnered Universities (campuses, commission slabs, agreement details): Admin only, for reading as well as changing.
+// Partner Universities (campuses, commission slabs, agreement details): Admin only, for reading as well as changing.
 async function handleDirect(req, res, urlPath) {
-  if (!isAdmin(req.user)) return sendJSON(res, 403, { error: 'Partnered Universities is for Admin only.' });
+  if (!isAdmin(req.user)) return sendJSON(res, 403, { error: 'Partner Universities is for Admin only.' });
   const id = (urlPath.match(/^\/api\/direct\/([a-f0-9]{12})/) || [])[1];
   // Agreement files: upload (the file itself is the request body), download, remove.
   const fileMatch = urlPath.match(/^\/api\/direct\/[a-f0-9]{12}\/files(?:\/([a-f0-9]{12})(\/delete)?)?$/);
@@ -458,12 +458,12 @@ async function handleDirect(req, res, urlPath) {
       }
       const added = direct.addAgreement(id, name, bytes, req.user.label);
       if (added.error) return sendJSON(res, 400, { error: added.error });
-      activity.record(req, req.user, 'Edited partnered universities', { app: 'Student Details', changes: [`Uploaded the agreement ${added.agreement.name} for ${added.university.name}`] });
+      activity.record(req, req.user, 'Edited partner universities', { app: 'Student Details', changes: [`Uploaded the agreement ${added.agreement.name} for ${added.university.name}`] });
       return sendJSON(res, 200, added.university);
     }
     const gone = direct.removeAgreement(id, fid, req.user.label);
     if (gone.error) return sendJSON(res, 404, { error: gone.error });
-    activity.record(req, req.user, 'Edited partnered universities', { app: 'Student Details', changes: [`Removed the agreement ${gone.removed.name} from ${gone.university.name}`] });
+    activity.record(req, req.user, 'Edited partner universities', { app: 'Student Details', changes: [`Removed the agreement ${gone.removed.name} from ${gone.university.name}`] });
     return sendJSON(res, 200, gone.university);
   }
   if (req.method === 'GET') {
@@ -481,18 +481,18 @@ async function handleDirect(req, res, urlPath) {
   if (!id) {
     const made = direct.create(body && body.name, req.user.label);
     if (made.error) return sendJSON(res, 400, { error: made.error });
-    activity.record(req, req.user, 'Edited partnered universities', { app: 'Student Details', changes: [`Added ${made.university.name} to Partnered Universities`] });
+    activity.record(req, req.user, 'Edited partner universities', { app: 'Student Details', changes: [`Added ${made.university.name} to Partner Universities`] });
     return sendJSON(res, 200, made.university);
   }
   if (urlPath.endsWith('/delete')) {
     const gone = direct.remove(id);
     if (gone.error) return sendJSON(res, 404, { error: gone.error });
-    activity.record(req, req.user, 'Edited partnered universities', { app: 'Student Details', changes: [`Removed ${gone.removed.name} from Partnered Universities`] });
+    activity.record(req, req.user, 'Edited partner universities', { app: 'Student Details', changes: [`Removed ${gone.removed.name} from Partner Universities`] });
     return sendJSON(res, 200, { ok: true });
   }
   const saved = direct.update(id, body || {}, req.user.label);
   if (saved.error) return sendJSON(res, 400, { error: saved.error });
-  activity.record(req, req.user, 'Edited partnered universities', { app: 'Student Details', changes: [`Updated ${saved.university.name} in Partnered Universities`] });
+  activity.record(req, req.user, 'Edited partner universities', { app: 'Student Details', changes: [`Updated ${saved.university.name} in Partner Universities`] });
   return sendJSON(res, 200, saved.university);
 }
 
@@ -527,7 +527,7 @@ const server = http.createServer(async (req, res) => {
     // The pages. The Manager lands on the dashboard; Admin-only pages send anyone else back home.
     const home = req.user.role === 'manager' ? '/dashboard' : '/students';
     if (req.method === 'GET') {
-      const page = { '/students': 'index.html', '/dashboard': 'dashboard.html', '/users': 'users.html', '/activity': 'activity.html', '/partnered-universities': 'direct.html' }[urlPath];
+      const page = { '/students': 'index.html', '/dashboard': 'dashboard.html', '/users': 'users.html', '/activity': 'activity.html', '/partner-universities': 'direct.html' }[urlPath];
       if (urlPath === '/') return req.user.role === 'manager' ? send(res, 302, '', { Location: '/dashboard' }) : serveStatic(req, res);
       if (urlPath === '/fact-file') { // the list, or one university's page (?u=...); every account may read
         req.url = new URL(req.url, 'http://x').searchParams.get('u') ? '/fact-university.html' : '/fact-file.html';
