@@ -22,6 +22,7 @@ const {
 } = require('../shared/server-utils');
 const { createAccounts } = require('../shared/accounts');
 const { advancesByName, setAdvance } = require('./advances');
+const { createIncentiveAdvisor } = require('./advisor-mcp');
 const { round2, groupByUniversity, displayDate } = require('./calc');
 // Student Details' own fee math, so the tuition fee shown here always matches what's shown over there.
 const { netTuitionFee } = require('../student-details/calc');
@@ -252,6 +253,18 @@ function watchDataFile(file) {
 }
 watchDataFile(STUDENT_DETAILS_DATA);
 
+// Read-only door for the Claude Strategy Advisor project to the Incentive data (see advisor-mcp.js). Off unless
+// NIEC_INCENTIVE_ADVISOR_TOKEN is set; it has its own secret, separate from the Student Details connector's.
+const advisor = createIncentiveAdvisor({
+  token: process.env.NIEC_INCENTIVE_ADVISOR_TOKEN,
+  getSync: readSync,
+  getCommissions: () => readJSON(COMMISSIONS_FILE, {}),
+  getAdvances: () => advancesByName(readJSON(ADVANCES_FILE, {}), readSheetList()),
+  // The exchange rate last saved by the page (the connector never calls the outside rate service itself).
+  getRate: () => { const c = readJSON(EXCHANGE_RATE_FILE, null); return c && typeof c.rate === 'number' ? { rate: c.rate, date: c.date } : null; },
+  memoryDir: path.join(DATA_DIR, 'advisor-memory'),
+});
+
 const server = http.createServer(async (req, res) => {
   try {
     const rest = BASE_PATH && req.url.startsWith(BASE_PATH) ? req.url.slice(BASE_PATH.length) : null;
@@ -262,6 +275,8 @@ const server = http.createServer(async (req, res) => {
       }
       req.url = rest;
     }
+    // The Advisor connector checks its own secret in the address, so it answers before the login.
+    if (await advisor.handle(req, res, req.url.split('?')[0])) return;
     if (!requireAuth(req, res)) return;
     const urlPath = req.url.split('?')[0];
     // Commissions and company earnings are for Admin only; teams go back to Student Details.

@@ -53,6 +53,24 @@ https://<your-site>/advisor-mcp/<NIEC_ADVISOR_TOKEN>
 Anyone with that address can read all students, so keep it private. To cut access off, remove or change the variable and restart.
 Make a secret with `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`.
 
+### The same connector for the Incentive page (read-only)
+
+`counselor-incentive/advisor-mcp.js` gives Claude live, read-only access to the **Incentive** data: the visa-issued students of every
+intake with their **University Partner** (the agent), tuition fee, university commission and the incentives entered; the Payment
+Summary (total incentives, loan, TDS, advance, net payable); the Company Earnings; and totals by partner, university or intake. It
+cannot change anything but its own notebook (`advisor-memory/` in the Incentive data folder).
+
+Commissions and company earnings are Admin only, so this connector has **its own secret**, separate from the Student Details one: set
+`NIEC_INCENTIVE_ADVISOR_TOKEN` (32 or more random characters) on the **Incentive** app in the host settings and restart it. Then add
+this address in claude.ai (Settings, Connectors, Add custom connector):
+
+```
+https://<your-site>/incentive/advisor-mcp/<NIEC_INCENTIVE_ADVISOR_TOKEN>
+```
+
+Tools: `get_overview`, `get_incentives`, `get_payment_summary`, `summarize_by`, and the notebook (`read_memory`, `save_memory`,
+`forget_memory`). Both connectors share `shared/mcp-core.js`.
+
 ## Daily backups and restore (Admin only)
 
 Every day after 6 p.m. (office time, `APP_TIMEZONE`, default Asia/Kathmandu) the Student Details server saves one compressed
