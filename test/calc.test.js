@@ -104,3 +104,64 @@ test('visa dates show in one format whichever way they were stored', () => {
   assert.strictEqual(incentive.displayDate('7/15/2026'), '7/15/2026');
   assert.strictEqual(incentive.displayDate(''), '');
 });
+
+// ---- Incentives in rupees, pounds or percent ----
+test('an incentive is typed in rupees, pounds or percent, and a plain number keeps the unit the cell had', () => {
+  const U = incentive.UNIT;
+  assert.deepStrictEqual(incentive.parseIncentiveInput('40000', U.NPR), { value: 40000, unit: U.NPR });
+  assert.deepStrictEqual(incentive.parseIncentiveInput('Rs. 40,000', U.GBP), { value: 40000, unit: U.NPR }, 'Rs sets rupees');
+  assert.deepStrictEqual(incentive.parseIncentiveInput('£500', U.NPR), { value: 500, unit: U.GBP });
+  assert.deepStrictEqual(incentive.parseIncentiveInput('500 GBP', U.NPR), { value: 500, unit: U.GBP });
+  assert.deepStrictEqual(incentive.parseIncentiveInput('15%', U.NPR), { value: 15, unit: U.PCT });
+  assert.deepStrictEqual(incentive.parseIncentiveInput('600', U.GBP), { value: 600, unit: U.GBP }, 'a plain number keeps pounds');
+  assert.deepStrictEqual(incentive.parseIncentiveInput('', U.PCT), { value: 0, unit: U.PCT });
+  assert.strictEqual(incentive.parseIncentiveInput('lots', U.NPR), null, 'text is refused');
+  assert.strictEqual(incentive.incentiveLabel(500, U.GBP), '£500.00');
+  assert.strictEqual(incentive.incentiveLabel(15, U.PCT), '15%');
+  assert.strictEqual(incentive.incentiveLabel(12.5, U.PCT), '12.50%');
+  assert.strictEqual(incentive.incentiveLabel(40000, U.NPR), 'Rs 40,000.00');
+  assert.strictEqual(incentive.incentiveLabel(0, U.GBP), '', 'zero shows as an empty cell');
+  ['40000', '£500', '15%', '12.5%'].forEach((t) => {
+    const p = incentive.parseIncentiveInput(t, 0);
+    assert.strictEqual(incentive.incentiveTyped(p.value, p.unit), t, `${t} copies back out the way it was typed`);
+  });
+});
+
+test('pounds and percent are converted to rupees at the rate; with no rate they are not guessed', () => {
+  const rec = { enrollmentCommission: 500, enrollmentCommissionUnit: 1, enrollmentCommissionUni: 15, enrollmentCommissionUniUnit: 2, newPartnershipCommission: 1000 };
+  assert.strictEqual(incentive.flexNpr(rec, 'enrollmentCommission', 2000, 200), 100000, '£500 at 200');
+  assert.strictEqual(incentive.flexNpr(rec, 'enrollmentCommissionUni', 2000, 200), 60000, '15% of £2,000 = £300, at 200');
+  assert.strictEqual(incentive.flexNpr(rec, 'newPartnershipCommission', 2000, 200), 1000, 'no unit saved means rupees, as before');
+  assert.strictEqual(incentive.flexNpr(rec, 'enrollmentCommission', 2000, null), null, 'pounds need a rate');
+  assert.strictEqual(incentive.flexNpr(rec, 'newPartnershipCommission', 2000, null), 1000, 'rupees never need one');
+  const s = incentive.computeSummary([rec], 0, { gbpToNpr: 200, commissionsGbp: [2000] });
+  assert.strictEqual(s.totalCommissions, 100000 + 60000 + 1000);
+  assert.strictEqual(s.needsRate, false);
+  const noRate = incentive.computeSummary([rec], 0, { gbpToNpr: null, commissionsGbp: [2000] });
+  assert.strictEqual(noRate.totalCommissions, 1000, 'only the rupee amount is counted without a rate');
+  assert.strictEqual(noRate.needsRate, true, 'and the page is told something could not be counted');
+  // Incentives saved before units existed give the same totals as always.
+  const old = incentive.computeSummary([{ enrollmentCommission: 10000, flywireCommission: 500 }], 0);
+  assert.strictEqual(old.totalCommissions, 10500);
+});
+
+test('a student from a branch earns the head office only 30% of the university commission', () => {
+  // The owner's example: a university commission of £2,000 on a branch student. 70% goes to the branch.
+  const e = incentive.computeEarnings({ commissionGbp: 2000, branchCommissionGbp: 2000, gbpToNpr: 200, basicSalary: 0, salaryMonths: 0, myIncentives: 0 });
+  assert.strictEqual(e.branchShareGbp, 1400);
+  assert.strictEqual(e.headOfficeGbp, 600);
+  assert.strictEqual(e.companyNpr, 120000, 'Company Earnings are worked out from the 30% only');
+  assert.strictEqual(e.commissionGbp, 2000, 'the total commission is still shown as it was');
+  // Branch and other students together: only the branch student's commission is shared.
+  const mixed = incentive.computeEarnings({ commissionGbp: 5000, branchCommissionGbp: 2000, gbpToNpr: 200, basicSalary: 0, salaryMonths: 0, myIncentives: 0 });
+  assert.strictEqual(mixed.headOfficeGbp, 3600, '£3,000 from the others plus 30% of £2,000');
+  // No branch students: nothing changes from before.
+  const none = incentive.computeEarnings({ commissionGbp: 5000, gbpToNpr: 200, basicSalary: 0, salaryMonths: 0, myIncentives: 0 });
+  assert.strictEqual(none.headOfficeGbp, 5000);
+  assert.strictEqual(none.companyNpr, 1000000);
+});
+
+test('any Student Source that ends in Branch counts as a branch', () => {
+  ['Chitwan Branch', 'Pokhara Branch', 'Butwal Branch', 'Palpa branch', 'BRANCH'].forEach((n) => assert.ok(incentive.isBranchSource(n), n));
+  ['Visitor', 'Reference', 'Agent', 'Events', 'Social Media', 'Language Classes', '', undefined].forEach((n) => assert.ok(!incentive.isBranchSource(n), String(n)));
+});

@@ -239,6 +239,7 @@
 
   <div id="syncBanner"></div>
   <div id="rateBanner"></div>
+  <div id="needsRateBanner"></div>
   <div class="tabs" id="tabs"></div>
 
   <div class="table-card">
@@ -298,6 +299,14 @@
       <span class="label">Total Commission from Universities (£) <span class="info" title="The Commission Amount column added up.">ⓘ</span></span>
       <span class="value" id="earnGbp">0.00</span>
     </div>
+    <div class="summary-row subtract">
+      <span class="label">Branch Share (70%) <span class="info" title="For a student who came through a branch (the Student Source ends in Branch, like Chitwan Branch or Pokhara Branch), the branch keeps 70% of the university commission. Only the other 30% is the head office's.">ⓘ</span></span>
+      <span class="value" id="earnBranch">£0.00</span>
+    </div>
+    <div class="summary-row">
+      <span class="label">Head Office Commission (£) <span class="info" title="Total commission, less the branches' 70% share. This is what Company Earnings below are worked out from.">ⓘ</span></span>
+      <span class="value" id="earnHead">£0.00</span>
+    </div>
     <div class="summary-row final">
       <span class="label">Company Earnings (NPR)<span class="hint" id="earnRateHint"></span></span>
       <span class="value" id="earnNpr">-</span>
@@ -352,7 +361,10 @@ window.addEventListener('pageshow', (e) => { if (e.persisted) location.reload();
 // derive that prefix from the URL actually used to load it, so every API call still hits
 // this app and not whatever else is mounted at the true root.
 const BASE = location.pathname.replace(/\/index\.html$/, '').replace(/\/+$/, '');
-const { num, flywireIncentive, universityCommission, DEFAULT_BASIC_SALARY, DEFAULT_SALARY_MONTHS } = window.IncentiveCalc;
+const { num, flywireIncentive, universityCommission, DEFAULT_BASIC_SALARY, DEFAULT_SALARY_MONTHS,
+  unitField, flexNpr, parseIncentiveInput, incentiveLabel, incentiveTyped, isBranchSource, BRANCH_SHARE_PERCENT } = window.IncentiveCalc;
+// How the three flexible incentive columns are typed: the unit goes with the number.
+const FLEX_HINT = "Type it the way it was agreed: 40000 (or Rs 40000) for rupees, £500 for pounds, or 15% for a percentage of this student's Commission Amount. A plain number keeps the unit already in the cell.";
 const POLL_MS = 3000; // safety net only: changes normally arrive at once over /api/live
 
 // Student details are synced read-only from UK Student NIEC; the money columns are edited here.
@@ -371,9 +383,9 @@ const COLUMNS = [
     calc: (s) => universityCommission(s.tuitionFee, commissionValue(s.id, 'uniCommissionRate')),
     title: 'Auto-calculated: Total Tuition Fee × Commission %.' },
   { key: 'visaIssuedDate', label: 'Visa Issue Date', width: 15, synced: true },
-  { key: 'enrollmentCommission', label: 'Enrollment Incentive (NPR)', width: 18, money: true },
-  { key: 'enrollmentCommissionUni', label: 'Enrollment Incentive from University (NPR)', width: 18, money: true },
-  { key: 'newPartnershipCommission', label: 'New Partnership Incentive (NPR)', width: 18, money: true },
+  { key: 'enrollmentCommission', label: 'Enrollment Incentive', width: 22, money: true, flex: true, title: FLEX_HINT },
+  { key: 'enrollmentCommissionUni', label: 'Enrollment Incentive from University', width: 22, money: true, flex: true, title: FLEX_HINT },
+  { key: 'newPartnershipCommission', label: 'New Partnership Incentive', width: 22, money: true, flex: true, title: FLEX_HINT },
   { key: 'flywireFeePayment', label: 'Flywire Fee Payment (£)', width: 18, money: true,
     title: 'The tuition fee the student paid through Flywire, in pounds. Fills in Flywire Incentive for you.' },
   { key: 'flywireCommission', label: 'Flywire Incentive (NPR)', width: 18, money: true,
@@ -412,6 +424,25 @@ function colIndex(key) { return COLUMNS.findIndex((c) => c.key === key); }
 function isMoney(key) { const c = COLUMNS[colIndex(key)]; return Boolean(c && c.money); }
 function isPercent(key) { const c = COLUMNS[colIndex(key)]; return Boolean(c && c.percent); }
 function commissionValue(id, key) { return num((state.commissions[id] || {})[key]); }
+function isFlex(key) { const c = COLUMNS[colIndex(key)]; return Boolean(c && c.flex); }
+// 0 rupees, 1 pounds, 2 percent (rupees for anything saved before units existed).
+function unitOf(id, key) { return num((state.commissions[id] || {})[unitField(key)]); }
+function commissionAmountOf(s) { return infoValue(s, COLUMNS[colIndex('uniCommissionAmount')]); }
+// A flexible incentive in rupees at today's rate (null when it needs a rate that has not arrived).
+function flexNprOf(s, key) { return flexNpr(state.commissions[s.id] || {}, key, commissionAmountOf(s), earningsRate ? earningsRate.rate : null); }
+// What a money cell shows. The three flexible columns always show their unit.
+function moneyCellText(id, key) {
+  return isFlex(key) ? incentiveLabel(commissionValue(id, key), unitOf(id, key)) : cellText(key, commissionValue(id, key));
+}
+// Hover text on a pound or percent cell: what it comes to in rupees.
+function flexCellTitle(s, key) {
+  const unit = unitOf(s.id, key);
+  if (!commissionValue(s.id, key) || unit === 0) return FLEX_HINT;
+  const n = flexNprOf(s, key);
+  if (n === null) return "In pounds or percent, so it needs today's exchange rate. It is not counted in the totals until the rate arrives.";
+  const how = unit === 2 ? `${commissionValue(s.id, key)}% of £${fmt(commissionAmountOf(s))}, at £1 = Rs ${earningsRate.rate}` : `at £1 = Rs ${earningsRate.rate}`;
+  return `About Rs ${fmt(n)} (${how}).`;
+}
 // A synced or calculated (non-editable) column's value for a student.
 function infoValue(s, col) { return col.calc ? col.calc(s) : s[col.key]; }
 // How an editable cell shows its value: "15%" for a percentage, "1,250.00" for an amount.
@@ -757,7 +788,8 @@ function render() {
       if (col.money) {
         const value = commissionValue(s.id, col.key);
         td.className = 'num editable';
-        td.textContent = cellText(col.key, value);
+        td.textContent = col.flex ? incentiveLabel(value, unitOf(s.id, col.key)) : cellText(col.key, value);
+        if (col.flex) td.title = flexCellTitle(s, col.key);
       } else if (col.amount) {
         const value = infoValue(s, col);
         td.title = col.calc ? col.title : INFO_HINT;
@@ -789,6 +821,7 @@ function computeSummary(students) {
   return window.IncentiveCalc.computeSummary(
     students.map((s) => state.commissions[s.id] || {}),
     (state.advances[state.activeIntake] || {}).previousAdvance,
+    { gbpToNpr: earningsRate ? earningsRate.rate : null, commissionsGbp: students.map(commissionAmountOf) },
   );
 }
 
@@ -799,6 +832,8 @@ function recalc(students) {
   $('#sumNetCommissions').textContent = fmt(s.netCommissions);
   $('#sumTds').textContent = fmt(s.tds);
   $('#sumNetPayable').textContent = fmt(s.netPayable);
+  $('#needsRateBanner').innerHTML = s.needsRate
+    ? '<div class="banner">⚠ Some incentives are in pounds or percent, and today\'s exchange rate has not arrived, so they are not counted in these totals yet. They are counted as soon as the rate loads.</div>' : '';
   renderEarnings(students, s);
 }
 
@@ -817,6 +852,8 @@ function computeEarnings(students, summary) {
   const amountCol = COLUMNS[colIndex('uniCommissionAmount')];
   return window.IncentiveCalc.computeEarnings({
     commissionGbp: students.reduce((a, st) => a + infoValue(st, amountCol), 0),
+    // A student from a branch (Student Source ends in Branch): the branch keeps 70% of the commission, the head office 30%.
+    branchCommissionGbp: students.filter((st) => isBranchSource(st.source)).reduce((a, st) => a + infoValue(st, amountCol), 0),
     gbpToNpr: earningsRate ? earningsRate.rate : null,
     basicSalary: intakeSetting('basicSalary', DEFAULT_BASIC_SALARY),
     salaryMonths: intakeSetting('salaryMonths', DEFAULT_SALARY_MONTHS),
@@ -829,6 +866,8 @@ function renderEarnings(students, summary) {
   const e = computeEarnings(students, summary);
   $('#earnStudents').textContent = students.length;
   $('#earnGbp').textContent = '£' + fmt(e.commissionGbp);
+  $('#earnBranch').textContent = '£' + fmt(e.branchShareGbp);
+  $('#earnHead').textContent = '£' + fmt(e.headOfficeGbp);
   $('#earnNpr').textContent = e.companyNpr === null ? '-' : fmt(e.companyNpr);
   $('#earnRateHint').textContent = earningsRate
     ? `at today's rate, £1 = ${earningsRate.rate} NPR${earningsRate.stale ? ' (last known)' : ''}`
@@ -841,7 +880,7 @@ function renderEarnings(students, summary) {
   $('#earnShare').textContent = e.sharePercent === null ? '-' : e.sharePercent.toFixed(2) + '%';
 }
 
-getExchangeRate().then((fx) => { earningsRate = fx; recalc(intakeStudents()); });
+getExchangeRate().then((fx) => { earningsRate = fx; if (editing) recalc(intakeStudents()); else render(); }); // render: pound and percent cells say what they come to
 
 function bindIntakeSetting(input, field, fallback) {
   input.addEventListener('change', () => {
@@ -1036,7 +1075,9 @@ function startEdit({ replaceWith = null } = {}) {
   editing = { td, id, key, original, typed: replaceWith !== null };
   td.contentEditable = 'true';
   td.classList.add('editing');
-  td.textContent = replaceWith !== null ? replaceWith : (original ? String(original) : '');  // plain number while typing
+  td.textContent = replaceWith !== null ? replaceWith
+    : (isFlex(key) ? incentiveTyped(original, unitOf(id, key)) : (original ? String(original) : ''));  // plain number while typing (with £ or % where it has one)
+  if (isFlex(key)) showHint(FLEX_HINT);
   td.focus({ preventScroll: true });
   const range = document.createRange();
   range.selectNodeContents(td);
@@ -1056,15 +1097,32 @@ function commitEdit({ move = null, refocus = true } = {}) {
   editing = null;
   td.removeAttribute('contenteditable');
   td.classList.remove('editing');
-  const value = parseMoney(td.textContent);
-  if (value === null) {
-    td.textContent = cellText(key, original);
-    showHint('Only numbers can go in incentive cells.');
-    finishEditing();
+  if (isFlex(key)) {
+    const unit = unitOf(id, key);
+    const typed = parseIncentiveInput(td.textContent, unit);
+    if (typed === null) {
+      td.textContent = moneyCellText(id, key);
+      showHint('Only a number can go here, with Rs, £ or % if you like.');
+      finishEditing();
+    } else {
+      td.textContent = incentiveLabel(typed.value, typed.unit);
+      const changes = [];
+      if (typed.value !== original) changes.push({ id, key, to: typed.value });
+      if (typed.unit !== unit) changes.push({ id, key: unitField(key), to: typed.unit });
+      if (changes.length) applyChanges(changes);
+      else finishEditing();
+    }
   } else {
-    td.textContent = cellText(key, value);
-    if (value !== original) applyChanges([{ id, key, to: value }]);
-    else finishEditing();
+    const value = parseMoney(td.textContent);
+    if (value === null) {
+      td.textContent = cellText(key, original);
+      showHint('Only numbers can go in incentive cells.');
+      finishEditing();
+    } else {
+      td.textContent = cellText(key, value);
+      if (value !== original) applyChanges([{ id, key, to: value }]);
+      else finishEditing();
+    }
   }
   if (move) moveActiveCell(move[0], move[1]);
   else if (refocus) focusActiveCell({ scroll: false });
@@ -1072,11 +1130,11 @@ function commitEdit({ move = null, refocus = true } = {}) {
 
 function cancelEdit() {
   if (!editing) return;
-  const { td, key, original } = editing;
+  const { td, id, key, original } = editing;
   editing = null;
   td.removeAttribute('contenteditable');
   td.classList.remove('editing');
-  td.textContent = cellText(key, original);
+  td.textContent = isFlex(key) ? moneyCellText(id, key) : cellText(key, original);
   finishEditing();
   focusActiveCell({ scroll: false });
 }
@@ -1102,7 +1160,8 @@ function selectionToTsv() {
     const cells = [];
     for (let c = r.left; c <= r.right; c += 1) {
       const col = COLUMNS[c];
-      const value = col.money ? String(commissionValue(s.id, col.key)) : String(infoValue(s, col) || '');
+      const value = col.flex ? incentiveTyped(commissionValue(s.id, col.key), unitOf(s.id, col.key))
+        : col.money ? String(commissionValue(s.id, col.key)) : String(infoValue(s, col) || '');
       cells.push(value.replace(/[\t\r\n]+/g, ' '));
     }
     lines.push(cells.join('\t'));
@@ -1129,9 +1188,17 @@ function pasteIntoSelection(text) {
       const key = COLUMNS[r.left + dc].key;
       if (raw === undefined || !isMoney(key)) continue;
       touchedMoney = true;
+      const rowId = visible[r.top + dr].id;
+      if (isFlex(key)) {
+        const typed = parseIncentiveInput(raw, unitOf(rowId, key));
+        if (typed === null) { skippedText = true; continue; }
+        changes.push({ id: rowId, key, to: typed.value });
+        if (typed.unit !== unitOf(rowId, key)) changes.push({ id: rowId, key: unitField(key), to: typed.unit });
+        continue;
+      }
       const value = parseMoney(raw);
       if (value === null) { skippedText = true; continue; }
-      changes.push({ id: visible[r.top + dr].id, key, to: value });
+      changes.push({ id: rowId, key, to: value });
     }
   }
 
@@ -1320,7 +1387,7 @@ document.addEventListener('keydown', (e) => {
 // ---------------------------------------------------------------------------------------------
 // Excel export: bold headers, sized columns and a payment summary block, ready to forward.
 // ---------------------------------------------------------------------------------------------
-const EXCEL_COLUMNS = [{ header: 'S.N', width: 6 }, ...COLUMNS.map((c) => ({ header: c.label, width: c.width, num: Boolean(c.money || c.amount) }))];
+const EXCEL_COLUMNS = [{ header: 'S.N', width: 6 }, ...COLUMNS.map((c) => ({ header: c.label, width: c.width, num: Boolean((c.money && !c.flex) || c.amount) }))];
 const THIN_BORDER = { style: 'thin', color: { argb: 'FFC7CCD4' } };
 const ALL_BORDERS = { top: THIN_BORDER, bottom: THIN_BORDER, left: THIN_BORDER, right: THIN_BORDER };
 
@@ -1374,7 +1441,7 @@ $('#exportExcelBtn').addEventListener('click', async () => {
   });
 
   students.forEach((s, i) => {
-    const row = ws.addRow([i + 1, ...COLUMNS.map((c) => (c.money ? commissionValue(s.id, c.key) : c.amount ? num(infoValue(s, c)) : s[c.key] || ''))]);
+    const row = ws.addRow([i + 1, ...COLUMNS.map((c) => (c.flex ? incentiveLabel(commissionValue(s.id, c.key), unitOf(s.id, c.key)) : c.money ? commissionValue(s.id, c.key) : c.amount ? num(infoValue(s, c)) : s[c.key] || ''))]);
     row.height = 24;
     row.font = { size: 11 };
     EXCEL_COLUMNS.forEach((col, idx) => {
@@ -1415,6 +1482,8 @@ $('#exportExcelBtn').addEventListener('click', async () => {
   addExcelSummaryRow(ws, 'Students Enrolled', students.length);
   ws.lastRow.getCell(5).numFmt = '0';
   addExcelSummaryRow(ws, 'Total Commission from Universities (£)', e.commissionGbp);
+  addExcelSummaryRow(ws, `Branch Share (${BRANCH_SHARE_PERCENT}%) (-) (£)`, e.branchShareGbp, { color: 'FFDC2626' });
+  addExcelSummaryRow(ws, 'Head Office Commission (£)', e.headOfficeGbp);
   if (e.companyNpr !== null) {
     addExcelSummaryRow(ws, `Company Earnings (NPR, £1 = ${earningsRate.rate})`, e.companyNpr, { bold: true, color: 'FF1D4ED8', fill: 'FFEAF1FF' });
   }

@@ -55,9 +55,12 @@ function createIncentive({ dataDir, studentDataFile, getWorkbook, activity }) {
     // These are all amounts, and an amount never typed in is saved as 0, so blank and 0 count as the same.
     const show = (v) => (v === undefined || v === null || v === '' || v === 0 ? '0' : String(v));
     const label = (f) => f.replace(/([A-Z])/g, ' $1').replace(/^./, (c) => c.toUpperCase());
+    // The unit of an incentive is saved as 0, 1 or 2; the record says it in words.
+    const UNIT_WORDS = ['rupees', 'pounds', 'percent'];
+    const shown = (f, v) => (f.endsWith('Unit') ? UNIT_WORDS[Number(v) || 0] : show(v));
     const changes = fields
-      .filter((f) => show(before[f]) !== show(after[f]))
-      .map((f) => `${what} › ${label(f)}: ${show(before[f])} → ${show(after[f])}`);
+      .filter((f) => shown(f, before[f]) !== shown(f, after[f]))
+      .map((f) => `${what} › ${label(f)}: ${shown(f, before[f])} → ${shown(f, after[f])}`);
     if (changes.length) activity.record(req, req.user, 'Changed', { app: 'Incentive', changes });
   }
 
@@ -139,6 +142,12 @@ function createIncentive({ dataDir, studentDataFile, getWorkbook, activity }) {
       return { ok: false, error: 'Student Details data file is not valid JSON right now. Try again.', intakes: [], byIntake: {} };
     }
     return syncFromWorkbook(workbook);
+  }
+
+  // 0 rupees, 1 pounds or 2 percent; anything else keeps what was saved (rupees if nothing was).
+  function unitOf(v, fallback) {
+    const n = Number(v);
+    return v !== undefined && [0, 1, 2].includes(n) ? n : (Number(fallback) || 0);
   }
 
   function num(v, fallback) {
@@ -234,11 +243,14 @@ function createIncentive({ dataDir, studentDataFile, getWorkbook, activity }) {
         // different fields of the same student don't undo each other.
         all[id] = {
           enrollmentCommission: num(body.enrollmentCommission, existing.enrollmentCommission),
+          enrollmentCommissionUnit: unitOf(body.enrollmentCommissionUnit, existing.enrollmentCommissionUnit),
           enrollmentCommissionUni: num(body.enrollmentCommissionUni, existing.enrollmentCommissionUni),
+          enrollmentCommissionUniUnit: unitOf(body.enrollmentCommissionUniUnit, existing.enrollmentCommissionUniUnit),
           flywireFeePayment: num(body.flywireFeePayment, existing.flywireFeePayment),
           flywireCommission: num(body.flywireCommission, existing.flywireCommission),
           loanCommission: num(body.loanCommission, existing.loanCommission),
           newPartnershipCommission: num(body.newPartnershipCommission, existing.newPartnershipCommission),
+          newPartnershipCommissionUnit: unitOf(body.newPartnershipCommissionUnit, existing.newPartnershipCommissionUnit),
           selfStudentCommission: num(body.selfStudentCommission, existing.selfStudentCommission),
           uniCommissionRate: num(body.uniCommissionRate, existing.uniCommissionRate),
           updatedAt: new Date().toISOString(),

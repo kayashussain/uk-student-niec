@@ -279,7 +279,7 @@ test('screens: log in, edit, delete, search, team rules, Fact File', { timeout: 
     assert.match(await page.textContent('#rows tr'), /Student11/);
     // The Enrollment Incentive (NPR) cell, found by its column heading so adding a synced column does not break this.
     const headings = await page.locator('#headRow th').allTextContents();
-    const enrollmentCol = headings.findIndex((h) => h.trim().startsWith('Enrollment Incentive (NPR)')) - 1; // minus the S.N column
+    const enrollmentCol = headings.findIndex((h) => h.replace(/\s*ⓘ\s*$/, '').trim() === 'Enrollment Incentive') - 1; // minus the S.N column
     assert.ok(enrollmentCol > 0, 'the Enrollment Incentive column is there');
     await page.locator(`#rows tr td[data-ci="${enrollmentCol}"]`).first().click();
     await page.keyboard.type('10000');
@@ -298,6 +298,69 @@ test('screens: log in, edit, delete, search, team rules, Fact File', { timeout: 
     assert.ok(Object.values(saved).some((c) => c.enrollmentCommission === 10000), 'saved on the server');
     assert.deepStrictEqual(page.errors.filter((e) => !/exchange|Failed to load resource|net::/i.test(e)), []);
     await page.close();
+  });
+
+  await t.test('Incentive: pounds and percent in the three incentive columns, and a branch student leaves the head office 30%', async () => {
+    // A known exchange rate for today (the test has no internet): £1 = Rs 200.
+    const { localDate } = require('../shared/server-utils');
+    fs.mkdirSync(path.join(dir, 'incentive'), { recursive: true });
+    fs.writeFileSync(path.join(dir, 'incentive', 'exchange-rate-cache.json'), JSON.stringify({ date: localDate(), rate: 200, fetchedOn: localDate(), fetchedAt: new Date().toISOString() }));
+    assert.ok((await admin.request.post(incentiveBase + '/api/unlock', { data: { password: 'Test Gate Pass 1' } })).ok());
+    const page = await open(admin, incentiveBase + '/');
+    await page.waitForSelector('#rows tr');
+    const heads = (await page.locator('#headRow th').allTextContents()).map((h) => h.replace(/\s*ⓘ\s*$/, '').trim());
+    const col = (label) => heads.indexOf(label) - 1; // minus the S.N column
+    const cell = (label) => page.locator(`#rows tr td[data-ci="${col(label)}"]`).first();
+    const enter = async (label, text) => {
+      await cell(label).click();
+      await page.keyboard.press('F2'); // start editing, then replace what is in the cell (the test tool types a pound sign as text, not as a key)
+      await page.keyboard.press('Control+A');
+      await page.keyboard.type(text);
+      await page.keyboard.press('Enter');
+      await page.waitForSelector('.eg-box');
+      await page.click('.eg-ok');
+      await page.waitForTimeout(250);
+    };
+    await enter('Commission %', '10'); // 10% of the £16,000 tuition: a £1,600 commission
+    await enter('Enrollment Incentive', '£100'); // was Rs 10,000 from the earlier test: now pounds
+    assert.strictEqual((await cell('Enrollment Incentive').textContent()).trim(), '£100.00', 'the unit shows in the cell');
+    await enter('Enrollment Incentive from University', '10%'); // 10% of £1,600 = £160
+    assert.strictEqual((await cell('Enrollment Incentive from University').textContent()).trim(), '10%');
+    await enter('New Partnership Incentive', '5000'); // a plain number in a fresh cell is rupees
+    assert.strictEqual((await cell('New Partnership Incentive').textContent()).trim(), 'Rs 5,000.00');
+    // £100 x 200 + 10% of £1,600 (£160) x 200 + Rs 5,000
+    await page.waitForFunction(() => document.querySelector('#sumTotalCommissions').textContent === '57,000.00', null, { timeout: 8000 });
+    assert.match(await cell('Enrollment Incentive').getAttribute('title'), /20,000\.00/, 'hovering says what it comes to in rupees');
+
+    // A plain number keeps the unit: 600 in the pounds cell is £600.
+    await enter('Enrollment Incentive', '600');
+    assert.strictEqual((await cell('Enrollment Incentive').textContent()).trim(), '£600.00');
+
+    // The saved record has the units.
+    const saved = Object.values(await (await admin.request.get(incentiveBase + '/api/commissions')).json())[0];
+    assert.strictEqual(saved.enrollmentCommissionUnit, 1);
+    assert.strictEqual(saved.enrollmentCommissionUniUnit, 2);
+    assert.ok(!saved.newPartnershipCommissionUnit, 'rupees is the default and is not saved as a unit');
+
+    // Company Earnings: Student Source Visitor keeps all of the commission ...
+    assert.strictEqual((await page.textContent('#earnGbp')).trim(), '£1,600.00');
+    assert.strictEqual((await page.textContent('#earnBranch')).trim(), '£0.00');
+    assert.strictEqual((await page.textContent('#earnHead')).trim(), '£1,600.00');
+    await page.close();
+
+    // ... and a student who came through a branch leaves the head office 30%.
+    const fresh = await (await admin.request.get('/api/data')).json();
+    const visa = fresh.sheets[0].rows.find((r) => r['APPLICATION STATUS'] === 'Visa Issued');
+    visa['STUDENT SOURCE'] = 'Pokhara Branch';
+    assert.ok((await admin.request.post('/api/data', { data: { sheets: fresh.sheets, activeSheetId: fresh.activeSheetId, baseRevision: fresh.revision } })).ok());
+    assert.ok((await admin.request.post(incentiveBase + '/api/unlock', { data: { password: 'Test Gate Pass 1' } })).ok());
+    const again = await open(admin, incentiveBase + '/');
+    await again.waitForSelector('#rows tr');
+    await again.waitForFunction(() => document.querySelector('#earnBranch').textContent.trim() === '£1,120.00', null, { timeout: 8000 });
+    assert.strictEqual((await again.textContent('#earnGbp')).trim(), '£1,600.00', 'the total commission is shown as it was');
+    assert.strictEqual((await again.textContent('#earnHead')).trim(), '£480.00', '30% of £1,600');
+    assert.match(await again.textContent('#earnNpr'), /96,000\.00/, '£480 at Rs 200');
+    await again.close();
   });
 
   await t.test('a team member colours a student row and Admin sees the colour', async () => {

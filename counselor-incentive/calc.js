@@ -4,24 +4,85 @@
   // Flywire Incentive = 0.2% of the Flywire Fee Payment (in GBP), converted to NPR at today's rate.
   const FLYWIRE_INCENTIVE_RATE = 0.002;
 
+  // Three incentives can be agreed in rupees, in pounds, or as a percentage of that student's university commission
+  // (the Commission Amount in pounds). The unit is saved next to the number (0 rupees, 1 pounds, 2 percent), and a
+  // student with no unit saved is in rupees, as every incentive was before units existed.
+  const UNIT = { NPR: 0, GBP: 1, PCT: 2 };
+  const FLEX_FIELDS = ['enrollmentCommission', 'enrollmentCommissionUni', 'newPartnershipCommission'];
+  const unitField = (field) => field + 'Unit';
+
   function num(v) { const n = parseFloat(v); return isNaN(n) ? 0 : n; }
   function round2(n) { return Math.round(n * 100) / 100; }
+
+  // What one flexible incentive is worth in rupees. commissionGbp is the student's Commission Amount (for percentages),
+  // gbpToNpr today's rate. Pounds and percentages cannot be worked out without a rate: they give null, never a wrong number.
+  function flexNpr(record, field, commissionGbp, gbpToNpr) {
+    const r = record || {};
+    const value = num(r[field]);
+    if (!value) return 0;
+    const unit = num(r[unitField(field)]);
+    if (unit === UNIT.GBP) return gbpToNpr ? round2(value * gbpToNpr) : null;
+    if (unit === UNIT.PCT) return gbpToNpr ? round2(num(commissionGbp) * value / 100 * gbpToNpr) : null;
+    return value;
+  }
+
+  // What a person types in one of those cells: "40000" or "Rs 40000" (rupees), "£500" or "500 gbp" (pounds), "15%" (percent).
+  // A plain number keeps the unit the cell already had. null when it is not a number at all.
+  function parseIncentiveInput(text, currentUnit) {
+    let s = String(text === undefined || text === null ? '' : text).trim();
+    let unit = num(currentUnit);
+    if (!s) return { value: 0, unit };
+    if (/%\s*$/.test(s)) { unit = UNIT.PCT; s = s.replace(/\s*%\s*$/, ''); }
+    else if (/^(£|gbp|pounds?)\s*/i.test(s)) { unit = UNIT.GBP; s = s.replace(/^(£|gbp|pounds?)\s*/i, ''); }
+    else if (/\s*(gbp|pounds?)$/i.test(s)) { unit = UNIT.GBP; s = s.replace(/\s*(gbp|pounds?)$/i, ''); }
+    else if (/^(rs\.?|nrs\.?|npr|रु\.?)\s*/i.test(s)) { unit = UNIT.NPR; s = s.replace(/^(rs\.?|nrs\.?|npr|रु\.?)\s*/i, ''); }
+    else if (/\s*(npr|rs\.?)$/i.test(s)) { unit = UNIT.NPR; s = s.replace(/\s*(npr|rs\.?)$/i, ''); }
+    s = s.replace(/,/g, '').trim();
+    if (!s) return { value: 0, unit };
+    const n = Number(s);
+    return Number.isFinite(n) ? { value: n, unit } : null;
+  }
+
+  const grouped = (n, max) => (Number(n) || 0).toLocaleString('en-US', { minimumFractionDigits: max === 0 ? 0 : 2, maximumFractionDigits: max === undefined ? 2 : max });
+  // How the cell shows it (the unit is always visible), and how it reads while being typed or copied.
+  function incentiveLabel(value, unit) {
+    const v = num(value);
+    if (!v) return '';
+    const u = num(unit);
+    return u === UNIT.GBP ? '£' + grouped(v) : u === UNIT.PCT ? grouped(v, 2).replace(/\.00$/, '') + '%' : 'Rs ' + grouped(v);
+  }
+  function incentiveTyped(value, unit) {
+    const v = num(value);
+    if (!v) return '';
+    const u = num(unit);
+    return u === UNIT.GBP ? '£' + v : u === UNIT.PCT ? v + '%' : String(v);
+  }
 
   function flywireIncentive(feePaymentGbp, gbpToNpr) {
     return round2(feePaymentGbp * FLYWIRE_INCENTIVE_RATE * gbpToNpr);
   }
 
   // records: each student's saved incentive values; previousAdvance: the intake's advance already paid.
-  function computeSummary(records, previousAdvance) {
+  // context (only needed once a pound or percent incentive exists): gbpToNpr is today's rate, commissionsGbp[i] is the
+  // Commission Amount of records[i]'s student. needsRate says some incentive could not be counted for want of a rate.
+  function computeSummary(records, previousAdvance, context) {
+    const ctx = context || {};
+    const rate = ctx.gbpToNpr || null;
+    let needsRate = false;
     const sum = (key) => records.reduce((a, r) => a + num((r || {})[key]), 0);
-    const totalCommissions = sum('enrollmentCommission') + sum('enrollmentCommissionUni')
-      + sum('newPartnershipCommission') + sum('flywireCommission');
+    const flexSum = (field) => records.reduce((a, r, i) => {
+      const v = flexNpr(r, field, ctx.commissionsGbp ? ctx.commissionsGbp[i] : 0, rate);
+      if (v === null) { needsRate = true; return a; }
+      return a + v;
+    }, 0);
+    const totalCommissions = flexSum('enrollmentCommission') + flexSum('enrollmentCommissionUni')
+      + flexSum('newPartnershipCommission') + sum('flywireCommission');
     const loanPayable = sum('loanCommission');
     const netCommissions = totalCommissions - loanPayable;
     const tds = Math.max(0, netCommissions) * TDS_RATE; // no TDS (and no negative TDS) when nothing is owed
     const advance = num(previousAdvance);
     const netPayable = netCommissions - tds - advance;
-    return { totalCommissions, loanPayable, netCommissions, tds, previousAdvance: advance, netPayable };
+    return { totalCommissions, loanPayable, netCommissions, tds, previousAdvance: advance, netPayable, needsRate };
   }
 
   // Commission the company gets from the university: the given % of the student's tuition fee (GBP).
@@ -29,17 +90,25 @@
     return round2(num(tuitionFeeGbp) * num(ratePercent) / 100);
   }
 
+  // A student who came through a branch (the Student Source is "Chitwan Branch", "Pokhara Branch", "Butwal Branch" and so
+  // on, anything ending in Branch): the branch keeps 70% of the university commission and the head office 30%.
+  const BRANCH_SHARE_PERCENT = 70;
+  function isBranchSource(source) { return /\bbranch\b/i.test(String(source || '')); }
+
   // What the company earned on an intake against what the counselor took home for it.
-  // commissionGbp: total university commission; salary is per month, paid for `months` months.
+  // commissionGbp: total university commission; branchCommissionGbp: the part of it that came from branch students (the
+  // branch keeps 70% of that, so only the rest is the head office's). Salary is per month, paid for `months` months.
   // sharePercent is null when there's nothing earned yet to compare with.
   const DEFAULT_BASIC_SALARY = 70000;
   const DEFAULT_SALARY_MONTHS = 4; // three intakes a year (January, April/May, September)
-  function computeEarnings({ commissionGbp, gbpToNpr, basicSalary, salaryMonths, myIncentives }) {
-    const companyNpr = gbpToNpr ? round2(num(commissionGbp) * gbpToNpr) : null;
+  function computeEarnings({ commissionGbp, branchCommissionGbp, gbpToNpr, basicSalary, salaryMonths, myIncentives }) {
+    const branchShareGbp = round2(num(branchCommissionGbp) * BRANCH_SHARE_PERCENT / 100);
+    const headOfficeGbp = round2(num(commissionGbp) - branchShareGbp);
+    const companyNpr = gbpToNpr ? round2(headOfficeGbp * gbpToNpr) : null;
     const salaryTotal = num(basicSalary) * num(salaryMonths);
     const myTotal = salaryTotal + num(myIncentives);
     const sharePercent = companyNpr > 0 ? (myTotal / companyNpr) * 100 : null;
-    return { commissionGbp: num(commissionGbp), companyNpr, salaryTotal, myTotal, sharePercent };
+    return { commissionGbp: num(commissionGbp), branchShareGbp, headOfficeGbp, companyNpr, salaryTotal, myTotal, sharePercent };
   }
 
   // Puts each university's students together, universities in the order they first appear and
@@ -63,7 +132,8 @@
     return m ? `${Number(m[2])}/${Number(m[3])}/${m[1]}` : s;
   }
 
-  const api = { TDS_RATE, FLYWIRE_INCENTIVE_RATE, num, round2, flywireIncentive, computeSummary,
+  const api = { TDS_RATE, FLYWIRE_INCENTIVE_RATE, UNIT, FLEX_FIELDS, unitField, flexNpr, parseIncentiveInput, incentiveLabel, incentiveTyped,
+    BRANCH_SHARE_PERCENT, isBranchSource, num, round2, flywireIncentive, computeSummary,
     universityCommission, groupByUniversity, displayDate, DEFAULT_BASIC_SALARY, DEFAULT_SALARY_MONTHS, computeEarnings };
   if (typeof module === 'object' && module.exports) module.exports = api;
   else root.IncentiveCalc = api;

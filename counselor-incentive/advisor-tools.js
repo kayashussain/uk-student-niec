@@ -20,7 +20,7 @@ const INCENTIVE_TOOLS = [
   },
   {
     name: 'get_incentives',
-    description: 'The Incentive page rows, live: one per visa-issued student, with University Partner (the agent), university, course, tuition fee (GBP), university commission % and amount (GBP), and the incentives entered (NPR). Say which intake with "intake"; omit it for every intake. Filter with "student", "university", "partner" and "source" (Student Source; each matches part of the text, ignoring case). Returns at most "limit" rows (default 200, max 1000); use "offset" to page.',
+    description: 'The Incentive page rows, live: one per visa-issued student, with University Partner (the agent), university, course, tuition fee (GBP), university commission % and amount (GBP), and the incentives entered (each of the three flexible ones as entered, in rupees, pounds or percent, and what it comes to in NPR). Say which intake with "intake"; omit it for every intake. Filter with "student", "university", "partner" and "source" (Student Source; each matches part of the text, ignoring case). Returns at most "limit" rows (default 200, max 1000); use "offset" to page.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -37,7 +37,7 @@ const INCENTIVE_TOOLS = [
   },
   {
     name: 'get_payment_summary',
-    description: 'The Payment Summary and Company Earnings of an intake, as the Incentive page shows them: total incentives, loan incentive to share, net incentives, TDS (15%), previous advance, net payable (all NPR); the university commission (GBP, and NPR at the exchange rate), the counselor salary for the intake period, and the share of the company earnings that is paid out. Omit "intake" for every intake.',
+    description: 'The Payment Summary and Company Earnings of an intake, as the Incentive page shows them: total incentives, loan incentive to share, net incentives, TDS (15%), previous advance, net payable (all NPR); the university commission (GBP, and NPR at the exchange rate), the branch share (70% of the commission of students who came through a branch) and the head office commission that Company Earnings are worked out from, the counselor salary for the intake period, and the share of the company earnings that is paid out. Omit "intake" for every intake.',
     inputSchema: { type: 'object', properties: { intake: { type: 'string' } }, additionalProperties: false },
   },
   {
@@ -62,7 +62,8 @@ const NAMES = new Set(INCENTIVE_TOOLS.map((t) => t.name));
 //   getRate()         the exchange rate last saved by the Incentive page, { rate, date }, or null
 function createIncentiveTools({ getSync, getCommissions, getAdvances, getRate }) {
   // Every visa-issued student with their saved incentives and the worked-out amounts.
-  function load() {
+  function load(rate) {
+    const gbpToNpr = rate ? rate.rate : null;
     const sync = getSync();
     if (!sync || !sync.ok) return { error: (sync && sync.error) || 'The Student Details data could not be read right now.' };
     const commissions = getCommissions();
@@ -74,8 +75,15 @@ function createIncentiveTools({ getSync, getCommissions, getAdvances, getRate })
         advance: advances[name] || {},
         students: (sync.byIntake[name] || []).map((s) => {
           const c = commissions[s.id] || {};
-          const total = calc.num(c.enrollmentCommission) + calc.num(c.enrollmentCommissionUni) + calc.num(c.newPartnershipCommission)
-            + calc.num(c.flywireCommission);
+          const commissionGbp = calc.universityCommission(s.tuitionFee, c.uniCommissionRate);
+          // Each of the three flexible incentives is entered in rupees, pounds or percent; this is what it comes to in rupees
+          // (null when it is in pounds or percent and there is no exchange rate to work it out with).
+          const flex = (field) => calc.flexNpr(c, field, commissionGbp, gbpToNpr);
+          const enrollment = flex('enrollmentCommission');
+          const enrollmentUni = flex('enrollmentCommissionUni');
+          const partnership = flex('newPartnershipCommission');
+          const needsRate = [enrollment, enrollmentUni, partnership].some((v) => v === null);
+          const total = (enrollment || 0) + (enrollmentUni || 0) + (partnership || 0) + calc.num(c.flywireCommission);
           return {
             intake: name,
             student: s.name,
@@ -87,10 +95,15 @@ function createIncentiveTools({ getSync, getCommissions, getAdvances, getRate })
             tuitionFeeGbp: s.tuitionFee,
             visaIssuedDate: s.visaIssuedDate,
             uniCommissionRatePercent: calc.num(c.uniCommissionRate),
-            uniCommissionAmountGbp: calc.universityCommission(s.tuitionFee, c.uniCommissionRate),
-            enrollmentIncentiveNpr: calc.num(c.enrollmentCommission),
-            enrollmentIncentiveFromUniversityNpr: calc.num(c.enrollmentCommissionUni),
-            newPartnershipIncentiveNpr: calc.num(c.newPartnershipCommission),
+            uniCommissionAmountGbp: commissionGbp,
+            isBranchStudent: calc.isBranchSource(s.source),
+            enrollmentIncentiveEntered: calc.incentiveLabel(c.enrollmentCommission, c.enrollmentCommissionUnit) || null,
+            enrollmentIncentiveNpr: enrollment,
+            enrollmentIncentiveFromUniversityEntered: calc.incentiveLabel(c.enrollmentCommissionUni, c.enrollmentCommissionUniUnit) || null,
+            enrollmentIncentiveFromUniversityNpr: enrollmentUni,
+            newPartnershipIncentiveEntered: calc.incentiveLabel(c.newPartnershipCommission, c.newPartnershipCommissionUnit) || null,
+            newPartnershipIncentiveNpr: partnership,
+            needsExchangeRate: needsRate,
             flywireFeePaymentGbp: calc.num(c.flywireFeePayment),
             flywireIncentiveNpr: calc.num(c.flywireCommission),
             loanIncentiveToShareNpr: calc.num(c.loanCommission),
@@ -113,12 +126,16 @@ function createIncentiveTools({ getSync, getCommissions, getAdvances, getRate })
   const publicRow = ({ _record, ...row }) => row;
 
   function summaryOf(intake, rate) {
-    const s = calc.computeSummary(intake.students.map((st) => st._record), intake.advance.previousAdvance);
+    const gbpToNpr = rate ? rate.rate : null;
+    const s = calc.computeSummary(intake.students.map((st) => st._record), intake.advance.previousAdvance,
+      { gbpToNpr, commissionsGbp: intake.students.map((st) => st.uniCommissionAmountGbp) });
     const salary = intake.advance.basicSalary === undefined ? calc.DEFAULT_BASIC_SALARY : intake.advance.basicSalary;
     const months = intake.advance.salaryMonths === undefined ? calc.DEFAULT_SALARY_MONTHS : intake.advance.salaryMonths;
     const e = calc.computeEarnings({
       commissionGbp: intake.students.reduce((a, st) => a + st.uniCommissionAmountGbp, 0),
-      gbpToNpr: rate ? rate.rate : null,
+      // A student from a branch: the branch keeps 70% of the university commission, the head office 30%.
+      branchCommissionGbp: intake.students.filter((st) => st.isBranchStudent).reduce((a, st) => a + st.uniCommissionAmountGbp, 0),
+      gbpToNpr,
       basicSalary: salary,
       salaryMonths: months,
       myIncentives: s.netCommissions,
@@ -129,9 +146,14 @@ function createIncentiveTools({ getSync, getCommissions, getAdvances, getRate })
       paymentSummaryNpr: {
         totalIncentives: round2(s.totalCommissions), loanIncentiveToShare: round2(s.loanPayable), netIncentives: round2(s.netCommissions),
         tds15Percent: round2(s.tds), previousAdvance: round2(s.previousAdvance), netPayable: round2(s.netPayable),
+        ...(s.needsRate ? { warning: 'Some incentives are in pounds or percent and there is no exchange rate, so they are not counted.' } : {}),
       },
       companyEarnings: {
-        universityCommissionGbp: round2(e.commissionGbp), universityCommissionNpr: e.companyNpr,
+        universityCommissionGbp: round2(e.commissionGbp),
+        branchSharePercent: calc.BRANCH_SHARE_PERCENT, branchShareGbp: e.branchShareGbp,
+        headOfficeCommissionGbp: e.headOfficeGbp,
+        universityCommissionNpr: gbpToNpr ? round2(e.commissionGbp * gbpToNpr) : null,
+        companyEarningsNpr: e.companyNpr,
         counselorSalaryForPeriodNpr: round2(e.salaryTotal), basicSalaryPerMonthNpr: salary, salaryMonths: months,
         counselorTotalNpr: round2(e.myTotal), counselorSharePercentOfCompanyEarnings: e.sharePercent === null ? null : round2(e.sharePercent),
       },
@@ -139,9 +161,9 @@ function createIncentiveTools({ getSync, getCommissions, getAdvances, getRate })
   }
 
   function callTool(name, a) {
-    const data = load();
-    if (data.error) return errorResult(data.error);
     const rate = getRate ? getRate() : null;
+    const data = load(rate);
+    if (data.error) return errorResult(data.error);
     const pulledAt = new Date().toISOString();
 
     if (name === 'get_incentive_overview') {
@@ -153,6 +175,8 @@ function createIncentiveTools({ getSync, getCommissions, getAdvances, getRate })
           'Only students whose Application Status is exactly "Visa Issued" appear here, as on the Incentive page.',
           'University Partner is the agent: it comes from the University Partner column of Student Details.',
           'Tuition fee and university commission are in GBP; every incentive, TDS, advance and salary figure is in NPR.',
+          'Enrollment Incentive, Enrollment Incentive from University and New Partnership Incentive can each be entered in rupees, pounds or as a percent of that student\'s university commission: the "...Entered" field shows how it was entered (for example "£500.00", "15%" or "Rs 40,000.00") and the "...Npr" field what it comes to in rupees at the exchange rate. Pounds and percent need the exchange rate (needsExchangeRate says one is missing).',
+          'Company earnings: for a student whose Student Source is a branch (ends in "Branch", like Chitwan Branch or Pokhara Branch) the branch keeps 70% of the university commission and the head office 30%. companyEarningsNpr is worked out from the head office part only.',
           'These tools cannot change anything.',
         ],
       });

@@ -183,3 +183,37 @@ test('when the Incentive data folder cannot be found, the incentive tools say so
   assert.match(r.content[0].text, /could not be found/);
   assert.strictEqual((await ask('get_overview')).isError, undefined);
 });
+
+test('the connector knows incentives entered in pounds or percent, and that a branch student earns the head office only 30%', () => {
+  const commissions = {
+    a: { uniCommissionRate: 15, enrollmentCommission: 100, enrollmentCommissionUnit: 1, enrollmentCommissionUni: 10, enrollmentCommissionUniUnit: 2, newPartnershipCommission: 2000 },
+    b: { uniCommissionRate: 10 },
+    c: { uniCommissionRate: 10 }, // Maya Gurung, Pokhara Branch, £8,000 of tuition: £800 of commission
+  };
+  const m = make({ incentive: { getCommissions: () => commissions, getAdvances: (sheets) => advancesByName({}, sheets), getRate: () => ({ rate: 180, date: '2026-11-04' }) } });
+  const rows = call(m, 'get_incentives', { intake: 'Sep Intake 2026' }).students;
+  const sita = rows.find((r) => r.student === 'Sita Sharma');
+  assert.strictEqual(sita.uniCommissionAmountGbp, 1500);
+  assert.strictEqual(sita.enrollmentIncentiveEntered, '£100.00');
+  assert.strictEqual(sita.enrollmentIncentiveNpr, 18000, '£100 at 180');
+  assert.strictEqual(sita.enrollmentIncentiveFromUniversityEntered, '10%');
+  assert.strictEqual(sita.enrollmentIncentiveFromUniversityNpr, 27000, '10% of £1,500 = £150, at 180');
+  assert.strictEqual(sita.newPartnershipIncentiveEntered, 'Rs 2,000.00');
+  assert.strictEqual(sita.totalIncentivesNpr, 18000 + 27000 + 2000);
+  assert.strictEqual(rows.find((r) => r.student === 'Maya Gurung').isBranchStudent, true);
+  assert.strictEqual(sita.isBranchStudent, false);
+
+  const e = call(m, 'get_payment_summary', { intake: 'Sep Intake 2026' }).intakes[0].companyEarnings;
+  assert.strictEqual(e.universityCommissionGbp, 1500 + 1200 + 800);
+  assert.strictEqual(e.branchSharePercent, 70);
+  assert.strictEqual(e.branchShareGbp, 560, '70% of the branch student\'s £800');
+  assert.strictEqual(e.headOfficeCommissionGbp, 3500 - 560);
+  assert.strictEqual(e.companyEarningsNpr, (3500 - 560) * 180, 'Company Earnings come from the head office part only');
+
+  // Without an exchange rate, a pound or percent incentive is flagged and left out, never guessed.
+  const noRate = make({ incentive: { getCommissions: () => commissions, getAdvances: (sheets) => advancesByName({}, sheets), getRate: () => null } });
+  const flagged = call(noRate, 'get_incentives', { intake: 'Sep Intake 2026' }).students.find((r) => r.student === 'Sita Sharma');
+  assert.strictEqual(flagged.needsExchangeRate, true);
+  assert.strictEqual(flagged.enrollmentIncentiveNpr, null);
+  assert.strictEqual(flagged.newPartnershipIncentiveNpr, 2000, 'rupees need no rate');
+});
