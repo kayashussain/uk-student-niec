@@ -9,6 +9,15 @@ Format: **date · file · what · from → to · why**
 
 ---
 
+## 2026-11-04 · `counselor-incentive/index.html` · unit dropdown in the three flexible incentive cells
+
+- **What:** a small Rs / £ / % dropdown inside each cell of Enrollment Incentive, Enrollment Incentive from University and New Partnership Incentive.
+- **Cell layout:** from a plain right-aligned number → to the dropdown at the left and the number at the right (`td.flex-cell`: `padding-left: 78px`, width `200px` for the heading and the cells (they were fixed at `132px`, like every number column), the dropdown `position: absolute; left: 8px`, `width: 62px`, `min-height: 28px`, `font-size: 12px`, fully rounded).
+- **Why:** so the unit can be picked from a list instead of typing a symbol every time.
+- **In the code:** marked with `🔴 CSS CHANGED` at the end of the `<style>` block of `counselor-incentive/index.html`.
+
+---
+
 ## 2026-11-04 · `shared/login.html` · login page headline put back to the earlier size
 
 - **What:** the size of "Welcome back to your team's workspace." was put back, because the larger size looked too huge. The sentence and the three points under it also came back (text, not CSS).

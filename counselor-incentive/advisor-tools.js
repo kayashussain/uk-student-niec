@@ -151,6 +151,11 @@ function createIncentiveTools({ getSync, getCommissions, getAdvances, getRate })
       companyEarnings: {
         universityCommissionGbp: round2(e.commissionGbp),
         branchSharePercent: calc.BRANCH_SHARE_PERCENT, branchShareGbp: e.branchShareGbp,
+        // Each branch student, their branch, their university commission and what the branch kept of it.
+        branchDeductions: intake.students.filter((st) => st.isBranchStudent).map((st) => ({
+          student: st.student, branch: st.studentSource, universityCommissionGbp: st.uniCommissionAmountGbp,
+          branchShareGbp: round2(st.uniCommissionAmountGbp * calc.BRANCH_SHARE_PERCENT / 100),
+        })),
         headOfficeCommissionGbp: e.headOfficeGbp,
         universityCommissionNpr: gbpToNpr ? round2(e.commissionGbp * gbpToNpr) : null,
         companyEarningsNpr: e.companyNpr,

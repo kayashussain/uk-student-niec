@@ -323,18 +323,42 @@ test('screens: log in, edit, delete, search, team rules, Fact File', { timeout: 
     };
     await enter('Commission %', '10'); // 10% of the £16,000 tuition: a £1,600 commission
     await enter('Enrollment Incentive', '£100'); // was Rs 10,000 from the earlier test: now pounds
-    assert.strictEqual((await cell('Enrollment Incentive').textContent()).trim(), '£100.00', 'the unit shows in the cell');
+    const unit = (label) => cell(label).locator('select.unit-select').inputValue();
+    const amount = async (label) => (await cell(label).locator('.amount').textContent()).trim();
+    assert.strictEqual(await unit('Enrollment Incentive'), '1', 'typing a pound sign sets the dropdown to pounds');
+    assert.strictEqual(await amount('Enrollment Incentive'), '100.00');
     await enter('Enrollment Incentive from University', '10%'); // 10% of £1,600 = £160
-    assert.strictEqual((await cell('Enrollment Incentive from University').textContent()).trim(), '10%');
+    assert.strictEqual(await unit('Enrollment Incentive from University'), '2', 'percent');
+    assert.strictEqual(await amount('Enrollment Incentive from University'), '10');
     await enter('New Partnership Incentive', '5000'); // a plain number in a fresh cell is rupees
-    assert.strictEqual((await cell('New Partnership Incentive').textContent()).trim(), 'Rs 5,000.00');
+    assert.strictEqual(await unit('New Partnership Incentive'), '0', 'rupees');
+    assert.strictEqual(await amount('New Partnership Incentive'), '5,000.00');
     // £100 x 200 + 10% of £1,600 (£160) x 200 + Rs 5,000
     await page.waitForFunction(() => document.querySelector('#sumTotalCommissions').textContent === '57,000.00', null, { timeout: 8000 });
     assert.match(await cell('Enrollment Incentive').getAttribute('title'), /20,000\.00/, 'hovering says what it comes to in rupees');
 
     // A plain number keeps the unit: 600 in the pounds cell is £600.
     await enter('Enrollment Incentive', '600');
-    assert.strictEqual((await cell('Enrollment Incentive').textContent()).trim(), '£600.00');
+    assert.strictEqual(await unit('Enrollment Incentive'), '1');
+    assert.strictEqual(await amount('Enrollment Incentive'), '600.00');
+
+    // The unit can also be picked from the dropdown, without typing a symbol: Rs 600 instead of £600.
+    await cell('Enrollment Incentive').locator('select.unit-select').selectOption('0');
+    await page.waitForSelector('.eg-box');
+    await page.click('.eg-ok');
+    await page.waitForFunction(() => document.querySelector('#sumTotalCommissions').textContent === '37,600.00', null, { timeout: 8000 }); // Rs 600 + 10% of £1,600 at 200 (32,000) + Rs 5,000
+    assert.strictEqual(await unit('Enrollment Incentive'), '0', 'the dropdown now says rupees');
+    await cell('Enrollment Incentive').locator('select.unit-select').selectOption('1'); // and back to pounds
+    await page.waitForSelector('.eg-box');
+    await page.click('.eg-ok');
+    await page.waitForFunction(() => document.querySelector('#sumTotalCommissions').textContent === '157,000.00', null, { timeout: 8000 }); // £600 at 200 = 120,000 + 32,000 + 5,000
+    // Cancelling the question puts the dropdown back to what is saved, and the total does not move.
+    await cell('Enrollment Incentive').locator('select.unit-select').selectOption('2');
+    await page.waitForSelector('.eg-box');
+    await page.click('.eg-cancel');
+    await page.waitForFunction(() => !document.querySelector('.eg-box'));
+    assert.strictEqual(await unit('Enrollment Incentive'), '1', 'back to pounds after Cancel');
+    assert.strictEqual((await page.textContent('#sumTotalCommissions')).trim(), '157,000.00');
 
     // The saved record has the units.
     const saved = Object.values(await (await admin.request.get(incentiveBase + '/api/commissions')).json())[0];
@@ -360,6 +384,11 @@ test('screens: log in, edit, delete, search, team rules, Fact File', { timeout: 
     assert.strictEqual((await again.textContent('#earnGbp')).trim(), '£1,600.00', 'the total commission is shown as it was');
     assert.strictEqual((await again.textContent('#earnHead')).trim(), '£480.00', '30% of £1,600');
     assert.match(await again.textContent('#earnNpr'), /96,000\.00/, '£480 at Rs 200');
+    // The list: who the branch took commission from, which branch, and how much.
+    const list = (await again.locator('[data-branch-row]').allTextContents()).map((t) => t.replace(/\s+/g, ' ').trim());
+    assert.ok(list.some((t) => /Taken by the branches/.test(t)), 'the list has a heading');
+    assert.ok(list.some((t) => /Pokhara Branch/.test(t) && /commission £1,600\.00/.test(t) && /£1,120\.00/.test(t)), 'the student, the branch, the commission and the 70%: ' + list.join(' | '));
+    assert.match(await again.textContent('#earnBranchRow'), /Total Branch Share Deducted/);
     await again.close();
   });
 

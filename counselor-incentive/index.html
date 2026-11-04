@@ -214,6 +214,13 @@
     font-weight: 600; font-variant-numeric: tabular-nums; color: var(--text);
   }
   .adv-input:focus { outline: 2px solid var(--focus); outline-offset: -1px; }
+  /* 🔴 CSS CHANGED (2026-11-04): new Rs / £ / % unit dropdown inside the three flexible incentive cells (Enrollment Incentive, Enrollment Incentive from University, New Partnership Incentive)
+     | from: those cells were just a right-aligned number (132px wide, like every number column), with the unit typed as a symbol
+     | to: a small rounded dropdown sits at the left of the cell and the number stays at the right; these three columns (heading and cells) are 200px wide so the dropdown and a number like Rs 100,000.00 both fit */
+  thead th.num.flex-col, tbody td.num.flex-cell { width: 200px; min-width: 200px; max-width: 200px; }
+  #sheet tbody td.num.flex-cell { position: relative; padding-left: 78px; }
+  tbody td.num.flex-cell .unit-select { position: absolute; left: 8px; top: 50%; transform: translateY(-50%); width: 62px; min-height: 28px; padding: 0 8px; font-size: 12px; border-radius: 999px; }
+  tbody td.num.flex-cell .amount { display: inline-block; min-width: 40px; outline: none; }
 </style>
 <link rel="stylesheet" href="theme.css" />
 </head>
@@ -299,8 +306,8 @@
       <span class="label">Total Commission from Universities (£) <span class="info" title="The Commission Amount column added up.">ⓘ</span></span>
       <span class="value" id="earnGbp">0.00</span>
     </div>
-    <div class="summary-row subtract">
-      <span class="label">Branch Share (70%) <span class="info" title="For a student who came through a branch (the Student Source ends in Branch, like Chitwan Branch or Pokhara Branch), the branch keeps 70% of the university commission. Only the other 30% is the head office's.">ⓘ</span></span>
+    <div class="summary-row subtract" id="earnBranchRow">
+      <span class="label">Total Branch Share Deducted (70%) <span class="info" title="For a student who came through a branch (the Student Source ends in Branch, like Chitwan Branch or Pokhara Branch), the branch keeps 70% of the university commission. Only the other 30% is the head office's.">ⓘ</span></span>
       <span class="value" id="earnBranch">£0.00</span>
     </div>
     <div class="summary-row">
@@ -362,7 +369,7 @@ window.addEventListener('pageshow', (e) => { if (e.persisted) location.reload();
 // this app and not whatever else is mounted at the true root.
 const BASE = location.pathname.replace(/\/index\.html$/, '').replace(/\/+$/, '');
 const { num, flywireIncentive, universityCommission, DEFAULT_BASIC_SALARY, DEFAULT_SALARY_MONTHS,
-  unitField, flexNpr, parseIncentiveInput, incentiveLabel, incentiveTyped, isBranchSource, BRANCH_SHARE_PERCENT } = window.IncentiveCalc;
+  unitField, flexNpr, parseIncentiveInput, incentiveLabel, incentiveTyped, isBranchSource, BRANCH_SHARE_PERCENT, round2 } = window.IncentiveCalc;
 // How the three flexible incentive columns are typed: the unit goes with the number.
 const FLEX_HINT = "Type it the way it was agreed: 40000 (or Rs 40000) for rupees, £500 for pounds, or 15% for a percentage of this student's Commission Amount. A plain number keeps the unit already in the cell.";
 const POLL_MS = 3000; // safety net only: changes normally arrive at once over /api/live
@@ -432,7 +439,38 @@ function commissionAmountOf(s) { return infoValue(s, COLUMNS[colIndex('uniCommis
 function flexNprOf(s, key) { return flexNpr(state.commissions[s.id] || {}, key, commissionAmountOf(s), earningsRate ? earningsRate.rate : null); }
 // What a money cell shows. The three flexible columns always show their unit.
 function moneyCellText(id, key) {
-  return isFlex(key) ? incentiveLabel(commissionValue(id, key), unitOf(id, key)) : cellText(key, commissionValue(id, key));
+  return isFlex(key) ? amountText(commissionValue(id, key), unitOf(id, key)) : cellText(key, commissionValue(id, key));
+}
+// The number in a flexible cell, without its unit (the dropdown beside it says which: Rs, £ or %).
+function amountText(value, unit) {
+  if (!num(value)) return '';
+  return unit === 2 ? num(value).toLocaleString('en-US', { maximumFractionDigits: 2 }) : fmt(value);
+}
+const UNIT_CHOICES = [['0', 'Rs'], ['1', '£'], ['2', '%']];
+const UNIT_NAMES = { 0: 'rupees', 1: 'pounds', 2: 'percent' };
+// The Rs / £ / % dropdown in a flexible cell. Changing it asks first, like any change, and saves with the number.
+function makeUnitSelect(id, key) {
+  const select = document.createElement('select');
+  select.className = 'unit-select';
+  select.setAttribute('aria-label', `Unit of ${COLUMNS[colIndex(key)].label}: rupees, pounds or percent`);
+  UNIT_CHOICES.forEach(([value, label]) => {
+    const o = document.createElement('option');
+    o.value = value;
+    o.textContent = label;
+    select.appendChild(o);
+  });
+  const current = unitOf(id, key);
+  select.value = String(current);
+  // The grid selects a cell on mouse down and would stop the list opening: this is a control, not part of the grid.
+  select.addEventListener('mousedown', (e) => { e.stopPropagation(); if (editing) commitEdit({ refocus: false }); });
+  select.addEventListener('keydown', (e) => e.stopPropagation());
+  select.addEventListener('change', () => {
+    const to = Number(select.value);
+    if (to === current) return;
+    selectCell(id, key, { scroll: false });
+    applyChanges([{ id, key: unitField(key), to }]); // asks "Do you really want to make this change?" itself; cancelling redraws the cell with the saved unit
+  });
+  return select;
 }
 // Hover text on a pound or percent cell: what it comes to in rupees.
 function flexCellTitle(s, key) {
@@ -742,7 +780,7 @@ function renderTabs() {
 
 function renderHead() {
   headRow.innerHTML = '<th>S.N</th>' + COLUMNS.map((c) =>
-    `<th${c.money || c.amount ? ' class="num"' : ''}${c.title ? ` title="${esc(c.title)}"` : ''}>${esc(c.label)}${c.title ? ' <span class="info">ⓘ</span>' : ''}</th>`).join('');
+    `<th${c.money || c.amount ? ` class="num${c.flex ? ' flex-col' : ''}"` : ''}${c.title ? ` title="${esc(c.title)}"` : ''}>${esc(c.label)}${c.title ? ' <span class="info">ⓘ</span>' : ''}</th>`).join('');
 }
 
 // Every visa-issued student in the open intake. The Payment Summary and the Excel export always use
@@ -787,9 +825,16 @@ function render() {
       td.tabIndex = -1;
       if (col.money) {
         const value = commissionValue(s.id, col.key);
-        td.className = 'num editable';
-        td.textContent = col.flex ? incentiveLabel(value, unitOf(s.id, col.key)) : cellText(col.key, value);
-        if (col.flex) td.title = flexCellTitle(s, col.key);
+        td.className = 'num editable' + (col.flex ? ' flex-cell' : '');
+        if (col.flex) {
+          const amount = document.createElement('span');
+          amount.className = 'amount';
+          amount.textContent = amountText(value, unitOf(s.id, col.key));
+          td.append(makeUnitSelect(s.id, col.key), amount);
+          td.title = flexCellTitle(s, col.key);
+        } else {
+          td.textContent = cellText(col.key, value);
+        }
       } else if (col.amount) {
         const value = infoValue(s, col);
         td.title = col.calc ? col.title : INFO_HINT;
@@ -848,6 +893,18 @@ function intakeSetting(field, fallback) {
   return v === undefined ? fallback : num(v);
 }
 
+// The students who came through a branch, with the commission the branch keeps (70%) of each. Branch by branch, in the
+// order the students are listed. Used by the Company Earnings list and the Excel export, so they cannot disagree.
+function branchDeductions(students) {
+  const amountCol = COLUMNS[colIndex('uniCommissionAmount')];
+  const list = students.filter((st) => isBranchSource(st.source)).map((st) => {
+    const commission = infoValue(st, amountCol);
+    return { name: st.name || '(no name)', branch: String(st.source).trim(), commission, deducted: round2(commission * BRANCH_SHARE_PERCENT / 100) };
+  });
+  const order = [...new Set(list.map((r) => r.branch))].sort((a, b) => a.localeCompare(b));
+  return order.flatMap((branch) => list.filter((r) => r.branch === branch));
+}
+
 function computeEarnings(students, summary) {
   const amountCol = COLUMNS[colIndex('uniCommissionAmount')];
   return window.IncentiveCalc.computeEarnings({
@@ -867,6 +924,7 @@ function renderEarnings(students, summary) {
   $('#earnStudents').textContent = students.length;
   $('#earnGbp').textContent = '£' + fmt(e.commissionGbp);
   $('#earnBranch').textContent = '£' + fmt(e.branchShareGbp);
+  renderBranchList(students);
   $('#earnHead').textContent = '£' + fmt(e.headOfficeGbp);
   $('#earnNpr').textContent = e.companyNpr === null ? '-' : fmt(e.companyNpr);
   $('#earnRateHint').textContent = earningsRate
@@ -878,6 +936,27 @@ function renderEarnings(students, summary) {
   $('#earnIncentives').textContent = fmt(summary.netCommissions);
   $('#earnMyTotal').textContent = fmt(e.myTotal);
   $('#earnShare').textContent = e.sharePercent === null ? '-' : e.sharePercent.toFixed(2) + '%';
+}
+
+// Under the total commission: each branch student, which branch, and how much of that student's commission the branch kept.
+function renderBranchList(students) {
+  document.querySelectorAll('[data-branch-row]').forEach((n) => n.remove());
+  const rows = branchDeductions(students);
+  if (!rows.length) return;
+  const anchor = $('#earnBranchRow');
+  const add = (labelHtml, value, bold) => {
+    const div = document.createElement('div');
+    div.className = 'summary-row';
+    div.dataset.branchRow = '1';
+    div.innerHTML = `<span class="label">${labelHtml}</span><span class="value">${bold ? '<strong>' + esc(value) + '</strong>' : esc(value)}</span>`;
+    anchor.parentNode.insertBefore(div, anchor);
+  };
+  add(`<strong>Taken by the branches</strong> <span class="hint">${BRANCH_SHARE_PERCENT}% of each branch student's university commission</span>`, '', false);
+  [...new Set(rows.map((r) => r.branch))].forEach((branch) => {
+    const group = rows.filter((r) => r.branch === branch);
+    group.forEach((r) => add(`${esc(r.name)} <span class="hint">${esc(r.branch)} · commission £${esc(fmt(r.commission))}</span>`, '£' + fmt(r.deducted), false));
+    if (group.length > 1) add(`<strong>${esc(branch)}</strong> <span class="hint">${group.length} students</span>`, '£' + fmt(group.reduce((a, r) => a + r.deducted, 0)), true);
+  });
 }
 
 getExchangeRate().then((fx) => { earningsRate = fx; if (editing) recalc(intakeStudents()); else render(); }); // render: pound and percent cells say what they come to
@@ -1072,15 +1151,17 @@ function startEdit({ replaceWith = null } = {}) {
   const td = cellTd(id, key);
   if (!td) return;
   const original = commissionValue(id, key);
-  editing = { td, id, key, original, typed: replaceWith !== null };
-  td.contentEditable = 'true';
+  // A flexible cell has its unit dropdown beside the number: only the number is typed in.
+  const el = isFlex(key) ? td.querySelector('.amount') : td;
+  editing = { td, el, id, key, original, typed: replaceWith !== null };
+  el.contentEditable = 'true';
   td.classList.add('editing');
-  td.textContent = replaceWith !== null ? replaceWith
-    : (isFlex(key) ? incentiveTyped(original, unitOf(id, key)) : (original ? String(original) : ''));  // plain number while typing (with £ or % where it has one)
+  el.textContent = replaceWith !== null ? replaceWith
+    : (isFlex(key) ? (original ? String(original) : '') : (original ? String(original) : ''));  // the plain number while typing
   if (isFlex(key)) showHint(FLEX_HINT);
-  td.focus({ preventScroll: true });
+  el.focus({ preventScroll: true });
   const range = document.createRange();
-  range.selectNodeContents(td);
+  range.selectNodeContents(el);
   range.collapse(false);
   const sel = window.getSelection();
   sel.removeAllRanges();
@@ -1093,19 +1174,19 @@ function finishEditing() {
 
 function commitEdit({ move = null, refocus = true } = {}) {
   if (!editing) return;
-  const { td, id, key, original } = editing;
+  const { td, el, id, key, original } = editing;
   editing = null;
-  td.removeAttribute('contenteditable');
+  el.removeAttribute('contenteditable');
   td.classList.remove('editing');
   if (isFlex(key)) {
     const unit = unitOf(id, key);
-    const typed = parseIncentiveInput(td.textContent, unit);
+    const typed = parseIncentiveInput(el.textContent, unit);
     if (typed === null) {
-      td.textContent = moneyCellText(id, key);
-      showHint('Only a number can go here, with Rs, £ or % if you like.');
+      el.textContent = moneyCellText(id, key);
+      showHint('Only a number can go here. Pick Rs, £ or % beside it.');
       finishEditing();
     } else {
-      td.textContent = incentiveLabel(typed.value, typed.unit);
+      el.textContent = amountText(typed.value, typed.unit);
       const changes = [];
       if (typed.value !== original) changes.push({ id, key, to: typed.value });
       if (typed.unit !== unit) changes.push({ id, key: unitField(key), to: typed.unit });
@@ -1113,13 +1194,13 @@ function commitEdit({ move = null, refocus = true } = {}) {
       else finishEditing();
     }
   } else {
-    const value = parseMoney(td.textContent);
+    const value = parseMoney(el.textContent);
     if (value === null) {
-      td.textContent = cellText(key, original);
+      el.textContent = cellText(key, original);
       showHint('Only numbers can go in incentive cells.');
       finishEditing();
     } else {
-      td.textContent = cellText(key, value);
+      el.textContent = cellText(key, value);
       if (value !== original) applyChanges([{ id, key, to: value }]);
       else finishEditing();
     }
@@ -1130,11 +1211,11 @@ function commitEdit({ move = null, refocus = true } = {}) {
 
 function cancelEdit() {
   if (!editing) return;
-  const { td, id, key, original } = editing;
+  const { td, el, id, key, original } = editing;
   editing = null;
-  td.removeAttribute('contenteditable');
+  el.removeAttribute('contenteditable');
   td.classList.remove('editing');
-  td.textContent = isFlex(key) ? moneyCellText(id, key) : cellText(key, original);
+  el.textContent = isFlex(key) ? moneyCellText(id, key) : cellText(key, original);
   finishEditing();
   focusActiveCell({ scroll: false });
 }
@@ -1284,7 +1365,7 @@ rowsEl.addEventListener('dblclick', (e) => {
 
 // Clicking anywhere outside the cell being typed in (search box, a button, a tab) saves it.
 rowsEl.addEventListener('focusout', (e) => {
-  if (editing && e.target === editing.td) commitEdit({ refocus: false });
+  if (editing && e.target === editing.el) commitEdit({ refocus: false });
 });
 
 // True when the grid (not the search box, the advance field, or a cell being typed in) has the keyboard.
@@ -1326,6 +1407,7 @@ document.addEventListener('keydown', (e) => {
   if (!activeCell || e.defaultPrevented) return;
   const ae = document.activeElement;
   if (!(ae === document.body || rowsEl.contains(ae))) return; // search box, advance field, buttons: not ours
+  if (ae && ae.tagName === 'SELECT') return; // the unit dropdown in a cell keeps its own keys
 
   if (editing) {
     if (e.key === 'Enter') { e.preventDefault(); commitEdit({ move: [e.shiftKey ? -1 : 1, 0] }); }
@@ -1482,7 +1564,10 @@ $('#exportExcelBtn').addEventListener('click', async () => {
   addExcelSummaryRow(ws, 'Students Enrolled', students.length);
   ws.lastRow.getCell(5).numFmt = '0';
   addExcelSummaryRow(ws, 'Total Commission from Universities (£)', e.commissionGbp);
-  addExcelSummaryRow(ws, `Branch Share (${BRANCH_SHARE_PERCENT}%) (-) (£)`, e.branchShareGbp, { color: 'FFDC2626' });
+  branchDeductions(students).forEach((r) => {
+    addExcelSummaryRow(ws, `${r.name} (${r.branch}): ${BRANCH_SHARE_PERCENT}% of £${fmt(r.commission)}`, r.deducted);
+  });
+  addExcelSummaryRow(ws, `Total Branch Share Deducted (${BRANCH_SHARE_PERCENT}%) (-) (£)`, e.branchShareGbp, { color: 'FFDC2626' });
   addExcelSummaryRow(ws, 'Head Office Commission (£)', e.headOfficeGbp);
   if (e.companyNpr !== null) {
     addExcelSummaryRow(ws, `Company Earnings (NPR, £1 = ${earningsRate.rate})`, e.companyNpr, { bold: true, color: 'FF1D4ED8', fill: 'FFEAF1FF' });

@@ -208,6 +208,7 @@ test('the connector knows incentives entered in pounds or percent, and that a br
   assert.strictEqual(e.branchSharePercent, 70);
   assert.strictEqual(e.branchShareGbp, 560, '70% of the branch student\'s £800');
   assert.strictEqual(e.headOfficeCommissionGbp, 3500 - 560);
+  assert.deepStrictEqual(e.branchDeductions, [{ student: 'Maya Gurung', branch: 'Pokhara Branch', universityCommissionGbp: 800, branchShareGbp: 560 }], 'the connector lists who the branch took from, and how much');
   assert.strictEqual(e.companyEarningsNpr, (3500 - 560) * 180, 'Company Earnings come from the head office part only');
 
   // Without an exchange rate, a pound or percent incentive is flagged and left out, never guessed.
