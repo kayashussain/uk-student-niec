@@ -64,6 +64,26 @@ function createIncentive({ dataDir, studentDataFile, getWorkbook, activity }) {
     if (changes.length) activity.record(req, req.user, 'Changed', { app: 'Incentive', changes });
   }
 
+  // The list of part payments as saved: each { id, date (YYYY-MM-DD), amount (rupees, above 0), note }. null if it is not a list
+  // of those. Ids the page did not give are made here.
+  function cleanPayments(list) {
+    if (!Array.isArray(list) || list.length > 1000) return null;
+    const out = [];
+    const seen = new Set();
+    for (const p of list) {
+      if (!p || typeof p !== 'object') return null;
+      const amount = Math.round(Number(p.amount) * 100) / 100;
+      const date = String(p.date || '');
+      if (!Number.isFinite(amount) || amount <= 0 || amount > 1e12) return null;
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || Number.isNaN(Date.parse(date))) return null;
+      let id = String(p.id || '').replace(/[^\w-]/g, '').slice(0, 40);
+      if (!id || seen.has(id)) id = 'p' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+      seen.add(id);
+      out.push({ id, date, amount, note: String(p.note || '').replace(/[\r\n]+/g, ' ').trim().slice(0, 80) });
+    }
+    return out;
+  }
+
   // The Student Details workbook, parsed once per change of the file instead of once per request: every open
   // Incentive tab asks again the moment anyone saves a student, and the file is a few megabytes.
   // Throws like reading the file would (missing or not valid JSON right now).
@@ -162,7 +182,7 @@ function createIncentive({ dataDir, studentDataFile, getWorkbook, activity }) {
     const today = localDate();
     const cache = readJSON(EXCHANGE_RATE_FILE, null);
     if (cache && cache.fetchedOn === today && typeof cache.rate === 'number') {
-      return { ok: true, rate: cache.rate, date: cache.date, cached: true };
+      return { ok: true, rate: cache.rate, date: cache.date, fetchedAt: cache.fetchedAt || null, cached: true };
     }
     try {
       const res = await fetch(EXCHANGE_RATE_URL);
@@ -172,11 +192,11 @@ function createIncentive({ dataDir, studentDataFile, getWorkbook, activity }) {
       if (typeof rate !== 'number') throw new Error('NPR rate missing from exchange rate response');
       const record = { date: data.date || today, rate, fetchedOn: today, fetchedAt: new Date().toISOString() };
       writeJSONAtomic(EXCHANGE_RATE_FILE, record);
-      return { ok: true, rate, date: record.date, cached: false };
+      return { ok: true, rate, date: record.date, fetchedAt: record.fetchedAt, cached: false };
     } catch (e) {
       // Fall back to a stale cached rate rather than failing outright, if we have one.
       if (cache && typeof cache.rate === 'number') {
-        return { ok: true, rate: cache.rate, date: cache.date, stale: true, error: e.message };
+        return { ok: true, rate: cache.rate, date: cache.date, fetchedAt: cache.fetchedAt || null, stale: true, error: e.message };
       }
       return { ok: false, error: e.message };
     }
@@ -278,10 +298,22 @@ function createIncentive({ dataDir, studentDataFile, getWorkbook, activity }) {
         ['basicSalary', 'salaryMonths'].forEach((f) => {
           if (f in body) entry[f] = num(body[f], existing[f]);
         });
+        // Part payments received (date + amount). The page sends the whole list; it replaces the saved one.
+        let paymentLines = [];
+        if ('payments' in body) {
+          const list = cleanPayments(body.payments);
+          if (!list) return sendJSON(res, 400, { error: 'payments must be a list of { date, amount }' });
+          entry.payments = list;
+          const had = new Set((existing.payments || []).map((p) => p.id));
+          const has = new Set(list.map((p) => p.id));
+          list.filter((p) => !had.has(p.id)).forEach((p) => paymentLines.push(`${intake} › Payment received: ${p.date} · Rs ${p.amount}${p.note ? ' · ' + p.note : ''}`));
+          (existing.payments || []).filter((p) => !has.has(p.id)).forEach((p) => paymentLines.push(`${intake} › Payment removed: ${p.date} · Rs ${p.amount}`));
+        }
         entry.updatedAt = new Date().toISOString();
         const all = setAdvance(stored, sheets, intake, entry);
         writeWithBackup(ADVANCES_FILE, 'advances.backup.json', all);
         recordChanges(req, `${intake} advances`, existing, entry, ['previousAdvance', 'basicSalary', 'salaryMonths']);
+        if (paymentLines.length) activity.record(req, req.user, 'Changed', { app: 'Incentive', changes: paymentLines });
         notifyLive();
         return sendJSON(res, 200, entry);
       }

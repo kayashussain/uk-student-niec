@@ -37,7 +37,7 @@ const INCENTIVE_TOOLS = [
   },
   {
     name: 'get_payment_summary',
-    description: 'The Payment Summary and Company Earnings of an intake, as the Incentive page shows them: total incentives, loan incentive to share, net incentives, TDS (15%), previous advance, net payable (all NPR); the university commission (GBP, and NPR at the exchange rate), the branch share (70% of the commission of students who came through a branch) and the head office commission that Company Earnings are worked out from, the counselor salary for the intake period, and the share of the company earnings that is paid out. Omit "intake" for every intake.',
+    description: 'The Payment Summary and Company Earnings of an intake, as the Incentive page shows them: total incentives, loan incentive to share, net incentives, TDS (15%), previous advance, part payments received (with their dates), net payable (all NPR), and the working behind the total (rupee incentives, pound incentives, the rate); the university commission (GBP, and NPR at the exchange rate), the branch share (70% of the commission of students who came through a branch) and the head office commission that Company Earnings are worked out from, the counselor salary for the intake period, and the share of the company earnings that is paid out. Omit "intake" for every intake.',
     inputSchema: { type: 'object', properties: { intake: { type: 'string' } }, additionalProperties: false },
   },
   {
@@ -128,7 +128,7 @@ function createIncentiveTools({ getSync, getCommissions, getAdvances, getRate })
   function summaryOf(intake, rate) {
     const gbpToNpr = rate ? rate.rate : null;
     const s = calc.computeSummary(intake.students.map((st) => st._record), intake.advance.previousAdvance,
-      { gbpToNpr, commissionsGbp: intake.students.map((st) => st.uniCommissionAmountGbp) });
+      { gbpToNpr, commissionsGbp: intake.students.map((st) => st.uniCommissionAmountGbp), payments: intake.advance.payments });
     const salary = intake.advance.basicSalary === undefined ? calc.DEFAULT_BASIC_SALARY : intake.advance.basicSalary;
     const months = intake.advance.salaryMonths === undefined ? calc.DEFAULT_SALARY_MONTHS : intake.advance.salaryMonths;
     const e = calc.computeEarnings({
@@ -145,7 +145,13 @@ function createIncentiveTools({ getSync, getCommissions, getAdvances, getRate })
       students: intake.students.length,
       paymentSummaryNpr: {
         totalIncentives: round2(s.totalCommissions), loanIncentiveToShare: round2(s.loanPayable), netIncentives: round2(s.netCommissions),
-        tds15Percent: round2(s.tds), previousAdvance: round2(s.previousAdvance), netPayable: round2(s.netPayable),
+        tds15Percent: round2(s.tds), previousAdvance: round2(s.previousAdvance), paymentsReceived: round2(s.paymentsReceived), netPayable: round2(s.netPayable),
+        // The working, so the figures can be checked: total = rupee incentives + (pound and percent incentives, in pounds) x the rate.
+        working: {
+          incentivesEnteredInRupeesNpr: round2(s.nprEntered), incentivesInPoundsGbp: s.gbpEntered,
+          exchangeRateGbpToNpr: gbpToNpr, poundIncentivesConvertedNpr: round2(s.gbpConverted),
+        },
+        paymentHistory: (intake.advance.payments || []).map((p) => ({ date: p.date, amountNpr: p.amount, ...(p.note ? { note: p.note } : {}) })),
         ...(s.needsRate ? { warning: 'Some incentives are in pounds or percent and there is no exchange rate, so they are not counted.' } : {}),
       },
       companyEarnings: {
@@ -174,7 +180,7 @@ function createIncentiveTools({ getSync, getCommissions, getAdvances, getRate })
     if (name === 'get_incentive_overview') {
       return textResult({
         pulledAt,
-        exchangeRate: rate ? { gbpToNpr: rate.rate, date: rate.date || null } : null,
+        exchangeRate: rate ? { gbpToNpr: rate.rate, date: rate.date || null, fetchedAt: rate.fetchedAt || null } : null,
         intakes: data.intakes.map((i) => ({ name: i.name, visaIssuedStudents: i.students.length })),
         notes: [
           'Only students whose Application Status is exactly "Visa Issued" appear here, as on the Incentive page.',
@@ -202,7 +208,7 @@ function createIncentiveTools({ getSync, getCommissions, getAdvances, getRate })
     if (name === 'get_payment_summary') {
       return textResult({
         pulledAt,
-        exchangeRate: rate ? { gbpToNpr: rate.rate, date: rate.date || null } : null,
+        exchangeRate: rate ? { gbpToNpr: rate.rate, date: rate.date || null, fetchedAt: rate.fetchedAt || null } : null,
         intakes: picked.intakes.map((i) => summaryOf(i, rate)),
       });
     }

@@ -31,12 +31,12 @@ const COMMISSIONS = {
   a: { uniCommissionRate: 15, enrollmentCommission: 10000, flywireCommission: 500, loanCommission: 1000 },
   b: { uniCommissionRate: 10, enrollmentCommission: 5000 },
 };
-const ADVANCES = { 'sheet-1': { previousAdvance: 2000, basicSalary: 70000, salaryMonths: 4 } };
+const ADVANCES = { 'sheet-1': { previousAdvance: 2000, basicSalary: 70000, salaryMonths: 4, payments: [{ id: 'p1', date: '2026-10-20', amount: 3000, note: 'first' }] } };
 const { advancesByName } = require('../counselor-incentive/advances');
 const make = (extra = {}) => createAdvisorMcp({
   token: TOKEN, memoryDir: fs.mkdtempSync(path.join(os.tmpdir(), 'niec-imem-')), log: () => {},
   getWorkbook: () => WORKBOOK, getDashboard: (i) => ({ intake: i }), facts: createFacts(fs.mkdtempSync(path.join(os.tmpdir(), 'niec-iadv-facts-'))),
-  incentive: { getCommissions: () => COMMISSIONS, getAdvances: (sheets) => advancesByName(ADVANCES, sheets), getRate: () => ({ rate: 180, date: '2026-11-04' }) },
+  incentive: { getCommissions: () => COMMISSIONS, getAdvances: (sheets) => advancesByName(ADVANCES, sheets), getRate: () => ({ rate: 180, date: '2026-11-04', fetchedAt: '2026-11-04T10:30:00.000Z' }) },
   ...extra,
 });
 const call = (m, name, args) => JSON.parse(m.rpc({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name, arguments: args } }).result.content[0].text);
@@ -82,7 +82,11 @@ test('the payment summary and company earnings are worked out like the Incentive
   const { intakes } = call(make(), 'get_payment_summary', { intake: 'Sep Intake 2026' });
   const sep = intakes[0];
   // incentives: a = 10,000 + 500, b = 5,000 -> 15,500; loan 1,000 -> net 14,500; TDS 15% = 2,175; advance 2,000
-  assert.deepStrictEqual(sep.paymentSummaryNpr, { totalIncentives: 15500, loanIncentiveToShare: 1000, netIncentives: 14500, tds15Percent: 2175, previousAdvance: 2000, netPayable: 10325 });
+  // a payment of 3,000 was received on 2026-10-20, so what is still to pay is 14,500 - 2,175 - 2,000 - 3,000
+  assert.deepStrictEqual(sep.paymentSummaryNpr, { totalIncentives: 15500, loanIncentiveToShare: 1000, netIncentives: 14500, tds15Percent: 2175, previousAdvance: 2000, paymentsReceived: 3000, netPayable: 7325,
+    working: { incentivesEnteredInRupeesNpr: 15500, incentivesInPoundsGbp: 0, exchangeRateGbpToNpr: 180, poundIncentivesConvertedNpr: 0 },
+    paymentHistory: [{ date: '2026-10-20', amountNpr: 3000, note: 'first' }] });
+  assert.strictEqual(call(make(), 'get_payment_summary', {}).exchangeRate.fetchedAt, '2026-11-04T10:30:00.000Z', 'the time the rate was fetched is given');
   // commission: 1,500 + 1,200 + 0 = 2,700 GBP, x 180 = 486,000 NPR; salary 70,000 x 4 = 280,000; counselor total 280,000 + 14,500
   assert.strictEqual(sep.companyEarnings.universityCommissionGbp, 2700);
   assert.strictEqual(sep.companyEarnings.universityCommissionNpr, 486000);
@@ -190,7 +194,7 @@ test('the connector knows incentives entered in pounds or percent, and that a br
     b: { uniCommissionRate: 10 },
     c: { uniCommissionRate: 10 }, // Maya Gurung, Pokhara Branch, £8,000 of tuition: £800 of commission
   };
-  const m = make({ incentive: { getCommissions: () => commissions, getAdvances: (sheets) => advancesByName({}, sheets), getRate: () => ({ rate: 180, date: '2026-11-04' }) } });
+  const m = make({ incentive: { getCommissions: () => commissions, getAdvances: (sheets) => advancesByName({}, sheets), getRate: () => ({ rate: 180, date: '2026-11-04', fetchedAt: '2026-11-04T10:30:00.000Z' }) } });
   const rows = call(m, 'get_incentives', { intake: 'Sep Intake 2026' }).students;
   const sita = rows.find((r) => r.student === 'Sita Sharma');
   assert.strictEqual(sita.uniCommissionAmountGbp, 1500);

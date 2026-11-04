@@ -9,6 +9,17 @@ Format: **date · file · what · from → to · why**
 
 ---
 
+## 2026-11-04 · `counselor-incentive/index.html` · Payments Received card and exchange rate row (Incentive page)
+
+- **What:** the new "Payments Received" card under the Payment Summary, and the exchange rate row at the top of the Payment Summary.
+- **Add form:** from nothing → to a date box, an amount box and a note box in one row (wraps on small screens), with a navy `#17324d` "Add payment" button (white text, 6px rounded, same size text as the rest, 13px).
+- **History rows:** from nothing → to the date (and note) on the left, the amount and a small underlined grey "Remove" link on the right (turns red when hovered). Same row look as the Payment Summary.
+- **Exchange rate row:** bold value, with the date and time it was fetched in small grey text after it.
+- **Why:** so part payments can be added with a date and listed as a history, and the rate used is visible at the top.
+- **In the code:** marked with `🔴 CSS CHANGED` at the end of the `<style>` block of `counselor-incentive/index.html`.
+
+---
+
 ## 2026-11-04 · `counselor-incentive/index.html` · unit dropdown in the three flexible incentive cells
 
 - **What:** a small Rs / £ / % dropdown inside each cell of Enrollment Incentive, Enrollment Incentive from University and New Partnership Incentive.

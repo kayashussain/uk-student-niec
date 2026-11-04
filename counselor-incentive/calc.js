@@ -62,27 +62,51 @@
     return round2(feePaymentGbp * FLYWIRE_INCENTIVE_RATE * gbpToNpr);
   }
 
+  // The part payments received so far in an intake: [{ date, amount }]. Anything that is not a positive number is ignored.
+  function paymentsTotal(payments) {
+    return round2((Array.isArray(payments) ? payments : []).reduce((a, p) => a + Math.max(0, num((p || {}).amount)), 0));
+  }
+
   // records: each student's saved incentive values; previousAdvance: the intake's advance already paid.
   // context (only needed once a pound or percent incentive exists): gbpToNpr is today's rate, commissionsGbp[i] is the
-  // Commission Amount of records[i]'s student. needsRate says some incentive could not be counted for want of a rate.
+  // Commission Amount of records[i]'s student, payments are the part payments received (each { date, amount }, in rupees).
+  // needsRate says some incentive could not be counted for want of a rate.
+  //
+  // The working is kept in plain sight so it can be checked by hand:
+  //   nprEntered   incentives typed in rupees (plus Flywire incentives, which are rupees)
+  //   gbpEntered   incentives typed in pounds, plus the percentage ones (a percentage is of a pound amount)
+  //   gbpConverted gbpEntered x the rate, in rupees
+  //   totalCommissions = nprEntered + gbpConverted
   function computeSummary(records, previousAdvance, context) {
     const ctx = context || {};
     const rate = ctx.gbpToNpr || null;
     let needsRate = false;
     const sum = (key) => records.reduce((a, r) => a + num((r || {})[key]), 0);
-    const flexSum = (field) => records.reduce((a, r, i) => {
-      const v = flexNpr(r, field, ctx.commissionsGbp ? ctx.commissionsGbp[i] : 0, rate);
-      if (v === null) { needsRate = true; return a; }
-      return a + v;
-    }, 0);
-    const totalCommissions = flexSum('enrollmentCommission') + flexSum('enrollmentCommissionUni')
-      + flexSum('newPartnershipCommission') + sum('flywireCommission');
+    let nprEntered = sum('flywireCommission');
+    let gbpEntered = 0;
+    records.forEach((r, i) => {
+      const commissionGbp = ctx.commissionsGbp ? ctx.commissionsGbp[i] : 0;
+      FLEX_FIELDS.forEach((field) => {
+        const value = num((r || {})[field]);
+        if (!value) return;
+        const unit = num((r || {})[unitField(field)]);
+        if (unit === UNIT.GBP) gbpEntered += value;
+        else if (unit === UNIT.PCT) gbpEntered += num(commissionGbp) * value / 100;
+        else nprEntered += value;
+      });
+    });
+    gbpEntered = round2(gbpEntered);
+    if (gbpEntered && !rate) needsRate = true;
+    const gbpConverted = rate ? round2(gbpEntered * rate) : 0;
+    const totalCommissions = nprEntered + gbpConverted;
     const loanPayable = sum('loanCommission');
     const netCommissions = totalCommissions - loanPayable;
     const tds = Math.max(0, netCommissions) * TDS_RATE; // no TDS (and no negative TDS) when nothing is owed
     const advance = num(previousAdvance);
-    const netPayable = netCommissions - tds - advance;
-    return { totalCommissions, loanPayable, netCommissions, tds, previousAdvance: advance, netPayable, needsRate };
+    const received = paymentsTotal(ctx.payments);
+    const netPayable = netCommissions - tds - advance - received;
+    return { nprEntered, gbpEntered, gbpConverted, gbpToNpr: rate, totalCommissions, loanPayable, netCommissions, tds,
+      previousAdvance: advance, paymentsReceived: received, netPayable, needsRate };
   }
 
   // Commission the company gets from the university: the given % of the student's tuition fee (GBP).
@@ -133,7 +157,7 @@
   }
 
   const api = { TDS_RATE, FLYWIRE_INCENTIVE_RATE, UNIT, FLEX_FIELDS, unitField, flexNpr, parseIncentiveInput, incentiveLabel, incentiveTyped,
-    BRANCH_SHARE_PERCENT, isBranchSource, num, round2, flywireIncentive, computeSummary,
+    BRANCH_SHARE_PERCENT, isBranchSource, num, round2, flywireIncentive, computeSummary, paymentsTotal,
     universityCommission, groupByUniversity, displayDate, DEFAULT_BASIC_SALARY, DEFAULT_SALARY_MONTHS, computeEarnings };
   if (typeof module === 'object' && module.exports) module.exports = api;
   else root.IncentiveCalc = api;

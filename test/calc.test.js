@@ -165,3 +165,29 @@ test('any Student Source that ends in Branch counts as a branch', () => {
   ['Chitwan Branch', 'Pokhara Branch', 'Butwal Branch', 'Palpa branch', 'BRANCH'].forEach((n) => assert.ok(incentive.isBranchSource(n), n));
   ['Visitor', 'Reference', 'Agent', 'Events', 'Social Media', 'Language Classes', '', undefined].forEach((n) => assert.ok(!incentive.isBranchSource(n), String(n)));
 });
+
+test('the payment summary shows its working: rupees, pounds, the pounds changed to rupees, and part payments', () => {
+  const recs = [
+    { enrollmentCommission: 40000 },                                                         // Rs 40,000
+    { enrollmentCommission: 200, enrollmentCommissionUnit: 1, enrollmentCommissionUni: 10, enrollmentCommissionUniUnit: 2, flywireCommission: 1000 }, // £200 and 10% of £2,000 (= £200), Flywire Rs 1,000
+    { newPartnershipCommission: 100, newPartnershipCommissionUnit: 1, loanCommission: 5000 }, // £100, loan Rs 5,000
+  ];
+  const s = incentive.computeSummary(recs, 2000, { gbpToNpr: 200, commissionsGbp: [0, 2000, 0], payments: [{ amount: 10000 }, { amount: 500.5 }, { amount: -3 }, {}] });
+  assert.strictEqual(s.nprEntered, 41000, 'rupees typed, plus Flywire');
+  assert.strictEqual(s.gbpEntered, 500, 'pounds typed plus the percentage (in pounds)');
+  assert.strictEqual(s.gbpConverted, 100000, '£500 at Rs 200');
+  assert.strictEqual(s.totalCommissions, s.nprEntered + s.gbpConverted, 'the total is exactly the two parts added');
+  assert.strictEqual(s.netCommissions, 141000 - 5000);
+  assert.strictEqual(s.tds, 136000 * 0.15);
+  assert.strictEqual(s.paymentsReceived, 10500.5, 'zero, negative and empty payments count for nothing');
+  assert.strictEqual(s.netPayable, 136000 - 20400 - 2000 - 10500.5);
+  // Everything paid: the net payable reaches zero.
+  const paid = incentive.computeSummary(recs, 0, { gbpToNpr: 200, commissionsGbp: [0, 2000, 0], payments: [{ amount: 115600 }] });
+  assert.strictEqual(paid.netPayable, 0);
+  // No rate: the pound part is reported but not counted.
+  const none = incentive.computeSummary(recs, 0, { gbpToNpr: null, commissionsGbp: [0, 2000, 0] });
+  assert.strictEqual(none.gbpEntered, 500);
+  assert.strictEqual(none.gbpConverted, 0);
+  assert.strictEqual(none.needsRate, true);
+  assert.strictEqual(incentive.paymentsTotal(undefined), 0);
+});

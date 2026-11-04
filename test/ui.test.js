@@ -389,6 +389,51 @@ test('screens: log in, edit, delete, search, team rules, Fact File', { timeout: 
     assert.ok(list.some((t) => /Taken by the branches/.test(t)), 'the list has a heading');
     assert.ok(list.some((t) => /Pokhara Branch/.test(t) && /commission £1,600\.00/.test(t) && /£1,120\.00/.test(t)), 'the student, the branch, the commission and the 70%: ' + list.join(' | '));
     assert.match(await again.textContent('#earnBranchRow'), /Total Branch Share Deducted/);
+    // Company Earnings end in pounds, with the time the rate was fetched beside the rupee figure.
+    assert.match(await again.textContent('#earnRateHint'), /£1 = 200 NPR, fetched /);
+
+    // Payment Summary: the live rate with the time it was fetched, then the working.
+    assert.match(await again.textContent('#sumRate'), /£1 = Rs 200/);
+    assert.match(await again.textContent('#sumRateTime'), /fetched .*\d{4}/);
+    assert.strictEqual((await again.textContent('#sumNprEntered')).trim(), '5,000.00');
+    assert.strictEqual((await again.textContent('#sumGbpEntered')).trim(), '£760.00', '£600 typed in pounds + 10% of £1,600');
+    assert.strictEqual((await again.textContent('#sumGbpConverted')).trim(), '152,000.00', '£760 at Rs 200');
+    assert.strictEqual((await again.textContent('#sumTotalCommissions')).trim(), '157,000.00', '5,000 + 152,000');
+    assert.strictEqual((await again.textContent('#sumNetPayable')).trim(), '133,450.00', '157,000 less 15% TDS (23,550)');
+
+    // Part payments: add one, it is listed and Net Payable follows; add the rest and it reaches zero; remove one and it comes back.
+    const addPayment = async (date, amount, note) => {
+      await again.fill('#payDate', date);
+      await again.fill('#payAmount', String(amount));
+      await again.fill('#payNote', note || '');
+      await again.click('#payAdd');
+      await again.waitForSelector('.eg-box');
+      await again.click('.eg-ok');
+    };
+    await addPayment('2026-10-20', 10000, 'first instalment');
+    await again.waitForFunction(() => document.querySelector('#sumNetPayable').textContent.trim() === '123,450.00', null, { timeout: 8000 });
+    assert.strictEqual((await again.textContent('#sumPayments')).trim(), '10,000.00');
+    assert.match(await again.textContent('#payList'), /20 Oct 2026.*first instalment.*10,000\.00/s);
+    await addPayment('2026-11-02', 123450);
+    await again.waitForFunction(() => document.querySelector('#sumNetPayable').textContent.trim() === '0.00', null, { timeout: 8000 });
+    assert.strictEqual(await again.locator('.pay-item').count(), 2);
+    // The page saves a moment after the change; wait until the server has both payments.
+    let savedPay = {};
+    for (let i = 0; i < 40; i++) {
+      savedPay = await (await admin.request.get(incentiveBase + '/api/advances')).json();
+      if (Object.values(savedPay).some((e) => e.payments && e.payments.length === 2)) break;
+      await new Promise((r) => setTimeout(r, 250));
+    }
+    const entry = Object.values(savedPay).find((e) => e.payments && e.payments.length);
+    assert.deepStrictEqual(entry.payments.map((p) => [p.date, p.amount]), [['2026-10-20', 10000], ['2026-11-02', 123450]], 'saved on the server with their dates');
+    await again.locator('.pay-item').first().locator('[data-remove]').click();
+    await again.waitForSelector('.eg-box');
+    await again.click('.eg-ok');
+    await again.waitForFunction(() => document.querySelector('#sumNetPayable').textContent.trim() === '10,000.00', null, { timeout: 8000 });
+    assert.strictEqual(await again.locator('.pay-item').count(), 1);
+    // A payment that is not a positive amount is refused by the server.
+    const bad = await admin.request.put(incentiveBase + '/api/advances/' + encodeURIComponent(Object.keys(savedPay)[0] || 'x'), { data: { payments: [{ date: 'nope', amount: -5 }] } });
+    assert.strictEqual(bad.status(), 400);
     await again.close();
   });
 

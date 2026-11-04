@@ -99,7 +99,7 @@ const advisor = createAdvisorMcp({
   incentive: {
     getCommissions: () => readIncentiveFile('commissions.json', {}),
     getAdvances: (sheets) => advancesByName(readIncentiveFile('advances.json', {}) || {}, sheets.map((x) => ({ id: x.id, name: x.name }))),
-    getRate: () => { const c = readIncentiveFile('exchange-rate-cache.json', null); return c && typeof c.rate === 'number' ? { rate: c.rate, date: c.date } : null; },
+    getRate: () => { const c = readIncentiveFile('exchange-rate-cache.json', null); return c && typeof c.rate === 'number' ? { rate: c.rate, date: c.date, fetchedAt: c.fetchedAt || null } : null; },
   },
   memoryDir: path.join(DATA_DIR, 'advisor-memory'),
 });

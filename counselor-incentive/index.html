@@ -221,6 +221,21 @@
   #sheet tbody td.num.flex-cell { position: relative; padding-left: 78px; }
   tbody td.num.flex-cell .unit-select { position: absolute; left: 8px; top: 50%; transform: translateY(-50%); width: 62px; min-height: 28px; padding: 0 8px; font-size: 12px; border-radius: 999px; }
   tbody td.num.flex-cell .amount { display: inline-block; min-width: 40px; outline: none; }
+  /* 🔴 CSS CHANGED (2026-11-04): new Payments Received card (add form + history list) and a small time note on the exchange rate row | from: none (these did not exist) | to: add form = date, amount and note boxes in one wrapping row with a navy "Add payment" button; each history row = date and note on the left, amount and a quiet "Remove" link on the right. Uses the existing summary-row look, no colour or font changes elsewhere. */
+  .rate-row .value { font-weight: 700; }
+  .pay-fields { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; align-items: center; }
+  .pay-fields .pay-date { width: 150px; text-align: left; }
+  .pay-fields #payAmount { width: 160px; }
+  .pay-fields .pay-note { width: 200px; text-align: left; font-weight: 400; }
+  .pay-add {
+    padding: 6px 14px; border-radius: 6px; border: 1px solid #17324d; background: #17324d; color: #fff;
+    font: inherit; font-size: 13px; font-weight: 600; cursor: pointer;
+  }
+  .pay-add:hover { background: #0f2538; }
+  .pay-right { display: inline-flex; align-items: center; gap: 14px; }
+  .pay-remove { border: 0; background: none; padding: 2px 4px; color: var(--text-dim); font: inherit; font-size: 12px; text-decoration: underline; cursor: pointer; }
+  .pay-remove:hover { color: var(--danger); }
+  .pay-empty { padding: 18px 16px; }
 </style>
 <link rel="stylesheet" href="theme.css" />
 </head>
@@ -270,8 +285,24 @@
 
   <p class="summary-title" id="summaryTitle">Payment Summary</p>
   <div class="summary-card">
+    <div class="summary-row rate-row">
+      <span class="label">Exchange rate <span class="info" title="The live pound to rupee rate used for every pound and percent incentive below. It is fetched once a day.">ⓘ</span></span>
+      <span class="value"><span id="sumRate">-</span><span class="hint" id="sumRateTime"></span></span>
+    </div>
     <div class="summary-row">
-      <span class="label">Total Incentives <span class="info" title="Enrollment + Enrollment from University + New Partnership + Flywire incentives, for every student in this intake.">ⓘ</span></span>
+      <span class="label">Incentives entered in rupees (NPR) <span class="info" title="Every incentive typed in rupees, plus the Flywire incentives, added up.">ⓘ</span></span>
+      <span class="value" id="sumNprEntered">0.00</span>
+    </div>
+    <div class="summary-row">
+      <span class="label">Incentives entered in pounds (£) <span class="info" title="Every incentive typed in pounds, plus the percentage ones (a percentage is a share of that student's commission in pounds), added up.">ⓘ</span></span>
+      <span class="value" id="sumGbpEntered">£0.00</span>
+    </div>
+    <div class="summary-row">
+      <span class="label">Pounds changed to rupees<span class="hint" id="sumGbpWorking"></span></span>
+      <span class="value" id="sumGbpConverted">0.00</span>
+    </div>
+    <div class="summary-row">
+      <span class="label">Total Incentives <span class="info" title="Rupees entered + pounds changed to rupees, for every student in this intake.">ⓘ</span></span>
       <span class="value" id="sumTotalCommissions">0.00</span>
     </div>
     <div class="summary-row subtract">
@@ -287,13 +318,31 @@
       <span class="value" id="sumTds">0.00</span>
     </div>
     <div class="summary-row subtract">
-      <span class="label">Previous Advance <span class="info" title="Money already paid to you in advance for this intake. Type it in.">ⓘ</span></span>
+      <span class="label">Previous Advance <span class="info" title="An advance paid before the payments below. Type it in, or leave it at 0 and add each payment below instead.">ⓘ</span></span>
       <input class="adv-input" id="advanceInput" type="number" step="0.01" value="0" aria-label="Previous advance already paid (NPR)">
     </div>
+    <div class="summary-row subtract">
+      <span class="label">Payments received<span class="hint" id="sumPaymentsCount"></span></span>
+      <span class="value" id="sumPayments">0.00</span>
+    </div>
     <div class="summary-row final">
-      <span class="label">Net Payable <span class="info" title="What is still to be paid to you: Net Incentives − TDS − Previous Advance.">ⓘ</span></span>
+      <span class="label">Net Payable <span class="info" title="What is still to be paid to you: Net Incentives − TDS − Previous Advance − Payments received.">ⓘ</span></span>
       <span class="value" id="sumNetPayable">0.00</span>
     </div>
+  </div>
+
+  <p class="summary-title earnings-title" id="paymentsTitle">Payments Received</p>
+  <div class="summary-card">
+    <form class="summary-row pay-form" id="payForm">
+      <span class="label">Add a payment</span>
+      <span class="pay-fields">
+        <input class="adv-input pay-date" id="payDate" type="date" required aria-label="Date the payment was received">
+        <input class="adv-input" id="payAmount" type="number" step="0.01" min="0.01" required placeholder="Amount (NPR)" aria-label="Amount received (NPR)">
+        <input class="adv-input pay-note" id="payNote" type="text" maxlength="80" placeholder="Note (optional)" aria-label="Note for this payment">
+        <button type="submit" class="pay-add" id="payAdd">Add payment</button>
+      </span>
+    </form>
+    <div id="payList"></div>
   </div>
 
   <p class="summary-title earnings-title" id="earningsTitle">Company Earnings</p>
@@ -310,12 +359,12 @@
       <span class="label">Total Branch Share Deducted (70%) <span class="info" title="For a student who came through a branch (the Student Source ends in Branch, like Chitwan Branch or Pokhara Branch), the branch keeps 70% of the university commission. Only the other 30% is the head office's.">ⓘ</span></span>
       <span class="value" id="earnBranch">£0.00</span>
     </div>
-    <div class="summary-row">
-      <span class="label">Head Office Commission (£) <span class="info" title="Total commission, less the branches' 70% share. This is what Company Earnings below are worked out from.">ⓘ</span></span>
+    <div class="summary-row final">
+      <span class="label">Total Company Earnings (£) <span class="info" title="Total commission from the universities, less the branches' 70% share. This is what the company earned on this intake.">ⓘ</span></span>
       <span class="value" id="earnHead">£0.00</span>
     </div>
-    <div class="summary-row final">
-      <span class="label">Company Earnings (NPR)<span class="hint" id="earnRateHint"></span></span>
+    <div class="summary-row">
+      <span class="label">Total Company Earnings in rupees (NPR)<span class="hint" id="earnRateHint"></span></span>
       <span class="value" id="earnNpr">-</span>
     </div>
     <div class="summary-row">
@@ -575,6 +624,7 @@ const scheduleSaveAdvance = createSaver(pendingAdvances, (intake) => fetch(BASE 
 // Only fields that have been set are sent, so an unset salary keeps following the default.
 function advanceBody(entry) {
   const body = { previousAdvance: num(entry.previousAdvance) };
+  if (Array.isArray(entry.payments)) body.payments = entry.payments;
   ['basicSalary', 'salaryMonths'].forEach((f) => { if (entry[f] !== undefined) body[f] = num(entry[f]); });
   return body;
 }
@@ -646,7 +696,7 @@ async function getExchangeRate() {
     const res = await fetch(BASE + '/api/exchange-rate');
     const data = await res.json();
     if (data.ok) {
-      const result = { rate: data.rate, date: data.date, stale: Boolean(data.stale) };
+      const result = { rate: data.rate, date: data.date, fetchedAt: data.fetchedAt || null, stale: Boolean(data.stale) };
       // A stale rate isn't cached here, so the next edit tries for today's again.
       if (!result.stale) exchangeRateCache = { result, day: today };
       return result;
@@ -866,12 +916,55 @@ function computeSummary(students) {
   return window.IncentiveCalc.computeSummary(
     students.map((s) => state.commissions[s.id] || {}),
     (state.advances[state.activeIntake] || {}).previousAdvance,
-    { gbpToNpr: earningsRate ? earningsRate.rate : null, commissionsGbp: students.map(commissionAmountOf) },
+    { gbpToNpr: earningsRate ? earningsRate.rate : null, commissionsGbp: students.map(commissionAmountOf), payments: paymentsOf() },
   );
+}
+
+function paymentsOf() { return (state.advances[state.activeIntake] || {}).payments || []; }
+
+// "4 Nov 2026" from 2026-11-04 (read as a plain date, so no time zone can shift it by a day).
+function niceDate(iso) {
+  const m = String(iso || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!m) return String(iso || '');
+  return new Date(Date.UTC(+m[1], +m[2] - 1, +m[3])).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
+}
+// When the rate was fetched, in the viewer's own time: "4 Nov 2026, 10:32".
+function fetchedText(fx) {
+  if (!fx) return '';
+  if (fx.fetchedAt) {
+    const d = new Date(fx.fetchedAt);
+    if (!isNaN(d)) return d.toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  }
+  return fx.date ? 'rate dated ' + niceDate(fx.date) : '';
+}
+
+function renderPayments() {
+  const list = paymentsOf().slice().sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+  const total = IncentiveCalc.paymentsTotal(list);
+  $('#paymentsTitle').textContent = state.activeIntake ? `Payments Received · ${state.activeIntake}` : 'Payments Received';
+  const host = $('#payList');
+  if (!list.length) {
+    host.innerHTML = '<div class="empty-state pay-empty">No payments yet. Add each payment you receive, with its date, and Net Payable updates by itself.</div>';
+    return;
+  }
+  host.innerHTML = list.map((p) => `<div class="summary-row pay-item" data-pay="${esc(p.id)}">
+      <span class="label">${esc(niceDate(p.date))}${p.note ? `<span class="hint">${esc(p.note)}</span>` : ''}</span>
+      <span class="pay-right"><span class="value">${esc(fmt(p.amount))}</span><button type="button" class="pay-remove" data-remove="${esc(p.id)}" aria-label="Remove the payment of ${esc(fmt(p.amount))} on ${esc(niceDate(p.date))}">Remove</button></span>
+    </div>`).join('')
+    + `<div class="summary-row final"><span class="label">Total received (${list.length} payment${list.length === 1 ? '' : 's'})</span><span class="value">${esc(fmt(total))}</span></div>`;
 }
 
 function recalc(students) {
   const s = computeSummary(students);
+  $('#sumRate').textContent = earningsRate ? `£1 = Rs ${earningsRate.rate}` : 'not available right now';
+  $('#sumRateTime').textContent = earningsRate ? ` fetched ${fetchedText(earningsRate)}${earningsRate.stale ? ' (last known rate)' : ''}` : '';
+  $('#sumNprEntered').textContent = fmt(s.nprEntered);
+  $('#sumGbpEntered').textContent = '£' + fmt(s.gbpEntered);
+  $('#sumGbpConverted').textContent = fmt(s.gbpConverted);
+  $('#sumGbpWorking').textContent = s.gbpToNpr ? `£${fmt(s.gbpEntered)} × ${s.gbpToNpr}` : 'needs the exchange rate';
+  $('#sumPayments').textContent = fmt(s.paymentsReceived);
+  $('#sumPaymentsCount').textContent = paymentsOf().length ? `${paymentsOf().length} payment${paymentsOf().length === 1 ? '' : 's'}, listed below` : 'none yet';
+  renderPayments();
   $('#sumTotalCommissions').textContent = fmt(s.totalCommissions);
   $('#sumLoanPayable').textContent = fmt(s.loanPayable);
   $('#sumNetCommissions').textContent = fmt(s.netCommissions);
@@ -928,7 +1021,7 @@ function renderEarnings(students, summary) {
   $('#earnHead').textContent = '£' + fmt(e.headOfficeGbp);
   $('#earnNpr').textContent = e.companyNpr === null ? '-' : fmt(e.companyNpr);
   $('#earnRateHint').textContent = earningsRate
-    ? `at today's rate, £1 = ${earningsRate.rate} NPR${earningsRate.stale ? ' (last known)' : ''}`
+    ? `£1 = ${earningsRate.rate} NPR, fetched ${fetchedText(earningsRate)}${earningsRate.stale ? ' (last known)' : ''}`
     : 'exchange rate not available right now';
   if (document.activeElement !== salaryInput) salaryInput.value = intakeSetting('basicSalary', DEFAULT_BASIC_SALARY);
   if (document.activeElement !== monthsInput) monthsInput.value = intakeSetting('salaryMonths', DEFAULT_SALARY_MONTHS);
@@ -993,6 +1086,36 @@ advanceInput.addEventListener('change', () => {
     recalc(intakeStudents());
     scheduleSaveAdvance(intake);
   }, () => { advanceInput.value = prev; });
+});
+
+// Part payments: each one is a date and an amount. The whole list is saved together with the intake's settings.
+const payForm = $('#payForm');
+const payDate = $('#payDate');
+function resetPayForm() { payDate.value = localDay(); $('#payAmount').value = ''; $('#payNote').value = ''; }
+resetPayForm();
+function changePayments(next) {
+  const intake = state.activeIntake;
+  if (!intake) return;
+  const prev = paymentsOf();
+  confirmChange(() => {
+    pushUndo({ kind: 'advance', intake, field: 'payments', from: prev, to: next });
+    if (!state.advances[intake]) state.advances[intake] = {};
+    state.advances[intake].payments = next;
+    recalc(intakeStudents());
+    scheduleSaveAdvance(intake);
+  }, () => {});
+}
+payForm.addEventListener('submit', (ev) => {
+  ev.preventDefault();
+  const amount = Math.round(Number($('#payAmount').value) * 100) / 100;
+  if (!payDate.value || !(amount > 0)) return;
+  const id = 'p' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  changePayments(paymentsOf().concat({ id, date: payDate.value, amount, note: $('#payNote').value.trim() }));
+  resetPayForm();
+});
+$('#payList').addEventListener('click', (ev) => {
+  const btn = ev.target.closest('[data-remove]');
+  if (btn) changePayments(paymentsOf().filter((p) => p.id !== btn.dataset.remove));
 });
 
 // ---------------------------------------------------------------------------------------------
@@ -1545,11 +1668,18 @@ $('#exportExcelBtn').addEventListener('click', async () => {
   titleRow.getCell(2).font = { bold: true, size: 13 };
   titleRow.getCell(2).alignment = { vertical: 'middle' };
 
+  addExcelSummaryRow(ws, 'Exchange rate (£1 = Rs)', earningsRate ? earningsRate.rate : 'not available');
+  if (earningsRate) addExcelSummaryRow(ws, 'Exchange rate fetched', fetchedText(earningsRate));
+  addExcelSummaryRow(ws, 'Incentives entered in rupees (NPR)', s.nprEntered);
+  addExcelSummaryRow(ws, 'Incentives entered in pounds (£)', s.gbpEntered);
+  addExcelSummaryRow(ws, 'Pounds changed to rupees', s.gbpConverted);
   addExcelSummaryRow(ws, 'Total Incentives', s.totalCommissions);
   addExcelSummaryRow(ws, 'Loan Incentive to Share (-)', s.loanPayable, { color: 'FFDC2626' });
   addExcelSummaryRow(ws, 'Net Incentives', s.netCommissions);
   addExcelSummaryRow(ws, 'TDS 15% (-)', s.tds, { color: 'FFDC2626' });
   addExcelSummaryRow(ws, 'Previous Advance (-)', s.previousAdvance, { color: 'FFDC2626' });
+  paymentsOf().slice().sort((a, b) => (a.date < b.date ? -1 : 1)).forEach((p) => addExcelSummaryRow(ws, `Payment received ${niceDate(p.date)}${p.note ? ' (' + p.note + ')' : ''} (-)`, p.amount, { color: 'FFDC2626' }));
+  addExcelSummaryRow(ws, 'Payments received (-)', s.paymentsReceived, { color: 'FFDC2626' });
   addExcelSummaryRow(ws, 'Net Payable', s.netPayable, { bold: true, color: 'FF1D4ED8', fill: 'FFEAF1FF' });
 
   const e = computeEarnings(students, s);
@@ -1568,9 +1698,9 @@ $('#exportExcelBtn').addEventListener('click', async () => {
     addExcelSummaryRow(ws, `${r.name} (${r.branch}): ${BRANCH_SHARE_PERCENT}% of £${fmt(r.commission)}`, r.deducted);
   });
   addExcelSummaryRow(ws, `Total Branch Share Deducted (${BRANCH_SHARE_PERCENT}%) (-) (£)`, e.branchShareGbp, { color: 'FFDC2626' });
-  addExcelSummaryRow(ws, 'Head Office Commission (£)', e.headOfficeGbp);
+  addExcelSummaryRow(ws, 'Total Company Earnings (£)', e.headOfficeGbp, { bold: true, color: 'FF1D4ED8', fill: 'FFEAF1FF' });
   if (e.companyNpr !== null) {
-    addExcelSummaryRow(ws, `Company Earnings (NPR, £1 = ${earningsRate.rate})`, e.companyNpr, { bold: true, color: 'FF1D4ED8', fill: 'FFEAF1FF' });
+    addExcelSummaryRow(ws, `Company Earnings (NPR, £1 = ${earningsRate.rate}, fetched ${fetchedText(earningsRate)})`, e.companyNpr, { bold: true, color: 'FF1D4ED8', fill: 'FFEAF1FF' });
   }
   addExcelSummaryRow(ws, 'Basic Salary (per month, NPR)', intakeSetting('basicSalary', DEFAULT_BASIC_SALARY));
   addExcelSummaryRow(ws, 'Total Months for this Intake', intakeSetting('salaryMonths', DEFAULT_SALARY_MONTHS));
