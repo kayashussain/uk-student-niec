@@ -119,6 +119,22 @@ test('screens: log in, edit, delete, search, team rules, Fact File', { timeout: 
     await page.close();
   });
 
+  await t.test('Student Source offers Language Classes, and the Dashboard counts students who came from them', async () => {
+    const fresh = await (await admin.request.get('/api/data')).json();
+    fresh.sheets[0].rows[1]['STUDENT SOURCE'] = 'Language Classes';
+    assert.ok((await admin.request.post('/api/data', { data: { sheets: fresh.sheets, activeSheetId: fresh.activeSheetId, baseRevision: fresh.revision } })).ok());
+    const page = await open(admin, '/students');
+    await page.waitForSelector('#body tr:not(.pad-row)');
+    const col = await page.$$eval('#headerRow th', (ths) => ths.findIndex((th) => th.dataset.col === 'STUDENT SOURCE'));
+    const select = page.locator('#body tr:not(.pad-row)').first().locator('td').nth(col).locator('select');
+    await select.focus();
+    await page.waitForTimeout(300);
+    assert.ok((await select.locator('option').allTextContents()).includes('Language Classes'), 'Language Classes is one of the choices');
+    await page.close();
+    const dash = await (await admin.request.get('/api/dashboard')).json();
+    assert.ok(JSON.stringify(dash).includes('Language Classes'), 'the Dashboard counts students whose source is Language Classes');
+  });
+
   await t.test('columns fit what is in them: a very long email is shown in full, and nothing else in the first rows is cut off', async () => {
     const fresh = await (await admin.request.get('/api/data')).json();
     fresh.sheets[0].rows[0].EMAIL = 'a.very.long.student.email.address.for.testing@gmail.com';

@@ -9,7 +9,7 @@ you must do **all three** of these, every time, even for a one-line change:
 1. **Mark it in the code.** Put a comment directly above the change, in exactly this form:
 
    ```css
-   /* 🔴 CSS CHANGED (2026-11-04): <what> — from: <old value or look> — to: <new value or look> */
+   /* 🔴 CSS CHANGED (2026-11-04): <what> | from: <old value or look> | to: <new value or look> */
    ```
 
    Several related changes in one block can share one comment. Never change CSS without this comment.
@@ -24,6 +24,11 @@ you must do **all three** of these, every time, even for a one-line change:
 Text cannot be coloured in a terminal or in a code comment, so the red circle `🔴` is the "red" marker. Use it as above.
 
 ## Other standing decisions (the owner's wishes)
+
+- **No em dashes and no en dashes anywhere** (pages, emails, documents, code comments, this file). Use a comma, a colon, a
+  full stop, a plain hyphen or a vertical bar instead. `test/no-em-dashes.test.js` fails the whole test run if one appears.
+- **Always run the complete test suite (`npm test`) before pushing**, not just the browser tests, because rules like the one
+  above live in other tests.
 
 - Company name: **Nepal International Educational Consultancy** ("Educational", never "Education").
 - The login page must not mention incentives or commissions. Incentive is Admin-only and behind its own password.
