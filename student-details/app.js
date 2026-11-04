@@ -1843,7 +1843,9 @@
 
     const statusCards = group('Application Status');
     statusCards.appendChild(totalCard);
-    statusOptions.forEach((status) => statusCards.appendChild(card(countStatus(status), status)));
+    // "CAS Stage" stays a status students can have, but it has no box of its own up here: the strip reads
+    // Payment Stage, then CAS Issued.
+    statusOptions.filter((status) => status !== 'CAS Stage').forEach((status) => statusCards.appendChild(card(countStatus(status), status)));
     const visaIssuedCount = countStatus('Visa Issued');
     const conversionRate = indices.length ? (visaIssuedCount / indices.length) * 100 : 0;
     const rateCard = card(`${conversionRate.toFixed(1)}%`, 'Conversion Rate', '',

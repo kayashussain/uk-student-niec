@@ -106,12 +106,12 @@ input:focus, select:focus, textarea:focus, #search:focus, .topbar #search:focus 
 
 .table-wrap { background: var(--panel); border-top: 1px solid var(--border); }
 thead th {
-  background: var(--panel); border-right: 0; border-bottom: 1px solid var(--border-strong); padding: 14px 14px 12px;
+  background: var(--panel); border-right: 1px solid var(--border); border-bottom: 1px solid var(--border-strong); padding: 14px 14px 12px;
   font-size: 12px; font-weight: 600; letter-spacing: 0; text-transform: none; color: var(--text-dim);
 }
 thead th.col-idx { color: var(--text-dim); }
 thead th:hover { color: var(--ink); }
-td { border-right: 0; border-bottom: 1px solid var(--border); padding: 12px 14px; font-size: 13.5px; }
+td { border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); padding: 12px 14px; font-size: 13.5px; }
 td.col-idx { color: #a1a1a6; font-size: 12px; }
 th.col-idx { background: var(--panel); }
 tbody tr { transition: background-color .15s; }
@@ -174,7 +174,8 @@ input.search:focus { outline: none; border-color: var(--niec-blue); box-shadow: 
 .tab:hover { background: #f3f1ed; color: var(--ink); }
 .tab.active { background: var(--panel); border-color: transparent; box-shadow: var(--sh-2); color: var(--ink); }
 .banner { border-radius: var(--r-md); border-color: transparent; }
-.table-card th, .table-card td { border-right: 0; }
+.table-card th, .table-card td { border-right: 1px solid var(--border); }
+.table-card th:last-child, .table-card td:last-child { border-right: 0; }
 .table-card thead th { background: var(--panel); color: var(--text-dim); border-bottom: 1px solid var(--border-strong); padding: 14px 14px 12px; }
 .table-card thead th .info { color: #a1a1a6; }
 .table-card td { padding: 12px 14px; border-bottom: 1px solid var(--border); }
@@ -189,3 +190,4 @@ input.search:focus { outline: none; border-color: var(--niec-blue); box-shadow: 
 .grid-footer { color: var(--text-dim); }
 @media (prefers-color-scheme: dark) { .summary-row.final { background: #1d222b; } .tab:hover { background: #232832; } }
 @media (max-width: 760px) { .wrap { padding: 6px 14px 40px; } .top { margin: 0 -14px 10px !important; padding: 18px 14px 4px !important; } .top .brand h1 { font-size: 28px !important; } input.search { width: 100%; } }
+.stat-card.stat-rate .stat-value { color: var(--ink); }
