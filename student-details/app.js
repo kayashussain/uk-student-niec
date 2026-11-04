@@ -922,7 +922,7 @@
   };
   let colWidths = {};
   let colWidthsFor = null;
-  const cellFont = () => `400 14px ${getComputedStyle(document.body).fontFamily}`;
+  const cellFont = () => `500 15px ${getComputedStyle(document.body).fontFamily}`;
 
   function measuredText(col) {
     const [min, max] = TEXT_LIMITS[col] || (LONG_TEXT_COLS.has(col) ? [150, 300] : [110, 260]);
@@ -1423,6 +1423,7 @@
         // shown in full on hover (or by double-clicking to edit), so rows never grow taller.
         td.textContent = val;
         td.classList.add(NUM_COLS.has(col) ? 'num' : 'text');
+        if (col === 'FIRST NAME' || col === 'LAST NAME') td.classList.add('name'); // the columns people look people up by: bolder
         if (LONG_TEXT_COLS.has(col)) td.classList.add('long-text');
         if (val) td.title = val;
         if (col === WHATSAPP_COL && dupPhones.has(normalizePhone(val))) {
