@@ -100,6 +100,25 @@ test('screens: log in, edit, delete, search, team rules, Fact File', { timeout: 
     await page.close();
   });
 
+  await t.test('a date cell looks the same before it is touched, while the mouse is over it and after it is clicked', async () => {
+    const page = await open(admin, '/students');
+    await page.waitForSelector('#body tr:not(.pad-row)');
+    const col = await page.$$eval('#headerRow th', (ths) => ths.findIndex((th) => th.dataset.col === 'APPLICATION SUBMISSION DATE'));
+    const td = page.locator('#body tr:not(.pad-row)').first().locator('td').nth(col);
+    const look = () => td.evaluate((el) => ({ icon: getComputedStyle(el).backgroundImage.startsWith('url('), height: Math.round(el.getBoundingClientRect().height), padding: getComputedStyle(el).padding }));
+    const before = await look();
+    assert.ok(before.icon, 'a date cell shows its calendar icon');
+    await page.mouse.move(5, 5);
+    await td.hover();
+    assert.deepStrictEqual(await look(), before, 'hovering the row changes nothing about the cell');
+    await td.click({ position: { x: 20, y: 10 } });
+    await page.waitForTimeout(300);
+    await page.keyboard.press('Escape');
+    assert.deepStrictEqual(await look(), before, 'clicking the cell by mistake changes nothing about how it looks');
+    assert.deepStrictEqual(await page.evaluate(() => (window.__rowsChanged || 0)), 0);
+    await page.close();
+  });
+
   await t.test('columns fit what is in them: a very long email is shown in full, and nothing else in the first rows is cut off', async () => {
     const fresh = await (await admin.request.get('/api/data')).json();
     fresh.sheets[0].rows[0].EMAIL = 'a.very.long.student.email.address.for.testing@gmail.com';
@@ -207,7 +226,7 @@ test('screens: log in, edit, delete, search, team rules, Fact File', { timeout: 
     await admin.grantPermissions(['clipboard-read', 'clipboard-write']);
     await page.click('button:has-text("Copy summary")');
     await page.waitForSelector('.ui-toast.success');
-    assert.match(await page.evaluate(() => navigator.clipboard.readText()), /^\*.+\*[\s\S]*Nepal International Education Consultancy$/, 'a WhatsApp-ready summary was copied');
+    assert.match(await page.evaluate(() => navigator.clipboard.readText()), /^\*.+\*[\s\S]*Nepal International Educational Consultancy$/, 'a WhatsApp-ready summary was copied');
     await page.click('text=Edit');
     await page.waitForSelector('.editor');
     await page.fill('.editor textarea >> nth=0', 'A change that is not saved');

@@ -219,7 +219,7 @@ function setupEmail({ name, username, temporaryPassword, access, siteUrl, kind =
     'To finish setting up',
     ...steps.map((s, i) => `${i + 1}. ${s}`), '',
     safety, '', ignore, '',
-    'Nepal International Education Consultancy',
+    'Nepal International Educational Consultancy',
   ].join('\n');
 
   const row = (label, value, mono = false) => `<tr><td style="padding:6px 14px 6px 0;color:#6b7280;white-space:nowrap">${label}</td>`
@@ -241,7 +241,7 @@ ${row('Temporary password', escapeHtml(temporaryPassword), true)}
 <p style="margin:0 0 12px;color:#4b5563;font-size:14px">${escapeHtml(safety)}</p>
 <p style="margin:0 0 20px;color:#6b7280;font-size:13px">${escapeHtml(ignore)}</p>
 </td></tr>
-<tr><td style="padding:14px 28px 22px;border-top:1px solid #e5e7eb;color:#6b7280;font-size:12px">Nepal International Education Consultancy</td></tr>
+<tr><td style="padding:14px 28px 22px;border-top:1px solid #e5e7eb;color:#6b7280;font-size:12px">Nepal International Educational Consultancy</td></tr>
 </table></td></tr></table></body></html>`;
 
   return { subject: kind === 'reset' ? 'Your UK Student NIEC password was reset' : 'Set up your UK Student NIEC account', text, html };

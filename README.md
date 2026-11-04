@@ -1,6 +1,6 @@
 # UK Student NIEC
 
-The student visa tracker and counsellor incentive tracker for Nepal International Education Consultancy.
+The student visa tracker and counsellor incentive tracker for Nepal International Educational Consultancy.
 One login for everyone; each person sees only what their account allows.
 
 | Part | What it is |

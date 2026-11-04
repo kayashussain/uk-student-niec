@@ -14,7 +14,7 @@
   header.innerHTML = `
     <a class="niec-brand" href="/students" title="Home" id="niecHome">
       <img class="niec-logo" src="niec-logo.png" alt="NIEC, Your Future, Our Responsibility" width="79" height="38">
-      <span class="niec-brand-text"><span class="niec-brand-name">UK Student NIEC</span><span class="niec-brand-sub">Nepal International Education Consultancy</span></span>
+      <span class="niec-brand-text"><span class="niec-brand-name">UK Student NIEC</span><span class="niec-brand-sub">Nepal International Educational Consultancy</span></span>
     </a>
     <nav class="niec-nav" aria-label="Pages"></nav>
     <div class="niec-account"></div>`;

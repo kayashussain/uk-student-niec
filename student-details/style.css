@@ -349,13 +349,28 @@ td.date { font-variant-numeric: tabular-nums; color: var(--text-dim); padding: 3
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2.2'%3E%3Crect x='3' y='5' width='18' height='16' rx='2'/%3E%3Cpath d='M3 10h18M8 3v4M16 3v4'/%3E%3C/svg%3E");
   background-repeat: no-repeat; background-position: right 8px center;
 }
-/* While a date is being picked the real date box is in the cell, with its own icon. */
-#body td.date:has(input) { background-image: none; padding: 3px 6px; }
+/* While a date is being picked the real date box is in the cell, and it must look exactly like the cell did before: the same
+   text in the same place, the same calendar icon (the cell's own), no outline, no "mm/dd/yyyy", no extra buttons. Clicking a
+   cell by mistake therefore changes nothing you can see. The box only borrows the cell's shape to take the click and the typing. */
+#body td.date { position: relative; }
+#body td.date .date-input {
+  position: absolute; inset: 0; display: block; width: 100%; height: 100%; margin: 0; padding: 0 32px 0 13px; border: 0; border-radius: 0;
+  background: transparent; box-shadow: none; outline: none; color: inherit; font: inherit; line-height: inherit; cursor: pointer;
+}
+#body td.date .date-input:focus { outline: none; background: transparent; box-shadow: none; }
+/* The cell's own text (for example "10 May 2026") stays on show. The box's own text (05/10/2026) only appears once the person starts typing. */
+#body td.date .date-input:not(.typing)::-webkit-datetime-edit { opacity: 0; }
+#body td.date .date-input.typing { background: var(--panel); }
+#body td.date .date-input::-webkit-datetime-edit { padding: 0; }
+#body td.date .date-input::-webkit-datetime-edit-fields-wrapper { padding: 0; }
+#body td.date .date-input::-webkit-calendar-picker-indicator { position: absolute; right: 0; top: 0; width: 34px; height: 100%; margin: 0; padding: 0; opacity: 0; cursor: pointer; }
 /* A WhatsApp number shared by more than one student on the sheet. !important beats the striped/hover row backgrounds. */
 td.duplicate-phone { background: #fff176 !important; color: #1c2126; font-weight: 600; }
 td.date-note { color: var(--text-dim); font-style: italic; }
-td.lang-test { padding: 3px 6px; white-space: nowrap; }
-td.lang-test .date-input { width: auto; margin-left: 6px; }
+#body td.lang-test, td.lang-test { padding: 5px 8px; white-space: nowrap; text-overflow: clip; }
+td.lang-test .date-input { width: 128px; margin-left: 8px; padding: 2px 0; vertical-align: middle; outline: none; border: 0; border-radius: 0; box-shadow: none; background: transparent; }
+td.lang-test .date-input:focus { outline: none; background: transparent; }
+td.lang-test .date-input::-webkit-calendar-picker-indicator { opacity: .7; }
 
 .date-input {
   width: 100%;
@@ -379,7 +394,7 @@ td.lang-test .date-input { width: auto; margin-left: 6px; }
 }
 .date-input::-webkit-calendar-picker-indicator:hover { opacity: 1; }
 /* An empty date shows just the calendar icon, not "mm/dd/yyyy", until it's clicked. */
-.date-input.empty:not(:focus)::-webkit-datetime-edit { color: transparent; }
+.date-input.empty::-webkit-datetime-edit { color: transparent; }
 
 .lang-test-flag {
   display: inline-block;

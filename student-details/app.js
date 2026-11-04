@@ -209,7 +209,7 @@
   // year (0002), so a typed date is only confirmed once the typing is done: Enter, leaving the box, or a
   // 2-second pause. A date picked from the calendar is confirmed straight away.
   // An empty date box shows no "mm/dd/yyyy" until it's clicked (see .date-input.empty in style.css).
-  function markEmptyDate(input) { input.classList.toggle('empty', !input.value); }
+  function markEmptyDate(input) { input.classList.toggle('empty', !input.value && !input.classList.contains('typing')); }
 
   function confirmDateInput(input, original, apply) {
     let lastKey = 0;
@@ -226,6 +226,7 @@
     markEmptyDate(input);
     input.addEventListener('input', () => markEmptyDate(input));
     input.addEventListener('keydown', (e) => {
+      if (/^\d$/.test(e.key)) { input.classList.add('typing'); markEmptyDate(input); } // the first digit typed shows the date being typed
       lastKey = Date.now();
       if (pending) { clearTimeout(timer); timer = setTimeout(finish, 2000); }
       if (e.key === 'Enter') finish();
@@ -236,7 +237,7 @@
       if (Date.now() - lastKey > 500) finish();
       else timer = setTimeout(finish, 2000);
     });
-    input.addEventListener('blur', finish);
+    input.addEventListener('blur', () => { input.classList.remove('typing'); markEmptyDate(input); finish(); });
   }
 
   // Undo steps hold each sheet as JSON text, which takes a fraction of the memory of a live copy.
@@ -338,8 +339,7 @@
       rows[rowIdx][col] = value;
       markDirty();
     });
-    td.textContent = '';
-    td.appendChild(input);
+    td.appendChild(input); // the cell's own text stays where it is; the box lies invisibly over it (see style.css)
     return input;
   }
 
@@ -947,7 +947,7 @@
     const family = getComputedStyle(document.body).fontFamily;
     const header = textWidth(columnLabel(col), `600 12px ${family}`) + HEAD_PAD;
     let cell;
-    if (col === LANGUAGE_TEST_COL) cell = 320;
+    if (col === LANGUAGE_TEST_COL) cell = 420;
     else if (SELECT_COLS[col]) cell = Math.max(...SELECT_COLS[col].map((o) => textWidth(o, `600 11px ${family}`)), 60) + 64;
     else if (DATE_COLS.has(col)) cell = 150;
     else if (NUM_COLS.has(col)) cell = 124;
@@ -1033,6 +1033,11 @@
     const menu = document.createElement('div');
     menu.className = 'filter-menu';
     menu.dataset.col = col;
+
+    const title = document.createElement('div');
+    title.className = 'filter-menu-title';
+    title.textContent = 'Filter · ' + columnLabel(col);
+    menu.appendChild(title);
 
     const searchWrap = document.createElement('div');
     searchWrap.className = 'filter-menu-search';

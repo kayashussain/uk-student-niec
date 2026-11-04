@@ -52,7 +52,7 @@
       out.push('', '*Intakes*');
       uni.intakes.forEach((i) => out.push(`- ${i.name}${has(i.deadline) ? `, apply by ${i.deadline}` : ''}`));
     }
-    out.push('', 'Nepal International Education Consultancy');
+    out.push('', 'Nepal International Educational Consultancy');
     return out.join('\n');
   }
   async function copySummary() {
@@ -185,7 +185,7 @@
       doc.append(s);
     }
     section(doc, 'Notes', uni.notes);
-    doc.append(el('div', 'foot', has(uni.updatedBy) ? `Last updated ${when(uni.updatedAt)} by ${uni.updatedBy}. Nepal International Education Consultancy.` : 'Nepal International Education Consultancy.'));
+    doc.append(el('div', 'foot', has(uni.updatedBy) ? `Last updated ${when(uni.updatedAt)} by ${uni.updatedBy}. Nepal International Educational Consultancy.` : 'Nepal International Educational Consultancy.'));
     // A bar to jump between the sections of a long page (hidden when printing).
     const heads = [...doc.querySelectorAll('section > h2')];
     if (heads.length >= 4) {
