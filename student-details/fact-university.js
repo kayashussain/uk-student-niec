@@ -214,7 +214,20 @@
       edit.type = 'button';
       edit.addEventListener('click', renderEdit);
       bar.append(edit);
+      const remove = el('button', 'btn btn-danger', 'Delete');
+      remove.type = 'button';
+      remove.addEventListener('click', () => deleteUniversity());
+      bar.append(remove);
     }
+  }
+
+  // Delete this university (Admin only; the server refuses anyone else). `before` runs once it is deleted.
+  async function deleteUniversity(before) {
+    const yes = await NiecUI.confirm(`The whole page for ${uni.name} is removed from the Fact File. This cannot be undone.`,
+      { title: 'Delete this university?', confirmText: 'Delete university', danger: true });
+    if (!yes) return;
+    const res = await fetch(`/api/facts/${uni.id}/delete`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+    if (res.ok) { if (before) before(); location.href = '/fact-file'; } else say('Could not delete it.', true);
   }
 
   // ---- editing (Admin) ----
@@ -366,13 +379,7 @@
     const del = el('button', 'btn btn-danger', 'Delete this university');
     del.type = 'button';
     del.style.marginLeft = 'auto';
-    del.addEventListener('click', async () => {
-      const yes = await NiecUI.confirm(`The whole page for ${uni.name} is removed from the Fact File. This cannot be undone.`,
-        { title: 'Delete this university?', confirmText: 'Delete university', danger: true });
-      if (!yes) return;
-      const res = await fetch(`/api/facts/${uni.id}/delete`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
-      if (res.ok) { stopGuarding(); location.href = '/fact-file'; } else say('Could not delete it.', true);
-    });
+    del.addEventListener('click', () => deleteUniversity(stopGuarding));
     actions.append(save, cancel, del);
     form.append(actions);
 

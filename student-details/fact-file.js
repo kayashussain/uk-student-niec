@@ -5,7 +5,6 @@
   let list = [];
   let query = '';
   let loadedOnce = false;
-  let isAdmin = false;
   let searchTimer = null;
   let searchSeq = 0; // answers arriving out of order: only the latest search is shown
 
@@ -40,29 +39,6 @@
     return a;
   }
 
-  // Admin: a Delete button on each university (outside the link, so clicking it never opens the page).
-  function withDelete(a, u) {
-    const wrap = el('div', 'uni-wrap');
-    const del = el('button', 'btn btn-sm btn-danger del-btn', 'Delete');
-    del.type = 'button';
-    del.setAttribute('aria-label', 'Delete ' + u.name);
-    del.addEventListener('click', async () => {
-      const yes = await window.NiecUI.confirm(`The whole page for ${u.name} is removed from the Fact File. This cannot be undone.`,
-        { title: 'Delete this university?', confirmText: 'Delete university', danger: true });
-      if (!yes) return;
-      try {
-        const res = await fetch(`/api/facts/${u.id}/delete`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
-        if (!res.ok) throw new Error('HTTP ' + res.status);
-        window.NiecUI.toast(`${u.name} deleted`, { type: 'success' });
-        load();
-      } catch (e) {
-        window.NiecUI.toast('Could not delete it.', { type: 'error' });
-      }
-    });
-    wrap.append(a, del);
-    return wrap;
-  }
-
   function skeletons() {
     $('cards').replaceChildren(...Array.from({ length: 9 }, () => {
       const c = el('div', 'uni-card skeleton');
@@ -82,7 +58,7 @@
       box.replaceChildren(empty);
       return;
     }
-    box.replaceChildren(...list.map((u) => (isAdmin ? withDelete(card(u), u) : card(u))));
+    box.replaceChildren(...list.map(card));
   }
 
   async function load() {
@@ -126,7 +102,7 @@
     location.href = '/fact-file?u=' + json.id + '&edit=1'; // straight to its page, ready to fill in
   });
 
-  fetch('/api/me', { cache: 'no-store' }).then((r) => r.json()).then((me) => { isAdmin = me.role === 'admin'; $('addForm').hidden = !isAdmin; if (isAdmin && loadedOnce) render(); }).catch(() => {});
+  fetch('/api/me', { cache: 'no-store' }).then((r) => r.json()).then((me) => { $('addForm').hidden = me.role !== 'admin'; }).catch(() => {});
   skeletons();
   load();
 })();
