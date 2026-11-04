@@ -1,4 +1,4 @@
-// The University Partners page is for Admin only: the store keeps what Admin enters as plain text, and the real server
+// The Partnered Universities page is for Admin only: the store keeps what Admin enters as plain text, and the real server
 // refuses everyone else (logged out, staff, Manager) for the page and the data.
 const test = require('node:test');
 const assert = require('node:assert');
@@ -42,6 +42,13 @@ test('a new list starts with the five direct universities, once, and a removed o
   assert.deepStrictEqual(direct.list().map((u) => u.name).sort(), STARTERS.map((u) => u.name).sort());
   assert.deepStrictEqual(STARTERS.map((u) => u.name), ['Ulster University (QA)', 'Northumbria University London (QA)', 'University of West London', 'Bangor University', 'Middlesex University']);
   assert.ok(direct.list().every((u) => u.campuses.length > 0 && u.slabCount === 0), 'campuses filled in, no commission invented');
+  const bangor = direct.list().find((u) => u.name === 'Bangor University');
+  assert.strictEqual(bangor.contact.name, 'Braj Jha', 'the list shows the first contact person');
+  assert.strictEqual(bangor.contact.phone, '+44 7833769210');
+  assert.strictEqual(bangor.contact.email, 'b.jha@bangor.ac.uk');
+  assert.strictEqual(bangor.contactCount, 3);
+  assert.deepStrictEqual(direct.list().find((u) => u.name === 'Middlesex University').campuses, ['London Campus, London']);
+  assert.deepStrictEqual(direct.list().find((u) => u.name === 'Ulster University (QA)').campuses, ['London', 'Birmingham', 'Manchester']);
   const mid = direct.list().find((u) => u.name === 'Middlesex University');
   direct.remove(mid.id);
   assert.strictEqual(createDirect(dir).list().length, 4);
@@ -97,7 +104,7 @@ test('only Admin can open the page or read and change the list on the real serve
   await admin('POST', '/api/login/new-password', { password: 'Strong-Pass-2026' });
 
   // Admin: the page and the full cycle.
-  assert.strictEqual((await admin('GET', '/university-partners')).status, 200);
+  assert.strictEqual((await admin('GET', '/partnered-universities')).status, 200);
   const made = await admin('POST', '/api/direct', { name: 'Aston University' });
   assert.strictEqual(made.status, 200);
   const id = made.json.id;
@@ -107,7 +114,7 @@ test('only Admin can open the page or read and change the list on the real serve
 
   // Not logged in: nothing.
   const nobody = person();
-  assert.notStrictEqual((await nobody('GET', '/university-partners')).status, 200);
+  assert.notStrictEqual((await nobody('GET', '/partnered-universities')).status, 200);
   assert.notStrictEqual((await nobody('GET', '/api/direct')).status, 200);
   assert.notStrictEqual((await nobody('GET', `/api/direct/${id}`)).status, 200);
   assert.notStrictEqual((await nobody('POST', '/api/direct', { name: 'X University' })).status, 200);
@@ -119,7 +126,7 @@ test('only Admin can open the page or read and change the list on the real serve
     const them = person();
     assert.strictEqual((await them('POST', '/api/login', { username, password: made2.json.temporaryPassword })).json.stage, 'new-password');
     await them('POST', '/api/login/new-password', { password: 'Another-Long-Pass-2026' });
-    const page = await them('GET', '/university-partners');
+    const page = await them('GET', '/partnered-universities');
     assert.strictEqual(page.status, 302, `${role} is sent away from the page`);
     assert.ok(/^\/(students|dashboard)/.test(page.location), `${role} goes home`);
     assert.strictEqual((await them('GET', '/api/direct')).status, 403, `${role} cannot read the list`);

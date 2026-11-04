@@ -1,4 +1,4 @@
-// The University Partners list: the universities NIEC has a direct agreement with, each with its campuses,
+// The Partnered Universities list: the universities NIEC has a direct agreement with, each with its campuses,
 // commission slabs and the other details a consultancy needs (agreement, contacts, payment terms, conditions).
 // Admin only: the server refuses every other account (see server.js). Kept in direct-universities.json in the
 // data folder, written whole and atomically. Nothing here is shared with the Advisor connector or the Fact File.
@@ -70,7 +70,15 @@ const STARTERS = [
   { name: 'Ulster University (QA)', campuses: [{ name: 'London', city: 'London' }, { name: 'Birmingham', city: 'Birmingham' }, { name: 'Manchester', city: 'Manchester' }], notes: 'Delivered with QA.' },
   { name: 'Northumbria University London (QA)', campuses: [{ name: 'London Campus', city: 'London' }], notes: 'Delivered with QA.' },
   { name: 'University of West London', campuses: [{ name: 'Ealing', city: 'London' }, { name: 'Brentford', city: 'London' }, { name: 'Reading', city: 'Reading' }] },
-  { name: 'Bangor University', campuses: [{ name: 'Main Campus', city: 'Bangor, Wales' }] },
+  {
+    name: 'Bangor University', campuses: [{ name: 'Main Campus', city: 'Bangor, Wales' }],
+    // The regional team named on Bangor's flyer (also in its Fact File page).
+    contacts: [
+      { name: 'Braj Jha', role: 'Regional Manager', email: 'b.jha@bangor.ac.uk', phone: '+44 7833769210' },
+      { name: 'Rajinder Kaur', role: 'Senior Regional Officer', email: 'r.kaur@bangor.ac.uk', phone: '+91 98770 80865' },
+      { name: 'Swathy Nair', role: 'Regional Officer', email: 's.nair@bangor.ac.uk', phone: '+91 98714 92221' },
+    ],
+  },
   { name: 'Middlesex University', campuses: [{ name: 'London Campus', city: 'London' }] },
 ];
 
@@ -107,9 +115,11 @@ function createDirect(dir, { now = () => new Date(), starters = STARTERS } = {})
   const full = (u) => ({ ...clean(u, u), id: u.id, updatedAt: u.updatedAt, updatedBy: u.updatedBy || '' });
   const summary = (u) => ({
     id: u.id, name: u.name, country: u.country, status: u.status,
-    campuses: u.campuses.map((c) => [c.name, c.city].filter(Boolean).join(', ')),
+    campuses: u.campuses.map((c) => [...new Set([c.name, c.city].filter(Boolean))].join(', ')),
     slabCount: u.slabs.length, commissionSummary: u.commissionSummary,
     agreementEnd: u.agreementEnd, updatedAt: u.updatedAt,
+    // The first contact person is shown in the list; the rest are on the university's page.
+    contact: u.contacts[0] || { name: '', role: '', email: '', phone: '' }, contactCount: u.contacts.length,
   });
 
   return {

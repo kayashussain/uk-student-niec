@@ -1,4 +1,4 @@
-// The University Partners page (direct.html, Admin only). The server refuses every other account;
+// The Partnered Universities page (direct.html, Admin only). The server refuses every other account;
 // everything shown is put on the page as text, never as HTML.
 (function () {
   const $ = (id) => document.getElementById(id);
@@ -28,27 +28,32 @@
       const body = $('rows');
       if (!list.length) {
         body.replaceChildren(Object.assign(el('tr'), {}));
-        const td = el('td', 'muted', 'No university partners yet. Add the first one above.');
-        td.colSpan = 6;
+        const td = el('td', 'muted', 'No partnered universities yet. Add the first one above.');
+        td.colSpan = 9;
         body.firstChild.append(td);
         return;
       }
       body.replaceChildren(...list.map((u) => {
         const tr = el('tr');
-        const name = el('td');
+        const cell = (label, text) => { const td = el('td', '', text); td.dataset.label = label; return td; };
+        const name = el('td'); name.dataset.label = 'University';
         const open = el('button', 'open-link', u.name);
         open.type = 'button';
         open.addEventListener('click', () => openEditor(u.id));
         name.append(open);
-        const campuses = el('td');
+        const campuses = el('td'); campuses.dataset.label = 'Campuses';
         if (u.campuses.length) { const ul = el('ul', 'campus-list'); u.campuses.forEach((c) => ul.append(el('li', '', c))); campuses.append(ul); } else campuses.textContent = 'None yet';
-        const commission = el('td', '', u.slabCount ? `${u.slabCount} slab${u.slabCount === 1 ? '' : 's'}` : (u.commissionSummary ? u.commissionSummary.slice(0, 80) : 'None yet'));
-        const status = el('td'); status.append(el('span', 'pill ' + (PILL[u.status] || 'pill-wait'), u.status));
-        const end = el('td', '', u.agreementEnd || 'None yet');
+        const commission = cell('Commission', u.slabCount ? `${u.slabCount} slab${u.slabCount === 1 ? '' : 's'}` : (u.commissionSummary ? u.commissionSummary.slice(0, 80) : 'None yet'));
+        const status = el('td'); status.dataset.label = 'Status'; status.append(el('span', 'pill ' + (PILL[u.status] || 'pill-wait'), u.status));
+        const end = cell('Agreement ends', u.agreementEnd || 'None yet');
+        const c = u.contact || {};
+        const person = cell('Contact person', [c.name, c.role && `(${c.role})`].filter(Boolean).join(' ') + (u.contactCount > 1 ? ` +${u.contactCount - 1} more` : '') || 'None yet');
+        const phone = cell('Phone', c.phone || 'None yet');
+        const email = cell('Email', c.email || 'None yet');
         const act = el('td');
         const btn = el('button', 'btn btn-sm', 'Open'); btn.type = 'button'; btn.addEventListener('click', () => openEditor(u.id));
         act.append(btn);
-        tr.append(name, campuses, commission, status, end, act);
+        tr.append(name, campuses, commission, status, end, person, phone, email, act);
         return tr;
       }));
     } catch (e) { say('listMsg', e.message, true); }
@@ -158,7 +163,7 @@
 
     close.addEventListener('click', () => { ed.hidden = true; uni = null; });
     del.addEventListener('click', async () => {
-      if (!(await window.NiecUI.confirm(`Remove ${uni.name} from University Partners?`, { danger: true }))) return;
+      if (!(await window.NiecUI.confirm(`Remove ${uni.name} from Partnered Universities?`, { danger: true }))) return;
       try { await api(`/api/direct/${uni.id}/delete`, {}); ed.hidden = true; uni = null; window.NiecUI.toast('Removed', { type: 'success' }); loadList(); } catch (e) { say('editMsg', e.message, true); }
     });
     form.addEventListener('submit', async (e) => {

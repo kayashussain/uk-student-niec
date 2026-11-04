@@ -6,7 +6,7 @@ One login for everyone; each person sees only what their account allows.
 | Part | What it is |
 |---|---|
 | **Student Details** (`student-details/`) | The sheet of students by intake, with live co-editing, the Dashboard, the Users and Activity pages (Admin), and the **Fact File** (one page per university: fees, entry requirements, English tests, courses, intakes and the application process, searchable by course). |
-| **University Partners** (`student-details/direct.js`, `direct-page.js`) | Admin only: the universities NIEC works with directly, with campus locations, commission slabs, payment terms, agreement dates and contacts. Stored in `direct-universities.json` in the data folder; not in the Advisor connector. |
+| **Partnered Universities** (`student-details/direct.js`, `direct-page.js`) | Admin only: the universities NIEC works with directly, with campus locations, commission slabs, payment terms, agreement dates and contacts. Stored in `direct-universities.json` in the data folder; not in the Advisor connector. |
 | **Incentive** (`counselor-incentive/`) | Counsellor incentives and company earnings per intake (Admin only). Reads the students from Student Details. |
 | **Shared** (`shared/`) | Accounts and login, the header, the team access rules, notices and confirmation boxes, the server helpers. |
 | **Gateway** (`gateway/`) | Runs both apps behind one address (used by the Render and VPS setups; cPanel runs the two apps separately). |
