@@ -22,10 +22,7 @@ const {
 } = require('../shared/server-utils');
 const { createAccounts } = require('../shared/accounts');
 const { advancesByName, setAdvance } = require('./advances');
-const { createIncentiveAdvisor } = require('./advisor-mcp');
-const { round2, groupByUniversity, displayDate } = require('./calc');
-// Student Details' own fee math, so the tuition fee shown here always matches what's shown over there.
-const { netTuitionFee } = require('../student-details/calc');
+const { syncFromWorkbook } = require('./incentive-data');
 
 const PORT = process.env.PORT || 5173;
 const ROOT = __dirname;
@@ -130,23 +127,6 @@ function writeWithBackup(file, backupName, data) {
   writeJSONAtomic(file, data);
 }
 
-// Student Details -> the fields Incentive cares about. Everything else (visa lodge dates,
-// language test, other tuition figures, etc.) stays over there. This app only needs enough to
-// identify the student and show read-only context alongside the incentive fields.
-function normalizeStudent(row, intake) {
-  return {
-    id: row._id,
-    intake,
-    name: [row['FIRST NAME'], row['LAST NAME']].filter(Boolean).join(' ').trim(),
-    course: row['COURSE NAME'] || '',
-    university: row['UNIVERSITY NAME'] || '',
-    agent: String(row['UNIVERSITY PARTNER'] || '').trim(), // the Agent Name: the student's University Partner in Student Details
-    studentId: row['STUDENT ID'] || '',
-    tuitionFee: String(row['GROSS FEE'] || '').trim() ? round2(netTuitionFee(row)) : 0,
-    visaIssuedDate: displayDate(row['VISA RECEIVED DATE']),
-  };
-}
-
 // Reads the Student Details workbook and reshapes it into { intakes, byIntake }, where
 // byIntake[sheetName] only ever contains students whose APPLICATION STATUS is exactly
 // "Visa Issued" right now. Every sheet becomes an intake tab here, even if it currently
@@ -173,16 +153,7 @@ function readSync() {
   } catch (e) {
     return { ok: false, error: 'Student Details data file is not valid JSON right now. Try again.', intakes: [], byIntake: {} };
   }
-  const sheets = Array.isArray(workbook.sheets) ? workbook.sheets : [];
-  const intakes = sheets.map((s) => s.name);
-  const byIntake = {};
-  sheets.forEach((sheet) => {
-    const rows = Array.isArray(sheet.rows) ? sheet.rows : [];
-    byIntake[sheet.name] = groupByUniversity(rows
-      .filter((r) => r['APPLICATION STATUS'] === 'Visa Issued' && r._id)
-      .map((r) => normalizeStudent(r, sheet.name)));
-  });
-  return { ok: true, intakes, byIntake };
+  return syncFromWorkbook(workbook);
 }
 
 function num(v, fallback) {
@@ -253,18 +224,6 @@ function watchDataFile(file) {
 }
 watchDataFile(STUDENT_DETAILS_DATA);
 
-// Read-only door for the Claude Strategy Advisor project to the Incentive data (see advisor-mcp.js). Off unless
-// NIEC_INCENTIVE_ADVISOR_TOKEN is set; it has its own secret, separate from the Student Details connector's.
-const advisor = createIncentiveAdvisor({
-  token: process.env.NIEC_INCENTIVE_ADVISOR_TOKEN,
-  getSync: readSync,
-  getCommissions: () => readJSON(COMMISSIONS_FILE, {}),
-  getAdvances: () => advancesByName(readJSON(ADVANCES_FILE, {}), readSheetList()),
-  // The exchange rate last saved by the page (the connector never calls the outside rate service itself).
-  getRate: () => { const c = readJSON(EXCHANGE_RATE_FILE, null); return c && typeof c.rate === 'number' ? { rate: c.rate, date: c.date } : null; },
-  memoryDir: path.join(DATA_DIR, 'advisor-memory'),
-});
-
 const server = http.createServer(async (req, res) => {
   try {
     const rest = BASE_PATH && req.url.startsWith(BASE_PATH) ? req.url.slice(BASE_PATH.length) : null;
@@ -275,8 +234,6 @@ const server = http.createServer(async (req, res) => {
       }
       req.url = rest;
     }
-    // The Advisor connector checks its own secret in the address, so it answers before the login.
-    if (await advisor.handle(req, res, req.url.split('?')[0])) return;
     if (!requireAuth(req, res)) return;
     const urlPath = req.url.split('?')[0];
     // Commissions and company earnings are for Admin only; teams go back to Student Details.

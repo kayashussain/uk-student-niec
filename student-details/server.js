@@ -14,6 +14,7 @@ const { createFacts, viewFacts } = require('./facts');
 const { createDirect, viewDirect, MAX_FILE_BYTES } = require('./direct');
 const { createBackups, ID: BACKUP_ID, HOUR: BACKUP_HOUR, KEEP_DAYS } = require('./backups');
 const { createAdvisorMcp } = require('./advisor-mcp');
+const { advancesByName } = require('../counselor-incentive/advances');
 const {
   blankWorkbook, ensureRowIds, migrateWorkbook, isValidWorkbook, mergeWorkbooks, createHistory, describeChanges,
 } = require('./workbook');
@@ -74,12 +75,30 @@ const direct = createDirect(DATA_DIR);
 const backups = createBackups(DATA_DIR, () => ({ students: current, facts: facts.all(), partners: direct.all() }));
 setInterval(() => backups.tick(), 5 * 60 * 1000).unref();
 
+// The Incentive page's saved figures (commissions, advances, exchange rate), read-only, so the same Claude connector can also answer
+// questions about incentives. They live in the Incentive app's data folder: COUNSELOR_DATA_DIR, or (as on cPanel and with
+// deploy.sh) the folder next to this app's data. If it cannot be found, the incentive tools say so instead of showing zeros.
+const INCENTIVE_DIR = process.env.COUNSELOR_DATA_DIR || path.join(DATA_DIR, '..', 'counselor-incentive');
+function readIncentiveFile(name, fallback) {
+  if (!fs.existsSync(INCENTIVE_DIR)) return null;
+  try {
+    return JSON.parse(fs.readFileSync(path.join(INCENTIVE_DIR, name), 'utf8'));
+  } catch (e) {
+    return e.code === 'ENOENT' ? fallback : null; // not saved yet: nothing entered; unreadable: unknown
+  }
+}
+
 // Read-only door for the Claude Strategy Advisor project. Off unless NIEC_ADVISOR_TOKEN is set (see advisor-mcp.js).
 const advisor = createAdvisorMcp({
   token: process.env.NIEC_ADVISOR_TOKEN,
   getWorkbook: () => current,
   getDashboard: (intake) => buildDashboard(current, { sheetId: intake, includeHidden: true }),
   facts,
+  incentive: {
+    getCommissions: () => readIncentiveFile('commissions.json', {}),
+    getAdvances: (sheets) => advancesByName(readIncentiveFile('advances.json', {}) || {}, sheets.map((x) => ({ id: x.id, name: x.name }))),
+    getRate: () => { const c = readIncentiveFile('exchange-rate-cache.json', null); return c && typeof c.rate === 'number' ? { rate: c.rate, date: c.date } : null; },
+  },
   memoryDir: path.join(DATA_DIR, 'advisor-memory'),
 });
 

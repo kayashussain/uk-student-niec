@@ -53,23 +53,20 @@ https://<your-site>/advisor-mcp/<NIEC_ADVISOR_TOKEN>
 Anyone with that address can read all students, so keep it private. To cut access off, remove or change the variable and restart.
 Make a secret with `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`.
 
-### The same connector for the Incentive page (read-only)
+### Incentive questions through the same connector
 
-`counselor-incentive/advisor-mcp.js` gives Claude live, read-only access to the **Incentive** data: the visa-issued students of every
-intake with their **University Partner** (the agent), tuition fee, university commission and the incentives entered; the Payment
-Summary (total incentives, loan, TDS, advance, net payable); the Company Earnings; and totals by partner, university or intake. It
-cannot change anything but its own notebook (`advisor-memory/` in the Incentive data folder).
+The connector above also answers questions about the **Incentive page**, with no second connector and no new address. After the
+Student Details app restarts, Claude gets four more read-only tools: `get_incentive_overview`, `get_incentives` (every visa-issued
+student with their **University Partner** (the agent), tuition fee, university commission and the incentives entered),
+`get_payment_summary` (Payment Summary and Company Earnings of an intake) and `summarize_incentives_by` (totals by University
+Partner, university or intake). They cannot change anything. Claude may need the connector refreshed in claude.ai to list them.
 
-Commissions and company earnings are Admin only, so this connector has **its own secret**, separate from the Student Details one: set
-`NIEC_INCENTIVE_ADVISOR_TOKEN` (32 or more random characters) on the **Incentive** app in the host settings and restart it. Then add
-this address in claude.ai (Settings, Connectors, Add custom connector):
-
-```
-https://<your-site>/incentive/advisor-mcp/<NIEC_INCENTIVE_ADVISOR_TOKEN>
-```
-
-Tools: `get_overview`, `get_incentives`, `get_payment_summary`, `summarize_by`, and the notebook (`read_memory`, `save_memory`,
-`forget_memory`). Both connectors share `shared/mcp-core.js`.
+The Student Details app reads the Incentive app's saved figures (`commissions.json`, `advances.json`, `exchange-rate-cache.json`)
+straight from the Incentive data folder. It finds that folder next to its own data folder (`.../niec_data/counselor-incentive`, the
+layout in `CPANEL_DEPLOY.md` and `deploy.sh`), or set `COUNSELOR_DATA_DIR` on the Student Details app to the same value the
+Incentive app uses. If the folder cannot be found, the incentive tools say so instead of showing zeros. Because it is one connector,
+**the one secret opens both the students and the commissions**: keep the address private. Both connectors' shared code is in
+`shared/mcp-core.js`.
 
 ## Daily backups and restore (Admin only)
 

@@ -1,4 +1,5 @@
-// The Incentive connector for Claude: read-only live access to the Incentive data with its own secret.
+// The Incentive tools of the Claude connector. They are part of the SAME connector as the Student Details tools (one
+// address, one secret), read-only, and show the same students and money as the Incentive page.
 const test = require('node:test');
 const assert = require('node:assert');
 const os = require('node:os');
@@ -6,35 +7,52 @@ const fs = require('node:fs');
 const net = require('node:net');
 const path = require('node:path');
 const { spawn } = require('node:child_process');
-const { createIncentiveAdvisor } = require('../counselor-incentive/advisor-mcp');
+const { createAdvisorMcp } = require('../student-details/advisor-mcp');
+const { createFacts } = require('../student-details/facts');
 
 const TOKEN = 'i'.repeat(40);
-const student = (id, name, university, agent, tuition) => ({ id, name, course: 'MSc', university, agent, studentId: 'S' + id, tuitionFee: tuition, visaIssuedDate: '9/23/2026' });
-const SYNC = { ok: true, intakes: ['Sep Intake 2026', 'Jan Intake 2027'], byIntake: {
-  'Sep Intake 2026': [student('a', 'Sita Sharma', 'Bangor University', 'Real Dreams', 10000), student('b', 'Ram Thapa', 'Bangor University', 'Adventus', 12000), student('c', 'Maya Gurung', 'Ulster University', 'Real Dreams', 8000)],
-  'Jan Intake 2027': [],
-} };
+const row = (id, first, last, university, partner, fee, status = 'Visa Issued') => ({
+  _id: id, 'FIRST NAME': first, 'LAST NAME': last, 'COURSE NAME': 'MSc', 'UNIVERSITY NAME': university, 'UNIVERSITY PARTNER': partner,
+  'GROSS FEE': String(fee), 'APPLICATION STATUS': status, 'STUDENT ID': 'S' + id, 'VISA RECEIVED DATE': '2026-09-23',
+});
+const WORKBOOK = {
+  revision: 3,
+  sheets: [
+    { id: 'sheet-1', name: 'Sep Intake 2026', columns: ['FIRST NAME'], rows: [
+      row('a', 'Sita', 'Sharma', 'Bangor University', 'Real Dreams', 10000),
+      row('b', 'Ram', 'Thapa', 'Bangor University', 'Adventus', 12000),
+      row('c', 'Maya', 'Gurung', 'Ulster University', 'Real Dreams', 8000),
+      row('d', 'Not', 'Yet', 'Ulster University', 'Nobody', 9000, 'Inquiry'),
+    ] },
+    { id: 'sheet-2', name: 'Jan Intake 2027', columns: ['FIRST NAME'], rows: [row('e', 'Jan', 'Student', 'UWL', 'Real Dreams', 5000, 'Inquiry')] },
+  ],
+};
 const COMMISSIONS = {
   a: { uniCommissionRate: 15, enrollmentCommission: 10000, flywireCommission: 500, loanCommission: 1000 },
   b: { uniCommissionRate: 10, enrollmentCommission: 5000 },
 };
-const ADVANCES = { 'Sep Intake 2026': { previousAdvance: 2000, basicSalary: 70000, salaryMonths: 4 } };
-const make = (token = TOKEN, extra = {}) => createIncentiveAdvisor({
-  token, memoryDir: fs.mkdtempSync(path.join(os.tmpdir(), 'niec-imem-')), log: () => {},
-  getSync: () => SYNC, getCommissions: () => COMMISSIONS, getAdvances: () => ADVANCES, getRate: () => ({ rate: 180, date: '2026-11-04' }), ...extra,
+const ADVANCES = { 'sheet-1': { previousAdvance: 2000, basicSalary: 70000, salaryMonths: 4 } };
+const { advancesByName } = require('../counselor-incentive/advances');
+const make = (extra = {}) => createAdvisorMcp({
+  token: TOKEN, memoryDir: fs.mkdtempSync(path.join(os.tmpdir(), 'niec-imem-')), log: () => {},
+  getWorkbook: () => WORKBOOK, getDashboard: (i) => ({ intake: i }), facts: createFacts(fs.mkdtempSync(path.join(os.tmpdir(), 'niec-iadv-facts-'))),
+  incentive: { getCommissions: () => COMMISSIONS, getAdvances: (sheets) => advancesByName(ADVANCES, sheets), getRate: () => ({ rate: 180, date: '2026-11-04' }) },
+  ...extra,
 });
 const call = (m, name, args) => JSON.parse(m.rpc({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name, arguments: args } }).result.content[0].text);
+const raw = (m, name, args) => m.rpc({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name, arguments: args } }).result;
 
-test('off without a long enough secret, and only the notebook tools can write', () => {
-  assert.strictEqual(make('').enabled, false);
-  assert.strictEqual(make('short').enabled, false);
-  assert.strictEqual(make().enabled, true);
+test('one connector offers the student tools and the incentive tools, and nothing can write but the notebook', () => {
   const tools = make().rpc({ jsonrpc: '2.0', id: 1, method: 'tools/list' }).result.tools.map((t) => t.name);
-  assert.deepStrictEqual([...tools].sort(), ['forget_memory', 'get_incentives', 'get_overview', 'get_payment_summary', 'read_memory', 'save_memory', 'summarize_by']);
+  assert.deepStrictEqual([...tools].sort(), ['count_by', 'forget_memory', 'get_dashboard', 'get_fact_file', 'get_incentive_overview', 'get_incentives', 'get_overview',
+    'get_payment_summary', 'get_students', 'read_memory', 'save_memory', 'summarize_incentives_by']);
+  const without = make({ incentive: undefined }).rpc({ jsonrpc: '2.0', id: 1, method: 'tools/list' }).result.tools.map((t) => t.name);
+  assert.ok(!without.includes('get_incentives'), 'without the incentive data the incentive tools are not offered');
+  assert.match(make().rpc({ jsonrpc: '2.0', id: 1, method: 'initialize' }).result.instructions, /Incentive/);
 });
 
 test('overview lists the intakes with their visa-issued students and the exchange rate', () => {
-  const o = call(make(), 'get_overview', {});
+  const o = call(make(), 'get_incentive_overview', {});
   assert.deepStrictEqual(o.intakes, [{ name: 'Sep Intake 2026', visaIssuedStudents: 3 }, { name: 'Jan Intake 2027', visaIssuedStudents: 0 }]);
   assert.strictEqual(o.exchangeRate.gbpToNpr, 180);
 });
@@ -42,9 +60,10 @@ test('overview lists the intakes with their visa-issued students and the exchang
 test('get_incentives shows the University Partner (agent), the worked-out commission and the incentives entered', () => {
   const m = make();
   const all = call(m, 'get_incentives', {});
-  assert.strictEqual(all.matched, 3);
+  assert.strictEqual(all.matched, 3, 'only the Visa Issued students');
   const sita = all.students.find((s) => s.student === 'Sita Sharma');
   assert.strictEqual(sita.universityPartner, 'Real Dreams');
+  assert.strictEqual(sita.tuitionFeeGbp, 10000);
   assert.strictEqual(sita.uniCommissionAmountGbp, 1500, '15% of 10,000');
   assert.strictEqual(sita.totalIncentivesNpr, 10500, 'enrollment 10,000 + flywire 500; the loan is not part of the total');
   assert.strictEqual(sita._record, undefined, 'internal fields are not sent');
@@ -52,7 +71,7 @@ test('get_incentives shows the University Partner (agent), the worked-out commis
   assert.deepStrictEqual(call(m, 'get_incentives', { university: 'ulster' }).students.map((s) => s.student), ['Maya Gurung']);
   assert.strictEqual(call(m, 'get_incentives', { intake: 'Jan Intake 2027' }).matched, 0);
   assert.strictEqual(call(m, 'get_incentives', { limit: 1, offset: 1 }).returned, 1);
-  const unknown = m.rpc({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'get_incentives', arguments: { intake: 'Nope' } } }).result;
+  const unknown = raw(m, 'get_incentives', { intake: 'Nope' });
   assert.strictEqual(unknown.isError, true);
   assert.match(unknown.content[0].text, /No intake "Nope"\. Intakes: Sep Intake 2026, Jan Intake 2027/);
 });
@@ -70,94 +89,94 @@ test('the payment summary and company earnings are worked out like the Incentive
   assert.strictEqual(call(make(), 'get_payment_summary', {}).intakes.length, 2, 'every intake when none is named');
 });
 
-test('summarize_by groups by University Partner, University Name or Intake', () => {
+test('summarize_incentives_by groups by University Partner, University Name or Intake', () => {
   const m = make();
-  const byPartner = call(m, 'summarize_by', { by: 'universityPartner' });
+  const byPartner = call(m, 'summarize_incentives_by', { by: 'universityPartner' });
   assert.deepStrictEqual(byPartner.groups.map((g) => [g['University Partner'], g.students]), [['Real Dreams', 2], ['Adventus', 1]]);
-  const real = byPartner.groups[0];
-  assert.strictEqual(real.tuitionFeesGbp, 18000);
-  assert.strictEqual(real.incentivesEnteredNpr, 10500);
-  assert.deepStrictEqual(call(m, 'summarize_by', { by: 'university' }).groups.map((g) => [g['University Name'], g.students]), [['Bangor University', 2], ['Ulster University', 1]]);
-  assert.strictEqual(call(m, 'summarize_by', { by: 'intake' }).total, 3);
+  assert.strictEqual(byPartner.groups[0].tuitionFeesGbp, 18000);
+  assert.strictEqual(byPartner.groups[0].incentivesEnteredNpr, 10500);
+  assert.deepStrictEqual(call(m, 'summarize_incentives_by', { by: 'university' }).groups.map((g) => [g['University Name'], g.students]), [['Bangor University', 2], ['Ulster University', 1]]);
+  assert.strictEqual(call(m, 'summarize_incentives_by', { by: 'intake' }).total, 3);
 });
 
-test('a student with no University Partner is grouped as (empty), and a failing data read is explained', () => {
-  const sync = { ok: true, intakes: ['X'], byIntake: { X: [student('z', 'No Agent', 'UWL', '', 100)] } };
-  const m = make(TOKEN, { getSync: () => sync });
-  assert.strictEqual(call(m, 'summarize_by', { by: 'universityPartner' }).groups[0]['University Partner'], '(empty)');
-  const broken = make(TOKEN, { getSync: () => ({ ok: false, error: 'Could not find the Student Details data file' }) });
-  const r = broken.rpc({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'get_overview', arguments: {} } }).result;
-  assert.strictEqual(r.isError, true);
-  assert.match(r.content[0].text, /Student Details data file/);
-  assert.strictEqual(make().rpc({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'delete_everything', arguments: {} } }).error.code, -32602, 'unknown tools are refused');
+test('a student with no University Partner is grouped as (empty); missing incentive data is explained, never shown as zeros; unknown tools are refused', () => {
+  const wb = { revision: 1, sheets: [{ id: 's', name: 'X', columns: [], rows: [row('z', 'No', 'Agent', 'UWL', '', 100)] }] };
+  const m = make({ getWorkbook: () => wb });
+  assert.strictEqual(call(m, 'summarize_incentives_by', { by: 'universityPartner' }).groups[0]['University Partner'], '(empty)');
+  const missing = raw(make({ incentive: { getCommissions: () => null, getAdvances: () => ({}), getRate: () => null } }), 'get_incentives', {});
+  assert.strictEqual(missing.isError, true);
+  assert.match(missing.content[0].text, /COUNSELOR_DATA_DIR/);
+  assert.strictEqual(make().rpc({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'delete_everything', arguments: {} } }).error.code, -32602);
+  assert.strictEqual(raw(make({ getWorkbook: () => null }), 'get_incentives', {}).isError, true);
 });
 
-test('the address must carry the exact secret; otherwise it looks like a missing page', async () => {
+test('the incentive tools do not change the workbook or the incentive figures', () => {
+  const before = JSON.stringify([WORKBOOK, COMMISSIONS, ADVANCES]);
   const m = make();
-  const ask = async (urlPath, method = 'POST', body = '{"jsonrpc":"2.0","id":1,"method":"tools/list"}') => {
-    const chunks = [];
-    const res = { status: 0, writeHead(s) { this.status = s; }, end(b) { chunks.push(b); } };
-    const { PassThrough } = require('node:stream');
-    const req = new PassThrough(); req.method = method; req.end(body);
-    const handled = await m.handle(req, res, urlPath);
-    return { handled, status: res.status, body: chunks.join('') };
-  };
-  assert.strictEqual((await ask('/somewhere-else')).handled, false);
-  assert.strictEqual((await ask('/advisor-mcp/' + 'x'.repeat(40))).status, 404);
-  assert.strictEqual((await ask('/advisor-mcp/')).status, 404);
-  assert.strictEqual((await ask('/advisor-mcp/' + TOKEN, 'GET')).status, 405);
-  const ok = await ask('/advisor-mcp/' + TOKEN);
-  assert.strictEqual(ok.status, 200);
-  assert.ok(JSON.parse(ok.body).result.tools.length >= 7);
-  assert.strictEqual((await make('').handle(Object.assign(new (require('node:stream').PassThrough)(), { method: 'POST' }), { writeHead() {}, end() {} }, '/advisor-mcp/' + TOKEN)), true);
+  ['get_incentive_overview', 'get_incentives', 'get_payment_summary'].forEach((n) => call(m, n, {}));
+  call(m, 'summarize_incentives_by', { by: 'intake' });
+  assert.strictEqual(JSON.stringify([WORKBOOK, COMMISSIONS, ADVANCES]), before);
 });
 
 const freePort = () => new Promise((resolve) => { const s = net.createServer().listen(0, () => { const p = s.address().port; s.close(() => resolve(p)); }); });
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
-test('on the real Incentive app, mounted at /incentive: answers only with the secret, before any login, and shows live data', { timeout: 120000 }, async (t) => {
+test('on the real Student Details app the SAME address answers student and incentive questions, from the live files', { timeout: 120000 }, async (t) => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'niec-iadv-'));
-  // The students: one visa-issued student with a University Partner, in the Student Details data file.
-  fs.writeFileSync(path.join(dir, 'data.json'), JSON.stringify({ revision: 1, sheets: [{ id: 'sheet-1', name: 'Sep Intake 2026', columns: [], rows: [
-    { _id: 'row-1', 'FIRST NAME': 'Sita', 'LAST NAME': 'Sharma', 'UNIVERSITY NAME': 'Bangor University', 'UNIVERSITY PARTNER': 'Real Dreams', 'GROSS FEE': '10000', 'APPLICATION STATUS': 'Visa Issued' },
-    { _id: 'row-2', 'FIRST NAME': 'Not', 'LAST NAME': 'Yet', 'UNIVERSITY NAME': 'X', 'UNIVERSITY PARTNER': 'Nobody', 'APPLICATION STATUS': 'Inquiry' },
-  ] }], activeSheetId: 'sheet-1' }));
+  const incentiveDir = path.join(dir, 'counselor-incentive');
+  fs.mkdirSync(incentiveDir);
+  fs.writeFileSync(path.join(dir, 'data.json'), JSON.stringify({ revision: 1, activeSheetId: 'sheet-1', sheets: [{ id: 'sheet-1', name: 'Sep Intake 2026', columns: [], rows: [
+    row('row-1', 'Sita', 'Sharma', 'Bangor University', 'Real Dreams', 10000), row('row-2', 'Not', 'Yet', 'X', 'Nobody', 1, 'Inquiry'),
+  ] }] }));
+  fs.writeFileSync(path.join(incentiveDir, 'commissions.json'), JSON.stringify({ 'row-1': { uniCommissionRate: 20, enrollmentCommission: 7000 } }));
   const port = await freePort();
+  // The Incentive data folder is found next to this app's data folder when COUNSELOR_DATA_DIR is not set (as on cPanel).
+  const studentDir = path.join(dir, 'student-details');
+  fs.mkdirSync(studentDir);
+  fs.renameSync(path.join(dir, 'data.json'), path.join(studentDir, 'data.json'));
   const server = spawn(process.execPath, ['server.js'], {
-    cwd: path.join(__dirname, '..', 'counselor-incentive'),
-    env: { ...process.env, PORT: String(port), BASE_PATH: '/incentive', COUNSELOR_DATA_DIR: path.join(dir, 'incentive'), STUDENT_DETAILS_DATA_DIR: dir, NIEC_INCENTIVE_ADVISOR_TOKEN: TOKEN }, stdio: 'ignore',
+    cwd: path.join(__dirname, '..', 'student-details'),
+    env: { ...process.env, PORT: String(port), STUDENT_DETAILS_DATA_DIR: studentDir, NIEC_ADVISOR_TOKEN: TOKEN, COUNSELOR_DATA_DIR: '' }, stdio: 'ignore',
   });
   t.after(() => server.kill());
   const base = `http://127.0.0.1:${port}`;
-  for (let i = 0; i < 60; i += 1) { try { await fetch(base + '/incentive/', { redirect: 'manual' }); break; } catch (e) { await wait(250); } }
-  const rpc = async (secret, method, params) => {
-    const res = await fetch(`${base}/incentive/advisor-mcp/${secret}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }) });
-    return { status: res.status, json: await res.json().catch(() => null) };
+  for (let i = 0; i < 60; i += 1) { try { if ((await fetch(base + '/login')).ok) break; } catch (e) { await wait(250); } }
+  const ask = async (name, args) => {
+    const res = await fetch(`${base}/advisor-mcp/${TOKEN}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name, arguments: args } }) });
+    return (await res.json()).result;
   };
-  assert.strictEqual((await rpc('wrong-secret', 'tools/list')).status, 404);
-  // Hosts that strip the /incentive prefix themselves reach the same address without it.
-  assert.strictEqual((await fetch(`${base}/advisor-mcp/${TOKEN}`, { method: 'POST', body: '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' })).status, 200);
+  const list = await (await fetch(`${base}/advisor-mcp/${TOKEN}`, { method: 'POST', body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list' }) })).json();
+  const names = list.result.tools.map((x) => x.name);
+  assert.ok(names.includes('get_students') && names.includes('get_incentives') && names.includes('get_payment_summary'), 'both sets in one connector');
+  const students = JSON.parse((await ask('count_by', { group_by: ['APPLICATION STATUS'] })).content[0].text);
+  assert.strictEqual(students.total, 2, 'the student tools still work');
+  const inc = JSON.parse((await ask('get_incentives', {})).content[0].text);
+  assert.strictEqual(inc.matched, 1, 'only the Visa Issued student');
+  assert.strictEqual(inc.students[0].universityPartner, 'Real Dreams');
+  assert.strictEqual(inc.students[0].uniCommissionAmountGbp, 2000, '20% of 10,000, from the Incentive data folder next to this app');
+  assert.strictEqual(inc.students[0].enrollmentIncentiveNpr, 7000);
+  // Changing the incentive file shows at once (live).
+  fs.writeFileSync(path.join(incentiveDir, 'commissions.json'), JSON.stringify({ 'row-1': { uniCommissionRate: 20, enrollmentCommission: 9000 } }));
+  assert.strictEqual(JSON.parse((await ask('get_incentives', {})).content[0].text).students[0].enrollmentIncentiveNpr, 9000);
+  // Wrong secret and the normal pages are as before.
   assert.strictEqual((await fetch(`${base}/advisor-mcp/wrong`, { method: 'POST', body: '{}' })).status, 404);
-  const tools = await rpc(TOKEN, 'tools/list');
-  assert.strictEqual(tools.status, 200, 'no login needed: the secret is the key');
-  const got = await rpc(TOKEN, 'tools/call', { name: 'get_incentives', arguments: {} });
-  const result = JSON.parse(got.json.result.content[0].text);
-  assert.strictEqual(result.matched, 1, 'only the Visa Issued student');
-  assert.strictEqual(result.students[0].universityPartner, 'Real Dreams');
-  assert.strictEqual(result.students[0].tuitionFeeGbp, 10000);
-  // The normal Incentive page and its data still need a login.
-  assert.notStrictEqual((await fetch(`${base}/incentive/api/commissions`, { redirect: 'manual' })).status, 200);
-  assert.notStrictEqual((await fetch(`${base}/incentive/api/sync`, { redirect: 'manual' })).status, 200);
+  assert.notStrictEqual((await fetch(`${base}/api/data`, { redirect: 'manual' })).status, 200);
 });
 
-test('without a secret set the connector does not exist on the real app', { timeout: 60000 }, async (t) => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'niec-iadv-off-'));
+test('when the Incentive data folder cannot be found, the incentive tools say so and the student tools still work', { timeout: 60000 }, async (t) => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'niec-iadv-none-'));
+  const studentDir = path.join(dir, 'student-details');
+  fs.mkdirSync(studentDir);
   const port = await freePort();
-  const env = { ...process.env, PORT: String(port), COUNSELOR_DATA_DIR: path.join(dir, 'incentive'), STUDENT_DETAILS_DATA_DIR: dir };
-  delete env.NIEC_INCENTIVE_ADVISOR_TOKEN;
-  const server = spawn(process.execPath, ['server.js'], { cwd: path.join(__dirname, '..', 'counselor-incentive'), env, stdio: 'ignore' });
+  const server = spawn(process.execPath, ['server.js'], {
+    cwd: path.join(__dirname, '..', 'student-details'), env: { ...process.env, PORT: String(port), STUDENT_DETAILS_DATA_DIR: studentDir, NIEC_ADVISOR_TOKEN: TOKEN, COUNSELOR_DATA_DIR: '' }, stdio: 'ignore',
+  });
   t.after(() => server.kill());
-  for (let i = 0; i < 60; i += 1) { try { await fetch(`http://127.0.0.1:${port}/`, { redirect: 'manual' }); break; } catch (e) { await wait(250); } }
-  const res = await fetch(`http://127.0.0.1:${port}/advisor-mcp/${TOKEN}`, { method: 'POST', body: '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' });
-  assert.strictEqual(res.status, 404);
+  const base = `http://127.0.0.1:${port}`;
+  for (let i = 0; i < 60; i += 1) { try { if ((await fetch(base + '/login')).ok) break; } catch (e) { await wait(250); } }
+  const ask = async (name) => (await (await fetch(`${base}/advisor-mcp/${TOKEN}`, { method: 'POST', body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name, arguments: {} } }) })).json()).result;
+  const r = await ask('get_incentives');
+  assert.strictEqual(r.isError, true);
+  assert.match(r.content[0].text, /could not be found/);
+  assert.strictEqual((await ask('get_overview')).isError, undefined);
 });

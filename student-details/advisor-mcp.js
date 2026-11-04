@@ -1,7 +1,8 @@
 // A door for the Claude "Strategy Advisor" project (an MCP connector).
 //
-// It lets Claude READ the live UK Student NIEC sheet (every tab, row and column), the Dashboard numbers
-// and the Fact File. It can NOT change any student or the Fact File.
+// It lets Claude READ the live UK Student NIEC sheet (every tab, row and column), the Dashboard numbers,
+// the Fact File and the Incentive page (commissions, incentives, company earnings; see
+// counselor-incentive/advisor-tools.js). It can NOT change any student, the Fact File or any incentive.
 //
 // The one thing it can write is the Advisor's own notebook ("memory"): short notes about the owner's
 // preferences, how NIEC works, decisions and lessons, kept in advisor-memory/ next to the data. Notes that
@@ -13,6 +14,8 @@
 // read all students, so keep it private; to cut access off, change or remove the variable and restart.
 
 const { createMcpEndpoint, textResult, errorResult } = require('../shared/mcp-core');
+const { createIncentiveTools } = require('../counselor-incentive/advisor-tools');
+const { syncFromWorkbook } = require('../counselor-incentive/incentive-data');
 
 const PREFIX = '/advisor-mcp/';
 const DEFAULT_LIMIT = 200;
@@ -91,8 +94,18 @@ function unknownColumns(sheets, cols) {
   return [...new Set(cols)].filter((c) => !known.has(c));
 }
 
-function createAdvisorMcp({ getWorkbook, getDashboard, facts, token, memoryDir, log = console.log }) {
+// `incentive` (optional) adds the Incentive tools to this same connector: { getCommissions, getAdvances, getRate }, which read the
+// Incentive app's saved figures; the students come from the same workbook as the rest.
+function createAdvisorMcp({ getWorkbook, getDashboard, facts, incentive, token, memoryDir, log = console.log }) {
+  const incentiveTools = incentive ? createIncentiveTools({
+    getSync: () => { const w = getWorkbook(); return w ? syncFromWorkbook(w) : { ok: false, error: 'The sheet data could not be read right now.' }; },
+    getCommissions: incentive.getCommissions,
+    getAdvances: () => { const w = getWorkbook(); return incentive.getAdvances((w && w.sheets) || []); },
+    getRate: incentive.getRate,
+  }) : null;
+
   function callTool(name, a) {
+    if (incentiveTools && incentiveTools.isIncentiveTool(name)) return incentiveTools.callTool(name, a);
     const workbook = getWorkbook();
     if (!workbook) return errorResult('The sheet data could not be read right now.');
 
@@ -158,8 +171,8 @@ function createAdvisorMcp({ getWorkbook, getDashboard, facts, token, memoryDir, 
   }
 
   return createMcpEndpoint({
-    prefix: PREFIX, token, tokenName: 'NIEC_ADVISOR_TOKEN', tools: TOOLS, callTool, serverName: 'niec-advisor', memoryDir, log,
-    instructions: 'Read-only, live access to the UK Student NIEC sheet and Fact File, plus a notebook you may write to. Call read_memory first in every conversation, then get_overview. Save durable preferences and lessons with save_memory (never personal data). Prefer count_by for numbers and get_students with "columns" and "where" for rows. Always say when the data was pulled (pulledAt).',
+    prefix: PREFIX, token, tokenName: 'NIEC_ADVISOR_TOKEN', tools: incentiveTools ? [...TOOLS, ...incentiveTools.TOOLS] : TOOLS, callTool, serverName: 'niec-advisor', memoryDir, log,
+    instructions: 'Read-only, live access to the UK Student NIEC sheet and Fact File' + (incentiveTools ? ', and to the Incentive page (commissions, incentives and company earnings)' : '') + ', plus a notebook you may write to. Call read_memory first in every conversation, then get_overview' + (incentiveTools ? ' (and get_incentive_overview for anything about incentives, commissions or earnings; University Partner is the agent; tuition and university commission are in GBP, incentives, TDS, advances and salary in NPR)' : '') + '. Save durable preferences and lessons with save_memory (never personal data). Prefer count_by for numbers and get_students with "columns" and "where" for rows' + (incentiveTools ? ', and summarize_incentives_by to compare agents and universities' : '') + '. Always say when the data was pulled (pulledAt).',
   });
 }
 

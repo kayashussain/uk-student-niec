@@ -1,28 +1,21 @@
-// A door for the Claude "Strategy Advisor" project (an MCP connector) to the INCENTIVE page, the same idea as the
-// Student Details connector (student-details/advisor-mcp.js), with its own secret and its own notebook.
+// The Incentive tools of the Claude "Strategy Advisor" connector. They are part of the SAME connector as the Student
+// Details tools (student-details/advisor-mcp.js), so one connector in Claude, with one address, sees both.
 //
-// It lets Claude READ the live Incentive data: the visa-issued students of every intake with their University Partner,
-// tuition fee, university commission and the incentives entered for them, the Payment Summary (total incentives, loan,
-// TDS, advance, net payable) and the Company Earnings of each intake. It can NOT change any incentive, advance or
-// student. The one thing it can write is the Advisor's own notebook (see shared/mcp-core.js).
-//
-// It is OFF unless NIEC_INCENTIVE_ADVISOR_TOKEN is set (a long random secret, at least 32 characters). Commissions and
-// company earnings are for Admin only, so this has its OWN secret, separate from NIEC_ADVISOR_TOKEN: sharing one
-// connector with someone must never share the other. The address is https://<your-site>/incentive/advisor-mcp/<SECRET>
-// (or <BASE_PATH>/advisor-mcp/<SECRET> where the app is mounted elsewhere).
+// READ ONLY: Claude can read the live Incentive data (the visa-issued students of every intake with their University
+// Partner, tuition fee, university commission and the incentives entered; the Payment Summary; the Company Earnings)
+// and can not change any incentive, advance or student.
 
-const { createMcpEndpoint, textResult, errorResult } = require('../shared/mcp-core');
+const { textResult, errorResult } = require('../shared/mcp-core');
 const calc = require('./calc');
 
-const PREFIX = '/advisor-mcp/';
 const DEFAULT_LIMIT = 200;
 const MAX_LIMIT = 1000;
 const GROUPS = { university: 'University Name', universityPartner: 'University Partner', intake: 'Intake' };
 
-const TOOLS = [
+const INCENTIVE_TOOLS = [
   {
-    name: 'get_overview',
-    description: 'Start here. Lists every intake (a tab of Student Details) with the number of visa-issued students (the only students the Incentive page lists), the exchange rate (GBP to NPR) last used, and what each field means. Use the intake names in the other tools.',
+    name: 'get_incentive_overview',
+    description: 'Start here for anything about incentives, commissions or company earnings. Lists every intake (a tab of Student Details) with the number of visa-issued students (the only students the Incentive page lists), the exchange rate (GBP to NPR) last used, and what each field means. Use the intake names in the other incentive tools.',
     inputSchema: { type: 'object', properties: {}, additionalProperties: false },
   },
   {
@@ -31,7 +24,7 @@ const TOOLS = [
     inputSchema: {
       type: 'object',
       properties: {
-        intake: { type: 'string', description: 'Intake name from get_overview. Omit for all.' },
+        intake: { type: 'string', description: 'Intake name from get_incentive_overview. Omit for all.' },
         student: { type: 'string' },
         university: { type: 'string' },
         partner: { type: 'string', description: 'University Partner (the agent).' },
@@ -47,8 +40,8 @@ const TOOLS = [
     inputSchema: { type: 'object', properties: { intake: { type: 'string' } }, additionalProperties: false },
   },
   {
-    name: 'summarize_by',
-    description: 'Totals grouped by University Partner (the agent), University Name or Intake: students, tuition fees (GBP), university commission (GBP) and incentives entered (NPR). Best for comparing partners and universities; far cheaper than reading rows. Optionally limit to one intake.',
+    name: 'summarize_incentives_by',
+    description: 'Incentive totals grouped by University Partner (the agent), University Name or Intake: students, tuition fees (GBP), university commission (GBP) and incentives entered (NPR). Best for comparing agents and universities; far cheaper than reading rows. Optionally limit to one intake.',
     inputSchema: {
       type: 'object',
       properties: { by: { type: 'string', enum: Object.keys(GROUPS) }, intake: { type: 'string' } },
@@ -60,44 +53,52 @@ const TOOLS = [
 
 const round2 = calc.round2;
 const has = (cell, needle) => String(cell || '').toLowerCase().includes(String(needle).trim().toLowerCase());
+const NAMES = new Set(INCENTIVE_TOOLS.map((t) => t.name));
 
-function createIncentiveAdvisor({ getSync, getCommissions, getAdvances, getRate, token, memoryDir, log = console.log }) {
+//   getSync()         the Incentive page's student list: { ok, intakes, byIntake } (see counselor-incentive/incentive-data.js)
+//   getCommissions()  the incentives saved for each student, by student id (null if the Incentive data is not reachable)
+//   getAdvances()     the advance and salary settings of each intake, by intake name
+//   getRate()         the exchange rate last saved by the Incentive page, { rate, date }, or null
+function createIncentiveTools({ getSync, getCommissions, getAdvances, getRate }) {
   // Every visa-issued student with their saved incentives and the worked-out amounts.
   function load() {
     const sync = getSync();
     if (!sync || !sync.ok) return { error: (sync && sync.error) || 'The Student Details data could not be read right now.' };
-    const commissions = getCommissions() || {};
+    const commissions = getCommissions();
+    if (!commissions) return { error: 'The Incentive data (commissions and advances) could not be found on this server, so incentives cannot be shown. The Incentive data folder must be reachable from the Student Details app (see COUNSELOR_DATA_DIR).' };
     const advances = getAdvances() || {};
-    const intakes = (sync.intakes || []).map((name) => {
-      const students = (sync.byIntake[name] || []).map((s) => {
-        const c = commissions[s.id] || {};
-        const total = calc.num(c.enrollmentCommission) + calc.num(c.enrollmentCommissionUni) + calc.num(c.newPartnershipCommission)
-          + calc.num(c.selfStudentCommission) + calc.num(c.flywireCommission);
-        return {
-          intake: name,
-          student: s.name,
-          course: s.course,
-          university: s.university,
-          universityPartner: s.agent || '',
-          studentId: s.studentId,
-          tuitionFeeGbp: s.tuitionFee,
-          visaIssuedDate: s.visaIssuedDate,
-          uniCommissionRatePercent: calc.num(c.uniCommissionRate),
-          uniCommissionAmountGbp: calc.universityCommission(s.tuitionFee, c.uniCommissionRate),
-          enrollmentIncentiveNpr: calc.num(c.enrollmentCommission),
-          enrollmentIncentiveFromUniversityNpr: calc.num(c.enrollmentCommissionUni),
-          newPartnershipIncentiveNpr: calc.num(c.newPartnershipCommission),
-          directStudentIncentiveNpr: calc.num(c.selfStudentCommission),
-          flywireFeePaymentGbp: calc.num(c.flywireFeePayment),
-          flywireIncentiveNpr: calc.num(c.flywireCommission),
-          loanIncentiveToShareNpr: calc.num(c.loanCommission),
-          totalIncentivesNpr: round2(total),
-          _record: c,
-        };
-      });
-      return { name, students, advance: advances[name] || {} };
-    });
-    return { intakes };
+    return {
+      intakes: (sync.intakes || []).map((name) => ({
+        name,
+        advance: advances[name] || {},
+        students: (sync.byIntake[name] || []).map((s) => {
+          const c = commissions[s.id] || {};
+          const total = calc.num(c.enrollmentCommission) + calc.num(c.enrollmentCommissionUni) + calc.num(c.newPartnershipCommission)
+            + calc.num(c.selfStudentCommission) + calc.num(c.flywireCommission);
+          return {
+            intake: name,
+            student: s.name,
+            course: s.course,
+            university: s.university,
+            universityPartner: s.agent || '',
+            studentId: s.studentId,
+            tuitionFeeGbp: s.tuitionFee,
+            visaIssuedDate: s.visaIssuedDate,
+            uniCommissionRatePercent: calc.num(c.uniCommissionRate),
+            uniCommissionAmountGbp: calc.universityCommission(s.tuitionFee, c.uniCommissionRate),
+            enrollmentIncentiveNpr: calc.num(c.enrollmentCommission),
+            enrollmentIncentiveFromUniversityNpr: calc.num(c.enrollmentCommissionUni),
+            newPartnershipIncentiveNpr: calc.num(c.newPartnershipCommission),
+            directStudentIncentiveNpr: calc.num(c.selfStudentCommission),
+            flywireFeePaymentGbp: calc.num(c.flywireFeePayment),
+            flywireIncentiveNpr: calc.num(c.flywireCommission),
+            loanIncentiveToShareNpr: calc.num(c.loanCommission),
+            totalIncentivesNpr: round2(total),
+            _record: c,
+          };
+        }),
+      })),
+    };
   }
 
   function pickIntakes(data, ref) {
@@ -112,11 +113,13 @@ function createIncentiveAdvisor({ getSync, getCommissions, getAdvances, getRate,
 
   function summaryOf(intake, rate) {
     const s = calc.computeSummary(intake.students.map((st) => st._record), intake.advance.previousAdvance);
+    const salary = intake.advance.basicSalary === undefined ? calc.DEFAULT_BASIC_SALARY : intake.advance.basicSalary;
+    const months = intake.advance.salaryMonths === undefined ? calc.DEFAULT_SALARY_MONTHS : intake.advance.salaryMonths;
     const e = calc.computeEarnings({
       commissionGbp: intake.students.reduce((a, st) => a + st.uniCommissionAmountGbp, 0),
       gbpToNpr: rate ? rate.rate : null,
-      basicSalary: intake.advance.basicSalary === undefined ? calc.DEFAULT_BASIC_SALARY : intake.advance.basicSalary,
-      salaryMonths: intake.advance.salaryMonths === undefined ? calc.DEFAULT_SALARY_MONTHS : intake.advance.salaryMonths,
+      basicSalary: salary,
+      salaryMonths: months,
       myIncentives: s.netCommissions,
     });
     return {
@@ -128,8 +131,7 @@ function createIncentiveAdvisor({ getSync, getCommissions, getAdvances, getRate,
       },
       companyEarnings: {
         universityCommissionGbp: round2(e.commissionGbp), universityCommissionNpr: e.companyNpr,
-        counselorSalaryForPeriodNpr: round2(e.salaryTotal), basicSalaryPerMonthNpr: intake.advance.basicSalary === undefined ? calc.DEFAULT_BASIC_SALARY : intake.advance.basicSalary,
-        salaryMonths: intake.advance.salaryMonths === undefined ? calc.DEFAULT_SALARY_MONTHS : intake.advance.salaryMonths,
+        counselorSalaryForPeriodNpr: round2(e.salaryTotal), basicSalaryPerMonthNpr: salary, salaryMonths: months,
         counselorTotalNpr: round2(e.myTotal), counselorSharePercentOfCompanyEarnings: e.sharePercent === null ? null : round2(e.sharePercent),
       },
     };
@@ -141,7 +143,7 @@ function createIncentiveAdvisor({ getSync, getCommissions, getAdvances, getRate,
     const rate = getRate ? getRate() : null;
     const pulledAt = new Date().toISOString();
 
-    if (name === 'get_overview') {
+    if (name === 'get_incentive_overview') {
       return textResult({
         pulledAt,
         exchangeRate: rate ? { gbpToNpr: rate.rate, date: rate.date || null } : null,
@@ -150,7 +152,7 @@ function createIncentiveAdvisor({ getSync, getCommissions, getAdvances, getRate,
           'Only students whose Application Status is exactly "Visa Issued" appear here, as on the Incentive page.',
           'University Partner is the agent: it comes from the University Partner column of Student Details.',
           'Tuition fee and university commission are in GBP; every incentive, TDS, advance and salary figure is in NPR.',
-          'Student details come from Student Details and cannot be changed from here; this connector cannot change anything.',
+          'These tools cannot change anything.',
         ],
       });
     }
@@ -174,7 +176,7 @@ function createIncentiveAdvisor({ getSync, getCommissions, getAdvances, getRate,
       });
     }
 
-    if (name === 'summarize_by') {
+    if (name === 'summarize_incentives_by') {
       if (!GROUPS[a.by]) return errorResult(`"by" must be one of: ${Object.keys(GROUPS).join(', ')}.`);
       const groups = new Map();
       picked.intakes.forEach((i) => i.students.forEach((s) => {
@@ -194,10 +196,7 @@ function createIncentiveAdvisor({ getSync, getCommissions, getAdvances, getRate,
     return errorResult(`Unknown tool "${name}".`);
   }
 
-  return createMcpEndpoint({
-    prefix: PREFIX, token, tokenName: 'NIEC_INCENTIVE_ADVISOR_TOKEN', tools: TOOLS, callTool, serverName: 'niec-incentive-advisor', memoryDir, log,
-    instructions: 'Read-only, live access to the NIEC Incentive page (commissions and company earnings, Admin only), plus a notebook you may write to. Call read_memory first in every conversation, then get_overview. University Partner is the agent. Tuition and university commission are in GBP; incentives, TDS, advances and salary are in NPR. Prefer summarize_by for comparisons and get_payment_summary for an intake\'s totals; use get_incentives with "intake", "partner" or "university" for rows. Save durable preferences and lessons with save_memory (never personal data). Always say when the data was pulled (pulledAt).',
-  });
+  return { TOOLS: INCENTIVE_TOOLS, isIncentiveTool: (name) => NAMES.has(name), callTool };
 }
 
-module.exports = { createIncentiveAdvisor };
+module.exports = { createIncentiveTools, INCENTIVE_TOOLS };
