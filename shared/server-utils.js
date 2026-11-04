@@ -242,29 +242,43 @@ const SHARED_FILES = {
   '/header.css': 'text/css; charset=utf-8',
   '/ui.js': 'text/javascript; charset=utf-8',
   '/ui.css': 'text/css; charset=utf-8',
+  '/theme.css': 'text/css; charset=utf-8',
   '/niec-logo.png': 'image/png',
   '/login.html': 'text/html; charset=utf-8',
 };
 const PUBLIC_SHARED = new Set(['/niec-logo.png', '/login.html']);
 
 // Each file is read and compressed once, then kept in memory (the files only change with a deploy,
-// which restarts the server). The browser keeps its copy and only checks it's still current: an
-// unchanged file is answered "304 Not Modified" with no body at all.
+// which restarts the server). Pages are always re-checked, so a deploy shows on a normal reload, but every
+// script, style and image a page names is addressed as name?v=<fingerprint of its content>: that address
+// never changes until the file does, so the browser keeps it for a year and a repeat visit makes no
+// requests for it at all (a page used to ask the server about every file, every time, which is what made
+// it feel slow on a slow connection).
 function createStaticServer(root, publicFiles) {
-  const cache = new Map(); // name -> { data, gz, etag }
+  const cache = new Map(); // name -> { data, gz, etag, fingerprint }
+  const hash = (data) => crypto.createHash('sha1').update(data).digest('base64url').slice(0, 20);
   function load(name) {
     if (cache.has(name)) return cache.get(name);
-    const data = fs.readFileSync(path.join(root, name.slice(1)));
-    const entry = {
-      data,
-      gz: /text|javascript|svg/.test(publicFiles[name]) ? zlib.gzipSync(data, { level: 9 }) : null,
-      etag: '"' + crypto.createHash('sha1').update(data).digest('base64url').slice(0, 20) + '"',
-    };
+    let data = fs.readFileSync(path.join(root, name.slice(1)));
+    const type = publicFiles[name];
+    const fingerprint = hash(data).slice(0, 10);
+    if (/html/.test(type)) {
+      // "app.js" becomes "app.js?v=3fa9c2..." for every asset this server serves.
+      data = Buffer.from(data.toString('utf8').replace(/\b(src|href)="([\w.-]+\.(?:js|css|png))"/g, (whole, attr, file) => {
+        if ('/' + file === name) return whole;
+        try {
+          if (publicFiles['/' + file]) return `${attr}="${file}?v=${load('/' + file).fingerprint}"`;
+          if (SHARED_FILES['/' + file]) return `${attr}="${file}?v=${hash(fs.readFileSync(path.join(__dirname, file))).slice(0, 10)}"`; // a file in shared/
+        } catch (e) { /* left as it was */ }
+        return whole;
+      }));
+    }
+    const entry = { data, fingerprint, gz: /text|javascript|svg/.test(type) ? zlib.gzipSync(data, { level: 9 }) : null, etag: '"' + hash(data) + '"' };
     cache.set(name, entry);
     return entry;
   }
   return function serveStatic(req, res) {
-    const urlPath = req.url.split('?')[0];
+    const [urlPath, query = ''] = req.url.split('?');
     const name = urlPath === '/' ? '/index.html' : urlPath;
     const type = publicFiles[name];
     if (!type) return send(res, 404, 'Not found');
@@ -274,8 +288,8 @@ function createStaticServer(root, publicFiles) {
     } catch (e) {
       return send(res, 404, 'Not found');
     }
-    // no-cache: the browser checks for a newer copy every time, so a deploy shows up on a normal reload.
-    const headers = { 'Content-Type': type, 'Cache-Control': 'no-cache', ETag: file.etag };
+    const fingerprinted = /(^|&)v=/.test(query) && !/html/.test(type);
+    const headers = { 'Content-Type': type, 'Cache-Control': fingerprinted ? 'public, max-age=31536000, immutable' : 'no-cache', ETag: file.etag };
     if (req.headers['if-none-match'] === file.etag) return send(res, 304, null, headers);
     send(res, 200, file.data, headers, file.gz);
   };

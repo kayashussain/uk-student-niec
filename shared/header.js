@@ -38,7 +38,7 @@
     edge();
     // The current page is scrolled into view in a menu that doesn't fit.
     const here = nav.querySelector('[aria-current="page"]');
-    if (here) nav.scrollLeft = Math.max(0, here.getBoundingClientRect().left - nav.getBoundingClientRect().left + nav.scrollLeft - 24);
+    if (here) nav.scrollLeft = Math.max(0, here.getBoundingClientRect().left - nav.getBoundingClientRect().left + nav.scrollLeft - (nav.clientWidth - here.offsetWidth) / 2);
     // The logo goes home: the dashboard for the Manager, Student Details for everyone else.
     header.querySelector('#niecHome').setAttribute('href', me.role === 'manager' ? '/dashboard' : '/students');
     const initials = String(me.name || '?').split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase();

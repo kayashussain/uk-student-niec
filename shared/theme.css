@@ -1,0 +1,89 @@
+/* NIEC design system: one look for every page, loaded last so it wins. Keeps the NIEC colours (logo blue,
+   orange, grey) and adds a deep navy for weight, softer surfaces, one shadow scale, one radius scale and
+   one motion speed. Change a value here and every page follows. */
+:root {
+  --navy: #0b2a4a;
+  --niec-blue: #00adef;
+  --bg: #f4f7fb;
+  --panel: #ffffff;
+  --border: #e3e8ef;
+  --border-strong: #cdd5df;
+  --text: #14202e;
+  --text-dim: #5a6778;
+  --header-bg: #f7f9fc;
+  --row-alt: #fafcfe;
+  --row-hover: #edf7fd;
+  --r-sm: 8px; --r-md: 12px; --r-lg: 16px;
+  --sh-1: 0 1px 2px rgba(11, 42, 74, .06), 0 1px 1px rgba(11, 42, 74, .04);
+  --sh-2: 0 1px 2px rgba(11, 42, 74, .05), 0 10px 28px -14px rgba(11, 42, 74, .22);
+  --sh-3: 0 2px 4px rgba(11, 42, 74, .06), 0 18px 40px -16px rgba(11, 42, 74, .30);
+  --ease: cubic-bezier(.2, .7, .2, 1);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --navy: #cfe3f7;
+    --bg: #0e131b; --panel: #161c26; --border: #252d3a; --border-strong: #354052;
+    --text: #e8ecf1; --text-dim: #98a3b3; --header-bg: #1a212c; --row-alt: #131923; --row-hover: #1b2a3b;
+    --sh-1: 0 1px 2px rgba(0, 0, 0, .4); --sh-2: 0 10px 28px -14px rgba(0, 0, 0, .7); --sh-3: 0 18px 40px -16px rgba(0, 0, 0, .8);
+  }
+}
+body { background: var(--bg); color: var(--text); letter-spacing: -.003em; }
+
+/* ---- header: clean white bar, soft shadow, pill navigation ---- */
+.niec-header { min-height: 60px; border-bottom: 1px solid var(--border); box-shadow: var(--sh-1); gap: 24px; padding: 0 22px; }
+.niec-header { background: color-mix(in srgb, var(--h-bg) 92%, transparent); backdrop-filter: saturate(1.4) blur(10px); -webkit-backdrop-filter: saturate(1.4) blur(10px); }
+.niec-brand-name { color: var(--navy); font-weight: 700; letter-spacing: -.01em; }
+.niec-nav { align-items: center; gap: 4px; }
+.niec-nav a { margin: 0; padding: 7px 13px; border: 0; border-radius: 999px; transition: background-color .2s var(--ease), color .2s var(--ease); }
+.niec-nav a:hover { background: var(--h-hover); color: var(--h-text); }
+.niec-nav a[aria-current="page"] { background: #e3f4fc; color: #035d86; box-shadow: inset 0 0 0 1px rgba(0, 119, 168, .14); }
+@media (prefers-color-scheme: dark) { .niec-nav a[aria-current="page"] { background: #16384d; color: #8fdcfa; } }
+.niec-menu { border-radius: var(--r-md); box-shadow: var(--sh-3); animation: t-pop .16s var(--ease) both; }
+.niec-avatar { background: linear-gradient(135deg, #ffe9d9, #ffd2b3); color: #b8420a; }
+@media (max-width: 760px) { .niec-header { min-height: 54px; padding: 0 12px; gap: 8px; } .niec-nav a { padding: 6px 10px; } }
+
+/* ---- buttons and fields ---- */
+.btn, .btn-sm, button.btn {
+  border-radius: var(--r-sm); border-color: var(--border-strong); box-shadow: var(--sh-1); font-weight: 500;
+  transition: background-color .15s, border-color .15s, box-shadow .2s var(--ease), transform .12s;
+}
+.btn:hover:not(:disabled) { box-shadow: var(--sh-2); border-color: #b7c2d0; }
+.btn-primary { background: linear-gradient(180deg, #db5410, #c4470a); border-color: #b54008; color: #fff; font-weight: 600; }
+.btn-primary:hover:not(:disabled) { filter: none; background: linear-gradient(180deg, #e55a13, #cc4a0a); box-shadow: 0 6px 16px -6px rgba(204, 74, 10, .55); }
+input[type="text"], input[type="search"], input[type="email"], input[type="password"], input[type="date"], input:not([type]), select, textarea, #search {
+  border-radius: var(--r-sm); border-color: var(--border-strong); transition: border-color .15s, box-shadow .15s;
+}
+input:focus, select:focus, textarea:focus, #search:focus {
+  outline: none; border-color: var(--niec-blue); box-shadow: 0 0 0 3px rgba(0, 173, 239, .22);
+}
+
+/* ---- toolbar and status strip of the sheet ---- */
+.topbar { padding: 10px 20px; background: var(--panel); }
+.stat-card { border-radius: var(--r-md); border: 1px solid var(--border); border-left: 3px solid var(--orange); box-shadow: var(--sh-1); transition: transform .2s var(--ease), box-shadow .2s var(--ease); }
+.stat-card:hover { transform: translateY(-2px); box-shadow: var(--sh-2); }
+.stat-card .stat-value { font-weight: 700; letter-spacing: -.02em; }
+
+/* ---- table: lighter lines, quiet header, clear hover ---- */
+thead th { font-weight: 600; letter-spacing: .01em; color: var(--text-dim); background: var(--header-bg); border-bottom: 1px solid var(--border-strong); }
+td { border-color: var(--border); }
+tbody tr { transition: background-color .12s; }
+.sheet-tab { border-radius: 10px 10px 0 0; }
+
+/* ---- cards on Dashboard, Users, Activity, Fact File, Incentive ---- */
+.card, .kpi, .uni-card, .summary-card, .table-card {
+  border-radius: var(--r-lg); box-shadow: var(--sh-1);
+  transition: transform .25s var(--ease), box-shadow .25s var(--ease), border-color .2s;
+}
+.kpi:hover, .uni-card:hover { transform: translateY(-3px); box-shadow: var(--sh-3); }
+.page-head .search { align-self: flex-end; }
+.kpi-value { letter-spacing: -.03em; }
+
+/* ---- page entrance ---- */
+.page, .wrap, .app-main { animation: t-rise .4s var(--ease) both; }
+@keyframes t-rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@keyframes t-pop { from { opacity: 0; transform: translateY(-4px) scale(.98); } to { opacity: 1; transform: none; } }
+::-webkit-scrollbar { width: 12px; height: 12px; }
+::-webkit-scrollbar-thumb { background: #c5cedb; border: 3px solid transparent; background-clip: content-box; border-radius: 99px; }
+::-webkit-scrollbar-thumb:hover { background: #a5b1c2; background-clip: content-box; border: 3px solid transparent; }
+@media (prefers-color-scheme: dark) { ::-webkit-scrollbar-thumb { background: #3a4658; background-clip: content-box; } }
+@media (prefers-reduced-motion: reduce) { .page, .wrap, .app-main { animation: none; } }
