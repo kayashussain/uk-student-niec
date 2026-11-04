@@ -4,28 +4,28 @@
    blocks, no movement and no blur. NIEC blue appears only where something is active or focused. Loaded last on every
    page, so a value changed here changes every page. */
 :root {
-  --ink: #1c2633;
+  --ink: #1f2933;
   --niec-blue: #00adef;
   --niec-blue-text: #066a97; --blue-text: #066a97; --brand-text: #066a97;
-  --bg: #eaf0f7;
-  --panel: #fafcfe;
-  --surface: #fafcfe;
-  --border: #d8e1eb;
-  --border-strong: #c2cedb;
+  --bg: #f5f6f8;
+  --panel: #fdfdfe;
+  --surface: #fdfdfe;
+  --border: #e4e8ed;
+  --border-strong: #d0d7df;
   --text: var(--ink);
-  --text-dim: #4d5b6c;
-  --soft: #e4edf6; /* the quiet fill for hover, the open menu and small tags */
-  --header-bg: #dce9f5; /* the column heading band: a soft NIEC blue */
-  --head-ink: #173a56;
-  --row-alt: #f2f6fb;
-  --row-hover: #e6f0fa;
-  --edit-bg: #f4f8fc;
+  --text-dim: #4f5b69;
+  --soft: #eef1f5; /* the quiet fill for hover, the open menu and small tags */
+  --header-bg: #fdfdfe; /* the column headings sit on the same off-white as the data */
+  --head-ink: #3b4757;
+  --row-alt: #f7f9fb;
+  --row-hover: #eff4f9;
+  --edit-bg: #f8fafc;
   --focus: #0a84c6;
-  --focus-dim: #e8f3fb;
-  --focus-strong: #cfe5f6;
+  --focus-dim: #ecf4fb;
+  --focus-strong: #d3e7f6;
   --range-tint: rgba(10, 132, 198, .10);
   --accent-strong: #0f5d8c; --accent-strong-hover: #0b4d76; --on-accent: #ffffff; /* NIEC blue, deepened for white text */
-  --primary: #cc4a0a; --primary-hover: #b54008; --on-primary: #ffffff; /* the main action stays NIEC orange, as it always was */
+  --primary: #17324d; --primary-hover: #0f2438; --on-primary: #ffffff; /* the main action: deep navy */
   --green-bg: #d9eedf; --green-fg: #1b5a33;
   --blue-bg: #d6e6f7; --blue-fg: #1a4a78;
   --amber-bg: #f8e6bd; --amber-fg: #7a4709;
@@ -43,7 +43,7 @@
   :root {
     --niec-blue-text: #7cc4e8; --blue-text: #7cc4e8; --brand-text: #7cc4e8;
     --ink: #dfe6ee; --bg: #151b22; --panel: #1b222b; --surface: #1b222b; --border: #29323d; --border-strong: #384452;
-    --text: #e1e7ee; --text-dim: #a3afbd; --soft: #25303c; --header-bg: #223445; --head-ink: #cfe3f4; --row-alt: #18202a; --row-hover: #243342; --edit-bg: #1f2833;
+    --text: #e1e7ee; --text-dim: #a3afbd; --soft: #25303c; --header-bg: #1b222b; --head-ink: #c3cfdc; --row-alt: #18202a; --row-hover: #243342; --edit-bg: #1f2833;
     --focus-dim: #1b2c3b; --focus-strong: #24394a; --range-tint: rgba(110, 170, 220, .14);
     --accent-strong: #8fc0e4; --accent-strong-hover: #a6cdea; --on-accent: #10202c; --primary: #f08a4b; --primary-hover: #f39d68; --on-primary: #1f1308;
     --green-bg: #1b2a22; --green-fg: #86c79a; --blue-bg: #1b2738; --blue-fg: #93b3e0;
@@ -102,28 +102,28 @@ input:focus, select:focus, textarea:focus, #search:focus, .topbar #search:focus 
 .save-status { font-size: 12px; color: var(--text-dim); }
 .status-summary { background: var(--bg); border: 0; padding: 2px 24px 10px; gap: 4px; }
 .stat-group-title { color: var(--text-dim); font-weight: 600; font-size: 10.5px; letter-spacing: .12em; }
-.stat-group-cards { gap: 6px; padding-bottom: 4px; }
+.stat-group-cards { gap: 2px; padding-bottom: 4px; }
 .stat-card, .stat-card.stat-total {
-  background: transparent; border: 0; border-radius: var(--r-md); box-shadow: none; padding: 4px 16px 4px 12px; min-width: 0;
+  background: transparent; border: 0; border-radius: var(--r-md); box-shadow: none; padding: 4px 11px 4px 10px; min-width: 0;
   transition: background-color .15s ease;
 }
 .stat-card:hover { background: var(--soft); transform: none; box-shadow: none; }
-.stat-card .stat-value, .stat-card.stat-total .stat-value { font-size: 24px; font-weight: 500; color: var(--niec-blue-text); letter-spacing: -.02em; line-height: 1.1; }
-.stat-card .stat-label { font-size: 10.5px; letter-spacing: .08em; color: var(--text-dim); font-weight: 500; }
-.stat-card.stat-total { background: var(--header-bg); box-shadow: inset 0 -2px 0 var(--niec-blue); }
-.stat-card.stat-total .stat-value { color: var(--niec-blue-text); }
+.stat-card .stat-value, .stat-card.stat-total .stat-value { font-size: 26px; font-weight: 500; color: var(--ink); letter-spacing: -.02em; line-height: 1.1; }
+.stat-card .stat-label { font-size: 10.5px; letter-spacing: .05em; color: var(--text-dim); font-weight: 500; }
+.stat-card.stat-total { background: var(--soft); box-shadow: inset 0 -2px 0 var(--niec-blue); }
+.stat-card.stat-total .stat-value { color: var(--ink); }
 .stat-card.stat-total .stat-label { color: var(--text-dim); }
 .stat-card.active, .stat-card[aria-pressed="true"] { background: var(--soft); box-shadow: inset 0 -2px 0 var(--niec-blue); }
 .stat-card .stat-visa { color: var(--niec-blue-text); }
 
 .table-wrap { background: var(--panel); border-top: 1px solid var(--border); }
 #sheet thead th {
-  background: var(--header-bg); border-right: 1px solid color-mix(in srgb, var(--head-ink) 14%, transparent); border-bottom: 2px solid var(--niec-blue); padding: 11px 12px 10px;
+  background: var(--header-bg); border-right: 1px solid color-mix(in srgb, var(--head-ink) 14%, transparent); border-bottom: 1px solid var(--border-strong); padding: 12px 12px 11px;
   font-size: 12.5px; font-weight: 600; letter-spacing: .01em; text-transform: none; color: var(--head-ink);
 }
 #sheet thead th.col-idx { color: var(--head-ink); }
-#sheet thead th:hover { color: var(--accent-strong); }
-#sheet td { border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); padding: 6px 12px; font-size: 14px; font-weight: 400; line-height: 1.4; color: var(--text); }
+#sheet thead th:hover { color: var(--ink); }
+#sheet td { border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); padding: 8px 13px; font-size: 14px; font-weight: 400; line-height: 1.4; color: var(--text); }
 #sheet td.name { font-weight: 500; }
 #sheet td.col-idx { color: var(--text-dim); font-size: 12.5px; font-weight: 500; }
 #sheet th.col-idx { background: var(--panel); }
@@ -187,7 +187,7 @@ input.search:focus { outline: none; border-color: var(--niec-blue); box-shadow: 
 .banner { border-radius: var(--r-md); border-color: transparent; }
 .table-card th, .table-card td { border-right: 1px solid var(--border); }
 .table-card th:last-child, .table-card td:last-child { border-right: 0; }
-.table-card thead th { background: var(--header-bg); color: var(--head-ink); font-weight: 600; border-bottom: 2px solid var(--niec-blue); padding: 11px 12px 10px; }
+.table-card thead th { background: var(--header-bg); color: var(--head-ink); font-weight: 600; border-bottom: 1px solid var(--border-strong); padding: 12px 12px 11px; }
 .table-card thead th .info { color: var(--text-dim); }
 .table-card td { padding: 7px 12px; font-size: 14px; font-weight: 400; border-bottom: 1px solid var(--border); }
 .table-card tbody tr:hover td { background: var(--row-hover); }

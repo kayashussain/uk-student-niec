@@ -927,8 +927,14 @@
   function measuredText(col) {
     const [min, max] = TEXT_LIMITS[col] || (LONG_TEXT_COLS.has(col) ? [150, 300] : [110, 260]);
     const font = cellFont();
-    const sizes = Array.from(new Set(rows.map((r) => String(r[col] || '').trim()).filter(Boolean)), (v) => textWidth(v, font))
-      .sort((x, y) => x - y);
+    // Long sheets: measuring every value of every column is slow on an older PC and gains nothing. The widest values are
+    // among the longest in characters, so those (plus an even spread of the rest) are measured, not all of them.
+    let values = Array.from(new Set(rows.map((r) => String(r[col] || '').trim()).filter(Boolean))).sort((x, y) => x.length - y.length);
+    if (values.length > 160) {
+      const step = Math.ceil((values.length - 40) / 120);
+      values = values.filter((v, i) => i >= values.length - 40 || i % step === 0);
+    }
+    const sizes = values.map((v) => textWidth(v, font)).sort((x, y) => x - y);
     if (!sizes.length) return min;
     // Short exact things: the longest one. Free text: nearly the longest, so one odd entry doesn't stretch the column.
     const wanted = SHOW_IN_FULL.has(col) ? sizes[sizes.length - 1] : sizes[Math.floor((sizes.length - 1) * 0.92)];
