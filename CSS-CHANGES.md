@@ -9,6 +9,16 @@ Format: **date · file · what · from → to · why**
 
 ---
 
+## 2026-11-04 · `shared/login.html` · login page headline put back to the earlier size
+
+- **What:** the size of "Welcome back to your team's workspace." was put back, because the larger size looked too huge. The sentence and the three points under it also came back (text, not CSS).
+- **font-size:** from `clamp(44px, 5.2vw, 96px)` → to `clamp(30px, 3.4vw, 46px)`
+- **max-width:** from `16ch` → to `14ch`
+- **line-height:** from `1.08` → to `1.1`
+- **In the code:** marked with `🔴 CSS CHANGED` above the `.hero h2` rule.
+
+---
+
 ## 2026-11-04 · `shared/login.html` · login page headline (only the headline)
 
 - **What:** the size of "Welcome back to your team's workspace." on the left of the login page. Nothing else on the page changed.
