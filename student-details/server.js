@@ -522,6 +522,13 @@ async function handleRestore(req, res, urlPath) {
       now: { students: current ? current.sheets.reduce((n, s) => n + s.rows.length, 0) : null, facts: facts.list().length, partners: direct.list().length },
     });
   }
+  if (urlPath === '/api/restore/compare' && req.method === 'GET') {
+    const id = new URL(req.url, 'http://x').searchParams.get('id') || '';
+    if (!BACKUP_ID.test(id)) return sendJSON(res, 400, { error: 'Choose a backup to compare.' });
+    const snap = backups.read(id);
+    if (!snap) return sendJSON(res, 404, { error: 'That backup could not be read.' });
+    return sendJSON(res, 200, backups.compare(snap, { students: current, facts: facts.all(), partners: direct.all() }));
+  }
   // Look at a backup (read only): the real pages (Student Details, Fact File, Partner Universities) are opened on the
   // backup's data with ?backup=ID and ask for it here, in the same shape the live data has.
   const snapMatch = urlPath.match(/^\/api\/restore\/snapshot\/([a-z0-9-]+)\/(data|facts|partners)(?:\/([a-f0-9]{12}))?$/);

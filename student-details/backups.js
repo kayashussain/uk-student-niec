@@ -101,7 +101,32 @@ function createBackups(dir, collect, { now = () => new Date() } = {}) {
     }).filter(Boolean).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   }
 
-  return { create, tick, read, list, prune, dueDay, folder, HOUR, KEEP_DAYS };
+  // What restoring a backup would change, so the decision is made knowing it: for each part, how many are in the backup
+  // and now, how many would come back, how many would be lost (added after the backup), and how many differ.
+  // `live` is { students, facts, partners } as they are right now.
+  function compare(snap, live) {
+    const canon = (v, skip) => (Array.isArray(v) ? v.map((x) => canon(x, skip))
+      : v && typeof v === 'object' ? Object.fromEntries(Object.keys(v).filter((k) => !skip.includes(k)).sort().map((k) => [k, canon(v[k], skip)])) : v);
+    const same = (a, b, skip) => JSON.stringify(canon(a, skip)) === JSON.stringify(canon(b, skip));
+    const diff = (a, b, nameOf, skip = []) => {
+      const out = { backup: a.size, now: b.size, comeBack: 0, lost: 0, changed: 0, comeBackNames: [], lostNames: [] };
+      a.forEach((v, k) => {
+        if (!b.has(k)) { out.comeBack += 1; if (out.comeBackNames.length < 5) out.comeBackNames.push(nameOf(v)); } else if (!same(v, b.get(k), skip)) out.changed += 1;
+      });
+      b.forEach((v, k) => { if (!a.has(k)) { out.lost += 1; if (out.lostNames.length < 5) out.lostNames.push(nameOf(v)); } });
+      return out;
+    };
+    const rows = (wb) => { const m = new Map(); ((wb && wb.sheets) || []).forEach((sh) => (sh.rows || []).forEach((r) => m.set(`${sh.id}|${r._id}`, r))); return m; };
+    const items = (list) => new Map((Array.isArray(list) ? list : []).map((u) => [u.id, u]));
+    const person = (r) => [r['FIRST NAME'], r['LAST NAME']].filter(Boolean).join(' ').trim() || 'A student without a name';
+    return {
+      students: snap.students ? diff(rows(snap.students), rows(live.students), person) : null,
+      facts: snap.facts ? diff(items(snap.facts), items(live.facts), (u) => u.name, ['updatedAt', 'updatedBy']) : null,
+      partners: snap.partners ? diff(items(snap.partners), items(live.partners), (u) => u.name, ['updatedAt', 'updatedBy']) : null,
+    };
+  }
+
+  return { create, tick, read, list, prune, compare, dueDay, folder, HOUR, KEEP_DAYS };
 }
 
 module.exports = { createBackups, ID, HOUR, KEEP_DAYS };

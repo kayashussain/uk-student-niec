@@ -55,6 +55,19 @@ test('copies older than 30 days are deleted, the newest 30 days are kept', () =>
   assert.ok(!ids.includes('daily-2026-10-02'));
 });
 
+test('compare says what would come back, be lost or differ', () => {
+  const b = createBackups(tmp(), () => ({}));
+  const row = (id, first, status) => ({ _id: id, 'FIRST NAME': first, 'LAST NAME': 'X', 'APPLICATION STATUS': status });
+  const snap = { students: { sheets: [{ id: 's', rows: [row('1', 'Sita', 'Inquiry'), row('2', 'Ram', 'Inquiry'), row('3', 'Maya', 'Inquiry')] }] }, facts: [{ id: 'a', name: 'A', updatedAt: 'x' }], partners: null };
+  const live = { students: { sheets: [{ id: 's', rows: [row('1', 'Sita', 'Inquiry'), row('2', 'Ram', 'Visa Issued'), row('9', 'Newer', 'Inquiry')] }] }, facts: [{ id: 'a', name: 'A', updatedAt: 'y' }], partners: [] };
+  const c = b.compare(snap, live);
+  assert.deepStrictEqual([c.students.backup, c.students.now, c.students.comeBack, c.students.lost, c.students.changed], [3, 3, 1, 1, 1]);
+  assert.deepStrictEqual(c.students.comeBackNames, ['Maya X']);
+  assert.deepStrictEqual(c.students.lostNames, ['Newer X']);
+  assert.deepStrictEqual([c.facts.comeBack, c.facts.lost, c.facts.changed], [0, 0, 0], 'only the saved time differs: not a change');
+  assert.strictEqual(c.partners, null, 'a part the backup does not hold');
+});
+
 test('a backup cannot be read by a made-up id', () => {
   const b = createBackups(tmp(), () => ({}));
   assert.strictEqual(b.read('../../etc/passwd'), null);
@@ -113,8 +126,14 @@ test('Admin can back up and restore; nobody else can; a restore saves the data a
   assert.strictEqual((await admin('GET', `/api/restore/snapshot/daily-1999-01-01/data`)).status, 404, 'no such backup');
   assert.notStrictEqual((await admin('GET', `${snap}/accounts`)).status, 200, 'accounts cannot be looked at');
   for (const page of ['/students', '/fact-file', '/partner-universities']) assert.strictEqual((await admin('GET', `${page}?backup=${manual}`)).status, 200, `${page} opens on a backup`);
+  // What a restore would change, before it is done.
+  const same = (await admin('GET', `/api/restore/compare?id=${manual}`)).json;
+  assert.deepStrictEqual([same.facts.comeBack, same.facts.lost, same.facts.changed], [0, 0, 0], 'right after a backup nothing would change');
+  assert.strictEqual((await admin('GET', '/api/restore/compare?id=../../x')).status, 400);
   const added = (await admin('POST', '/api/facts', { name: 'Temporary Mistake University' })).json;
   const factsBefore = (await admin('GET', '/api/facts')).json.length;
+  const preview = (await admin('GET', `/api/restore/compare?id=${manual}`)).json;
+  assert.deepStrictEqual([preview.facts.lost, preview.facts.lostNames[0]], [1, 'Temporary Mistake University'], 'a page added since the backup would be lost, and is named');
   assert.ok((await admin('GET', '/api/facts')).json.some((u) => u.id === added.id));
   const bad = await admin('POST', '/api/restore', { id: manual, parts: [] });
   assert.strictEqual(bad.status, 400);

@@ -165,9 +165,24 @@
       } catch (err) { restoreSay(err.message, true); go.disabled = false; }
     });
     box.append(go, cancel);
+    const preview = el('div'); preview.style.marginTop = '8px'; preview.style.fontSize = '13px';
+    td.append(preview);
     td.append(box);
     tr.append(td);
     row.after(tr);
+    // What a restore would change, so the decision is made knowing it (the same preview as on the backup pages).
+    preview.textContent = 'Checking what a restore would change...';
+    window.NiecBackup.loadCompare(b.id).then((compare) => {
+      preview.replaceChildren();
+      if (!compare) { preview.textContent = 'Could not work out what would change.'; return; }
+      ['students', 'facts', 'partners'].forEach((key) => {
+        const d = window.NiecBackup.describe(key, compare[key]);
+        const line = el('div'); line.append(el('b', '', window.NiecBackup.NAMES[key][0].toUpperCase() + window.NiecBackup.NAMES[key].slice(1) + ': '), document.createTextNode(d.text));
+        if (d.warn) line.style.color = 'var(--danger)';
+        preview.append(line);
+        if (d.names) { const n = el('div', '', d.names); n.style.color = 'var(--danger)'; n.style.marginLeft = '12px'; preview.append(n); }
+      });
+    });
   }
 
   async function loadBackups() {
