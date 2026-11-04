@@ -198,3 +198,5 @@ input.search:focus { outline: none; border-color: var(--niec-blue); box-shadow: 
 .grid-footer { color: var(--text-dim); }
 @media (prefers-color-scheme: dark) { .summary-row.final { background: #1d222b; } }
 @media (max-width: 760px) { .wrap { padding: 6px 14px 40px; } .top { margin: 0 -14px 10px !important; padding: 18px 14px 4px !important; } .top .brand h1 { font-size: 28px !important; } input.search { width: 100%; } }
+.page-head h1 .pill, h1 .pill { font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; font-weight: 600; letter-spacing: 0; }
+.row > .btn { justify-self: start; }

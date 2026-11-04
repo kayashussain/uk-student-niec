@@ -124,3 +124,17 @@ test('responses carry the security headers, and HSTS only over https', async () 
   assert.match(secure['strict-transport-security'], /max-age=\d+/);
   server.close();
 });
+
+test('every page with the shared header also loads the shared theme, so no page is left in an old design', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const root = path.join(__dirname, '..');
+  const missing = [];
+  for (const dir of ['student-details', 'counselor-incentive']) {
+    for (const page of fs.readdirSync(path.join(root, dir)).filter((f) => f.endsWith('.html'))) {
+      const html = fs.readFileSync(path.join(root, dir, page), 'utf8');
+      if (html.includes('niec-header') && !html.includes('href="theme.css"')) missing.push(`${dir}/${page}`);
+    }
+  }
+  assert.deepStrictEqual(missing, []);
+});
