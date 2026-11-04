@@ -614,6 +614,7 @@
     }
     $('#sheetLoading').hidden = true;
     sheets = json.sheets;
+    colWidthsFor = null; // measure the columns again on the new data
     revision = json.revision || 0;
     synced = Patch.snapshot({ sheets });
     activeSheetId = newestSheet(shownSheets()).id; // a reload always opens the latest intake
@@ -906,16 +907,55 @@
     return Math.ceil(measureCtx.measureText(text).width);
   }
 
+  // Column widths: each column is as wide as what is in it needs, within limits that suit what it holds, measured from the
+  // sheet's own students. Not narrower than its heading (with room for the sort arrow and filter button), and never so wide
+  // that one long entry stretches it. Short, exact things (names, email, phone numbers) are always shown in full; long
+  // free text (university, course, remarks) is cut with "..." at the limit and shown in full on hover or when edited.
+  // Measured once per sheet load and only ever made wider while editing, so columns never jump around under the cursor.
+  const CELL_PAD = 36; // the cell's side padding, its border and a little room to breathe
+  const HEAD_PAD = 66; // heading padding, the sort arrow and the filter button
+  const SHOW_IN_FULL = new Set(['FIRST NAME', 'LAST NAME', 'EMAIL', 'CONTACT NUMBER', 'UK CONTACT NUMBER', 'STUDENT ID', 'NOC NUMBER']);
+  const TEXT_LIMITS = { // [narrowest, widest] width of the cell's text
+    'FIRST NAME': [84, 180], 'LAST NAME': [84, 180], 'EMAIL': [170, 340], 'CONTACT NUMBER': [100, 150], 'UK CONTACT NUMBER': [100, 150],
+    'STUDENT ID': [90, 170], 'NOC NUMBER': [90, 170], 'UNIVERSITY NAME': [150, 300], 'COURSE NAME': [170, 320],
+    'RECEIVING PARTNER': [120, 240], 'UNIVERSITY PARTNER': [120, 240],
+  };
+  let colWidths = {};
+  let colWidthsFor = null;
+  const cellFont = () => `400 13.5px ${getComputedStyle(document.body).fontFamily}`;
+
+  function measuredText(col) {
+    const [min, max] = TEXT_LIMITS[col] || (LONG_TEXT_COLS.has(col) ? [150, 300] : [110, 260]);
+    const font = cellFont();
+    const sizes = Array.from(new Set(rows.map((r) => String(r[col] || '').trim()).filter(Boolean)), (v) => textWidth(v, font))
+      .sort((x, y) => x - y);
+    if (!sizes.length) return min;
+    // Short exact things: the longest one. Free text: nearly the longest, so one odd entry doesn't stretch the column.
+    const wanted = SHOW_IN_FULL.has(col) ? sizes[sizes.length - 1] : sizes[Math.floor((sizes.length - 1) * 0.92)];
+    return Math.min(max, Math.max(min, wanted));
+  }
+
   function columnWidth(col) {
+    if (colWidthsFor !== activeSheetId) { colWidths = {}; colWidthsFor = activeSheetId; }
+    if (colWidths[col]) return colWidths[col];
     const family = getComputedStyle(document.body).fontFamily;
-    const header = textWidth(columnLabel(col) + ' ▾', `600 12px ${family}`) + 42; // padding + filter button
-    let cell = 160;
-    if (LONG_TEXT_COLS.has(col)) cell = 240;
-    else if (col === LANGUAGE_TEST_COL) cell = 310;
-    else if (SELECT_COLS[col]) cell = Math.max(...SELECT_COLS[col].map((o) => textWidth(o, `600 11px ${family}`)), 60) + 56;
-    else if (DATE_COLS.has(col)) cell = 144;
-    else if (NUM_COLS.has(col)) cell = 110;
-    return Math.max(cell, header);
+    const header = textWidth(columnLabel(col), `600 12px ${family}`) + HEAD_PAD;
+    let cell;
+    if (col === LANGUAGE_TEST_COL) cell = 320;
+    else if (SELECT_COLS[col]) cell = Math.max(...SELECT_COLS[col].map((o) => textWidth(o, `600 11px ${family}`)), 60) + 64;
+    else if (DATE_COLS.has(col)) cell = 150;
+    else if (NUM_COLS.has(col)) cell = 124;
+    else cell = measuredText(col) + CELL_PAD;
+    colWidths[col] = Math.max(cell, header);
+    return colWidths[col];
+  }
+
+  // Something typed that is longer than its column: the column grows to fit it (up to the column's limit), never shrinks.
+  function widenColumn(col, value) {
+    if (!colWidths[col] || !value || DATE_COLS.has(col) || SELECT_COLS[col] || col === LANGUAGE_TEST_COL) return;
+    const max = (TEXT_LIMITS[col] || (LONG_TEXT_COLS.has(col) ? [0, 300] : [0, 260]))[1] + CELL_PAD;
+    const needed = Math.min(max, textWidth(String(value), cellFont()) + CELL_PAD);
+    if (needed > colWidths[col]) { colWidths[col] = needed; renderHeader(); }
   }
 
   function renderHeader() {
@@ -1668,6 +1708,7 @@
         if (!rows.includes(row)) return;
         pushUndo();
         row[col] = value;
+        widenColumn(col, value);
         markDirty();
         skipRefocus = true; // the caller decides where focus goes next
         renderRow(rows.indexOf(row), col); // recalculates the fee columns and redraws status badges
@@ -1981,6 +2022,7 @@
     };
 
     sheets = json.sheets;
+    colWidthsFor = null;
     revision = json.revision || 0;
     synced = syncedOverride || Patch.snapshot({ sheets });
     const sameSheet = shownSheets().some((s) => s.id === keep.sheetId);
