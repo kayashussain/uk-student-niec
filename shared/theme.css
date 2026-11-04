@@ -295,3 +295,33 @@ p.count:empty { display: none; }
 #sheet tbody tr.rc-blue td.col-idx { background-color: var(--rc-blue); }
 #sheet tbody tr.rc-purple td.col-idx { background-color: var(--rc-purple); }
 #sheet tbody tr.rc-grey td.col-idx { background-color: var(--rc-grey); }
+
+
+/* =====================================================================================================
+   Dropdowns: the closed box and the opened list share the same finish as the rest (rounded, soft, roomy).
+   Browsers that can style the opened list get the full look; others keep their own list, with the same closed box.
+   ===================================================================================================== */
+select:not(.status-select) {
+  min-height: 38px; padding: 0 14px; border: 1px solid var(--border-strong); border-radius: 12px; background-color: var(--panel); color: var(--text);
+  font-size: 13px; cursor: pointer; transition: border-color .15s ease, box-shadow .15s ease;
+}
+select:not(.status-select):hover { border-color: color-mix(in srgb, var(--niec-blue) 55%, var(--border-strong)); }
+select:not(.status-select):disabled { opacity: .5; cursor: not-allowed; }
+
+@supports (appearance: base-select) {
+  select, select::picker(select), select.status-select, select.status-select::picker(select) { appearance: base-select; }
+  select:not(.status-select) { display: inline-flex; align-items: center; justify-content: space-between; gap: 10px; }
+  select::picker-icon { color: var(--text-dim); font-size: 11px; transition: rotate .2s ease; }
+  select:open::picker-icon { rotate: 180deg; }
+  select.status-select::picker-icon { display: none; } /* the status pills draw their own small arrow */
+  select::picker(select) {
+    box-sizing: border-box; min-width: anchor-size(width); max-height: 340px; margin-top: 6px; padding: 6px;
+    border: 1px solid var(--border-strong); border-radius: 14px; background: var(--panel); color: var(--text); font: inherit; font-size: 13px;
+    box-shadow: var(--sh-3); overflow: auto;
+  }
+  select option { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-radius: 10px; background: transparent; color: var(--text); font-weight: 400; cursor: pointer; transition: background-color .12s ease; }
+  select option:hover, select option:focus-visible { background: var(--soft); outline: none; }
+  select option:focus { outline: none; }
+  select option:checked { background: color-mix(in srgb, var(--blue-bg) 70%, transparent); color: var(--blue-fg); font-weight: 500; }
+  select option::checkmark { color: var(--niec-blue-text); font-size: 12px; }
+}
