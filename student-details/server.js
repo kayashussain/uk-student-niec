@@ -521,6 +521,19 @@ async function handleRestore(req, res, urlPath) {
       now: { students: current ? current.sheets.reduce((n, s) => n + s.rows.length, 0) : null, facts: facts.list().length, partners: direct.list().length },
     });
   }
+  // View a backup (read only): the students as sheets, the Fact File or the Partner Universities as they were saved.
+  if (urlPath === '/api/restore/view' && req.method === 'GET') {
+    const q = new URL(req.url, 'http://x').searchParams;
+    const id = q.get('id') || '';
+    const part = q.get('part') || '';
+    if (!BACKUP_ID.test(id) || !['students', 'facts', 'partners'].includes(part)) return sendJSON(res, 400, { error: 'Choose a backup and what to view.' });
+    const snap = backups.read(id);
+    if (!snap) return sendJSON(res, 404, { error: 'That backup could not be read.' });
+    const data = snap[part];
+    if (!data) return sendJSON(res, 404, { error: 'That backup does not hold this part.' });
+    activity.record(req, req.user, 'Viewed backup', { app: 'Student Details', changes: [`Opened ${part === 'students' ? 'the students' : part === 'facts' ? 'the Fact File' : 'the Partner Universities'} in the backup ${id}`] });
+    return send(res, 200, JSON.stringify(part === 'students' ? { sheets: data.sheets.map((sh) => ({ id: sh.id, name: sh.name, hidden: Boolean(sh.hidden), columns: sh.columns, rows: sh.rows })) } : { items: data }), { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
+  }
   if (req.method !== 'POST') return send(res, 405, 'Method not allowed');
   let body;
   try {

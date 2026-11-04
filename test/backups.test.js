@@ -98,6 +98,12 @@ test('Admin can back up and restore; nobody else can; a restore saves the data a
 
   // A copy now, then a change, then restore the Fact File from the copy.
   const manual = (await admin('POST', '/api/restore/backup-now', {})).json.id;
+  const viewed = (await admin('GET', `/api/restore/view?id=${manual}&part=students`)).json;
+  assert.ok(Array.isArray(viewed.sheets) && viewed.sheets[0].columns.length > 10, 'a backup can be viewed as sheets');
+  assert.ok((await admin('GET', `/api/restore/view?id=${manual}&part=facts`)).json.items.length > 10, 'and the Fact File');
+  assert.ok(Array.isArray((await admin('GET', `/api/restore/view?id=${manual}&part=partners`)).json.items), 'and the Partner Universities');
+  assert.strictEqual((await admin('GET', '/api/restore/view?id=../../x&part=students')).status, 400);
+  assert.strictEqual((await admin('GET', `/api/restore/view?id=${manual}&part=accounts`)).status, 400, 'accounts cannot be viewed');
   assert.match(manual, /^manual-/);
   const added = (await admin('POST', '/api/facts', { name: 'Temporary Mistake University' })).json;
   const factsBefore = (await admin('GET', '/api/facts')).json.length;
@@ -137,9 +143,11 @@ test('Admin can back up and restore; nobody else can; a restore saves the data a
   await sita('POST', '/api/login/new-password', { password: 'Another-Long-Pass-2026' });
   assert.strictEqual((await sita('GET', '/api/restore/backups')).status, 403);
   assert.strictEqual((await sita('POST', '/api/restore/backup-now', {})).status, 403);
+  assert.strictEqual((await sita('GET', `/api/restore/view?id=${manual}&part=students`)).status, 403, 'staff cannot view a backup');
   assert.strictEqual((await sita('POST', '/api/restore', { id: manual, parts: ['facts'] })).status, 403);
   const nobody = person();
   assert.notStrictEqual((await nobody('GET', '/api/restore/backups')).status, 200);
+  assert.notStrictEqual((await nobody('GET', `/api/restore/view?id=${manual}&part=students`)).status, 200);
   assert.notStrictEqual((await nobody('POST', '/api/restore', { id: manual, parts: ['facts'] })).status, 200);
 
   // Accounts are not in a backup.

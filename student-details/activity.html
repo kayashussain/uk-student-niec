@@ -9,6 +9,20 @@
 <link rel="stylesheet" href="header.css" />
 <link rel="stylesheet" href="ui.css" />
 <link rel="stylesheet" href="admin.css" />
+<style>
+  .viewer-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+  .viewer-tabs { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
+  .viewer-tabs button[aria-pressed="true"] { background: var(--blue-tint); border-color: var(--blue); font-weight: 600; }
+  .sheet-scroll { overflow: auto; max-height: 65vh; border: 1px solid var(--border-strong); border-radius: 6px; background: var(--panel); }
+  table.grid { border-collapse: separate; border-spacing: 0; font-size: 12px; width: max-content; min-width: 100%; }
+  table.grid th, table.grid td { border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); padding: 4px 8px; white-space: nowrap; max-width: 280px; overflow: hidden; text-overflow: ellipsis; text-align: left; vertical-align: top; text-transform: none; letter-spacing: 0; }
+  table.grid thead th { position: sticky; top: 0; background: var(--blue-tint); color: var(--text); z-index: 2; font-size: 11px; font-weight: 700; }
+  table.grid .rn { position: sticky; left: 0; background: var(--bg); color: var(--dim); text-align: right; z-index: 1; min-width: 36px; }
+  table.grid thead .rn { z-index: 3; }
+  table.grid tbody tr:hover td { background: var(--blue-tint); }
+  .sheet-note { color: var(--dim); font-size: 12px; margin: 6px 0 0; }
+  .view-search { max-width: 280px; }
+</style>
 </head>
 <body>
   <header class="niec-header" data-page="activity"></header>
@@ -81,10 +95,11 @@
         <h2>Restore from a backup</h2>
         <p>Pick a day and press <b>Restore</b>. Before anything is changed, the data as it is right now is saved as a "before restore" backup, so a restore can be undone too. After a restore, ask everyone to refresh their page.</p>
         <table>
-          <thead><tr><th>Backup</th><th>Saved</th><th>Holds</th><th>Size</th><th><span class="sr-only">Restore</span></th></tr></thead>
-          <tbody id="backupRows"><tr><td class="muted" colspan="5">Loading...</td></tr></tbody>
+          <thead><tr><th>Backup</th><th>Date</th><th>Time</th><th>Holds</th><th>Size</th><th><span class="sr-only">Actions</span></th></tr></thead>
+          <tbody id="backupRows"><tr><td class="muted" colspan="6">Loading...</td></tr></tbody>
         </table>
       </div>
+      <div class="card" id="viewer" hidden></div>
     </section>
   </main>
 
