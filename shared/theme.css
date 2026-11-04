@@ -15,6 +15,7 @@
   --header-bg: #ffffff;
   --row-alt: transparent;
   --row-hover: #f8f6f2;
+  --edit-bg: #fbf9f5;
   --focus: #0a84c6;
   --focus-dim: #f1f7fb;
   --focus-strong: #dcecf6;
@@ -161,3 +162,30 @@ thead th.col-idx { background: var(--panel); }
   .status-summary { padding: 4px 14px 14px; }
   .page-head h1 { font-size: 28px; }
 }
+
+/* ---- Incentive page ---- */
+.wrap { padding: 8px 28px 56px; }
+.top { margin: 0 -28px 12px !important; padding: 26px 28px 6px !important; background: transparent !important; border: 0 !important; align-items: flex-end; }
+.top .brand h1 { font-family: var(--serif); font-size: 34px !important; font-weight: 500 !important; letter-spacing: -.025em !important; color: var(--ink) !important; }
+.top .subtitle { font-size: 14px !important; color: var(--text-dim); margin-top: 2px; }
+input.search { height: 38px; width: 260px; padding: 0 16px; border-radius: 999px; border-color: var(--border); background: var(--panel); box-shadow: var(--sh-1); }
+input.search:focus { outline: none; border-color: var(--niec-blue); box-shadow: 0 0 0 4px rgba(0, 173, 239, .16); }
+.tab { border-radius: 999px; padding: 7px 16px; font-size: 13px; transition: background-color .18s var(--ease), color .18s; }
+.tab:hover { background: #f3f1ed; color: var(--ink); }
+.tab.active { background: var(--panel); border-color: transparent; box-shadow: var(--sh-2); color: var(--ink); }
+.banner { border-radius: var(--r-md); border-color: transparent; }
+.table-card th, .table-card td { border-right: 0; }
+.table-card thead th { background: var(--panel); color: var(--text-dim); border-bottom: 1px solid var(--border-strong); padding: 14px 14px 12px; }
+.table-card thead th .info { color: #a1a1a6; }
+.table-card td { padding: 12px 14px; border-bottom: 1px solid var(--border); }
+.table-card tbody tr:hover td { background: var(--row-hover); }
+.summary-title { font-family: var(--serif); font-size: 22px; font-weight: 500; letter-spacing: -.02em; margin: 28px 0 12px; }
+.summary-card { overflow: hidden; }
+.summary-row { padding: 14px 22px; }
+.summary-row.final { background: #f6f3ee; }
+.summary-row.final .label, .summary-row.final .value { color: var(--ink); }
+.summary-row.final .value { font-family: var(--serif); font-size: 22px; font-weight: 500; letter-spacing: -.02em; }
+.adv-input { border-radius: var(--r-sm); border-color: var(--border-strong); background: var(--panel); }
+.grid-footer { color: var(--text-dim); }
+@media (prefers-color-scheme: dark) { .summary-row.final { background: #1d222b; } .tab:hover { background: #232832; } }
+@media (max-width: 760px) { .wrap { padding: 6px 14px 40px; } .top { margin: 0 -14px 10px !important; padding: 18px 14px 4px !important; } .top .brand h1 { font-size: 28px !important; } input.search { width: 100%; } }
