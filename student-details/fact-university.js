@@ -93,6 +93,9 @@
     s.append(el('h2', '', 'Entry requirements, fees and scholarships'));
     if (!programs.length) { s.append(el('p', 'placeholder', 'Not added yet.')); doc.append(s); return; }
     const wrap = el('div', 'table-wrap');
+    wrap.tabIndex = 0; // the table scrolls sideways on a small screen: reachable (and scrollable) from the keyboard
+    wrap.setAttribute('role', 'region');
+    wrap.setAttribute('aria-label', 'Entry requirements, fees and scholarships');
     const table = el('table', 'programs');
     const headRow = el('tr');
     PROGRAM_COLUMNS.forEach(([, label]) => headRow.append(el('th', '', label)));

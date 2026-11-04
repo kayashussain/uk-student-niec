@@ -22,7 +22,7 @@ function readCookie(req, name) {
 }
 
 function createIncentiveLock({ password = process.env.INCENTIVE_PASSWORD, now = Date.now } = {}) {
-  const secret = String(password || '');
+  const secret = String(password || '').trim(); // a stray space in the server setting must not make the real password impossible to type
   const configured = secret.length > 0;
   const key = sha('niec-incentive-lock\0' + secret);
   const sign = (sessionId, expires) => crypto.createHmac('sha256', key).update(`${sessionId}.${expires}`).digest('base64url');

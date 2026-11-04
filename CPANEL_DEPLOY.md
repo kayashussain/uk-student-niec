@@ -80,7 +80,7 @@ How Incentive works now:
 Everyone has **their own account**; there are no shared logins. Logging in takes the person's
 password (at least 10 characters). There is no second step by default. To also ask for the 6-digit code from
 an authenticator app (Google or Microsoft Authenticator), set the environment variable `REQUIRE_AUTHENTICATOR=1`
-on both apps and restart; people then link their phone at their next login. A login lasts 12 hours, and
+on the app and restart; people then link their phone at their next login. A login lasts 12 hours, and
 wrong passwords lock the account for 15 minutes.
 
 - **First start:** while there are no accounts, the server makes a one-time **setup code**, prints it
@@ -123,9 +123,8 @@ Mock Stage or Inquiry), and the team can also fill in its name, email, contact n
 source (on students it added itself). Deleting students and sheets, and the
 Incentive page, are Admin only. Export Excel is for Admin and the Manager.
 
-The Incentive app sends people to Student Details' `/login` page and reads the accounts and logins from the
-Student Details data folder, which is why its `STUDENT_DETAILS_DATA_DIR` must match. `APP_USERNAME`,
-`APP_PASSWORD` and `REQUIRE_PASSWORD` are no longer used; you can delete them from both apps.
+The Incentive page uses the same accounts and login as the rest of the site (it runs inside the same app). `APP_USERNAME`,
+`APP_PASSWORD` and `REQUIRE_PASSWORD` are no longer used; you can delete them.
 
 ## Email (setup details for new people)
 
@@ -165,7 +164,7 @@ partner, university and course. A step is counted from its own date or from any 
 Visa Issued has applied, had an offer and paid), and a note under the page says how many were counted that
 way. It can be filtered by intake and updates itself every 30 seconds.
 
-Optional for both apps: `APP_TIMEZONE` (default `Asia/Kathmandu`) sets which calendar day daily
+Optional: `APP_TIMEZONE` (default `Asia/Kathmandu`) sets which calendar day daily
 backups and "today's" exchange rate follow.
 
 After 20 wrong passwords from one address within 15 minutes, that address is locked out for the

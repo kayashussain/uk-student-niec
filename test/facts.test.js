@@ -241,3 +241,22 @@ test('Salford January 2027 lists the closed courses as closed, and none of them 
     assert.ok(!open.split('\n').includes(c), `${c} is not listed as open`);
   });
 });
+
+test('Bangor University comes with its January 2027 flyer details, and an edited page is left alone', () => {
+  const fresh = createFacts(tmp());
+  const bangor = fresh.get(fresh.list().find((u) => u.name === 'Bangor University').id);
+  assert.strictEqual(bangor.intakes[0].name, 'January 2027');
+  assert.match(bangor.intakes[0].requirements, /Application deadline: 4 December 2026/);
+  assert.match(bangor.intakes[0].requirements, /CAS deadline: 23 December 2026/);
+  assert.match(bangor.intakes[0].courses, /Electronic Engineering MSc: £22,500/);
+  assert.match(bangor.intakes[0].courses, /Business Data Analytics MSc/);
+  assert.match(bangor.programs[0].scholarship, /Vice Chancellor Scholarship: £10,000/);
+  // an existing page that is still empty is filled in; one Admin has saved is not touched
+  const dir = tmp();
+  const old = (id, extra = {}) => ({ id, name: 'Bangor University', city: '', intakes: [], process: [], updatedAt: '2026-01-01T00:00:00.000Z', updatedBy: '', ...extra });
+  fs.writeFileSync(path.join(dir, 'fact-file.json'), JSON.stringify({ starterAdded: [...STARTER_UNIVERSITIES], universities: [old('ffffffffffff')] }));
+  assert.strictEqual(createFacts(dir).get('ffffffffffff').intakes[0].name, 'January 2027');
+  const dir2 = tmp();
+  fs.writeFileSync(path.join(dir2, 'fact-file.json'), JSON.stringify({ starterAdded: [...STARTER_UNIVERSITIES], universities: [old('aaaaaaaaaaaa', { city: 'Edited', updatedBy: 'Kayas' })] }));
+  assert.strictEqual(createFacts(dir2).get('aaaaaaaaaaaa').city, 'Edited');
+});

@@ -24,7 +24,7 @@ that one app on the port the host expects.
 Everyone has **their own account**; there are no shared logins. Logging in takes the person's
 password (at least 10 characters). There is no second step by default. To also ask for the 6-digit code from
 an authenticator app (Google or Microsoft Authenticator), set the environment variable `REQUIRE_AUTHENTICATOR=1`
-on both apps and restart; people then link their phone at their next login. A login lasts 12 hours, and
+on the app and restart; people then link their phone at their next login. A login lasts 12 hours, and
 wrong passwords lock the account for 15 minutes.
 
 - **First start:** while there are no accounts, the server makes a one-time **setup code**, prints it

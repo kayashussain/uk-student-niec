@@ -82,6 +82,17 @@ test('screens: log in, edit, delete, search, team rules, Fact File', { timeout: 
     await page.close();
   });
 
+  await t.test('columns fit what is in them: a very long email is shown in full, and nothing else in the first rows is cut off', async () => {
+    const fresh = await (await admin.request.get('/api/data')).json();
+    fresh.sheets[0].rows[0].EMAIL = 'a.very.long.student.email.address.for.testing@gmail.com';
+    assert.ok((await admin.request.post('/api/data', { data: { sheets: fresh.sheets, activeSheetId: fresh.activeSheetId, baseRevision: fresh.revision } })).ok());
+    const page = await open(admin, '/students');
+    await page.waitForSelector('#body tr:not(.pad-row)');
+    const cut = await page.$$eval('#body tr:not(.pad-row) td.text', (cells) => cells.filter((c) => c.scrollWidth > c.clientWidth + 1).map((c) => c.textContent));
+    assert.deepStrictEqual(cut, [], 'no text is cut off');
+    await page.close();
+  });
+
   await t.test('a search with no match shows a friendly note, and clearing it brings the students back', async () => {
     const page = await open(admin, '/students');
     await page.waitForSelector('#body tr:not(.pad-row)');
