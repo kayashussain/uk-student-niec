@@ -59,7 +59,7 @@ Every day after 6 p.m. (office time, `APP_TIMEZONE`, default Asia/Kathmandu) the
 backup of the students, the Fact File and the Partner Universities in `daily-backups/` in the data folder, and deletes copies
 older than 30 days. If the host has put the server to sleep, the copy is made at the first request instead. Accounts and passwords
 are never in a backup. Admin restores from **Activity → Restore data** (students, Fact File and Partner Universities each on
-their own); a restore first saves the current data as a "before restore" backup. Uploaded agreement files are not in the backup.
+their own); a restore first saves the current data as a "before restore" backup. **View** opens the real Student Details, Fact File and Partner Universities pages on that backup (`?backup=ID`, read only, nothing saved or polled), with a bar to switch between them and restore. Uploaded agreement files are not in the backup.
 
 ## Where things are
 

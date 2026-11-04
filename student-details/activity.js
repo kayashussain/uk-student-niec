@@ -186,8 +186,8 @@
         const holds = el('td', '', c ? `${c.students ?? '-'} students, ${c.facts ?? '-'} universities, ${c.partners ?? '-'} partners` : 'Could not be read');
         const act = el('td'); act.style.whiteSpace = 'nowrap';
         if (c) {
-          const view = el('a', 'btn btn-sm', 'View'); view.href = `/backup-view?id=${encodeURIComponent(b.id)}`; view.target = '_blank'; view.rel = 'noopener';
-          view.title = 'Opens this backup in a new page, read only';
+          const view = el('a', 'btn btn-sm', 'View'); view.href = `/students?backup=${encodeURIComponent(b.id)}`; view.target = '_blank'; view.rel = 'noopener';
+          view.title = 'Opens this backup in a new tab: the real Student Details, Fact File and Partner Universities pages as they were, read only';
           const btn = el('button', 'btn btn-sm', 'Restore'); btn.type = 'button'; btn.style.marginLeft = '6px'; btn.addEventListener('click', () => restorePanel(b, tr));
           act.append(view, btn);
         }

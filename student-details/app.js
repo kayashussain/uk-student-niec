@@ -112,6 +112,9 @@
   // columns (shared/teams.js; the server enforces the same rules).
   const Teams = window.TeamRules;
   let me = null;
+  // ?backup=ID opens this page on an earlier daily backup, read only (Admin; see backup-bar.js): the data comes from the
+  // backup, nothing is saved, and nothing is polled or sent to the server.
+  const BACKUP = new URLSearchParams(location.search).get('backup') || '';
   const isTeam = () => Boolean(Teams.teamOf(me)); // anyone but Admin
   const isViewOnly = () => Teams.isReadOnly(me);
   const canEditCol = (col, row = null) => Teams.canEdit(me, col, row); // row: a student the person's team added can have its basics filled in
@@ -589,11 +592,12 @@
     let json;
     try {
       const [res, who] = await Promise.all([
-        fetch('/api/data', { cache: 'no-store' }),
+        fetch(BACKUP ? '/api/restore/snapshot/' + encodeURIComponent(BACKUP) + '/data' : '/api/data', { cache: 'no-store' }),
         me ? null : fetch('/api/me', { cache: 'no-store' }).then((r) => (r.ok ? r.json() : null)),
       ]);
       if (who) {
-        me = who;
+        me = BACKUP ? { ...who, role: 'manager', departments: [] } : who; // a backup is looked at, never changed
+        if (BACKUP) document.body.dataset.backup = '1';
         document.body.dataset.role = me.role;
         $('#viewOnly').hidden = !Teams.isReadOnly(me);
         document.body.toggleAttribute('data-viewonly', Teams.isReadOnly(me));
@@ -1880,7 +1884,7 @@
   // One save at a time, so an older copy of the workbook can never land after a newer one.
   async function saveData() {
     clearTimeout(saveTimer);
-    if (conflicted) return;
+    if (conflicted || BACKUP) return;
     if (saving) { saveQueued = true; return; }
     saving = true;
     const savedChange = changeCount;
@@ -2019,7 +2023,7 @@
 
   async function checkForRemoteChanges() {
     const busy = () => dirty || saving || conflicted || busyEditing();
-    if (busy() || document.hidden) return;
+    if (BACKUP || busy() || document.hidden) return;
     try {
       const res = await fetch('/api/revision', { cache: 'no-store' });
       if (!res.ok) return;
@@ -2556,7 +2560,7 @@
   });
 
   window.addEventListener('beforeunload', (e) => {
-    if (!dirty) return;
+    if (!dirty || BACKUP) return;
     // A regular fetch can be cancelled mid-flight when the page unloads; sendBeacon
     // is designed to survive that, so use it to flush any pending debounced save.
     if (!conflicted) {
@@ -2607,7 +2611,7 @@
 
   // The server pushes every change over this connection (reconnects by itself); the 5-second request
   // below is only a safety net for hosts that hold streams back.
-  if (window.EventSource) {
+  if (window.EventSource && !BACKUP) {
     const stream = new EventSource('/api/events?id=' + encodeURIComponent(myId));
     stream.onmessage = (e) => { try { applyState(JSON.parse(e.data)); } catch (err) { /* ignore */ } };
   }
@@ -2615,7 +2619,7 @@
   // Tells the server where this tab's cursor is and learns where everyone else's is, plus the latest
   // revision, in one request. Runs every 5 seconds, and straight away when the cursor moves.
   async function syncPresence() {
-    if (document.hidden) return;
+    if (document.hidden || BACKUP) return;
     const mine = myPresence();
     lastSent = JSON.stringify(mine);
     try {

@@ -5,6 +5,9 @@
   const STATUSES = ['Active', 'Pending', 'On hold', 'Ended'];
   const PILL = { Active: 'pill-ok', Pending: 'pill-wait', 'On hold': 'pill-wait', Ended: 'pill-off' };
   let uni = null; // the university open in the editor
+  // ?backup=ID: this is an earlier daily backup, read only (see backup-bar.js): looked at, never changed.
+  const BACKUP = new URLSearchParams(location.search).get('backup') || '';
+  const API = BACKUP ? '/api/restore/snapshot/' + encodeURIComponent(BACKUP) + '/partners' : '/api/direct';
 
   function el(tag, cls, text) {
     const e = document.createElement(tag);
@@ -23,7 +26,7 @@
   // ---- the list ----
   async function loadList() {
     try {
-      const list = await api('/api/direct');
+      const list = await api(API);
       $('count').textContent = list.length ? `(${list.length})` : '';
       const body = $('rows');
       if (!list.length) {
@@ -94,7 +97,7 @@
   }
 
   function openEditor(id) {
-    api('/api/direct/' + id).then((u) => { uni = u; buildEditor(); }).catch((e) => say('listMsg', e.message, true));
+    api(API + '/' + id).then((u) => { uni = u; buildEditor(); }).catch((e) => say('listMsg', e.message, true));
   }
 
   function buildEditor() {
@@ -133,7 +136,8 @@
       if (!uni.agreements.length) { fileList.replaceChildren(el('p', 'hint', 'No agreement uploaded yet.')); return; }
       fileList.replaceChildren(...uni.agreements.map((a) => {
         const row = el('div', 'row');
-        const link = el('a', 'open-link', a.name); link.href = `/api/direct/${uni.id}/files/${a.id}`; link.setAttribute('download', a.name);
+        const link = BACKUP ? el('span', '', a.name) : el('a', 'open-link', a.name);
+        if (!BACKUP) { link.href = `/api/direct/${uni.id}/files/${a.id}`; link.setAttribute('download', a.name); }
         const info = el('span', 'hint', `${size(a.size)} · uploaded ${new Date(a.uploadedAt).toLocaleDateString()}${a.uploadedBy ? ' by ' + a.uploadedBy : ''}`);
         const rm = el('button', 'btn btn-danger btn-sm', 'Remove'); rm.type = 'button';
         rm.addEventListener('click', async () => {
@@ -199,11 +203,18 @@
       } catch (err) { say('editMsg', err.message, true); }
     });
 
+    if (BACKUP) { // look only: every box is locked and every button except Close is gone
+      form.querySelectorAll('input, textarea, select').forEach((i) => { i.disabled = true; });
+      form.querySelectorAll('button').forEach((b) => { if (b !== close) b.hidden = true; });
+      picker.hidden = true;
+    }
     ed.replaceChildren(form);
     ed.hidden = false;
+    if (BACKUP) say('editMsg', 'This is the data as it was in the backup. The agreement files themselves are not kept in backups.');
     ed.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
+  if (BACKUP) $('addForm').closest('.card').hidden = true;
   $('addForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     try {

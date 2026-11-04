@@ -10,8 +10,8 @@ const { createAccounts } = require('../shared/accounts');
 const { makePatch, applyPatch } = require('../shared/patch');
 const { isAdmin, isManager, isReadOnly, teamOf, viewKey, viewFor, teamChanges } = require('../shared/teams');
 const { buildDashboard } = require('./dashboard-stats');
-const { createFacts } = require('./facts');
-const { createDirect, MAX_FILE_BYTES } = require('./direct');
+const { createFacts, viewFacts } = require('./facts');
+const { createDirect, viewDirect, MAX_FILE_BYTES } = require('./direct');
 const { createBackups, ID: BACKUP_ID, HOUR: BACKUP_HOUR, KEEP_DAYS } = require('./backups');
 const { createAdvisorMcp } = require('./advisor-mcp');
 const {
@@ -46,8 +46,7 @@ const serveStatic = createStaticServer(ROOT, {
   '/fact-university.js': 'text/javascript; charset=utf-8',
   '/fact-file.css': 'text/css; charset=utf-8',
   '/direct.html': 'text/html; charset=utf-8',
-  '/backup-view.html': 'text/html; charset=utf-8',
-  '/backup-view.js': 'text/javascript; charset=utf-8',
+  '/backup-bar.js': 'text/javascript; charset=utf-8',
   '/direct-page.js': 'text/javascript; charset=utf-8',
   '/calc.js': 'text/javascript; charset=utf-8',
   '/suggest.js': 'text/javascript; charset=utf-8',
@@ -523,18 +522,27 @@ async function handleRestore(req, res, urlPath) {
       now: { students: current ? current.sheets.reduce((n, s) => n + s.rows.length, 0) : null, facts: facts.list().length, partners: direct.list().length },
     });
   }
-  // View a backup (read only): the students as sheets, the Fact File or the Partner Universities as they were saved.
-  if (urlPath === '/api/restore/view' && req.method === 'GET') {
-    const q = new URL(req.url, 'http://x').searchParams;
-    const id = q.get('id') || '';
-    const part = q.get('part') || '';
-    if (!BACKUP_ID.test(id) || !['students', 'facts', 'partners'].includes(part)) return sendJSON(res, 400, { error: 'Choose a backup and what to view.' });
+  // Look at a backup (read only): the real pages (Student Details, Fact File, Partner Universities) are opened on the
+  // backup's data with ?backup=ID and ask for it here, in the same shape the live data has.
+  const snapMatch = urlPath.match(/^\/api\/restore\/snapshot\/([a-z0-9-]+)\/(data|facts|partners)(?:\/([a-f0-9]{12}))?$/);
+  if (snapMatch && req.method === 'GET') {
+    const [, id, part, itemId] = snapMatch;
+    if (!BACKUP_ID.test(id)) return sendJSON(res, 400, { error: 'Choose a backup to look at.' });
     const snap = backups.read(id);
     if (!snap) return sendJSON(res, 404, { error: 'That backup could not be read.' });
-    const data = snap[part];
-    if (!data) return sendJSON(res, 404, { error: 'That backup does not hold this part.' });
-    activity.record(req, req.user, 'Viewed backup', { app: 'Student Details', changes: [`Opened ${part === 'students' ? 'the students' : part === 'facts' ? 'the Fact File' : 'the Partner Universities'} in the backup ${id}`] });
-    return send(res, 200, JSON.stringify(part === 'students' ? { sheets: data.sheets.map((sh) => ({ id: sh.id, name: sh.name, hidden: Boolean(sh.hidden), columns: sh.columns, rows: sh.rows })) } : { items: data }), { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
+    const noStore = { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' };
+    if (part === 'data') {
+      if (!snap.students || !Array.isArray(snap.students.sheets)) return sendJSON(res, 404, { error: 'That backup has no students.' });
+      activity.record(req, req.user, 'Viewed backup', { app: 'Student Details', changes: [`Opened the students in the backup ${id}`] });
+      const mine = migrateWorkbook({ sheets: JSON.parse(JSON.stringify(snap.students.sheets)), activeSheetId: snap.students.activeSheetId });
+      return send(res, 200, JSON.stringify({ revision: 0, sheets: mine.sheets, activeSheetId: mine.activeSheetId }), noStore);
+    }
+    const items = snap[part === 'facts' ? 'facts' : 'partners'];
+    if (!Array.isArray(items)) return sendJSON(res, 404, { error: 'That backup does not hold this part.' });
+    const view = part === 'facts' ? viewFacts(items) : viewDirect(items);
+    if (!itemId) return send(res, 200, JSON.stringify(view.list(new URL(req.url, 'http://x').searchParams.get('q') || '')), noStore);
+    const one = view.get(itemId);
+    return one ? send(res, 200, JSON.stringify(one), noStore) : sendJSON(res, 404, { error: 'No such university in that backup.' });
   }
   if (req.method !== 'POST') return send(res, 405, 'Method not allowed');
   let body;
@@ -595,7 +603,7 @@ const server = http.createServer(async (req, res) => {
     // The pages. The Manager lands on the dashboard; Admin-only pages send anyone else back home.
     const home = req.user.role === 'manager' ? '/dashboard' : '/students';
     if (req.method === 'GET') {
-      const page = { '/students': 'index.html', '/dashboard': 'dashboard.html', '/users': 'users.html', '/activity': 'activity.html', '/partner-universities': 'direct.html', '/backup-view': 'backup-view.html' }[urlPath];
+      const page = { '/students': 'index.html', '/dashboard': 'dashboard.html', '/users': 'users.html', '/activity': 'activity.html', '/partner-universities': 'direct.html' }[urlPath];
       if (urlPath === '/') return req.user.role === 'manager' ? send(res, 302, '', { Location: '/dashboard' }) : serveStatic(req, res);
       if (urlPath === '/fact-file') { // the list, or one university's page (?u=...); every account may read
         req.url = new URL(req.url, 'http://x').searchParams.get('u') ? '/fact-university.html' : '/fact-file.html';

@@ -3,6 +3,8 @@
 (function () {
   const $ = (id) => document.getElementById(id);
   const id = new URLSearchParams(location.search).get('u');
+  // ?backup=ID: this is an earlier daily backup, read only (see backup-bar.js): no editing, no deleting.
+  const BACKUP = new URLSearchParams(location.search).get('backup') || '';
   let uni = null;
   let isAdmin = false;
 
@@ -417,11 +419,11 @@
   }
 
   async function start() {
-    if (!id) { location.replace('/fact-file'); return; }
+    if (!id) { location.replace('/fact-file' + (BACKUP ? '?backup=' + encodeURIComponent(BACKUP) : '')); return; }
     try {
-      const [meRes, uniRes] = await Promise.all([fetch('/api/me', { cache: 'no-store' }), fetch('/api/facts/' + encodeURIComponent(id), { cache: 'no-store' })]);
+      const [meRes, uniRes] = await Promise.all([fetch('/api/me', { cache: 'no-store' }), fetch((BACKUP ? '/api/restore/snapshot/' + encodeURIComponent(BACKUP) + '/facts/' : '/api/facts/') + encodeURIComponent(id), { cache: 'no-store' })]);
       if (!uniRes.ok) { say('That university is not in the Fact File.', true); return; }
-      isAdmin = (await meRes.json()).role === 'admin';
+      isAdmin = (await meRes.json()).role === 'admin' && !BACKUP;
       uni = await uniRes.json();
     } catch (e) {
       say('Could not load this page. Please reload.', true);
@@ -429,5 +431,6 @@
     }
     if (isAdmin && new URLSearchParams(location.search).get('edit')) renderEdit(); else renderView();
   }
+  if (BACKUP) { const back = document.querySelector('a[href="/fact-file"]'); if (back) back.href = '/fact-file?backup=' + encodeURIComponent(BACKUP); }
   start();
 })();

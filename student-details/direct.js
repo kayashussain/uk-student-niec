@@ -85,6 +85,27 @@ const STARTERS = [
   { name: 'Middlesex University', campuses: [{ name: 'London Campus', city: 'London' }] },
 ];
 
+const agreementsOf = (u) => (Array.isArray(u.agreements) ? u.agreements : []).filter((a) => a && /^[a-f0-9]{12}$/.test(a.id)).map((a) => ({
+  id: a.id, name: fileName(a.name), size: Number(a.size) || 0, uploadedAt: a.uploadedAt || '', uploadedBy: a.uploadedBy || '', ext: Object.prototype.hasOwnProperty.call(FILE_TYPES, a.ext) ? a.ext : '',
+}));
+const full = (u) => ({ ...clean(u, u), agreements: agreementsOf(u), id: u.id, updatedAt: u.updatedAt, updatedBy: u.updatedBy || '' });
+const summary = (u) => ({
+  id: u.id, name: u.name, status: u.status,
+  campuses: u.campuses.map((c) => [...new Set([c.name, c.city].filter(Boolean))].join(', ')),
+  slabCount: u.slabs.length,
+  slabs: u.slabs.map((x) => [x.level, x.students, x.commission].filter(Boolean).join(' ')),
+  agreementEnd: u.agreementEnd, agreementCount: u.agreements.length, updatedAt: u.updatedAt,
+  // The first contact person is shown in the list; the rest are on the university's page.
+  contact: u.contacts[0] || { name: '', email: '', phone: '' }, contactCount: u.contacts.length,
+});
+
+
+// Read only list and pages of a given set of partner universities (a backup), shaped like the live ones.
+const viewDirect = (universities) => ({
+  list: () => universities.map(full).map(summary).sort((a, b) => a.name.localeCompare(b.name)),
+  get: (id) => { const u = universities.find((x) => x.id === id); return u ? full(u) : null; },
+});
+
 function createDirect(dir, { now = () => new Date(), starters = STARTERS } = {}) {
   const file = path.join(dir, 'direct-universities.json');
   let cache = null; // { mtimeMs, size, data }
@@ -116,19 +137,6 @@ function createDirect(dir, { now = () => new Date(), starters = STARTERS } = {})
   }
 
   const filesDir = (id) => path.join(dir, 'direct-files', id);
-  const agreementsOf = (u) => (Array.isArray(u.agreements) ? u.agreements : []).filter((a) => a && /^[a-f0-9]{12}$/.test(a.id)).map((a) => ({
-    id: a.id, name: fileName(a.name), size: Number(a.size) || 0, uploadedAt: a.uploadedAt || '', uploadedBy: a.uploadedBy || '', ext: Object.prototype.hasOwnProperty.call(FILE_TYPES, a.ext) ? a.ext : '',
-  }));
-  const full = (u) => ({ ...clean(u, u), agreements: agreementsOf(u), id: u.id, updatedAt: u.updatedAt, updatedBy: u.updatedBy || '' });
-  const summary = (u) => ({
-    id: u.id, name: u.name, status: u.status,
-    campuses: u.campuses.map((c) => [...new Set([c.name, c.city].filter(Boolean))].join(', ')),
-    slabCount: u.slabs.length,
-    slabs: u.slabs.map((x) => [x.level, x.students, x.commission].filter(Boolean).join(' ')),
-    agreementEnd: u.agreementEnd, agreementCount: u.agreements.length, updatedAt: u.updatedAt,
-    // The first contact person is shown in the list; the rest are on the university's page.
-    contact: u.contacts[0] || { name: '', email: '', phone: '' }, contactCount: u.contacts.length,
-  });
 
   return {
     list() { return load().universities.map(full).map(summary).sort((a, b) => a.name.localeCompare(b.name)); },
@@ -217,4 +225,4 @@ function createDirect(dir, { now = () => new Date(), starters = STARTERS } = {})
   };
 }
 
-module.exports = { createDirect, clean, STATUSES, STARTERS, FILE_TYPES, MAX_FILE_BYTES };
+module.exports = { createDirect, viewDirect, clean, STATUSES, STARTERS, FILE_TYPES, MAX_FILE_BYTES };

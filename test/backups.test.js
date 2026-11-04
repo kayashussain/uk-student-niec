@@ -98,14 +98,21 @@ test('Admin can back up and restore; nobody else can; a restore saves the data a
 
   // A copy now, then a change, then restore the Fact File from the copy.
   const manual = (await admin('POST', '/api/restore/backup-now', {})).json.id;
-  assert.strictEqual((await admin('GET', `/backup-view?id=${manual}`)).status, 200, 'the backup opens on its own page');
-  const viewed = (await admin('GET', `/api/restore/view?id=${manual}&part=students`)).json;
-  assert.ok(Array.isArray(viewed.sheets) && viewed.sheets[0].columns.length > 10, 'a backup can be viewed as sheets');
-  assert.ok((await admin('GET', `/api/restore/view?id=${manual}&part=facts`)).json.items.length > 10, 'and the Fact File');
-  assert.ok(Array.isArray((await admin('GET', `/api/restore/view?id=${manual}&part=partners`)).json.items), 'and the Partner Universities');
-  assert.strictEqual((await admin('GET', '/api/restore/view?id=../../x&part=students')).status, 400);
-  assert.strictEqual((await admin('GET', `/api/restore/view?id=${manual}&part=accounts`)).status, 400, 'accounts cannot be viewed');
-  assert.match(manual, /^manual-/);
+  // A backup is looked at through the real pages, which read its data from these (same shape as the live data).
+  const snap = `/api/restore/snapshot/${manual}`;
+  const data = (await admin('GET', `${snap}/data`)).json;
+  assert.ok(Array.isArray(data.sheets) && data.sheets[0].columns.length > 10, 'the students of a backup come as the workbook');
+  const factList = (await admin('GET', `${snap}/facts`)).json;
+  assert.ok(factList.length > 10 && factList[0].intakes, 'the Fact File list comes with the live list shape');
+  assert.ok((await admin('GET', `${snap}/facts?q=bangor`)).json.some((u) => u.name === 'Bangor University'), 'and can be searched');
+  assert.strictEqual((await admin('GET', `${snap}/facts/${factList[0].id}`)).json.name, factList[0].name, 'one university page of the backup');
+  const partnerList = (await admin('GET', `${snap}/partners`)).json;
+  assert.ok(Array.isArray(partnerList) && partnerList.length === 5 && partnerList[0].campuses, 'the Partner Universities list');
+  assert.ok((await admin('GET', `${snap}/partners/${partnerList[0].id}`)).json.slabs, 'one partner page');
+  assert.strictEqual((await admin('GET', `/api/restore/snapshot/../../x/data`)).status !== 200, true);
+  assert.strictEqual((await admin('GET', `/api/restore/snapshot/daily-1999-01-01/data`)).status, 404, 'no such backup');
+  assert.notStrictEqual((await admin('GET', `${snap}/accounts`)).status, 200, 'accounts cannot be looked at');
+  for (const page of ['/students', '/fact-file', '/partner-universities']) assert.strictEqual((await admin('GET', `${page}?backup=${manual}`)).status, 200, `${page} opens on a backup`);
   const added = (await admin('POST', '/api/facts', { name: 'Temporary Mistake University' })).json;
   const factsBefore = (await admin('GET', '/api/facts')).json.length;
   assert.ok((await admin('GET', '/api/facts')).json.some((u) => u.id === added.id));
@@ -144,18 +151,16 @@ test('Admin can back up and restore; nobody else can; a restore saves the data a
   await sita('POST', '/api/login/new-password', { password: 'Another-Long-Pass-2026' });
   assert.strictEqual((await sita('GET', '/api/restore/backups')).status, 403);
   assert.strictEqual((await sita('POST', '/api/restore/backup-now', {})).status, 403);
-  assert.strictEqual((await sita('GET', `/backup-view?id=${manual}`)).status, 302, 'staff are sent away from the backup page');
-  assert.strictEqual((await sita('GET', `/api/restore/view?id=${manual}&part=students`)).status, 403, 'staff cannot view a backup');
+  assert.strictEqual((await sita('GET', `${snap}/data`)).status, 403, 'staff cannot look at a backup');
   assert.strictEqual((await sita('POST', '/api/restore', { id: manual, parts: ['facts'] })).status, 403);
   const nobody = person();
   assert.notStrictEqual((await nobody('GET', '/api/restore/backups')).status, 200);
-  assert.notStrictEqual((await nobody('GET', `/backup-view?id=${manual}`)).status, 200);
-  assert.notStrictEqual((await nobody('GET', `/api/restore/view?id=${manual}&part=students`)).status, 200);
+  assert.notStrictEqual((await nobody('GET', `${snap}/data`)).status, 200);
   assert.notStrictEqual((await nobody('POST', '/api/restore', { id: manual, parts: ['facts'] })).status, 200);
 
   // Accounts are not in a backup.
   const kinds = fs.readdirSync(path.join(dir, 'daily-backups')).filter((f) => f.endsWith('.json.gz'));
   assert.ok(kinds.length >= 3);
-  const snap = require('node:zlib').gunzipSync(fs.readFileSync(path.join(dir, 'daily-backups', kinds[0]))).toString();
-  assert.ok(!/passwordHash|scrypt\$/.test(snap), 'no passwords in a backup');
+  const raw = require('node:zlib').gunzipSync(fs.readFileSync(path.join(dir, 'daily-backups', kinds[0]))).toString();
+  assert.ok(!/passwordHash|scrypt\$/.test(raw), 'no passwords in a backup');
 });
