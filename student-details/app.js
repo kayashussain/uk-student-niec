@@ -27,7 +27,7 @@
   const SELECT_COLS = {
     'APPLICATION STATUS': [
       'Inquiry', 'Application Stage', 'Mock Stage', 'Payment Stage',
-      'CAS Stage', 'CAS Issued', 'Visa Lodge', 'Visa Issued', 'Visa Rejected', 'Defer', 'Withdrawn',
+      'CAS Stage', 'CAS Issued', 'Visa Lodge', 'Visa Issued', 'Visa Rejected', 'Defer', 'Hold', 'Withdrawn',
     ],
     'PRE CAS INTERVIEW': ['Passed', 'Fail'],
     'NOC': ['Submitted'],
@@ -1308,6 +1308,8 @@
     tr.dataset.rowIdx = rowIdx;
     tr.dataset.displayIdx = displayIdx;
     if (displayIdx % 2) tr.className = 'alt'; // striped by position (spacer rows would upset :nth-child)
+    const rowColor = rows[rowIdx]._color;
+    if (Teams.ROW_COLORS.includes(rowColor)) tr.classList.add('rc-' + rowColor);
     rowEls.set(rowIdx, tr);
 
     // Clicks on rows and cells are handled once, on the table body (see the grid section below).
@@ -2205,6 +2207,53 @@
     renderBody();
   }
 
+  // Colour rows: marks the picked students' rows (e.g. green = interested, Admin follows up). The colour is
+  // saved on the row, so everyone who sees the student sees it.
+  const COLOR_LABELS = { green: 'Green', yellow: 'Yellow', orange: 'Orange', red: 'Red', blue: 'Blue', purple: 'Purple', grey: 'Grey' };
+
+  function openColorMenu() {
+    if (isViewOnly()) return;
+    if (openSheetMenu && openSheetMenu.dataset.sheetId === 'color') { closeSheetMenu(); return; }
+    closeSheetMenu();
+    if (selectedRows.size === 0) {
+      NiecUI.toast('Click a row number (S.N) first, or Ctrl+Click several, then pick a colour.');
+      return;
+    }
+    const menu = document.createElement('div');
+    menu.className = 'sheet-menu color-menu';
+    menu.dataset.sheetId = 'color';
+    const head = document.createElement('div');
+    head.className = 'all-sheets-heading';
+    head.textContent = selectedRows.size === 1 ? 'Colour this row' : `Colour ${selectedRows.size} rows`;
+    menu.appendChild(head);
+    [...Teams.ROW_COLORS, ''].forEach((color) => {
+      const item = document.createElement('div');
+      item.className = 'sheet-menu-item';
+      item.innerHTML = '<i class="swatch"></i><span></span>';
+      item.firstChild.classList.add(color ? 'rc-' + color : 'none');
+      item.lastChild.textContent = color ? COLOR_LABELS[color] : 'No colour';
+      item.addEventListener('click', () => { closeSheetMenu(); colorSelectedRows(color); });
+      menu.appendChild(item);
+    });
+    document.body.appendChild(menu);
+    const rect = $('#colorRow').getBoundingClientRect();
+    menu.style.left = Math.max(8, Math.min(rect.left, window.innerWidth - menu.offsetWidth - 8)) + 'px';
+    menu.style.top = rect.bottom + 4 + 'px';
+    openSheetMenu = menu;
+    setTimeout(() => document.addEventListener('mousedown', onSheetMenuDocClick, true), 0);
+  }
+
+  function colorSelectedRows(color) {
+    const targets = Array.from(selectedRows).map((i) => rows[i])
+      .filter((r) => r && Teams.canColor(me, r) && (r._color || '') !== color);
+    if (!targets.length) return;
+    pushUndo();
+    targets.forEach((r) => { if (color) r._color = color; else delete r._color; });
+    markDirty();
+    renderBody();
+    NiecUI.toast(color ? `${targets.length === 1 ? 'Row' : targets.length + ' rows'} coloured ${COLOR_LABELS[color].toLowerCase()}.` : 'Colour removed.');
+  }
+
   async function exportExcel() {
     if (!me || (me.role !== 'admin' && me.role !== 'manager')) return; // Export Excel is for Admin and the Manager
     let ExcelJS;
@@ -2274,6 +2323,7 @@
   $('#addRow').addEventListener('click', addRow);
   $('#delRow').addEventListener('click', () => { if (Teams.canDelete(me)) deleteRow(); });
   $('#exportExcel').addEventListener('click', exportExcel);
+  $('#colorRow').addEventListener('click', openColorMenu);
   $('#addSheet').addEventListener('click', () => { if (!isTeam()) addSheet(); });
   if (undoBtn) undoBtn.addEventListener('click', undo);
   if (redoBtn) redoBtn.addEventListener('click', redo);

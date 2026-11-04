@@ -237,6 +237,31 @@ test('screens: log in, edit, delete, search, team rules, Fact File', { timeout: 
     await page.close();
   });
 
+  await t.test('a team member colours a student row and Admin sees the colour', async () => {
+    const page = await open(team, '/students');
+    await page.waitForSelector('#body tr:not(.pad-row)');
+    await page.click('#colorRow');
+    assert.ok(!(await page.isVisible('.color-menu')), 'asks to pick a row first');
+    const row = page.locator('#body tr:not(.pad-row)').first();
+    await row.locator('td.col-idx').click();
+    await page.click('#colorRow');
+    await page.click('.color-menu .sheet-menu-item:has-text("Green")');
+    assert.match(await page.locator('#body tr:not(.pad-row)').first().getAttribute('class'), /rc-green/);
+    const bg = await page.locator('#body tr:not(.pad-row)').first().locator('td').nth(2).evaluate((el) => getComputedStyle(el).backgroundColor);
+    assert.notStrictEqual(bg, 'rgba(0, 0, 0, 0)');
+    await wait(1500);
+    const saved = (await (await admin.request.get('/api/data')).json()).sheets[0].rows.filter((r) => r._color === 'green');
+    assert.strictEqual(saved.length, 1, 'saved on the server');
+    const adminPage = await open(admin, '/students');
+    await adminPage.waitForSelector('#body tr.rc-green');
+    await adminPage.close();
+    // and a colour outside the list is refused by the server
+    const cur = await (await team.request.get('/api/data')).json();
+    cur.sheets[0].rows[1]._color = 'hotpink';
+    assert.strictEqual((await team.request.post('/api/data', { data: { sheets: cur.sheets, activeSheetId: cur.activeSheetId, baseRevision: cur.revision } })).status(), 403);
+    await page.close();
+  });
+
   await t.test('the Manager sees every student but can change nothing, and goes to the Dashboard', async () => {
     const made = await admin.request.post('/api/users', { data: { username: 'mgr', name: 'Manager Test', email: '', manager: true, departments: [] } });
     const manager = await browser.newContext({ baseURL: base });

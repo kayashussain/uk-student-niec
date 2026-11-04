@@ -143,7 +143,7 @@ test('every university from the January 2027 sheet has its criteria table, cours
   assert.match(regent.intakes[0].notes, /Course application deadline: 30 October 2026/);
   for (const u of list) {
     const full = facts.get(u.id);
-    if (full.name === 'Bangor University' || full.name === 'University of York' || full.name === 'Northumbria University') continue;
+    if (full.name === 'University of York' || full.name === 'Northumbria University') continue;
     assert.ok(full.programs.length > 0 && full.intakes[0].courses.includes('\n'), `${full.name} has its table and courses`);
     assert.ok(full.programs.every((p) => p.name), `${full.name} programs are named`);
   }
@@ -226,4 +226,18 @@ test('a Bangor page saved before the entry requirements were added is refreshed 
     { id: 'bbbbbbbbbbbb', name: 'Bangor University', city: 'Bangor, Wales', overview: 'my own', intakes: [], process: [], updatedAt: '2026-11-03T07:22:31.175Z', updatedBy: 'Kayas' },
   ] }));
   assert.strictEqual(createFacts(dir).get('bbbbbbbbbbbb').overview, 'my own');
+});
+
+test('Salford January 2027 lists the closed courses as closed, and none of them as open', () => {
+  const facts = createFacts(tmp());
+  const salford = facts.get(facts.list().find((u) => u.name === 'University of Salford').id);
+  const [open, closed] = salford.intakes[0].courses.split('## Postgraduate (Closed) - Manchester\n');
+  [
+    'MSc Accounting and Finance', 'MSc Digital Marketing', 'MSc International Business', 'MSc Operations Management and Business Analytics',
+    'MSc Procurement, Logistics and Supply Chain Management', 'MSc Project Management', 'MSc Human Resource Management',
+    'MA Nursing (Adult)', 'BSc (Hons) Nursing Studies (Top-Up)',
+  ].forEach((c) => {
+    assert.ok(closed.split('\n').includes(c), `${c} is closed`);
+    assert.ok(!open.split('\n').includes(c), `${c} is not listed as open`);
+  });
 });

@@ -295,11 +295,11 @@ function describeChanges(before, after, limit = 300) {
       }
       const cols = new Set([...Object.keys(prev), ...Object.keys(row)]);
       cols.forEach((col) => {
-        if (col.startsWith('_')) return;
+        if (col.startsWith('_') && col !== '_color') return;
         const a = prev[col] ?? '';
         const b = row[col] ?? '';
         if (String(a) !== String(b)) {
-          lines.push(`${sheet.name} › ${studentName(row)} › ${col}: ${show(a)} → ${show(b)}`);
+          lines.push(`${sheet.name} › ${studentName(row)} › ${col === '_color' ? 'Row colour' : col}: ${show(a)} → ${show(b)}`);
         }
       });
     });

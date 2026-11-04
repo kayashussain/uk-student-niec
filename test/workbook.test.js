@@ -207,3 +207,10 @@ test('the Student Source choice "Agents" becomes "Agent" in every sheet, whateve
   assert.deepStrictEqual(wb.sheets[1].rows.map((r) => r['STUDENT SOURCE']), ['Agent', 'Agent', undefined]);
   assert.strictEqual(wb.sheets[1].rows[2]['UNIVERSITY NAME'], 'Agents Academy', 'only the Student Source column is renamed');
 });
+
+test('describeChanges records a row colour change', () => {
+  const { describeChanges } = require('../student-details/workbook');
+  const before = workbook([{ _id: 'r1', 'FIRST NAME': 'Asha' }]);
+  const after = workbook([{ _id: 'r1', 'FIRST NAME': 'Asha', _color: 'green' }]);
+  assert.deepStrictEqual(describeChanges(before, after), ['Jan › Asha › Row colour: (blank) → "green"']);
+});
