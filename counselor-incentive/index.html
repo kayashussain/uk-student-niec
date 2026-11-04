@@ -224,7 +224,7 @@
       </div>
     </div>
     <div class="toolbar">
-      <input id="search" class="search" type="text" placeholder="Search student, university…" aria-label="Search students and universities">
+      <input id="search" class="search" type="text" placeholder="Search student, university, agent…" aria-label="Search students, universities and agents">
       <button class="btn" id="undoBtn" title="Undo (Ctrl+Z)" disabled>↶ Undo</button>
       <button class="btn" id="redoBtn" title="Redo (Ctrl+Y)" disabled>↷ Redo</button>
       <button class="btn" id="exportExcelBtn" hidden>Export Excel</button>
@@ -349,6 +349,7 @@ const COLUMNS = [
   { key: 'name', label: 'Student Name', width: 24 },
   { key: 'course', label: 'Course Name', width: 32 },
   { key: 'university', label: 'University Name', width: 30 },
+  { key: 'agent', label: 'University Partner (Agent)', width: 26, title: "The University Partner column of the student in Student Details (the agent's name). It updates here by itself when it is changed there." },
   { key: 'studentId', label: 'Student ID', width: 14 },
   { key: 'tuitionFee', label: 'Total Tuition Fee (£)', width: 18, amount: true,
     title: 'Synced from UK Student NIEC: Gross Fee − Scholarship − Early Bird Discount − Additional Discount.' },
@@ -711,7 +712,7 @@ function currentStudents() {
   const list = intakeStudents();
   const q = searchInput.value.trim().toLowerCase();
   if (!q) return list;
-  return list.filter((s) => (s.name + ' ' + s.university + ' ' + s.course + ' ' + s.studentId).toLowerCase().includes(q));
+  return list.filter((s) => (s.name + ' ' + s.university + ' ' + s.agent + ' ' + s.course + ' ' + s.studentId).toLowerCase().includes(q));
 }
 
 let renderPending = false;

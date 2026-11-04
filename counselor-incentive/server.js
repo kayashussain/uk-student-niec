@@ -139,6 +139,7 @@ function normalizeStudent(row, intake) {
     name: [row['FIRST NAME'], row['LAST NAME']].filter(Boolean).join(' ').trim(),
     course: row['COURSE NAME'] || '',
     university: row['UNIVERSITY NAME'] || '',
+    agent: String(row['UNIVERSITY PARTNER'] || '').trim(), // the Agent Name: the student's University Partner in Student Details
     studentId: row['STUDENT ID'] || '',
     tuitionFee: String(row['GROSS FEE'] || '').trim() ? round2(netTuitionFee(row)) : 0,
     visaIssuedDate: displayDate(row['VISA RECEIVED DATE']),
