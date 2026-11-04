@@ -202,7 +202,11 @@ test('screens: log in, edit, delete, search, team rules, Fact File', { timeout: 
     await page.waitForSelector('#rows tr');
     assert.strictEqual(await page.locator('#rows tr').count(), 1, 'only the Visa Issued student is listed');
     assert.match(await page.textContent('#rows tr'), /Student11/);
-    await page.locator('#rows tr td[data-ci="8"]').first().click(); // Enrollment Incentive (NPR)
+    // The Enrollment Incentive (NPR) cell, found by its column heading so adding a synced column does not break this.
+    const headings = await page.locator('#headRow th').allTextContents();
+    const enrollmentCol = headings.findIndex((h) => h.trim().startsWith('Enrollment Incentive (NPR)')) - 1; // minus the S.N column
+    assert.ok(enrollmentCol > 0, 'the Enrollment Incentive column is there');
+    await page.locator(`#rows tr td[data-ci="${enrollmentCol}"]`).first().click();
     await page.keyboard.type('10000');
     await page.keyboard.press('Enter');
     await page.waitForSelector('.eg-box');
