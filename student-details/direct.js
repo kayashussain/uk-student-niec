@@ -163,6 +163,16 @@ function createDirect(dir, { now = () => new Date(), starters = STARTERS } = {})
       try { fs.rmSync(filesDir(id), { recursive: true, force: true }); } catch (e) { /* nothing to remove */ }
       return { removed: uni };
     },
+    // Puts back the whole list from a backup. An agreement whose file is no longer on disk is dropped from the page.
+    restoreAll(universities) {
+      if (!Array.isArray(universities)) return { error: 'The backup has no Partner Universities in it.' };
+      const restored = universities.filter((u) => u && /^[a-f0-9]{12}$/.test(u.id) && u.name).map((u) => {
+        const kept = full(u);
+        return { ...kept, agreements: kept.agreements.filter((a) => a.ext && fs.existsSync(path.join(filesDir(kept.id), a.id + a.ext))) };
+      });
+      write({ ...load(), universities: restored });
+      return { count: restored.length };
+    },
     // Agreement files. The file is stored under its own id (never under the name typed), the name is only kept to show.
     addAgreement(id, name, bytes, by) {
       const data = load();

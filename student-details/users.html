@@ -76,7 +76,7 @@
     <section id="panel-backup" role="tabpanel" aria-labelledby="tab-backup" hidden>
       <div class="card">
         <h2>Keep a copy</h2>
-        <p>The server already copies all students once a day and keeps the last 60 days. For a copy of your own (to keep on your computer or before a big change), download one here. It holds personal details, so keep it safe. Every download is written to the Activity record.</p>
+        <p>The server saves a backup every day after 6 p.m. and keeps 30 days. To put one back, use <b>Activity</b> → <b>Restore data</b>. For a copy of your own (to keep on your computer or before a big change), download one here. It holds personal details, so keep it safe. Every download is written to the Activity record.</p>
         <div class="form-actions">
           <a class="btn btn-primary" id="dlStudents" href="/api/backup/students.json" download>Download all students</a>
           <a class="btn" id="dlFacts" href="/api/backup/fact-file.json" download>Download the Fact File</a>
@@ -85,7 +85,7 @@
       </div>
       <div class="card">
         <h2>Daily copies on the server</h2>
-        <p>The newest 14. To restore one, ask whoever looks after the server: it is the file <code>backups/data-DATE.json</code> in the data folder.</p>
+        <p>The newest 14 of the older once-a-day copies of the students. The newer daily backups, and how to restore them, are under <b>Activity</b> → <b>Restore data</b>.</p>
         <table>
           <thead><tr><th>Date</th><th>File</th><th>Size</th></tr></thead>
           <tbody id="dailyBackups"><tr><td class="muted" colspan="3">Loading...</td></tr></tbody>

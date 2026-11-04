@@ -210,6 +210,16 @@ function createFacts(dir, { now = () => new Date() } = {}) {
       write({ ...data, universities: data.universities.filter((u) => u.id !== id) });
       return { removed: uni };
     },
+    // Puts back a whole list from a backup (each page checked and cleaned like any save).
+    restoreAll(universities) {
+      if (!Array.isArray(universities)) return { error: 'The backup has no Fact File in it.' };
+      const data = load();
+      const restored = universities.filter((u) => u && /^[a-f0-9]{12}$/.test(u.id) && u.name).map((u) => ({
+        ...clean(u, { id: u.id, name: u.name }), id: u.id, updatedAt: u.updatedAt || now().toISOString(), updatedBy: typeof u.updatedBy === 'string' ? u.updatedBy : '',
+      }));
+      write({ ...data, universities: restored });
+      return { count: restored.length };
+    },
   };
 }
 

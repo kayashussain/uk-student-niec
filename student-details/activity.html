@@ -21,6 +21,12 @@
       </div>
     </div>
 
+    <div class="tabs" role="tablist" aria-label="Sections">
+      <button role="tab" id="tab-activity" aria-controls="panel-activity" aria-selected="true">Activity</button>
+      <button role="tab" id="tab-restore" aria-controls="panel-restore" aria-selected="false">Restore data</button>
+    </div>
+
+    <section id="panel-activity" role="tabpanel" aria-labelledby="tab-activity">
     <div class="summary" id="summary" aria-label="Summary">
       <div class="tile"><span class="tile-value" id="sLogins">-</span><span class="tile-label">Logins today</span><span class="tile-sub" id="sLoginsWeek"></span></div>
       <div class="tile"><span class="tile-value" id="sPeople">-</span><span class="tile-label">People active today</span></div>
@@ -59,6 +65,27 @@
       <div class="card-head"><h2 id="resultTitle">Activity</h2><span class="muted" id="resultCount"></span></div>
       <div id="list" aria-busy="true"><span class="ui-skeleton" style="height:18px;width:35%;margin:6px 0 12px"></span><span class="ui-skeleton" style="height:14px;width:90%;margin:8px 0"></span><span class="ui-skeleton" style="height:14px;width:80%;margin:8px 0"></span><span class="ui-skeleton" style="height:14px;width:85%;margin:8px 0"></span></div>
     </div>
+    </section>
+
+    <section id="panel-restore" role="tabpanel" aria-labelledby="tab-restore" hidden>
+      <div class="card">
+        <h2>Daily backups</h2>
+        <p id="restoreIntro">Every day after 6 p.m. the server saves a backup of the students, the Fact File and the Partner Universities, and keeps the last 30 days. Older ones are deleted automatically. People's accounts and passwords are not part of a backup.</p>
+        <div class="form-actions">
+          <button class="btn btn-primary" type="button" id="backupNow">Back up now</button>
+          <span class="hint" id="restoreNow"></span>
+        </div>
+        <div class="msg" id="restoreMsg" role="status"></div>
+      </div>
+      <div class="card">
+        <h2>Restore from a backup</h2>
+        <p>Pick a day and press <b>Restore</b>. Before anything is changed, the data as it is right now is saved as a "before restore" backup, so a restore can be undone too. After a restore, ask everyone to refresh their page.</p>
+        <table>
+          <thead><tr><th>Backup</th><th>Saved</th><th>Holds</th><th>Size</th><th><span class="sr-only">Restore</span></th></tr></thead>
+          <tbody id="backupRows"><tr><td class="muted" colspan="5">Loading...</td></tr></tbody>
+        </table>
+      </div>
+    </section>
   </main>
 
 <script src="session.js"></script>

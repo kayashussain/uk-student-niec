@@ -53,6 +53,14 @@ https://<your-site>/advisor-mcp/<NIEC_ADVISOR_TOKEN>
 Anyone with that address can read all students, so keep it private. To cut access off, remove or change the variable and restart.
 Make a secret with `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`.
 
+## Daily backups and restore (Admin only)
+
+Every day after 6 p.m. (office time, `APP_TIMEZONE`, default Asia/Kathmandu) the Student Details server saves one compressed
+backup of the students, the Fact File and the Partner Universities in `daily-backups/` in the data folder, and deletes copies
+older than 30 days. If the host has put the server to sleep, the copy is made at the first request instead. Accounts and passwords
+are never in a backup. Admin restores from **Activity → Restore data** (students, Fact File and Partner Universities each on
+their own); a restore first saves the current data as a "before restore" backup. Uploaded agreement files are not in the backup.
+
 ## Where things are
 
 - `student-details/app.js`: the sheet. `facts.js` and `fact-*.js`: the Fact File. `fact-seed-*.js(on)`: the starting
