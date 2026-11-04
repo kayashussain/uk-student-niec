@@ -15,23 +15,21 @@ const str = (v, max) => (typeof v === 'string' ? v.replace(/\r\n?/g, '\n').slice
 const newId = () => crypto.randomBytes(6).toString('hex');
 
 // What is kept for a university, whatever was sent: only the known fields, as text, within limits.
+// Only what a consultancy needs day to day: campuses, commission slabs and payment terms, when the agreement ends,
+// who to contact, and a notes box for anything else.
 function clean(input, old = {}) {
   const campuses = (Array.isArray(input.campuses) ? input.campuses : []).slice(0, LIMITS.campuses).map((c) => ({
     name: str(c && c.name, LIMITS.short).trim(),
     city: str(c && c.city, LIMITS.short).trim(),
-    address: str(c && c.address, LIMITS.short).trim(),
-    notes: str(c && c.notes, LIMITS.text),
   })).filter((c) => c.name || c.city);
   // The slabs: one row per band, e.g. level "UG", students "1 to 5", commission "15% of the first year fee".
   const slabs = (Array.isArray(input.slabs) ? input.slabs : []).slice(0, LIMITS.slabs).map((s) => ({
     level: str(s && s.level, LIMITS.short).trim(),
     students: str(s && s.students, LIMITS.short).trim(),
     commission: str(s && s.commission, LIMITS.short).trim(),
-    note: str(s && s.note, LIMITS.text),
-  })).filter((s) => s.level || s.students || s.commission || s.note);
+  })).filter((s) => s.level || s.students || s.commission);
   const contacts = (Array.isArray(input.contacts) ? input.contacts : []).slice(0, LIMITS.contacts).map((c) => ({
     name: str(c && c.name, LIMITS.short).trim(),
-    role: str(c && c.role, LIMITS.short).trim(),
     email: str(c && c.email, LIMITS.short).trim(),
     phone: str(c && c.phone, LIMITS.short).trim(),
   })).filter((c) => c.name || c.email || c.phone);
@@ -39,26 +37,11 @@ function clean(input, old = {}) {
   return {
     id: old.id,
     name: str(input.name, LIMITS.name).trim() || old.name || '',
-    country: str(input.country, LIMITS.short).trim(),
-    website: str(input.website, LIMITS.short).trim(),
     status,
     campuses,
-    // Commission
-    commissionSummary: str(input.commissionSummary, LIMITS.text),
     slabs,
-    commissionConditions: str(input.commissionConditions, LIMITS.text),
     paymentTerms: str(input.paymentTerms, LIMITS.text),
-    bonus: str(input.bonus, LIMITS.text),
-    // Agreement and working with the university
-    agreementType: str(input.agreementType, LIMITS.short).trim(),
-    agreementStart: str(input.agreementStart, 40).trim(),
     agreementEnd: str(input.agreementEnd, 40).trim(),
-    territory: str(input.territory, LIMITS.text),
-    intakes: str(input.intakes, LIMITS.text),
-    portal: str(input.portal, LIMITS.short).trim(),
-    applicationProcess: str(input.applicationProcess, LIMITS.text),
-    scholarships: str(input.scholarships, LIMITS.text),
-    marketing: str(input.marketing, LIMITS.text),
     contacts,
     notes: str(input.notes, LIMITS.text),
   };
@@ -74,9 +57,9 @@ const STARTERS = [
     name: 'Bangor University', campuses: [{ name: 'Main Campus', city: 'Bangor, Wales' }],
     // The regional team named on Bangor's flyer (also in its Fact File page).
     contacts: [
-      { name: 'Braj Jha', role: 'Regional Manager', email: 'b.jha@bangor.ac.uk', phone: '+44 7833769210' },
-      { name: 'Rajinder Kaur', role: 'Senior Regional Officer', email: 'r.kaur@bangor.ac.uk', phone: '+91 98770 80865' },
-      { name: 'Swathy Nair', role: 'Regional Officer', email: 's.nair@bangor.ac.uk', phone: '+91 98714 92221' },
+      { name: 'Braj Jha (Regional Manager)', email: 'b.jha@bangor.ac.uk', phone: '+44 7833769210' },
+      { name: 'Rajinder Kaur (Senior Regional Officer)', email: 'r.kaur@bangor.ac.uk', phone: '+91 98770 80865' },
+      { name: 'Swathy Nair (Regional Officer)', email: 's.nair@bangor.ac.uk', phone: '+91 98714 92221' },
     ],
   },
   { name: 'Middlesex University', campuses: [{ name: 'London Campus', city: 'London' }] },
@@ -87,7 +70,7 @@ function createDirect(dir, { now = () => new Date(), starters = STARTERS } = {})
   let cache = null; // { mtimeMs, size, data }
 
   function start() {
-    const universities = starters.map((u) => ({ ...clean({ country: 'United Kingdom', ...u }), id: newId(), updatedAt: now().toISOString(), updatedBy: '' }));
+    const universities = starters.map((u) => ({ ...clean(u), id: newId(), updatedAt: now().toISOString(), updatedBy: '' }));
     const data = { universities };
     if (universities.length) write(data);
     return data;
@@ -114,12 +97,13 @@ function createDirect(dir, { now = () => new Date(), starters = STARTERS } = {})
 
   const full = (u) => ({ ...clean(u, u), id: u.id, updatedAt: u.updatedAt, updatedBy: u.updatedBy || '' });
   const summary = (u) => ({
-    id: u.id, name: u.name, country: u.country, status: u.status,
+    id: u.id, name: u.name, status: u.status,
     campuses: u.campuses.map((c) => [...new Set([c.name, c.city].filter(Boolean))].join(', ')),
-    slabCount: u.slabs.length, commissionSummary: u.commissionSummary,
+    slabCount: u.slabs.length,
+    slabs: u.slabs.map((x) => [x.level, x.students, x.commission].filter(Boolean).join(' ')),
     agreementEnd: u.agreementEnd, updatedAt: u.updatedAt,
     // The first contact person is shown in the list; the rest are on the university's page.
-    contact: u.contacts[0] || { name: '', role: '', email: '', phone: '' }, contactCount: u.contacts.length,
+    contact: u.contacts[0] || { name: '', email: '', phone: '' }, contactCount: u.contacts.length,
   });
 
   return {

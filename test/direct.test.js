@@ -18,16 +18,17 @@ test('the list starts empty and keeps campuses, slabs and contacts as plain text
   const { university } = direct.create('  Bangor University ', 'Kayas');
   assert.strictEqual(university.name, 'Bangor University');
   const saved = direct.update(university.id, {
-    name: 'Bangor University', status: 'Active', country: 'United Kingdom',
+    name: 'Bangor University', status: 'Active', website: 'https://dropped.example', bonus: 'dropped',
     campuses: [{ name: 'Main Campus', city: 'Bangor, Wales' }, { name: '', city: '' }],
     slabs: [{ level: 'UG', students: '1 to 10', commission: '15%' }, { level: '', students: '', commission: '', note: '' }],
-    contacts: [{ name: 'Braj Jha', role: 'Regional Manager', email: 'b.jha@bangor.ac.uk' }],
+    contacts: [{ name: 'Braj Jha', email: 'b.jha@bangor.ac.uk' }],
     paymentTerms: 'Within 60 days\r\nof census', evil: '<script>', status2: 'x',
   }, 'Kayas');
   assert.strictEqual(saved.university.campuses.length, 1, 'blank rows are dropped');
   assert.strictEqual(saved.university.slabs.length, 1);
   assert.strictEqual(saved.university.paymentTerms, 'Within 60 days\nof census');
   assert.strictEqual(saved.university.evil, undefined);
+  assert.strictEqual(saved.university.website, undefined, 'fields that are no longer asked for are not kept');
   assert.deepStrictEqual(direct.list()[0].campuses, ['Main Campus, Bangor, Wales']);
   assert.strictEqual(direct.list()[0].slabCount, 1);
   // survives a restart
@@ -43,7 +44,7 @@ test('a new list starts with the five direct universities, once, and a removed o
   assert.deepStrictEqual(STARTERS.map((u) => u.name), ['Ulster University (QA)', 'Northumbria University London (QA)', 'University of West London', 'Bangor University', 'Middlesex University']);
   assert.ok(direct.list().every((u) => u.campuses.length > 0 && u.slabCount === 0), 'campuses filled in, no commission invented');
   const bangor = direct.list().find((u) => u.name === 'Bangor University');
-  assert.strictEqual(bangor.contact.name, 'Braj Jha', 'the list shows the first contact person');
+  assert.strictEqual(bangor.contact.name, 'Braj Jha (Regional Manager)', 'the list shows the first contact person');
   assert.strictEqual(bangor.contact.phone, '+44 7833769210');
   assert.strictEqual(bangor.contact.email, 'b.jha@bangor.ac.uk');
   assert.strictEqual(bangor.contactCount, 3);
