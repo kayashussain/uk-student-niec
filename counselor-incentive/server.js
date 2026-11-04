@@ -4,7 +4,7 @@
 // (read directly off disk, same machine, no network hop needed). A student surfaces
 // here automatically the moment their APPLICATION STATUS is set to "Visa Issued" over
 // there, grouped under the same sheet/tab name (the "intake"). Incentive-specific
-// numbers (Enrollment, Enrollment from University, New Partnership, Direct Student,
+// numbers (Enrollment, Enrollment from University, New Partnership,
 // Flywire, Loan) live only in this app's own commissions.json, keyed by the student's
 // stable _id. Each intake's Previous Advance (and basic salary / salary months for the
 // earnings comparison) lives in advances.json, keyed by

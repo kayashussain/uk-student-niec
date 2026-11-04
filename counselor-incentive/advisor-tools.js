@@ -75,7 +75,7 @@ function createIncentiveTools({ getSync, getCommissions, getAdvances, getRate })
         students: (sync.byIntake[name] || []).map((s) => {
           const c = commissions[s.id] || {};
           const total = calc.num(c.enrollmentCommission) + calc.num(c.enrollmentCommissionUni) + calc.num(c.newPartnershipCommission)
-            + calc.num(c.selfStudentCommission) + calc.num(c.flywireCommission);
+            + calc.num(c.flywireCommission);
           return {
             intake: name,
             student: s.name,
@@ -91,7 +91,6 @@ function createIncentiveTools({ getSync, getCommissions, getAdvances, getRate })
             enrollmentIncentiveNpr: calc.num(c.enrollmentCommission),
             enrollmentIncentiveFromUniversityNpr: calc.num(c.enrollmentCommissionUni),
             newPartnershipIncentiveNpr: calc.num(c.newPartnershipCommission),
-            directStudentIncentiveNpr: calc.num(c.selfStudentCommission),
             flywireFeePaymentGbp: calc.num(c.flywireFeePayment),
             flywireIncentiveNpr: calc.num(c.flywireCommission),
             loanIncentiveToShareNpr: calc.num(c.loanCommission),
