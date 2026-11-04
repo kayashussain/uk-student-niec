@@ -60,7 +60,6 @@
         <button type="button" role="menuitem" class="niec-logout">Log out</button>
       </div>`;
     const btn = account.querySelector('.niec-account-btn');
-    if ((MENU_LINKS[me.role] || []).some(([id]) => id === page)) btn.setAttribute('aria-current', 'page'); // the page open is in this menu
     const menu = account.querySelector('.niec-menu');
     const setOpen = (open) => { menu.hidden = !open; btn.setAttribute('aria-expanded', String(open)); };
     btn.addEventListener('click', (e) => { e.stopPropagation(); setOpen(menu.hidden); });
