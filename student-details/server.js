@@ -46,6 +46,8 @@ const serveStatic = createStaticServer(ROOT, {
   '/fact-university.js': 'text/javascript; charset=utf-8',
   '/fact-file.css': 'text/css; charset=utf-8',
   '/direct.html': 'text/html; charset=utf-8',
+  '/backup-view.html': 'text/html; charset=utf-8',
+  '/backup-view.js': 'text/javascript; charset=utf-8',
   '/direct-page.js': 'text/javascript; charset=utf-8',
   '/calc.js': 'text/javascript; charset=utf-8',
   '/suggest.js': 'text/javascript; charset=utf-8',
@@ -593,7 +595,7 @@ const server = http.createServer(async (req, res) => {
     // The pages. The Manager lands on the dashboard; Admin-only pages send anyone else back home.
     const home = req.user.role === 'manager' ? '/dashboard' : '/students';
     if (req.method === 'GET') {
-      const page = { '/students': 'index.html', '/dashboard': 'dashboard.html', '/users': 'users.html', '/activity': 'activity.html', '/partner-universities': 'direct.html' }[urlPath];
+      const page = { '/students': 'index.html', '/dashboard': 'dashboard.html', '/users': 'users.html', '/activity': 'activity.html', '/partner-universities': 'direct.html', '/backup-view': 'backup-view.html' }[urlPath];
       if (urlPath === '/') return req.user.role === 'manager' ? send(res, 302, '', { Location: '/dashboard' }) : serveStatic(req, res);
       if (urlPath === '/fact-file') { // the list, or one university's page (?u=...); every account may read
         req.url = new URL(req.url, 'http://x').searchParams.get('u') ? '/fact-university.html' : '/fact-file.html';
