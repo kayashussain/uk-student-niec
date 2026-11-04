@@ -28,7 +28,9 @@
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
 
-.page { max-width: 1120px; margin: 0 auto; padding: 20px 16px 48px; }
+/* The same content width, margins and scrollbar space as the Dashboard and the Fact File, so the page does not jump sideways when you move between them. */
+html { scrollbar-gutter: stable; }
+.page { max-width: 1240px; margin: 0 auto; padding: 20px 16px 48px; }
 .page-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
 .page-head h1 { margin: 0; font-size: 22px; }
 .page-head p { margin: 2px 0 0; color: var(--dim); }
