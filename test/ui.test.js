@@ -25,7 +25,7 @@ test('screens: log in, edit, delete, search, team rules, Fact File', { timeout: 
   const port = await freePort();
   const server = spawn(process.execPath, ['server.js'], {
     cwd: path.join(__dirname, '..', 'student-details'),
-    env: { ...process.env, PORT: String(port), STUDENT_DETAILS_DATA_DIR: dir, COUNSELOR_DATA_DIR: path.join(dir, 'incentive'), INCENTIVE_PASSWORD: 'Kuber Test Pass' }, stdio: 'ignore',
+    env: { ...process.env, PORT: String(port), STUDENT_DETAILS_DATA_DIR: dir, COUNSELOR_DATA_DIR: path.join(dir, 'incentive'), INCENTIVE_PASSWORD: 'Test Gate Pass 1' }, stdio: 'ignore',
   });
   t.after(async () => { server.kill(); await browser.close(); });
   const base = `http://127.0.0.1:${port}`;
@@ -200,7 +200,7 @@ test('screens: log in, edit, delete, search, team rules, Fact File', { timeout: 
     await gate.click('#go');
     await gate.waitForFunction(() => document.querySelector('#err').textContent.length > 0);
     assert.match(await gate.textContent('#err'), /not right/);
-    await gate.fill('#pw', 'Kuber Test Pass');
+    await gate.fill('#pw', 'Test Gate Pass 1');
     await gate.click('#go');
     await gate.waitForSelector('#rows tr');
     assert.deepStrictEqual(gate.errors.filter((e) => !/40[13]/.test(e)), []);
