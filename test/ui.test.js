@@ -82,6 +82,24 @@ test('screens: log in, edit, delete, search, team rules, Fact File', { timeout: 
     await page.close();
   });
 
+  await t.test('Incentive asks for its password every time: after visiting Student Details, and after a reload', async () => {
+    const pass = 'Test Gate Pass 1';
+    assert.ok((await admin.request.post(incentiveBase + '/api/unlock', { data: { password: pass } })).ok());
+    const page = await open(admin, incentiveBase + '/');
+    await page.waitForSelector('#rows tr');
+    await page.goto('/students');
+    await page.waitForSelector('#body tr:not(.pad-row)');
+    await page.goto(incentiveBase + '/');
+    await page.waitForSelector('#pw', { timeout: 10000 }); // back to Incentive after Student Details: asked again
+    assert.strictEqual(await page.locator('#rows').count(), 0, 'no figures before the password');
+    await page.fill('#pw', pass);
+    await page.click('#go');
+    await page.waitForSelector('#rows tr');
+    await page.reload();
+    await page.waitForSelector('#pw', { timeout: 10000 }); // a reload asks again too
+    await page.close();
+  });
+
   await t.test('columns fit what is in them: a very long email is shown in full, and nothing else in the first rows is cut off', async () => {
     const fresh = await (await admin.request.get('/api/data')).json();
     fresh.sheets[0].rows[0].EMAIL = 'a.very.long.student.email.address.for.testing@gmail.com';
@@ -215,8 +233,7 @@ test('screens: log in, edit, delete, search, team rules, Fact File', { timeout: 
     await gate.click('#go');
     await gate.waitForSelector('#rows tr');
     assert.deepStrictEqual(gate.errors.filter((e) => !/40[13]/.test(e)), []);
-    await gate.close();
-    const page = await open(admin, incentiveBase + '/');
+    const page = gate; // closing the page would lock Incentive again (that is the point), so carry on in it
     await page.waitForSelector('#rows tr');
     assert.strictEqual(await page.locator('#rows tr').count(), 1, 'only the Visa Issued student is listed');
     // The Incentive page has the shared NIEC header, a Student Source column, and no (i) on University Partner.
@@ -332,6 +349,7 @@ test('screens: log in, edit, delete, search, team rules, Fact File', { timeout: 
     for (const scheme of ['light', 'dark']) {
       const ctx = await browser.newContext({ baseURL: base, storageState: await admin.storageState(), colorScheme: scheme, viewport: { width: 1440, height: 900 } });
       for (const url of ['/students', '/dashboard', '/users', '/activity', '/fact-file', incentiveBase + '/']) {
+        if (url === incentiveBase + '/') await ctx.request.post('/incentive/api/unlock', { data: { password: 'Test Gate Pass 1' } }); // every other page locks it again
         const page = await ctx.newPage();
         await page.goto(url);
         if (url === incentiveBase + '/') await page.waitForSelector('#rows tr'); // it keeps a live connection open, so the network is never idle

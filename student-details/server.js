@@ -3,7 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const zlib = require('zlib');
 const {
-  sendJSON, send, isSecureRequest, SECURITY_HEADERS, createActivityLog, createStaticServer, SHARED_FILES, PUBLIC_SHARED, readJSONBody,
+  sendJSON, send, SECURITY_HEADERS, createActivityLog, createStaticServer, SHARED_FILES, PUBLIC_SHARED, readJSONBody,
   writeFileAtomic, snapshotDaily, localDate,
 } = require('../shared/server-utils');
 const { createAccounts } = require('../shared/accounts');
@@ -107,6 +107,7 @@ const advisor = createAdvisorMcp({
 // The Incentive page lives here, at /incentive: Admin only, and behind its own password (INCENTIVE_PASSWORD) on top of the
 // login. The Claude connector above does not go through any of this: it reads the same data folder with its own secret address.
 const incentiveLock = createIncentiveLock();
+const PAGE_PATHS = new Set(['/', '/students', '/dashboard', '/users', '/activity', '/partner-universities', '/fact-file', '/admin']);
 const incentive = createIncentive({ dataDir: INCENTIVE_DIR, studentDataFile: DATA_FILE, getWorkbook: () => current, activity });
 
 async function handleIncentive(req, res, urlPath) {
@@ -116,6 +117,10 @@ async function handleIncentive(req, res, urlPath) {
   req.url = inner + query;
   if (SHARED_FILES[inner]) return serveShared(req, res); // header, styles, logo: nothing private in them
   const api = inner.startsWith('/api/');
+  if (inner === '/api/lock' && req.method === 'POST') { // sent by the Incentive page as it is closed, reloaded or left
+    incentiveLock.lock(req.sessionId);
+    return sendJSON(res, 200, { ok: true });
+  }
   if (!isAdmin(req.user)) {
     if (api) return sendJSON(res, 403, { error: 'Only Admin can see the Incentive page.' });
     return send(res, 302, '', { Location: '/' });
@@ -127,7 +132,7 @@ async function handleIncentive(req, res, urlPath) {
     } catch (e) {
       return sendJSON(res, e.statusCode || 400, { error: e.message });
     }
-    const result = incentiveLock.unlock(req, res, body && body.password, { secure: isSecureRequest(req) });
+    const result = incentiveLock.unlock(req, body && body.password);
     if (result.ok) {
       activity.record(req, req.user, 'Opened Incentive', { changes: ['Entered the Incentive password'] });
       return sendJSON(res, 200, { ok: true });
@@ -667,6 +672,8 @@ const server = http.createServer(async (req, res) => {
     if (await accounts.handleApi(req, res, urlPath)) return;
     if (!requireAuth(req, res)) return;
 
+    // Going to any other page of the site locks Incentive again, so its password is asked every time.
+    if (req.method === 'GET' && PAGE_PATHS.has(urlPath)) incentiveLock.lock(req.sessionId);
     if (urlPath === '/commission' || urlPath.startsWith('/commission/')) return send(res, 301, '', { Location: '/incentive/' }); // the old address of Incentive
     if (urlPath === '/incentive' || urlPath.startsWith('/incentive/')) return await handleIncentive(req, res, urlPath);
 

@@ -13,28 +13,35 @@ const GATE = 'Test Gate Pass 1';
 const freePort = () => new Promise((resolve) => { const s = net.createServer().listen(0, () => { const p = s.address().port; s.close(() => resolve(p)); }); });
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
-test('the lock: no password set means closed; a cookie only works for the login that earned it', () => {
+test('the lock: no password set means closed; an unlock belongs to one login only and lapses when idle', () => {
   const none = createIncentiveLock({ password: '' });
   assert.strictEqual(none.configured, false);
-  assert.strictEqual(none.unlock({ headers: {}, user: { id: 'a' }, sessionId: 's1' }, { setHeader() {} }, 'x').status, 503);
+  assert.strictEqual(none.unlock({ user: { id: 'a' }, sessionId: 's1' }, 'x').status, 503);
 
-  const lock = createIncentiveLock({ password: GATE });
-  let cookie = '';
-  const res = { setHeader: (k, v) => { cookie = v.split(';')[0]; } };
-  const req = (sessionId) => ({ headers: { cookie }, user: { id: 'u1' }, sessionId });
-  assert.strictEqual(lock.unlock(req('s1'), res, 'wrong').status, 403);
+  let clock = 1000;
+  const lock = createIncentiveLock({ password: GATE, now: () => clock });
+  const req = (sessionId) => ({ user: { id: 'u1' }, sessionId });
+  assert.strictEqual(lock.unlock(req('s1'), 'wrong').status, 403, 'a wrong password is a 403, never a 401 (a 401 sends people to the login page)');
   assert.strictEqual(lock.isUnlocked(req('s1')), false);
-  assert.ok(lock.unlock(req('s1'), res, ` ${GATE} `).ok, 'surrounding spaces do not matter');
+  assert.ok(lock.unlock(req('s1'), ` ${GATE} `).ok, 'surrounding spaces do not matter');
   assert.strictEqual(lock.isUnlocked(req('s1')), true);
   assert.strictEqual(lock.isUnlocked(req('s2')), false, 'another login does not inherit the unlock');
-  assert.strictEqual(createIncentiveLock({ password: 'Another Test Pass' }).isUnlocked(req('s1')), false, 'a changed password locks it again');
+  lock.lock('s1');
+  assert.strictEqual(lock.isUnlocked(req('s1')), false, 'locked again once the person leaves');
+  lock.unlock(req('s1'), GATE);
+  clock += 19 * 60 * 1000;
+  assert.strictEqual(lock.isUnlocked(req('s1')), true, 'still open while in use (this keeps it open another 20 minutes)');
+  clock += 19 * 60 * 1000;
+  assert.strictEqual(lock.isUnlocked(req('s1')), true);
+  clock += 21 * 60 * 1000;
+  assert.strictEqual(lock.isUnlocked(req('s1')), false, 'an untouched page locks itself after 20 minutes');
 });
 
 test('the lock: five wrong passwords in a row make the person wait', () => {
   const lock = createIncentiveLock({ password: GATE });
-  const r = { headers: {}, user: { id: 'u9' }, sessionId: 's' };
-  for (let i = 0; i < 5; i += 1) assert.strictEqual(lock.unlock(r, { setHeader() {} }, 'no').status, 403);
-  assert.strictEqual(lock.unlock(r, { setHeader() {} }, GATE).status, 429, 'even the right password waits');
+  const r = { user: { id: 'u9' }, sessionId: 's' };
+  for (let i = 0; i < 5; i += 1) assert.strictEqual(lock.unlock(r, 'no').status, 403);
+  assert.strictEqual(lock.unlock(r, GATE).status, 429, 'even the right password waits');
 });
 
 test('Incentive in the real app: Admin only, password first, and the connector needs no password', { timeout: 60000 }, async (t) => {
@@ -91,6 +98,22 @@ test('Incentive in the real app: Admin only, password first, and the connector n
     assert.strictEqual((await admin.post('/incentive/api/unlock', { password: GATE })).status, 200);
     assert.strictEqual((await admin.call('/incentive/api/commissions')).status, 200);
     assert.match(await (await admin.call('/incentive/')).text(), /id="rows"/);
+  });
+
+  await t.test('the password is asked every time: going to another page, or leaving Incentive, locks it again', async () => {
+    assert.strictEqual((await admin.post('/incentive/api/unlock', { password: GATE })).status, 200);
+    assert.strictEqual((await admin.call('/incentive/api/commissions')).status, 200, 'open after the password');
+    // Behind-the-scenes calls that every page makes do not lock it.
+    assert.strictEqual((await admin.call('/api/me')).status, 200);
+    assert.strictEqual((await admin.call('/incentive/api/commissions')).status, 200, 'still open after /api/me');
+    // Going to Student Details (a page) does.
+    assert.strictEqual((await admin.call('/students')).status, 200);
+    assert.strictEqual((await admin.call('/incentive/api/commissions')).status, 403, 'locked after visiting Student Details');
+    assert.match(await (await admin.call('/incentive/')).text(), /id="pw"/, 'the password page is shown again');
+    // The page locks itself as it is left or closed.
+    assert.strictEqual((await admin.post('/incentive/api/unlock', { password: GATE })).status, 200);
+    assert.strictEqual((await admin.post('/incentive/api/lock', {})).status, 200);
+    assert.strictEqual((await admin.call('/incentive/api/commissions')).status, 403, 'locked after leaving Incentive');
   });
 
   await t.test('the Claude connector reads incentives without any password', async () => {

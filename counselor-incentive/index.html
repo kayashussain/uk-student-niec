@@ -340,6 +340,12 @@ fetch('/api/me', { cache: 'no-store' }).then((r) => (r.ok ? r.json() : null)).th
   if (me && me.role === 'admin') document.getElementById('exportExcelBtn').hidden = false;
 }).catch(() => {});
 </script>
+<script>
+// Closing, reloading or leaving this page locks Incentive again, so its password is asked every time. A page brought back
+// from the browser's memory (the Back button) is reloaded, which shows the password page instead of the old figures.
+window.addEventListener('pagehide', () => { try { navigator.sendBeacon('/incentive/api/lock'); } catch (e) { /* the 20-minute idle lock still applies */ } });
+window.addEventListener('pageshow', (e) => { if (e.persisted) location.reload(); });
+</script>
 <script src="edit-guard.js"></script>
 <script>
 // This page may be mounted at a sub-path (e.g. /incentive) rather than a domain's root,

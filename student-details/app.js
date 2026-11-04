@@ -918,7 +918,7 @@
   const TEXT_LIMITS = { // [narrowest, widest] width of the cell's text
     'FIRST NAME': [84, 180], 'LAST NAME': [84, 180], 'EMAIL': [170, 440], 'CONTACT NUMBER': [100, 150], 'UK CONTACT NUMBER': [100, 150],
     'STUDENT ID': [90, 170], 'NOC NUMBER': [90, 170], 'UNIVERSITY NAME': [150, 300], 'COURSE NAME': [170, 320],
-    'RECEIVING PARTNER': [120, 240], 'UNIVERSITY PARTNER': [120, 240],
+    'RECEIVING PARTNER': [120, 240], 'UNIVERSITY PARTNER': [120, 240], 'REMARKS': [90, 132],
   };
   let colWidths = {};
   let colWidthsFor = null;

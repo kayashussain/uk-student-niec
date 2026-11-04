@@ -52,8 +52,12 @@
     --sh-1: 0 1px 2px rgba(0, 0, 0, .35); --sh-2: 0 8px 20px -14px rgba(0, 0, 0, .6); --sh-3: 0 16px 34px -18px rgba(0, 0, 0, .7);
   }
 }
+/* One font for everything you read and type: the system's own (Segoe UI on Windows, San Francisco on a Mac). The serif is
+   only for page titles and the big numbers. Buttons and fields do not take the page font by themselves, so they are told to. */
+:root { --font: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+html, body, button, input, select, textarea, table, th, td, dialog, a, .niec-header, .niec-header *, .ui-toast, .ui-dialog, .ui-dialog * { font-family: var(--font); }
 body { background: var(--bg); color: var(--text); letter-spacing: 0; }
-h1, .kpi-value, .hero-value, .stat-card .stat-value { font-family: var(--serif); }
+h1, .kpi-value, .hero-value, .stat-card .stat-value, .summary-title, .summary-row.final .value { font-family: var(--serif); }
 .hero-value { font-weight: 500; letter-spacing: -.035em; }
 
 /* ---- header ---- */
@@ -194,7 +198,7 @@ input.search:focus { outline: none; border-color: var(--niec-blue); box-shadow: 
 .grid-footer { color: var(--text-dim); }
 @media (prefers-color-scheme: dark) { .summary-row.final { background: #1d222b; } }
 @media (max-width: 760px) { .wrap { padding: 6px 14px 40px; } .top { margin: 0 -14px 10px !important; padding: 18px 14px 4px !important; } .top .brand h1 { font-size: 28px !important; } input.search { width: 100%; } }
-.page-head h1 .pill, h1 .pill { font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; font-weight: 600; letter-spacing: 0; }
+.page-head h1 .pill, h1 .pill { font-family: var(--font); font-weight: 600; letter-spacing: 0; }
 .row > .btn { justify-self: start; }
 
 
@@ -204,14 +208,16 @@ input.search:focus { outline: none; border-color: var(--niec-blue); box-shadow: 
    ===================================================================================================== */
 
 /* ---- the status strip: every box the same size, the numbers on one line, equal gaps (no zigzag) ---- */
-.stat-group-cards { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(92px, 1fr); gap: 6px; align-items: stretch; overflow-x: auto; padding-bottom: 4px; }
+.stat-group-cards { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(70px, 1fr); gap: 5px; width: max(70%, 1040px); max-width: 100%; align-items: stretch; overflow-x: auto; padding-bottom: 4px; }
 .stat-card, .stat-card.stat-total {
-  display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 4px; min-width: 0; padding: 10px 6px 8px; text-align: center;
+  display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 4px; min-width: 0; padding: 9px 3px 8px; text-align: center;
   background: var(--panel); border: 1px solid var(--border); border-radius: var(--r-md); box-shadow: var(--sh-1);
   transition: box-shadow .2s ease, border-color .2s ease, background-color .2s ease;
 }
 .stat-card:hover { border-color: var(--niec-blue); box-shadow: var(--sh-2); }
-.stat-card .stat-label { display: block; width: 100%; min-height: 2.5em; white-space: normal; line-height: 1.25; text-align: center; }
+.stat-card .stat-label { display: block; width: 100%; min-height: 2.5em; white-space: normal; line-height: 1.25; text-align: center; font-size: 9.5px; letter-spacing: .02em; font-weight: 500; overflow: hidden; text-overflow: clip; }
+.stat-card .stat-value, .stat-card.stat-total .stat-value { font-size: 22px; }
+@media (max-width: 1100px) { .stat-group-cards { width: 100%; max-width: 100%; } }
 .stat-card.stat-total { background: var(--blue-bg); border-color: color-mix(in srgb, var(--niec-blue) 45%, var(--border)); box-shadow: inset 0 -3px 0 var(--niec-blue), var(--sh-1); }
 .stat-card.stat-total .stat-label { color: var(--blue-fg); }
 .stat-card.stat-rate { border-color: color-mix(in srgb, #fc6e1f 40%, var(--border)); box-shadow: inset 0 -3px 0 #fc6e1f, var(--sh-1); }
@@ -223,11 +229,9 @@ input.search:focus { outline: none; border-color: var(--niec-blue); box-shadow: 
 .filter-menu, .ui-dialog { border-radius: var(--r-md); border: 1px solid var(--border-strong); box-shadow: var(--sh-3); }
 
 /* ---- cards that answer the mouse (hover only: the page itself stays still) ---- */
-.kpi, .hero, .uni-card { position: relative; transition: transform .22s var(--ease), box-shadow .22s var(--ease), border-color .22s ease; }
-.kpi:hover, .hero:hover { transform: translateY(-4px); box-shadow: var(--sh-3); }
-.kpi::before, .hero::after { content: ""; position: absolute; left: 16px; top: 0; width: 38px; height: 3px; border-radius: 0 0 3px 3px; background: #00adef; transition: width .3s var(--ease), left .3s var(--ease), background .3s ease; }
-.hero::after { left: 22px; }
-.kpi:hover::before, .hero:hover::after { left: 0; width: 100%; border-radius: 14px 14px 0 0; background: linear-gradient(90deg, #00adef, #fc6e1f); }
+.kpi, .hero, .uni-card { position: relative; transition: transform .25s var(--ease), box-shadow .25s var(--ease), border-color .25s ease; }
+.kpi, .hero { border-radius: 22px; border-color: var(--border); box-shadow: var(--sh-1); }
+.kpi:hover, .hero:hover { transform: translateY(-2px); box-shadow: var(--sh-2); }
 
 /* ---- Fact File: brand colour, a monogram, a lift on hover ---- */
 .uni-card { border-left: 4px solid var(--niec-blue); border-radius: var(--r-lg); padding: 20px 22px 18px; gap: 8px; }
@@ -249,3 +253,13 @@ p.count:empty { display: none; }
 @keyframes t-fade { from { opacity: 0; } to { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .kpi:hover, .hero:hover, .uni-card:hover { transform: none; } .page, .wrap, .app-main { animation: none; } }
 .uni-card:hover { border-color: var(--border-strong); border-left-color: #fc6e1f; }
+
+/* ---- names in lists are normal text, not blue links ---- */
+.open-link { color: var(--text); font-weight: 500; }
+.open-link:hover { color: var(--text); text-decoration: underline; text-decoration-color: var(--niec-blue); text-underline-offset: 3px; }
+
+/* ---- Fact File university page: the NIEC brand kept as a soft tint, in the same family as the rest ---- */
+.doc h2 { color: var(--text); }
+.glance { background: color-mix(in srgb, var(--blue-bg) 60%, var(--panel)); }
+.glance dt { color: var(--blue-fg); }
+.programs th { background: color-mix(in srgb, var(--blue-bg) 60%, var(--panel)); color: var(--head-ink); }

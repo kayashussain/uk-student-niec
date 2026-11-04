@@ -70,8 +70,10 @@ Add this to the **student-details** app's Environment Variables, then **Restart*
 How Incentive works now:
 
 - Only the **Admin** account can open it (account menu → **Incentive**). Nobody else can, whatever they know.
-- Admin types **only that password** (no username). It then stays open for 4 hours on that login. Five wrong tries
-  in a row make the person wait 15 minutes. Changing `INCENTIVE_PASSWORD` and restarting locks it again everywhere.
+- Admin types **only that password** (no username). It is asked **every time**: going to any other page (Student Details,
+  Dashboard ...), reloading Incentive or closing it locks it again, and an Incentive page left untouched for 20 minutes
+  locks itself. Five wrong tries in a row make the person wait 15 minutes. Changing `INCENTIVE_PASSWORD` and restarting
+  locks it again everywhere.
 - If `INCENTIVE_PASSWORD` is not set, Incentive stays locked and says so. The password is never in the code or in git.
 - The old address `/commission` forwards to `/incentive/`.
 - The **Claude connector** (`/advisor-mcp/<token>`) reads the same data folder directly with its own secret address,
