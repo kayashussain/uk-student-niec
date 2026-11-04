@@ -385,9 +385,11 @@ test('screens: log in, edit, delete, search, team rules, Fact File', { timeout: 
     assert.strictEqual((await again.textContent('#earnHead')).trim(), '£480.00', '30% of £1,600');
     assert.match(await again.textContent('#earnNpr'), /96,000\.00/, '£480 at Rs 200');
     // The list: who the branch took commission from, which branch, and how much.
-    const list = (await again.locator('[data-branch-row]').allTextContents()).map((t) => t.replace(/\s+/g, ' ').trim());
-    assert.ok(list.some((t) => /Taken by the branches/.test(t)), 'the list has a heading');
-    assert.ok(list.some((t) => /Pokhara Branch/.test(t) && /commission £1,600\.00/.test(t) && /£1,120\.00/.test(t)), 'the student, the branch, the commission and the 70%: ' + list.join(' | '));
+    const table = (await again.locator('.branch-table').innerText()).replace(/\s+/g, ' ');
+    assert.match(await again.textContent('.branch-table-title'), /Taken by the branches/);
+    assert.match(table, /Student Branch University commission Branch keeps 70% Head office keeps 30%/, 'the table has its headings');
+    assert.match(table, /Pokhara Branch £1,600\.00 £1,120\.00 £480\.00/, 'the student row: branch, commission, 70%, 30%: ' + table);
+    assert.match(table, /All branches 1 student £1,600\.00 £1,120\.00 £480\.00/, 'and the total row');
     assert.match(await again.textContent('#earnBranchRow'), /Total Branch Share Deducted/);
     // Company Earnings end in pounds, with the time the rate was fetched beside the rupee figure.
     assert.match(await again.textContent('#earnRateHint'), /£1 = 200 NPR, fetched /);

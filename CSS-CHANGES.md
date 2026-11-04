@@ -9,6 +9,16 @@ Format: **date · file · what · from → to · why**
 
 ---
 
+## 2026-11-04 · `counselor-incentive/index.html` · Company Earnings: branch list shown as a table
+
+- **What:** the "Taken by the branches" list under Total Commission from Universities.
+- **From:** a plain list of rows (student name, amount) with bold subtotal lines → **to:** a proper table with a header row (Student, Branch, University commission, Branch keeps 70%, Head office keeps 30%), no vertical lines between columns, numbers right-aligned, a light grey subtotal row for each branch with more than one student, and a shaded total row "All branches".
+- **Fonts and colours:** the same as the rest of the page (13px text, grey 11px headings, the existing soft shaded total colour).
+- **Why:** easier to read and check at a glance.
+- **In the code:** marked with `🔴 CSS CHANGED` at the end of the `<style>` block of `counselor-incentive/index.html`.
+
+---
+
 ## 2026-11-04 · `counselor-incentive/index.html` · Payments Received card and exchange rate row (Incentive page)
 
 - **What:** the new "Payments Received" card under the Payment Summary, and the exchange rate row at the top of the Payment Summary.
