@@ -8,11 +8,12 @@ const crypto = require('crypto');
 const { writeFileAtomic } = require('../shared/server-utils');
 const { UWL_DETAILS } = require('./fact-seed-uwl');
 const { YSJU_DETAILS } = require('./fact-seed-ysju');
+const { BANGOR_DETAILS } = require('./fact-seed-bangor');
 // The January 2027 intake sheet: each university's criteria, fees, courses and key dates (see fact-seed-sheet.json).
 const SHEET = require('./fact-seed-sheet.json');
 
 // The hand-written pages (from each university's own fact file or flyer). The January 2027 sheet adds an intake to them.
-const HAND_DETAILS = { 'university of west london': UWL_DETAILS, 'york st john university': YSJU_DETAILS };
+const HAND_DETAILS = { 'university of west london': UWL_DETAILS, 'york st john university': YSJU_DETAILS, 'bangor university': BANGOR_DETAILS };
 
 // Universities that start with their details filled in (matched by name, ignoring case). Where there is a hand-written
 // page the sheet only adds its January 2027 intake; every other university takes the whole page from the sheet.

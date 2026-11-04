@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex, nofollow" />
+<title>Direct Universities · UK Student NIEC</title>
+<link rel="icon" type="image/png" href="favicon.png" />
+<link rel="stylesheet" href="header.css" />
+<link rel="stylesheet" href="ui.css" />
+<link rel="stylesheet" href="admin.css" />
+<style>
+  textarea { font: inherit; font-size: 14px; padding: 8px 10px; border: 1px solid var(--border-strong); border-radius: 7px; background: var(--panel); color: var(--text); width: 100%; min-height: 84px; resize: vertical; }
+  .section { margin-top: 18px; }
+  .section h3 { margin: 0 0 8px; font-size: 14px; }
+  .rows { display: grid; gap: 10px; }
+  .row { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 8px; align-items: end; padding: 10px; border: 1px solid var(--border); border-radius: 8px; }
+  .row label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; font-weight: 600; color: var(--dim); }
+  .wide { grid-column: 1 / -1; }
+  .bar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 14px; }
+  .hint { color: var(--dim); font-size: 12px; }
+  .campus-list { margin: 0; padding-left: 18px; }
+  .open-link { background: none; border: 0; padding: 0; color: var(--blue-text); font: inherit; font-weight: 600; cursor: pointer; text-align: left; }
+  .open-link:hover { text-decoration: underline; }
+  #adminOnly { display: inline-block; margin-left: 8px; }
+</style>
+</head>
+<body>
+  <header class="niec-header" data-page="direct"></header>
+  <main class="page">
+    <div class="page-head">
+      <div>
+        <h1>Direct Universities <span class="pill pill-wait" id="adminOnly">Admin only</span></h1>
+        <p>The universities NIEC works with directly: campus locations, commission slabs, payment terms, agreement dates and contacts. Only the Admin account can see this page.</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Add a direct university</h2>
+      <form id="addForm" class="form" autocomplete="off">
+        <label>University name <input id="addName" list="factNames" maxlength="120" required placeholder="e.g. Bangor University" /></label>
+        <datalist id="factNames"></datalist>
+        <button class="btn btn-primary" type="submit">Add</button>
+      </form>
+      <div class="msg" id="addMsg" role="status"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><h2>Direct university list <span class="muted" id="count"></span></h2></div>
+      <table>
+        <thead><tr><th>University</th><th>Campus locations</th><th>Commission</th><th>Status</th><th>Agreement ends</th><th><span class="sr-only">Open</span></th></tr></thead>
+        <tbody id="rows"><tr><td class="muted" colspan="6">Loading...</td></tr></tbody>
+      </table>
+      <div class="msg" id="listMsg" role="status"></div>
+    </div>
+
+    <div class="card" id="editor" hidden></div>
+  </main>
+<script src="session.js"></script>
+<script src="ui.js"></script>
+<script src="header.js"></script>
+<script src="direct-page.js"></script>
+</body>
+</html>

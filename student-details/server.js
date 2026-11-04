@@ -11,6 +11,7 @@ const { makePatch, applyPatch } = require('../shared/patch');
 const { isAdmin, isManager, isReadOnly, teamOf, viewKey, viewFor, teamChanges } = require('../shared/teams');
 const { buildDashboard } = require('./dashboard-stats');
 const { createFacts } = require('./facts');
+const { createDirect } = require('./direct');
 const { createAdvisorMcp } = require('./advisor-mcp');
 const {
   blankWorkbook, ensureRowIds, migrateWorkbook, isValidWorkbook, mergeWorkbooks, createHistory, describeChanges,
@@ -43,6 +44,8 @@ const serveStatic = createStaticServer(ROOT, {
   '/fact-file.js': 'text/javascript; charset=utf-8',
   '/fact-university.js': 'text/javascript; charset=utf-8',
   '/fact-file.css': 'text/css; charset=utf-8',
+  '/direct.html': 'text/html; charset=utf-8',
+  '/direct-page.js': 'text/javascript; charset=utf-8',
   '/calc.js': 'text/javascript; charset=utf-8',
   '/suggest.js': 'text/javascript; charset=utf-8',
   '/style.css': 'text/css; charset=utf-8',
@@ -63,6 +66,8 @@ const activity = createActivityLog(DATA_DIR);
 const accounts = createAccounts({ dir: DATA_DIR, activity });
 const { requireAuth } = accounts;
 const facts = createFacts(DATA_DIR);
+// The Direct University List: Admin only, kept out of the Advisor connector and every other account's reach.
+const direct = createDirect(DATA_DIR);
 
 // Read-only door for the Claude Strategy Advisor project. Off unless NIEC_ADVISOR_TOKEN is set (see advisor-mcp.js).
 const advisor = createAdvisorMcp({
@@ -408,6 +413,40 @@ async function handleFacts(req, res, urlPath) {
   return sendJSON(res, 200, saved.university);
 }
 
+// The Direct University List (campuses, commission slabs, agreement details): Admin only, for reading as well as changing.
+async function handleDirect(req, res, urlPath) {
+  if (!isAdmin(req.user)) return sendJSON(res, 403, { error: 'The Direct University List is for Admin only.' });
+  const id = (urlPath.match(/^\/api\/direct\/([a-f0-9]{12})/) || [])[1];
+  if (req.method === 'GET') {
+    if (!id) return send(res, 200, JSON.stringify(direct.list()), JSON_HEADERS);
+    const uni = direct.get(id);
+    return uni ? send(res, 200, JSON.stringify(uni), JSON_HEADERS) : sendJSON(res, 404, { error: 'No such university.' });
+  }
+  if (req.method !== 'POST') return send(res, 405, 'Method not allowed');
+  let body;
+  try {
+    body = await readJSONBody(req, 1024 * 1024);
+  } catch (e) {
+    return sendJSON(res, e.statusCode || 400, { error: e.message });
+  }
+  if (!id) {
+    const made = direct.create(body && body.name, req.user.label);
+    if (made.error) return sendJSON(res, 400, { error: made.error });
+    activity.record(req, req.user, 'Edited direct universities', { app: 'Student Details', changes: [`Added ${made.university.name} to the Direct University List`] });
+    return sendJSON(res, 200, made.university);
+  }
+  if (urlPath.endsWith('/delete')) {
+    const gone = direct.remove(id);
+    if (gone.error) return sendJSON(res, 404, { error: gone.error });
+    activity.record(req, req.user, 'Edited direct universities', { app: 'Student Details', changes: [`Removed ${gone.removed.name} from the Direct University List`] });
+    return sendJSON(res, 200, { ok: true });
+  }
+  const saved = direct.update(id, body || {}, req.user.label);
+  if (saved.error) return sendJSON(res, 400, { error: saved.error });
+  activity.record(req, req.user, 'Edited direct universities', { app: 'Student Details', changes: [`Updated ${saved.university.name} in the Direct University List`] });
+  return sendJSON(res, 200, saved.university);
+}
+
 function num(v) {
   return Number.isInteger(v) ? v : 0;
 }
@@ -439,7 +478,7 @@ const server = http.createServer(async (req, res) => {
     // The pages. The Manager lands on the dashboard; Admin-only pages send anyone else back home.
     const home = req.user.role === 'manager' ? '/dashboard' : '/students';
     if (req.method === 'GET') {
-      const page = { '/students': 'index.html', '/dashboard': 'dashboard.html', '/users': 'users.html', '/activity': 'activity.html' }[urlPath];
+      const page = { '/students': 'index.html', '/dashboard': 'dashboard.html', '/users': 'users.html', '/activity': 'activity.html', '/direct-universities': 'direct.html' }[urlPath];
       if (urlPath === '/') return req.user.role === 'manager' ? send(res, 302, '', { Location: '/dashboard' }) : serveStatic(req, res);
       if (urlPath === '/fact-file') { // the list, or one university's page (?u=...); every account may read
         req.url = new URL(req.url, 'http://x').searchParams.get('u') ? '/fact-university.html' : '/fact-file.html';
@@ -497,6 +536,7 @@ const server = http.createServer(async (req, res) => {
       });
     }
     if (urlPath === '/api/facts' || /^\/api\/facts\/[a-f0-9]{12}(\/delete)?$/.test(urlPath)) return await handleFacts(req, res, urlPath);
+    if (urlPath === '/api/direct' || /^\/api\/direct\/[a-f0-9]{12}(\/delete)?$/.test(urlPath)) return await handleDirect(req, res, urlPath);
     if (urlPath === '/api/events' && req.method === 'GET') return handleEvents(req, res);
     if (urlPath === '/api/presence') {
       if (req.method === 'POST') return await handlePresence(req, res);
