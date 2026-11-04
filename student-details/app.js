@@ -922,7 +922,7 @@
   };
   let colWidths = {};
   let colWidthsFor = null;
-  const cellFont = () => `500 15px ${getComputedStyle(document.body).fontFamily}`;
+  const cellFont = () => `400 14px ${getComputedStyle(document.body).fontFamily}`;
 
   function measuredText(col) {
     const [min, max] = TEXT_LIMITS[col] || (LONG_TEXT_COLS.has(col) ? [150, 300] : [110, 260]);
