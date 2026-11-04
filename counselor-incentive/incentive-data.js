@@ -7,7 +7,7 @@ const { round2, groupByUniversity, displayDate } = require('./calc');
 const { netTuitionFee } = require('../student-details/calc');
 
 // Student Details -> the fields Incentive cares about. Everything else (visa lodge dates, language test, other tuition
-// figures, etc.) stays over there. `agent` is the University Partner column: the agent's name.
+// figures, etc.) stays over there. `agent` is the University Partner column: the agent's name; `source` is the Student Source column.
 function normalizeStudent(row, intake) {
   return {
     id: row._id,
@@ -16,6 +16,7 @@ function normalizeStudent(row, intake) {
     course: row['COURSE NAME'] || '',
     university: row['UNIVERSITY NAME'] || '',
     agent: String(row['UNIVERSITY PARTNER'] || '').trim(),
+    source: String(row['STUDENT SOURCE'] || '').trim(), // the Student Source column of Student Details
     studentId: row['STUDENT ID'] || '',
     tuitionFee: String(row['GROSS FEE'] || '').trim() ? round2(netTuitionFee(row)) : 0,
     visaIssuedDate: displayDate(row['VISA RECEIVED DATE']),

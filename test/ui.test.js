@@ -201,6 +201,11 @@ test('screens: log in, edit, delete, search, team rules, Fact File', { timeout: 
     const page = await open(admin, incentiveBase + '/');
     await page.waitForSelector('#rows tr');
     assert.strictEqual(await page.locator('#rows tr').count(), 1, 'only the Visa Issued student is listed');
+    // The Incentive page is its own page: no NIEC header or menu, a Student Source column, and no (i) on University Partner.
+    assert.strictEqual(await page.locator('.niec-header').count(), 0, 'no shared NIEC header on the Incentive page');
+    const heads = await page.locator('#headRow th').allTextContents();
+    assert.ok(heads.some((h) => h.trim() === 'University Partner'), 'University Partner has no (i) button');
+    assert.ok(heads.some((h) => h.trim() === 'Student Source'), 'the Student Source column is there');
     assert.match(await page.textContent('#rows tr'), /Student11/);
     // The Enrollment Incentive (NPR) cell, found by its column heading so adding a synced column does not break this.
     const headings = await page.locator('#headRow th').allTextContents();

@@ -11,17 +11,17 @@ const { createAdvisorMcp } = require('../student-details/advisor-mcp');
 const { createFacts } = require('../student-details/facts');
 
 const TOKEN = 'i'.repeat(40);
-const row = (id, first, last, university, partner, fee, status = 'Visa Issued') => ({
-  _id: id, 'FIRST NAME': first, 'LAST NAME': last, 'COURSE NAME': 'MSc', 'UNIVERSITY NAME': university, 'UNIVERSITY PARTNER': partner,
+const row = (id, first, last, university, partner, fee, status = 'Visa Issued', source = '') => ({
+  _id: id, 'STUDENT SOURCE': source, 'FIRST NAME': first, 'LAST NAME': last, 'COURSE NAME': 'MSc', 'UNIVERSITY NAME': university, 'UNIVERSITY PARTNER': partner,
   'GROSS FEE': String(fee), 'APPLICATION STATUS': status, 'STUDENT ID': 'S' + id, 'VISA RECEIVED DATE': '2026-09-23',
 });
 const WORKBOOK = {
   revision: 3,
   sheets: [
     { id: 'sheet-1', name: 'Sep Intake 2026', columns: ['FIRST NAME'], rows: [
-      row('a', 'Sita', 'Sharma', 'Bangor University', 'Real Dreams', 10000),
+      row('a', 'Sita', 'Sharma', 'Bangor University', 'Real Dreams', 10000, 'Visa Issued', 'Visitor'),
       row('b', 'Ram', 'Thapa', 'Bangor University', 'Adventus', 12000),
-      row('c', 'Maya', 'Gurung', 'Ulster University', 'Real Dreams', 8000),
+      row('c', 'Maya', 'Gurung', 'Ulster University', 'Real Dreams', 8000, 'Visa Issued', 'Pokhara Branch'),
       row('d', 'Not', 'Yet', 'Ulster University', 'Nobody', 9000, 'Inquiry'),
     ] },
     { id: 'sheet-2', name: 'Jan Intake 2027', columns: ['FIRST NAME'], rows: [row('e', 'Jan', 'Student', 'UWL', 'Real Dreams', 5000, 'Inquiry')] },
@@ -63,12 +63,14 @@ test('get_incentives shows the University Partner (agent), the worked-out commis
   assert.strictEqual(all.matched, 3, 'only the Visa Issued students');
   const sita = all.students.find((s) => s.student === 'Sita Sharma');
   assert.strictEqual(sita.universityPartner, 'Real Dreams');
+  assert.strictEqual(sita.studentSource, 'Visitor', 'the Student Source column of the sheet');
   assert.strictEqual(sita.tuitionFeeGbp, 10000);
   assert.strictEqual(sita.uniCommissionAmountGbp, 1500, '15% of 10,000');
   assert.strictEqual(sita.totalIncentivesNpr, 10500, 'enrollment 10,000 + flywire 500; the loan is not part of the total');
   assert.strictEqual(sita._record, undefined, 'internal fields are not sent');
   assert.deepStrictEqual(call(m, 'get_incentives', { partner: 'real dreams' }).students.map((s) => s.student), ['Sita Sharma', 'Maya Gurung']);
   assert.deepStrictEqual(call(m, 'get_incentives', { university: 'ulster' }).students.map((s) => s.student), ['Maya Gurung']);
+  assert.deepStrictEqual(call(m, 'get_incentives', { source: 'pokhara' }).students.map((x) => x.student), ['Maya Gurung']);
   assert.strictEqual(call(m, 'get_incentives', { intake: 'Jan Intake 2027' }).matched, 0);
   assert.strictEqual(call(m, 'get_incentives', { limit: 1, offset: 1 }).returned, 1);
   const unknown = raw(m, 'get_incentives', { intake: 'Nope' });
@@ -97,6 +99,7 @@ test('summarize_incentives_by groups by University Partner, University Name or I
   assert.strictEqual(byPartner.groups[0].incentivesEnteredNpr, 10500);
   assert.deepStrictEqual(call(m, 'summarize_incentives_by', { by: 'university' }).groups.map((g) => [g['University Name'], g.students]), [['Bangor University', 2], ['Ulster University', 1]]);
   assert.strictEqual(call(m, 'summarize_incentives_by', { by: 'intake' }).total, 3);
+  assert.deepStrictEqual(call(m, 'summarize_incentives_by', { by: 'studentSource' }).groups.map((g) => [g['Student Source'], g.students]).sort(), [['(empty)', 1], ['Pokhara Branch', 1], ['Visitor', 1]]);
 });
 
 test('a student with no University Partner is grouped as (empty); missing incentive data is explained, never shown as zeros; unknown tools are refused', () => {
