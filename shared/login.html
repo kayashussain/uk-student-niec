@@ -50,7 +50,11 @@
   }
   .hero-logo { align-self: flex-start; }
   .hero-logo img { display: block; height: 52px; width: auto; }
-  .hero h2 { margin: 0 0 14px; font-size: clamp(30px, 3.4vw, 46px); line-height: 1.1; letter-spacing: -.03em; font-weight: 500; max-width: 14ch; color: var(--text); }
+  /* 🔴 CSS CHANGED (2026-11-04): the login page headline "Welcome back to your team's workspace." (only this headline, nothing else on the page)
+     — font-size from: clamp(30px, 3.4vw, 46px) — to: clamp(44px, 5.2vw, 96px), so it grows with the screen instead of looking small on a big one
+     — max-width from: 14ch — to: 16ch, so it breaks into three even lines: "Welcome back to / your team's / workspace."
+     — line-height from: 1.1 — to: 1.08, a little tighter, as large serif titles look better */
+  .hero h2 { margin: 0 0 14px; font-size: clamp(44px, 5.2vw, 96px); line-height: 1.08; letter-spacing: -.03em; font-weight: 500; max-width: 16ch; color: var(--text); }
   .hero p { margin: 0; max-width: 42ch; font-size: 16px; line-height: 1.6; color: var(--text-dim); }
   .hero ul { margin: 28px 0 0; padding: 0; list-style: none; display: grid; gap: 12px; font-size: 14px; color: var(--text); }
   .hero li { display: flex; align-items: center; gap: 10px; }

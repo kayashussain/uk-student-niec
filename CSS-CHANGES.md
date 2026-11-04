@@ -9,6 +9,17 @@ Format: **date · file · what · from → to · why**
 
 ---
 
+## 2026-11-04 · `shared/login.html` · login page headline (only the headline)
+
+- **What:** the size of "Welcome back to your team's workspace." on the left of the login page. Nothing else on the page changed.
+- **font-size:** from `clamp(30px, 3.4vw, 46px)` → to `clamp(44px, 5.2vw, 96px)` (grows with the screen: about 75px on a 1440px screen)
+- **max-width:** from `14ch` → to `16ch` (three even lines: "Welcome back to / your team's / workspace.")
+- **line-height:** from `1.1` → to `1.08`
+- **Why:** with only the headline on that side, the old size looked small and odd on a normal or large screen.
+- **In the code:** marked with `🔴 CSS CHANGED` above the `.hero h2` rule.
+
+---
+
 ## 2026-11-04 · the rule itself
 
 - Nothing about the look changed. This log and the marking rule were created.
