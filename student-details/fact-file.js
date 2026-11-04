@@ -19,9 +19,17 @@
     return e;
   }
 
+  // Two letters from the university's name ("University of West London" -> "WL"), for the little badge on its card.
+  function monogram(name) {
+    const words = String(name || '').replace(/\(.*?\)/g, ' ').split(/[^A-Za-z]+/).filter((w) => w && !/^(of|the|and|for|in)$/i.test(w) && !/^university$/i.test(w));
+    const pick = words.length ? words : String(name || '?').split(/\s+/);
+    return (pick.length > 1 ? pick[0][0] + pick[pick.length - 1][0] : String(pick[0] || '?').slice(0, 2)).toUpperCase();
+  }
+
   function card(u) {
     const a = el('a', 'uni-card');
     a.href = '/fact-file?u=' + encodeURIComponent(u.id) + (BACKUP ? '&backup=' + encodeURIComponent(BACKUP) : '');
+    a.append(el('span', 'uni-mono', monogram(u.name)));
     a.append(el('h2', '', u.name));
     if (u.city) a.append(el('div', 'city', u.city));
     if (u.matches && u.matches.length) {

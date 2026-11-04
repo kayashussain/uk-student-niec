@@ -107,7 +107,6 @@ input:focus, select:focus, textarea:focus, #search:focus, .topbar #search:focus 
   background: transparent; border: 0; border-radius: var(--r-md); box-shadow: none; padding: 4px 11px 4px 10px; min-width: 0;
   transition: background-color .15s ease;
 }
-.stat-card:hover { background: var(--soft); transform: none; box-shadow: none; }
 .stat-card .stat-value, .stat-card.stat-total .stat-value { font-size: 26px; font-weight: 500; color: var(--ink); letter-spacing: -.02em; line-height: 1.1; }
 .stat-card .stat-label { font-size: 10.5px; letter-spacing: .05em; color: var(--text-dim); font-weight: 500; }
 .stat-card.stat-total { background: var(--soft); box-shadow: inset 0 -2px 0 var(--niec-blue); }
@@ -124,7 +123,6 @@ input:focus, select:focus, textarea:focus, #search:focus, .topbar #search:focus 
 #sheet thead th.col-idx { color: var(--head-ink); }
 #sheet thead th:hover { color: var(--ink); }
 #sheet td { border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); padding: 8px 13px; font-size: 14px; font-weight: 400; line-height: 1.4; color: var(--text); }
-#sheet td.name { font-weight: 500; }
 #sheet td.col-idx { color: var(--text-dim); font-size: 12.5px; font-weight: 500; }
 #sheet th.col-idx { background: var(--panel); }
 /* the invisible spacer rows that stand in for students scrolled out of view must stay empty */
@@ -133,7 +131,6 @@ input:focus, select:focus, textarea:focus, #search:focus, .topbar #search:focus 
 #sheet tbody tr:hover td { background: var(--row-hover); }
 #sheet tbody tr:hover td.col-idx { background: var(--row-hover); }
 #sheet td.calculated { background: transparent !important; color: var(--text-dim); font-style: normal; }
-.badge, .status-select { font-weight: 500; font-size: 12px; letter-spacing: 0; padding-top: 3px; padding-bottom: 3px; }
 #body td.active-cell { outline: 2px solid var(--niec-blue); outline-offset: -2px; border-radius: 3px; }
 .sheet-tabs { background: var(--bg); border-top: 1px solid var(--border); padding: 8px 20px; }
 .sheet-tab { border-radius: 999px; border: 0; background: transparent; color: var(--text-dim); }
@@ -149,13 +146,9 @@ input:focus, select:focus, textarea:focus, #search:focus, .topbar #search:focus 
   transition: box-shadow .2s ease;
 }
 .kpi { padding: 20px 22px; }
-.kpi, .kpi-total { border-left-width: 1px; }
 .kpi-value { font-weight: 500; letter-spacing: -.03em; }
 .kpi-label { letter-spacing: .01em; }
-.kpi:hover, .uni-card:hover { box-shadow: var(--sh-2); }
-.uni-card { border-left: 1px solid var(--border); padding: 22px 24px; gap: 8px; }
 .uni-card h2 { font-weight: 600; letter-spacing: -.015em; font-size: 17px; }
-.chip { background: var(--soft); color: var(--text-dim); font-weight: 500; }
 .page-head .search { align-self: flex-end; }
 
 /* ---- page entrance and details ---- */
@@ -203,3 +196,56 @@ input.search:focus { outline: none; border-color: var(--niec-blue); box-shadow: 
 @media (max-width: 760px) { .wrap { padding: 6px 14px 40px; } .top { margin: 0 -14px 10px !important; padding: 18px 14px 4px !important; } .top .brand h1 { font-size: 28px !important; } input.search { width: 100%; } }
 .page-head h1 .pill, h1 .pill { font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; font-weight: 600; letter-spacing: 0; }
 .row > .btn { justify-self: start; }
+
+
+/* =====================================================================================================
+   Life and brand: the parts that make it feel like a finished product. Colour comes back where it carries
+   meaning or invites a click (NIEC light blue and orange); cards answer the mouse; nothing moves on its own.
+   ===================================================================================================== */
+
+/* ---- the status strip: every box the same size, the numbers on one line, equal gaps (no zigzag) ---- */
+.stat-group-cards { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(92px, 1fr); gap: 6px; align-items: stretch; overflow-x: auto; padding-bottom: 4px; }
+.stat-card, .stat-card.stat-total {
+  display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 4px; min-width: 0; padding: 10px 6px 8px; text-align: center;
+  background: var(--panel); border: 1px solid var(--border); border-radius: var(--r-md); box-shadow: var(--sh-1);
+  transition: box-shadow .2s ease, border-color .2s ease, background-color .2s ease;
+}
+.stat-card:hover { border-color: var(--niec-blue); box-shadow: var(--sh-2); }
+.stat-card .stat-label { display: block; width: 100%; min-height: 2.5em; white-space: normal; line-height: 1.25; text-align: center; }
+.stat-card.stat-total { background: var(--blue-bg); border-color: color-mix(in srgb, var(--niec-blue) 45%, var(--border)); box-shadow: inset 0 -3px 0 var(--niec-blue), var(--sh-1); }
+.stat-card.stat-total .stat-label { color: var(--blue-fg); }
+.stat-card.stat-rate { border-color: color-mix(in srgb, #fc6e1f 40%, var(--border)); box-shadow: inset 0 -3px 0 #fc6e1f, var(--sh-1); }
+
+/* ---- status pills and menus: tidy, even, a little depth ---- */
+.badge, .status-select { font-weight: 500; font-size: 12px; letter-spacing: 0; padding-top: 3px; padding-bottom: 3px; border: 1px solid color-mix(in srgb, currentColor 22%, transparent); }
+.status-select { padding-left: 11px; min-height: 26px; transition: box-shadow .15s ease, border-color .15s ease; }
+.status-select:hover { box-shadow: var(--sh-1); border-color: color-mix(in srgb, currentColor 45%, transparent); }
+.filter-menu, .ui-dialog { border-radius: var(--r-md); border: 1px solid var(--border-strong); box-shadow: var(--sh-3); }
+
+/* ---- cards that answer the mouse (hover only: the page itself stays still) ---- */
+.kpi, .hero, .uni-card { position: relative; transition: transform .22s var(--ease), box-shadow .22s var(--ease), border-color .22s ease; }
+.kpi:hover, .hero:hover { transform: translateY(-4px); box-shadow: var(--sh-3); }
+.kpi::before, .hero::after { content: ""; position: absolute; left: 16px; top: 0; width: 38px; height: 3px; border-radius: 0 0 3px 3px; background: #00adef; transition: width .3s var(--ease), left .3s var(--ease), background .3s ease; }
+.hero::after { left: 22px; }
+.kpi:hover::before, .hero:hover::after { left: 0; width: 100%; border-radius: 14px 14px 0 0; background: linear-gradient(90deg, #00adef, #fc6e1f); }
+
+/* ---- Fact File: brand colour, a monogram, a lift on hover ---- */
+.uni-card { border-left: 4px solid var(--niec-blue); border-radius: var(--r-lg); padding: 20px 22px 18px; gap: 8px; }
+.uni-card:hover { transform: translateY(-4px); box-shadow: var(--sh-3); border-left-color: #fc6e1f; }
+.uni-card h2 { padding-right: 46px; font-weight: 600; letter-spacing: -.015em; font-size: 17px; }
+.uni-mono { position: absolute; top: 16px; right: 16px; display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; font-size: 12px; font-weight: 700; letter-spacing: .02em; color: var(--blue-fg); background: var(--blue-bg); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--niec-blue) 35%, transparent); transition: background-color .2s ease, color .2s ease; }
+.uni-card:hover .uni-mono { background: #fde6d6; color: #8a3a08; box-shadow: inset 0 0 0 1px #fc6e1f55; }
+.uni-card .updated:not(:empty)::before { content: ""; display: inline-block; width: 6px; height: 6px; margin-right: 7px; border-radius: 50%; background: #fc6e1f; vertical-align: 1px; }
+.chip { background: var(--blue-bg); color: var(--blue-fg); font-weight: 600; }
+p.count { display: inline-block; padding: 2px 10px; border-radius: 999px; background: var(--blue-bg); color: var(--blue-fg); font-weight: 600; }
+p.count:empty { display: none; }
+.doc { border-radius: var(--r-lg); box-shadow: var(--sh-2); }
+.doc h2::before { content: ""; display: inline-block; width: 4px; height: 16px; margin-right: 10px; border-radius: 2px; background: #fc6e1f; vertical-align: -2px; }
+.toc a { transition: background-color .15s ease, border-color .15s ease, color .15s ease; }
+.toc a:hover, .toc a:focus-visible { background: var(--blue-bg); border-color: var(--niec-blue); color: var(--blue-fg); }
+
+/* ---- a gentle fade when a page opens (opacity only, nothing slides) ---- */
+.page, .wrap, .app-main { animation: t-fade .25s ease both; }
+@keyframes t-fade { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .kpi:hover, .hero:hover, .uni-card:hover { transform: none; } .page, .wrap, .app-main { animation: none; } }
+.uni-card:hover { border-color: var(--border-strong); border-left-color: #fc6e1f; }
