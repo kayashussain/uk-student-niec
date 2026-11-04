@@ -66,7 +66,7 @@ test('University of West London starts with its fact file details filled in', ()
   assert.deepStrictEqual(uwl.intakes.map((i) => i.name), ['February 2027', 'January 2027']);
   assert.match(uwl.intakes[0].courses, /BSc Computer Science/);
   // the other starter universities are still just names
-  const other = facts.get(facts.list().find((u) => u.name === 'Bangor University').id);
+  const other = facts.get(facts.list().find((u) => u.name === 'Northumbria University').id);
   assert.strictEqual(other.programs.length, 0);
 });
 
@@ -188,10 +188,42 @@ test('a damaged Fact File is set aside, not overwritten, and the list starts aga
 test('the Fact File is read from disk again when the file changes outside this process', () => {
   const dir = tmp();
   const facts = createFacts(dir);
-  const id = facts.list().find((u) => u.name === 'Bangor University').id; // no starter details: nothing refreshes it
+  const id = facts.list().find((u) => u.name === 'University of York').id; // no starter details: nothing refreshes it
   const file = path.join(dir, 'fact-file.json');
   const data = JSON.parse(fs.readFileSync(file, 'utf8'));
   data.universities.find((u) => u.id === id).city = 'Newcastle (changed by hand)';
   fs.writeFileSync(file, JSON.stringify(data, null, 2) + '\n'); // a different size: seen by the cache check
   assert.strictEqual(facts.get(id).city, 'Newcastle (changed by hand)');
+});
+
+test('Bangor University starts with its entry requirements, fees, scholarships and January 2027 intake', () => {
+  const facts = createFacts(tmp());
+  const bangor = facts.get(facts.list().find((u) => u.name === 'Bangor University').id);
+  assert.deepStrictEqual(bangor.programs.map((p) => p.name), ['Undergraduate', 'Postgraduate']);
+  assert.match(bangor.programs[0].academic, /2\.6 GPA in Grade 12/);
+  assert.match(bangor.programs[1].academic, /65%/);
+  assert.match(bangor.programs[1].academic, /50%/);
+  assert.match(bangor.programs[0].tuition, /19,000 to £20,000/);
+  assert.match(bangor.programs[1].tuition, /£21,000/);
+  assert.match(bangor.programs[0].scholarship, /£4,000 to £6,000/);
+  assert.match(bangor.programs[1].scholarship, /£5,000/);
+  assert.match(bangor.languageTests, /IELTS: 6\.0\/5\.5/);
+  assert.match(bangor.languageTests, /B or 75% in Grade 12/);
+  assert.match(bangor.entryRequirements, /justifiable gap/i);
+  assert.match(bangor.notes, /£500 early bird discount/);
+  assert.deepStrictEqual(bangor.intakes.map((i) => i.name), ['January 2027']);
+  assert.match(bangor.intakes[0].courses, /Accounting and Finance BSc \(Hons\): £19,000/);
+  assert.match(bangor.notes, /Braj Jha/, 'the regional team is kept');
+});
+
+test('a Bangor page saved before the entry requirements were added is refreshed once, an edited one is not', () => {
+  const dir = tmp();
+  fs.writeFileSync(path.join(dir, 'fact-file.json'), JSON.stringify({ universities: [
+    { id: 'aaaaaaaaaaaa', name: 'Bangor University', city: 'Bangor, Wales', overview: 'old', intakes: [], process: [], updatedAt: '2026-11-03T07:22:31.175Z', updatedBy: '' },
+  ] }));
+  assert.strictEqual(createFacts(dir).get('aaaaaaaaaaaa').programs.length, 2);
+  fs.writeFileSync(path.join(dir, 'fact-file.json'), JSON.stringify({ universities: [
+    { id: 'bbbbbbbbbbbb', name: 'Bangor University', city: 'Bangor, Wales', overview: 'my own', intakes: [], process: [], updatedAt: '2026-11-03T07:22:31.175Z', updatedBy: 'Kayas' },
+  ] }));
+  assert.strictEqual(createFacts(dir).get('bbbbbbbbbbbb').overview, 'my own');
 });

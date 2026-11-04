@@ -201,8 +201,17 @@ test('screens: log in, edit, delete, search, team rules, Fact File', { timeout: 
     const page = await open(admin, incentiveBase + '/');
     await page.waitForSelector('#rows tr');
     assert.strictEqual(await page.locator('#rows tr').count(), 1, 'only the Visa Issued student is listed');
+    // The Incentive page is its own page: no NIEC header or menu, a Student Source column, and no (i) on University Partner.
+    assert.strictEqual(await page.locator('.niec-header').count(), 0, 'no shared NIEC header on the Incentive page');
+    const heads = await page.locator('#headRow th').allTextContents();
+    assert.ok(heads.some((h) => h.trim() === 'University Partner'), 'University Partner has no (i) button');
+    assert.deepStrictEqual(heads.slice(0, 5).map((h) => h.trim()), ['S.N', 'Student Source', 'Student Name', 'Course Name', 'University Name'], 'Student Source comes first, right after S.N');
     assert.match(await page.textContent('#rows tr'), /Student11/);
-    await page.locator('#rows tr td[data-ci="8"]').first().click(); // Enrollment Incentive (NPR)
+    // The Enrollment Incentive (NPR) cell, found by its column heading so adding a synced column does not break this.
+    const headings = await page.locator('#headRow th').allTextContents();
+    const enrollmentCol = headings.findIndex((h) => h.trim().startsWith('Enrollment Incentive (NPR)')) - 1; // minus the S.N column
+    assert.ok(enrollmentCol > 0, 'the Enrollment Incentive column is there');
+    await page.locator(`#rows tr td[data-ci="${enrollmentCol}"]`).first().click();
     await page.keyboard.type('10000');
     await page.keyboard.press('Enter');
     await page.waitForSelector('.eg-box');
@@ -255,14 +264,14 @@ test('screens: log in, edit, delete, search, team rules, Fact File', { timeout: 
     const facts = await (await admin.request.get('/api/backup/fact-file.json')).json();
     assert.ok(facts.universities.length > 50);
     assert.strictEqual((await team.request.get('/api/backup/students.json')).status(), 403);
-    assert.strictEqual((await team.request.get('/api/backup/info')).status(), 403);
     const log = await (await admin.request.get('/api/activity?q=backup')).json();
     assert.ok(log.events.some((e) => e.action === 'Downloaded backup'), 'each download is in the Activity record');
-    const page = await open(admin, '/users#backup');
-    await page.waitForSelector('#panel-backup:not([hidden])');
+    const page = await open(admin, '/activity#restore');
+    await page.waitForSelector('#panel-restore:not([hidden])');
     assert.ok(await page.isVisible('#dlStudents'));
-    await page.waitForSelector('#backupCounts:not(:empty)');
-    assert.match(await page.textContent('#backupCounts'), /\d+ students?/);
+    assert.ok(await page.isVisible('#dlFacts'));
+    await page.waitForSelector('#restoreNow:not(:empty)');
+    assert.match(await page.textContent('#restoreNow'), /\d+ students?/);
     assert.deepStrictEqual(page.errors, []);
     await page.close();
   });

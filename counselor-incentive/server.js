@@ -4,7 +4,7 @@
 // (read directly off disk, same machine, no network hop needed). A student surfaces
 // here automatically the moment their APPLICATION STATUS is set to "Visa Issued" over
 // there, grouped under the same sheet/tab name (the "intake"). Incentive-specific
-// numbers (Enrollment, Enrollment from University, New Partnership, Direct Student,
+// numbers (Enrollment, Enrollment from University, New Partnership,
 // Flywire, Loan) live only in this app's own commissions.json, keyed by the student's
 // stable _id. Each intake's Previous Advance (and basic salary / salary months for the
 // earnings comparison) lives in advances.json, keyed by
@@ -22,9 +22,7 @@ const {
 } = require('../shared/server-utils');
 const { createAccounts } = require('../shared/accounts');
 const { advancesByName, setAdvance } = require('./advances');
-const { round2, groupByUniversity, displayDate } = require('./calc');
-// Student Details' own fee math, so the tuition fee shown here always matches what's shown over there.
-const { netTuitionFee } = require('../student-details/calc');
+const { syncFromWorkbook } = require('./incentive-data');
 
 const PORT = process.env.PORT || 5173;
 const ROOT = __dirname;
@@ -129,22 +127,6 @@ function writeWithBackup(file, backupName, data) {
   writeJSONAtomic(file, data);
 }
 
-// Student Details -> the fields Incentive cares about. Everything else (visa lodge dates,
-// language test, other tuition figures, etc.) stays over there. This app only needs enough to
-// identify the student and show read-only context alongside the incentive fields.
-function normalizeStudent(row, intake) {
-  return {
-    id: row._id,
-    intake,
-    name: [row['FIRST NAME'], row['LAST NAME']].filter(Boolean).join(' ').trim(),
-    course: row['COURSE NAME'] || '',
-    university: row['UNIVERSITY NAME'] || '',
-    studentId: row['STUDENT ID'] || '',
-    tuitionFee: String(row['GROSS FEE'] || '').trim() ? round2(netTuitionFee(row)) : 0,
-    visaIssuedDate: displayDate(row['VISA RECEIVED DATE']),
-  };
-}
-
 // Reads the Student Details workbook and reshapes it into { intakes, byIntake }, where
 // byIntake[sheetName] only ever contains students whose APPLICATION STATUS is exactly
 // "Visa Issued" right now. Every sheet becomes an intake tab here, even if it currently
@@ -171,16 +153,7 @@ function readSync() {
   } catch (e) {
     return { ok: false, error: 'Student Details data file is not valid JSON right now. Try again.', intakes: [], byIntake: {} };
   }
-  const sheets = Array.isArray(workbook.sheets) ? workbook.sheets : [];
-  const intakes = sheets.map((s) => s.name);
-  const byIntake = {};
-  sheets.forEach((sheet) => {
-    const rows = Array.isArray(sheet.rows) ? sheet.rows : [];
-    byIntake[sheet.name] = groupByUniversity(rows
-      .filter((r) => r['APPLICATION STATUS'] === 'Visa Issued' && r._id)
-      .map((r) => normalizeStudent(r, sheet.name)));
-  });
-  return { ok: true, intakes, byIntake };
+  return syncFromWorkbook(workbook);
 }
 
 function num(v, fallback) {

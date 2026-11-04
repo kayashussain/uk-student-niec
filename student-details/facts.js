@@ -8,11 +8,12 @@ const crypto = require('crypto');
 const { writeFileAtomic } = require('../shared/server-utils');
 const { UWL_DETAILS } = require('./fact-seed-uwl');
 const { YSJU_DETAILS } = require('./fact-seed-ysju');
+const { BANGOR_DETAILS } = require('./fact-seed-bangor');
 // The January 2027 intake sheet: each university's criteria, fees, courses and key dates (see fact-seed-sheet.json).
 const SHEET = require('./fact-seed-sheet.json');
 
 // The hand-written pages (from each university's own fact file or flyer). The January 2027 sheet adds an intake to them.
-const HAND_DETAILS = { 'university of west london': UWL_DETAILS, 'york st john university': YSJU_DETAILS };
+const HAND_DETAILS = { 'university of west london': UWL_DETAILS, 'york st john university': YSJU_DETAILS, 'bangor university': BANGOR_DETAILS };
 
 // Universities that start with their details filled in (matched by name, ignoring case). Where there is a hand-written
 // page the sheet only adds its January 2027 intake; every other university takes the whole page from the sheet.
@@ -91,6 +92,34 @@ const isBlank = (u) => !(u.city || u.website || u.overview || u.entryRequirement
 const starterFields = (u) => JSON.stringify([u.city, u.location, u.overview, u.website, u.entryRequirements, u.languageTests, u.courses, u.interview, u.notes, u.programs || [], u.intakes || [], u.process || []]);
 const withStarterDetails = (u) => (hasStarter(u.name) ? { ...u, ...clean({ ...STARTER_DETAILS[startKey(u.name)], name: u.name, website: u.website || STARTER_DETAILS[startKey(u.name)].website || '' }, u) } : u);
 
+const summary = (u) => ({ id: u.id, name: u.name, city: u.city, intakes: u.intakes.map((i) => i.name), updatedAt: u.updatedAt });
+
+// Course lines of a page: the course list and each intake's, without the "## " sub-headings.
+const courseLines = (u) => [u.courses, ...u.intakes.map((i) => i.courses)]
+  .join('\n').split('\n').map((l) => l.trim()).filter((l) => l && !l.startsWith('##') && !/^The course list is under/.test(l));
+
+// Universities matching every word typed, by name, city or any course, so "cyber security" finds who
+// teaches it. `matches` holds up to four of the courses that matched; `matchCount` is how many.
+function searchIn(universities, q) {
+  const words = String(q || '').toLowerCase().split(/\s+/).filter(Boolean).slice(0, 6);
+  if (!words.length) return universities.map(summary);
+  const hits = [];
+  universities.forEach((u) => {
+    const head = `${u.name} ${u.city}`.toLowerCase();
+    const nameHit = words.every((w) => head.includes(w));
+    const lines = courseLines(u).filter((l) => { const t = l.toLowerCase(); return words.every((w) => t.includes(w)); });
+    if (nameHit || lines.length) hits.push({ ...summary(u), matches: [...new Set(lines)].slice(0, 4), matchCount: new Set(lines).size, nameHit });
+  });
+  return hits.sort((a, b) => (b.nameHit - a.nameHit) || (b.matchCount - a.matchCount) || a.name.localeCompare(b.name));
+}
+
+
+const listIn = (universities, q = '') => (String(q).trim() ? searchIn(universities, q) : universities.map(summary).sort((a, b) => a.name.localeCompare(b.name)));
+// Pages saved before the overview and fees table existed come back with those empty.
+const getIn = (universities, id) => { const u = universities.find((x) => x.id === id); return u ? { overview: '', programs: [], ...u } : null; };
+// Read only list and pages of a given set of universities (a backup), with the same shape and search as the live Fact File.
+const viewFacts = (universities) => ({ list: (q) => listIn(universities, q), get: (id) => getIn(universities, id) });
+
 function createFacts(dir, { now = () => new Date() } = {}) {
   const file = path.join(dir, 'fact-file.json');
 
@@ -154,33 +183,12 @@ function createFacts(dir, { now = () => new Date() } = {}) {
     return data;
   }
 
-  const summary = (u) => ({ id: u.id, name: u.name, city: u.city, intakes: u.intakes.map((i) => i.name), updatedAt: u.updatedAt });
-
-  // Course lines of a page: the course list and each intake's, without the "## " sub-headings.
-  const courseLines = (u) => [u.courses, ...u.intakes.map((i) => i.courses)]
-    .join('\n').split('\n').map((l) => l.trim()).filter((l) => l && !l.startsWith('##') && !/^The course list is under/.test(l));
-
-  // Universities matching every word typed, by name, city or any course, so "cyber security" finds who
-  // teaches it. `matches` holds up to four of the courses that matched; `matchCount` is how many.
-  function search(q) {
-    const words = String(q || '').toLowerCase().split(/\s+/).filter(Boolean).slice(0, 6);
-    if (!words.length) return load().universities.map(summary);
-    const hits = [];
-    load().universities.forEach((u) => {
-      const head = `${u.name} ${u.city}`.toLowerCase();
-      const nameHit = words.every((w) => head.includes(w));
-      const lines = courseLines(u).filter((l) => { const t = l.toLowerCase(); return words.every((w) => t.includes(w)); });
-      if (nameHit || lines.length) hits.push({ ...summary(u), matches: [...new Set(lines)].slice(0, 4), matchCount: new Set(lines).size, nameHit });
-    });
-    return hits.sort((a, b) => (b.nameHit - a.nameHit) || (b.matchCount - a.matchCount) || a.name.localeCompare(b.name));
-  }
-
   return {
-    list: (q = '') => (String(q).trim() ? search(q) : load().universities.map(summary).sort((a, b) => a.name.localeCompare(b.name))),
+    list: (q = '') => listIn(load().universities, q),
     // Pages saved before the overview and fees table existed come back with those empty.
     // Every university with all its details (for Admin's backup copy).
     all: () => load().universities,
-    get: (id) => { const u = load().universities.find((x) => x.id === id); return u ? { overview: '', programs: [], ...u } : null; },
+    get: (id) => getIn(load().universities, id),
     // Adds a university (just its name; the rest is filled in on its page).
     create(name, by) {
       const data = load();
@@ -209,7 +217,17 @@ function createFacts(dir, { now = () => new Date() } = {}) {
       write({ ...data, universities: data.universities.filter((u) => u.id !== id) });
       return { removed: uni };
     },
+    // Puts back a whole list from a backup (each page checked and cleaned like any save).
+    restoreAll(universities) {
+      if (!Array.isArray(universities)) return { error: 'The backup has no Fact File in it.' };
+      const data = load();
+      const restored = universities.filter((u) => u && /^[a-f0-9]{12}$/.test(u.id) && u.name).map((u) => ({
+        ...clean(u, { id: u.id, name: u.name }), id: u.id, updatedAt: u.updatedAt || now().toISOString(), updatedBy: typeof u.updatedBy === 'string' ? u.updatedBy : '',
+      }));
+      write({ ...data, universities: restored });
+      return { count: restored.length };
+    },
   };
 }
 
-module.exports = { createFacts, clean, STARTER_UNIVERSITIES, STARTER_STEPS };
+module.exports = { createFacts, viewFacts, clean, STARTER_UNIVERSITIES, STARTER_STEPS };

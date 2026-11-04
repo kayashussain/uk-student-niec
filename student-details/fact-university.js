@@ -3,6 +3,8 @@
 (function () {
   const $ = (id) => document.getElementById(id);
   const id = new URLSearchParams(location.search).get('u');
+  // ?backup=ID: this is an earlier daily backup, read only (see backup-bar.js): no editing, no deleting.
+  const BACKUP = new URLSearchParams(location.search).get('backup') || '';
   let uni = null;
   let isAdmin = false;
 
@@ -214,7 +216,20 @@
       edit.type = 'button';
       edit.addEventListener('click', renderEdit);
       bar.append(edit);
+      const remove = el('button', 'btn btn-danger', 'Delete');
+      remove.type = 'button';
+      remove.addEventListener('click', () => deleteUniversity());
+      bar.append(remove);
     }
+  }
+
+  // Delete this university (Admin only; the server refuses anyone else). `before` runs once it is deleted.
+  async function deleteUniversity(before) {
+    const yes = await NiecUI.confirm(`The whole page for ${uni.name} is removed from the Fact File. This cannot be undone.`,
+      { title: 'Delete this university?', confirmText: 'Delete university', danger: true });
+    if (!yes) return;
+    const res = await fetch(`/api/facts/${uni.id}/delete`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+    if (res.ok) { if (before) before(); location.href = '/fact-file'; } else say('Could not delete it.', true);
   }
 
   // ---- editing (Admin) ----
@@ -366,13 +381,7 @@
     const del = el('button', 'btn btn-danger', 'Delete this university');
     del.type = 'button';
     del.style.marginLeft = 'auto';
-    del.addEventListener('click', async () => {
-      const yes = await NiecUI.confirm(`The whole page for ${uni.name} is removed from the Fact File. This cannot be undone.`,
-        { title: 'Delete this university?', confirmText: 'Delete university', danger: true });
-      if (!yes) return;
-      const res = await fetch(`/api/facts/${uni.id}/delete`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
-      if (res.ok) { stopGuarding(); location.href = '/fact-file'; } else say('Could not delete it.', true);
-    });
+    del.addEventListener('click', () => deleteUniversity(stopGuarding));
     actions.append(save, cancel, del);
     form.append(actions);
 
@@ -410,11 +419,11 @@
   }
 
   async function start() {
-    if (!id) { location.replace('/fact-file'); return; }
+    if (!id) { location.replace('/fact-file' + (BACKUP ? '?backup=' + encodeURIComponent(BACKUP) : '')); return; }
     try {
-      const [meRes, uniRes] = await Promise.all([fetch('/api/me', { cache: 'no-store' }), fetch('/api/facts/' + encodeURIComponent(id), { cache: 'no-store' })]);
+      const [meRes, uniRes] = await Promise.all([fetch('/api/me', { cache: 'no-store' }), fetch((BACKUP ? '/api/restore/snapshot/' + encodeURIComponent(BACKUP) + '/facts/' : '/api/facts/') + encodeURIComponent(id), { cache: 'no-store' })]);
       if (!uniRes.ok) { say('That university is not in the Fact File.', true); return; }
-      isAdmin = (await meRes.json()).role === 'admin';
+      isAdmin = (await meRes.json()).role === 'admin' && !BACKUP;
       uni = await uniRes.json();
     } catch (e) {
       say('Could not load this page. Please reload.', true);
@@ -422,5 +431,6 @@
     }
     if (isAdmin && new URLSearchParams(location.search).get('edit')) renderEdit(); else renderView();
   }
+  if (BACKUP) { const back = document.querySelector('a[href="/fact-file"]'); if (back) back.href = '/fact-file?backup=' + encodeURIComponent(BACKUP); }
   start();
 })();

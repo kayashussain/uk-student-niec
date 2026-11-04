@@ -6,7 +6,6 @@
 <title>Incentive · UK Student NIEC</title>
 <link rel="icon" type="image/png" href="favicon.png" />
 <link rel="apple-touch-icon" href="apple-touch-icon.png" />
-<link rel="stylesheet" href="header.css" />
 <link rel="stylesheet" href="ui.css" />
 <style>
   :root {
@@ -71,7 +70,7 @@
   .brand { display: flex; align-items: center; gap: 10px; }
   .brand h1 { font-size: 16px; margin: 0; text-transform: uppercase; letter-spacing: 0.02em; }
 
-  /* The page's toolbar under the shared header (shared/header.css), matching Student Details. */
+  /* The page's own top bar. The Incentive page is separate from Student Details and has no shared NIEC header. */
   .top { background: var(--panel); border-bottom: 1px solid var(--border); padding: 8px 18px; }
   .top .brand h1 { color: #0077a8; font-size: 16px; font-weight: 700; text-transform: none; letter-spacing: .01em; }
   .top .subtitle { color: var(--text-dim); font-size: 11px; }
@@ -137,6 +136,10 @@
   .grid-key { display: inline-flex; gap: 12px; flex-wrap: wrap; }
   .grid-key i { display: inline-block; width: 11px; height: 11px; border-radius: 3px; border: 1px solid var(--border-strong); vertical-align: -1px; margin-right: 4px; }
   thead th.num { text-align: right; }
+  /* Every number column (tuition, commission, incentives) is the same width: only numbers are typed in them, so the heading
+     wraps onto two or three lines instead of making the column wide. */
+  thead th.num, tbody td.num { width: 132px; min-width: 132px; max-width: 132px; }
+  thead th.num { white-space: normal; line-height: 1.3; vertical-align: bottom; }
   /* Light-blue NIEC column headings, matching Student Details. */
   thead th { background: #e8f7fe; color: #0a5878; border-bottom: 2px solid #00adef; border-right-color: #cdebf8; }
   thead th .info { color: #2f6f8a; }
@@ -161,7 +164,7 @@
     font-variant-numeric: tabular-nums; cursor: pointer;
   }
   tbody tr.row-picked td.sn { background: var(--focus); color: #fff; font-weight: 600; }
-  td.num { text-align: right; font-variant-numeric: tabular-nums; min-width: 110px; }
+  td.num { text-align: right; font-variant-numeric: tabular-nums; }
   .muted { color: var(--text-dim); }
 
   /* Spreadsheet grid: the cell cursor, a multi-cell selection, and the cell being typed in. */
@@ -214,7 +217,6 @@
 <link rel="stylesheet" href="theme.css" />
 </head>
 <body>
-<header class="niec-header" data-page="incentive"></header>
 <main class="wrap">
 
   <div class="top">
@@ -225,7 +227,7 @@
       </div>
     </div>
     <div class="toolbar">
-      <input id="search" class="search" type="text" placeholder="Search student, university…" aria-label="Search students and universities">
+      <input id="search" class="search" type="text" placeholder="Search student, university, partner, source…" aria-label="Search students, universities, university partners and student sources">
       <button class="btn" id="undoBtn" title="Undo (Ctrl+Z)" disabled>↶ Undo</button>
       <button class="btn" id="redoBtn" title="Redo (Ctrl+Y)" disabled>↷ Redo</button>
       <button class="btn" id="exportExcelBtn" hidden>Export Excel</button>
@@ -259,7 +261,7 @@
   <p class="summary-title" id="summaryTitle">Payment Summary</p>
   <div class="summary-card">
     <div class="summary-row">
-      <span class="label">Total Incentives <span class="info" title="Enrollment + Enrollment from University + New Partnership + Direct Student + Flywire incentives, for every student in this intake.">ⓘ</span></span>
+      <span class="label">Total Incentives <span class="info" title="Enrollment + Enrollment from University + New Partnership + Flywire incentives, for every student in this intake.">ⓘ</span></span>
       <span class="value" id="sumTotalCommissions">0.00</span>
     </div>
     <div class="summary-row subtract">
@@ -329,7 +331,6 @@
 <script src="calc.js"></script>
 <script src="session.js"></script>
 <script src="ui.js"></script>
-<script src="header.js"></script>
 <script>
 // Exporting everything is for Admin only. /api/me is answered by Student Details (at the site's root).
 fetch('/api/me', { cache: 'no-store' }).then((r) => (r.ok ? r.json() : null)).then((me) => {
@@ -347,27 +348,28 @@ const POLL_MS = 3000; // safety net only: changes normally arrive at once over /
 
 // Student details are synced read-only from UK Student NIEC; the money columns are edited here.
 const COLUMNS = [
+  { key: 'source', label: 'Student Source', width: 20 },
   { key: 'name', label: 'Student Name', width: 24 },
   { key: 'course', label: 'Course Name', width: 32 },
   { key: 'university', label: 'University Name', width: 30 },
+  { key: 'agent', label: 'University Partner', width: 24 },
   { key: 'studentId', label: 'Student ID', width: 14 },
   { key: 'tuitionFee', label: 'Total Tuition Fee (£)', width: 18, amount: true,
     title: 'Synced from UK Student NIEC: Gross Fee − Scholarship − Early Bird Discount − Additional Discount.' },
-  { key: 'uniCommissionRate', label: 'Commission %', width: 13, money: true, percent: true,
+  { key: 'uniCommissionRate', label: 'Commission %', width: 18, money: true, percent: true,
     title: "The % of the tuition fee the university pays us as commission. Type it in, e.g. 15." },
-  { key: 'uniCommissionAmount', label: 'Commission Amount (£)', width: 20, amount: true,
+  { key: 'uniCommissionAmount', label: 'Commission Amount (£)', width: 18, amount: true,
     calc: (s) => universityCommission(s.tuitionFee, commissionValue(s.id, 'uniCommissionRate')),
     title: 'Auto-calculated: Total Tuition Fee × Commission %.' },
   { key: 'visaIssuedDate', label: 'Visa Issue Date', width: 15, synced: true },
-  { key: 'enrollmentCommission', label: 'Enrollment Incentive (NPR)', width: 22, money: true },
-  { key: 'enrollmentCommissionUni', label: 'Enrollment Incentive from University (NPR)', width: 32, money: true },
-  { key: 'newPartnershipCommission', label: 'New Partnership Incentive (NPR)', width: 25, money: true },
-  { key: 'selfStudentCommission', label: 'Direct Student Incentive (NPR)', width: 25, money: true },
-  { key: 'flywireFeePayment', label: 'Flywire Fee Payment (£)', width: 20, money: true,
+  { key: 'enrollmentCommission', label: 'Enrollment Incentive (NPR)', width: 18, money: true },
+  { key: 'enrollmentCommissionUni', label: 'Enrollment Incentive from University (NPR)', width: 18, money: true },
+  { key: 'newPartnershipCommission', label: 'New Partnership Incentive (NPR)', width: 18, money: true },
+  { key: 'flywireFeePayment', label: 'Flywire Fee Payment (£)', width: 18, money: true,
     title: 'The tuition fee the student paid through Flywire, in pounds. Fills in Flywire Incentive for you.' },
-  { key: 'flywireCommission', label: 'Flywire Incentive (NPR)', width: 20, money: true,
+  { key: 'flywireCommission', label: 'Flywire Incentive (NPR)', width: 18, money: true,
     title: "Auto-filled: 0.2% of Flywire Fee Payment (GBP), converted to NPR at today's rate. You can still edit it." },
-  { key: 'loanCommission', label: 'Loan Incentive to Share (NPR)', width: 24, money: true,
+  { key: 'loanCommission', label: 'Loan Incentive to Share (NPR)', width: 18, money: true,
     title: 'Loan incentive that is shared out. It is taken off your Total Incentives in the Payment Summary.' },
 ];
 const FIRST_KEY = COLUMNS[0].key;
@@ -712,7 +714,7 @@ function currentStudents() {
   const list = intakeStudents();
   const q = searchInput.value.trim().toLowerCase();
   if (!q) return list;
-  return list.filter((s) => (s.name + ' ' + s.university + ' ' + s.course + ' ' + s.studentId).toLowerCase().includes(q));
+  return list.filter((s) => (s.name + ' ' + s.university + ' ' + s.agent + ' ' + s.source + ' ' + s.course + ' ' + s.studentId).toLowerCase().includes(q));
 }
 
 let renderPending = false;

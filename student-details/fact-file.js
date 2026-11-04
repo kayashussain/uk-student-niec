@@ -5,6 +5,9 @@
   let list = [];
   let query = '';
   let loadedOnce = false;
+  // ?backup=ID: this is an earlier daily backup, read only (see backup-bar.js).
+  const BACKUP = new URLSearchParams(location.search).get('backup') || '';
+  const API = BACKUP ? '/api/restore/snapshot/' + encodeURIComponent(BACKUP) + '/facts' : '/api/facts';
   let searchTimer = null;
   let searchSeq = 0; // answers arriving out of order: only the latest search is shown
 
@@ -18,7 +21,7 @@
 
   function card(u) {
     const a = el('a', 'uni-card');
-    a.href = '/fact-file?u=' + encodeURIComponent(u.id);
+    a.href = '/fact-file?u=' + encodeURIComponent(u.id) + (BACKUP ? '&backup=' + encodeURIComponent(BACKUP) : '');
     a.append(el('h2', '', u.name));
     if (u.city) a.append(el('div', 'city', u.city));
     if (u.matches && u.matches.length) {
@@ -65,7 +68,7 @@
   async function load() {
     const seq = ++searchSeq;
     try {
-      const res = await fetch('/api/facts' + (query ? '?q=' + encodeURIComponent(query) : ''), { cache: 'no-store' });
+      const res = await fetch(API + (query ? '?q=' + encodeURIComponent(query) : ''), { cache: 'no-store' });
       if (!res.ok) throw new Error('HTTP ' + res.status);
       const data = await res.json();
       if (seq !== searchSeq) return;
@@ -103,7 +106,7 @@
     location.href = '/fact-file?u=' + json.id + '&edit=1'; // straight to its page, ready to fill in
   });
 
-  fetch('/api/me', { cache: 'no-store' }).then((r) => r.json()).then((me) => { $('addForm').hidden = me.role !== 'admin'; }).catch(() => {});
+  fetch('/api/me', { cache: 'no-store' }).then((r) => r.json()).then((me) => { $('addForm').hidden = me.role !== 'admin' || Boolean(BACKUP); }).catch(() => {});
   skeletons();
   load();
 })();

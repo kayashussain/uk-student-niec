@@ -36,10 +36,11 @@ test('summary nets loans, takes 15% TDS, then the previous advance', () => {
     { enrollmentCommission: 10000, flywireCommission: 2000, loanCommission: 1000 },
     { enrollmentCommissionUni: 5000, newPartnershipCommission: 1000, selfStudentCommission: 3000 },
   ], '4000');
-  assert.strictEqual(s.totalCommissions, 21000);
-  assert.strictEqual(s.netCommissions, 20000);
-  assert.strictEqual(s.tds, 3000);
-  assert.strictEqual(s.netPayable, 13000);
+  // The old Direct Student Incentive column is gone: a value saved there earlier is kept in the file but is not part of the totals.
+  assert.strictEqual(s.totalCommissions, 18000);
+  assert.strictEqual(s.netCommissions, 17000);
+  assert.strictEqual(s.tds, 2550);
+  assert.strictEqual(s.netPayable, 10450);
 });
 
 test('no TDS is taken when nothing is owed', () => {

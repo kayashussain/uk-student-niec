@@ -266,7 +266,7 @@ test('the dashboard counts students, milestones, months and groups', () => {
   const row = (o) => ({ 'FIRST NAME': 'S', ...o });
   const wb = { sheets: [
     { id: 'a', name: 'Jan', rows: [
-      row({ [S]: 'Visa Issued', 'STUDENT SOURCE': 'Agents', 'UNIVERSITY PARTNER': 'Navitas', 'APPLICATION SUBMISSION DATE': '2026-08-02', 'PAYMENT DATE': '9/5/2026', 'VISA RECEIVED DATE': '2026-10-01', 'TUITION FEE DEPOSIT(1st Installment)': '1,500', 'MOCK SCHEDULE 1': '2026-08-20', 'PRE CAS INTERVIEW': 'Passed' }),
+      row({ [S]: 'Visa Issued', 'STUDENT SOURCE': 'Agent', 'UNIVERSITY PARTNER': 'Navitas', 'APPLICATION SUBMISSION DATE': '2026-08-02', 'PAYMENT DATE': '9/5/2026', 'VISA RECEIVED DATE': '2026-10-01', 'TUITION FEE DEPOSIT(1st Installment)': '1,500', 'MOCK SCHEDULE 1': '2026-08-20', 'PRE CAS INTERVIEW': 'Passed' }),
       row({ [S]: 'Mock Stage', 'STUDENT SOURCE': 'Visitor', 'UNIVERSITY PARTNER': 'Navitas', 'APPLICATION SUBMISSION DATE': '2026-09-02' }),
       row({ [S]: 'Defer', 'LAST NAME': '' }),
       { _id: 'blank' }, // no name: not a student
@@ -460,17 +460,17 @@ test('the dashboard says how many paying students have paid in full and how many
   assert.ok(!JSON.stringify(d).includes('depositsGbp'), 'no deposit totals on the dashboard');
 });
 
-test('the dashboard lists only what is recorded: no "Not recorded" rows, and no source counted on the Sep 2026 sheet', () => {
+test('the dashboard lists only what is recorded: no "Not recorded" rows, and the Student Source of the Sep 2026 sheet is counted like any other', () => {
   const row = (extra) => ({ _id: Math.random().toString(36), 'FIRST NAME': 'A', 'LAST NAME': 'B', ...extra });
   const wb = { sheets: [
     { id: 'sep', name: 'Sep Intake 2026', rows: [row({ 'STUDENT SOURCE': 'Visitor', 'UNIVERSITY PARTNER': 'Navitas' }), row({})] },
-    { id: 'jan', name: 'Jan Intake 2027', rows: [row({ 'STUDENT SOURCE': 'Agents', 'UNIVERSITY NAME': 'Coventry University' }), row({})] },
+    { id: 'jan', name: 'Jan Intake 2027', rows: [row({ 'STUDENT SOURCE': 'Agent', 'UNIVERSITY NAME': 'Coventry University' }), row({})] },
   ] };
   const sep = buildDashboard(wb, { sheetId: 'sep', today: new Date('2026-10-28T00:00:00') });
-  assert.deepStrictEqual(sep.sources, []);
+  assert.deepStrictEqual(sep.sources.map((g) => g.label), ['Visitor'], 'the Student Source column is shown on the Sep 2026 sheet now, so it is counted');
   assert.deepStrictEqual(sep.partners.map((g) => g.label), ['Navitas']);
   const jan = buildDashboard(wb, { sheetId: 'jan', today: new Date('2026-10-28T00:00:00') });
-  assert.deepStrictEqual(jan.sources.map((g) => g.label), ['Agents']);
+  assert.deepStrictEqual(jan.sources.map((g) => g.label), ['Agent']);
   assert.deepStrictEqual(jan.universities.map((g) => g.label), ['Coventry University']);
   assert.deepStrictEqual(jan.courses, []);
   assert.ok(!JSON.stringify([sep, jan]).includes('Not recorded'));

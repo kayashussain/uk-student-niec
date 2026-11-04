@@ -10,8 +10,11 @@ const { createAccounts } = require('../shared/accounts');
 const { makePatch, applyPatch } = require('../shared/patch');
 const { isAdmin, isManager, isReadOnly, teamOf, viewKey, viewFor, teamChanges } = require('../shared/teams');
 const { buildDashboard } = require('./dashboard-stats');
-const { createFacts } = require('./facts');
+const { createFacts, viewFacts } = require('./facts');
+const { createDirect, viewDirect, MAX_FILE_BYTES } = require('./direct');
+const { createBackups, ID: BACKUP_ID, HOUR: BACKUP_HOUR, KEEP_DAYS } = require('./backups');
 const { createAdvisorMcp } = require('./advisor-mcp');
+const { advancesByName } = require('../counselor-incentive/advances');
 const {
   blankWorkbook, ensureRowIds, migrateWorkbook, isValidWorkbook, mergeWorkbooks, createHistory, describeChanges,
 } = require('./workbook');
@@ -43,6 +46,9 @@ const serveStatic = createStaticServer(ROOT, {
   '/fact-file.js': 'text/javascript; charset=utf-8',
   '/fact-university.js': 'text/javascript; charset=utf-8',
   '/fact-file.css': 'text/css; charset=utf-8',
+  '/direct.html': 'text/html; charset=utf-8',
+  '/backup-bar.js': 'text/javascript; charset=utf-8',
+  '/direct-page.js': 'text/javascript; charset=utf-8',
   '/calc.js': 'text/javascript; charset=utf-8',
   '/suggest.js': 'text/javascript; charset=utf-8',
   '/style.css': 'text/css; charset=utf-8',
@@ -63,6 +69,24 @@ const activity = createActivityLog(DATA_DIR);
 const accounts = createAccounts({ dir: DATA_DIR, activity });
 const { requireAuth } = accounts;
 const facts = createFacts(DATA_DIR);
+// Partner Universities: Admin only, kept out of the Advisor connector and every other account's reach.
+const direct = createDirect(DATA_DIR);
+// Daily backups (6 p.m., kept 30 days) and Admin's restore (see backups.js). `current` is the students, held in memory below.
+const backups = createBackups(DATA_DIR, () => ({ students: current, facts: facts.all(), partners: direct.all() }));
+setInterval(() => backups.tick(), 5 * 60 * 1000).unref();
+
+// The Incentive page's saved figures (commissions, advances, exchange rate), read-only, so the same Claude connector can also answer
+// questions about incentives. They live in the Incentive app's data folder: COUNSELOR_DATA_DIR, or (as on cPanel and with
+// deploy.sh) the folder next to this app's data. If it cannot be found, the incentive tools say so instead of showing zeros.
+const INCENTIVE_DIR = process.env.COUNSELOR_DATA_DIR || path.join(DATA_DIR, '..', 'counselor-incentive');
+function readIncentiveFile(name, fallback) {
+  if (!fs.existsSync(INCENTIVE_DIR)) return null;
+  try {
+    return JSON.parse(fs.readFileSync(path.join(INCENTIVE_DIR, name), 'utf8'));
+  } catch (e) {
+    return e.code === 'ENOENT' ? fallback : null; // not saved yet: nothing entered; unreadable: unknown
+  }
+}
 
 // Read-only door for the Claude Strategy Advisor project. Off unless NIEC_ADVISOR_TOKEN is set (see advisor-mcp.js).
 const advisor = createAdvisorMcp({
@@ -70,6 +94,11 @@ const advisor = createAdvisorMcp({
   getWorkbook: () => current,
   getDashboard: (intake) => buildDashboard(current, { sheetId: intake, includeHidden: true }),
   facts,
+  incentive: {
+    getCommissions: () => readIncentiveFile('commissions.json', {}),
+    getAdvances: (sheets) => advancesByName(readIncentiveFile('advances.json', {}) || {}, sheets.map((x) => ({ id: x.id, name: x.name }))),
+    getRate: () => { const c = readIncentiveFile('exchange-rate-cache.json', null); return c && typeof c.rate === 'number' ? { rate: c.rate, date: c.date } : null; },
+  },
   memoryDir: path.join(DATA_DIR, 'advisor-memory'),
 });
 
@@ -408,6 +437,89 @@ async function handleFacts(req, res, urlPath) {
   return sendJSON(res, 200, saved.university);
 }
 
+// The request body as it is (an uploaded file), refused past maxBytes.
+function readRawBody(req, maxBytes) {
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    let size = 0;
+    let failed = false;
+    req.on('data', (chunk) => {
+      if (failed) return;
+      size += chunk.length;
+      if (size > maxBytes) { failed = true; const err = new Error('Payload too large'); err.statusCode = 413; reject(err); return; }
+      chunks.push(chunk);
+    });
+    req.on('end', () => { if (!failed) resolve(Buffer.concat(chunks)); });
+    req.on('error', reject);
+  });
+}
+
+// Partner Universities (campuses, commission slabs, agreement details): Admin only, for reading as well as changing.
+async function handleDirect(req, res, urlPath) {
+  if (!isAdmin(req.user)) return sendJSON(res, 403, { error: 'Partner Universities is for Admin only.' });
+  const id = (urlPath.match(/^\/api\/direct\/([a-f0-9]{12})/) || [])[1];
+  // Agreement files: upload (the file itself is the request body), download, remove.
+  const fileMatch = urlPath.match(/^\/api\/direct\/[a-f0-9]{12}\/files(?:\/([a-f0-9]{12})(\/delete)?)?$/);
+  if (fileMatch) {
+    const fid = fileMatch[1];
+    if (req.method === 'GET' && fid && !fileMatch[2]) {
+      const file = direct.agreementFile(id, fid);
+      if (!file) return sendJSON(res, 404, { error: 'No such file.' });
+      activity.record(req, req.user, 'Downloaded agreement', { app: 'Student Details', changes: [`Downloaded ${file.name}`] });
+      return send(res, 200, fs.readFileSync(file.path), {
+        'Content-Type': file.type, 'Cache-Control': 'no-store', 'Content-Security-Policy': "sandbox; default-src 'none'",
+        'Content-Disposition': `attachment; filename="agreement${path.extname(file.path)}"; filename*=UTF-8''${encodeURIComponent(file.name)}`,
+      });
+    }
+    if (req.method !== 'POST') return send(res, 405, 'Method not allowed');
+    if (!fid) {
+      const name = new URL(req.url, 'http://x').searchParams.get('name') || '';
+      let bytes;
+      try {
+        bytes = await readRawBody(req, MAX_FILE_BYTES);
+      } catch (e) {
+        return sendJSON(res, e.statusCode || 400, { error: e.statusCode === 413 ? 'That file is too large (the limit is 10 MB).' : e.message });
+      }
+      const added = direct.addAgreement(id, name, bytes, req.user.label);
+      if (added.error) return sendJSON(res, 400, { error: added.error });
+      activity.record(req, req.user, 'Edited partner universities', { app: 'Student Details', changes: [`Uploaded the agreement ${added.agreement.name} for ${added.university.name}`] });
+      return sendJSON(res, 200, added.university);
+    }
+    const gone = direct.removeAgreement(id, fid, req.user.label);
+    if (gone.error) return sendJSON(res, 404, { error: gone.error });
+    activity.record(req, req.user, 'Edited partner universities', { app: 'Student Details', changes: [`Removed the agreement ${gone.removed.name} from ${gone.university.name}`] });
+    return sendJSON(res, 200, gone.university);
+  }
+  if (req.method === 'GET') {
+    if (!id) return send(res, 200, JSON.stringify(direct.list()), JSON_HEADERS);
+    const uni = direct.get(id);
+    return uni ? send(res, 200, JSON.stringify(uni), JSON_HEADERS) : sendJSON(res, 404, { error: 'No such university.' });
+  }
+  if (req.method !== 'POST') return send(res, 405, 'Method not allowed');
+  let body;
+  try {
+    body = await readJSONBody(req, 1024 * 1024);
+  } catch (e) {
+    return sendJSON(res, e.statusCode || 400, { error: e.message });
+  }
+  if (!id) {
+    const made = direct.create(body && body.name, req.user.label);
+    if (made.error) return sendJSON(res, 400, { error: made.error });
+    activity.record(req, req.user, 'Edited partner universities', { app: 'Student Details', changes: [`Added ${made.university.name} to Partner Universities`] });
+    return sendJSON(res, 200, made.university);
+  }
+  if (urlPath.endsWith('/delete')) {
+    const gone = direct.remove(id);
+    if (gone.error) return sendJSON(res, 404, { error: gone.error });
+    activity.record(req, req.user, 'Edited partner universities', { app: 'Student Details', changes: [`Removed ${gone.removed.name} from Partner Universities`] });
+    return sendJSON(res, 200, { ok: true });
+  }
+  const saved = direct.update(id, body || {}, req.user.label);
+  if (saved.error) return sendJSON(res, 400, { error: saved.error });
+  activity.record(req, req.user, 'Edited partner universities', { app: 'Student Details', changes: [`Updated ${saved.university.name} in Partner Universities`] });
+  return sendJSON(res, 200, saved.university);
+}
+
 function num(v) {
   return Number.isInteger(v) ? v : 0;
 }
@@ -419,9 +531,87 @@ try {
   console.error('[startup] could not read', DATA_FILE, '-', e.message);
 }
 
+// Admin's restore: the backups on the server, a copy made right now, and putting one back (students, Fact File and
+// Partner Universities, each on its own). The data as it is now is saved first, so a restore can be undone.
+async function handleRestore(req, res, urlPath) {
+  if (!isAdmin(req.user)) return sendJSON(res, 403, { error: 'Only Admin can restore data.' });
+  if (urlPath === '/api/restore/backups' && req.method === 'GET') {
+    return sendJSON(res, 200, {
+      backups: backups.list(), keepDays: KEEP_DAYS, hour: BACKUP_HOUR, nextDue: backups.dueDay(),
+      now: { students: current ? current.sheets.reduce((n, s) => n + s.rows.length, 0) : null, facts: facts.list().length, partners: direct.list().length },
+    });
+  }
+  if (urlPath === '/api/restore/compare' && req.method === 'GET') {
+    const id = new URL(req.url, 'http://x').searchParams.get('id') || '';
+    if (!BACKUP_ID.test(id)) return sendJSON(res, 400, { error: 'Choose a backup to compare.' });
+    const snap = backups.read(id);
+    if (!snap) return sendJSON(res, 404, { error: 'That backup could not be read.' });
+    return sendJSON(res, 200, backups.compare(snap, { students: current, facts: facts.all(), partners: direct.all() }));
+  }
+  // Look at a backup (read only): the real pages (Student Details, Fact File, Partner Universities) are opened on the
+  // backup's data with ?backup=ID and ask for it here, in the same shape the live data has.
+  const snapMatch = urlPath.match(/^\/api\/restore\/snapshot\/([a-z0-9-]+)\/(data|facts|partners)(?:\/([a-f0-9]{12}))?$/);
+  if (snapMatch && req.method === 'GET') {
+    const [, id, part, itemId] = snapMatch;
+    if (!BACKUP_ID.test(id)) return sendJSON(res, 400, { error: 'Choose a backup to look at.' });
+    const snap = backups.read(id);
+    if (!snap) return sendJSON(res, 404, { error: 'That backup could not be read.' });
+    const noStore = { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' };
+    if (part === 'data') {
+      if (!snap.students || !Array.isArray(snap.students.sheets)) return sendJSON(res, 404, { error: 'That backup has no students.' });
+      activity.record(req, req.user, 'Viewed backup', { app: 'Student Details', changes: [`Opened the students in the backup ${id}`] });
+      const mine = migrateWorkbook({ sheets: JSON.parse(JSON.stringify(snap.students.sheets)), activeSheetId: snap.students.activeSheetId });
+      return send(res, 200, JSON.stringify({ revision: 0, sheets: mine.sheets, activeSheetId: mine.activeSheetId }), noStore);
+    }
+    const items = snap[part === 'facts' ? 'facts' : 'partners'];
+    if (!Array.isArray(items)) return sendJSON(res, 404, { error: 'That backup does not hold this part.' });
+    const view = part === 'facts' ? viewFacts(items) : viewDirect(items);
+    if (!itemId) return send(res, 200, JSON.stringify(view.list(new URL(req.url, 'http://x').searchParams.get('q') || '')), noStore);
+    const one = view.get(itemId);
+    return one ? send(res, 200, JSON.stringify(one), noStore) : sendJSON(res, 404, { error: 'No such university in that backup.' });
+  }
+  if (req.method !== 'POST') return send(res, 405, 'Method not allowed');
+  let body;
+  try {
+    body = await readJSONBody(req, 4096);
+  } catch (e) {
+    return sendJSON(res, e.statusCode || 400, { error: e.message });
+  }
+  if (urlPath === '/api/restore/backup-now') {
+    if (!current) return sendJSON(res, 500, { error: 'Could not read the data file' });
+    const id = backups.create('manual');
+    activity.record(req, req.user, 'Backup made', { app: 'Student Details', changes: [`Saved a backup copy now (${id})`] });
+    return sendJSON(res, 200, { id });
+  }
+  if (urlPath !== '/api/restore') return send(res, 404, 'Not found');
+  const id = String(body.id || '');
+  const parts = (Array.isArray(body.parts) ? body.parts : []).filter((p) => ['students', 'facts', 'partners'].includes(p));
+  if (!BACKUP_ID.test(id)) return sendJSON(res, 400, { error: 'Choose a backup to restore.' });
+  if (!parts.length) return sendJSON(res, 400, { error: 'Choose what to restore.' });
+  if (parts.includes('students') && !current) return sendJSON(res, 500, { error: 'Could not read the data file' });
+  const snap = backups.read(id);
+  if (!snap) return sendJSON(res, 404, { error: 'That backup could not be read.' });
+  // Check everything before changing anything.
+  if (parts.includes('students') && !isValidWorkbook(snap.students)) return sendJSON(res, 400, { error: 'The students in that backup could not be read, so nothing was restored.' });
+  if (parts.includes('facts') && !Array.isArray(snap.facts)) return sendJSON(res, 400, { error: 'That backup has no Fact File, so nothing was restored.' });
+  if (parts.includes('partners') && !Array.isArray(snap.partners)) return sendJSON(res, 400, { error: 'That backup has no Partner Universities, so nothing was restored.' });
+  const safety = backups.create('before-restore');
+  const done = [];
+  if (parts.includes('students')) {
+    const mine = migrateWorkbook({ sheets: snap.students.sheets, activeSheetId: snap.students.activeSheetId });
+    writeWorkbook(ensureRowIds({ revision: current.revision + 1, sheets: mine.sheets, activeSheetId: mine.activeSheetId }));
+    done.push('the students');
+  }
+  if (parts.includes('facts')) { facts.restoreAll(snap.facts); done.push('the Fact File'); }
+  if (parts.includes('partners')) { direct.restoreAll(snap.partners); done.push('the Partner Universities'); }
+  activity.record(req, req.user, 'Restored data', { app: 'Student Details', changes: [`Restored ${done.join(', ')} from the backup ${id}. The data as it was before is saved as ${safety}`] });
+  return sendJSON(res, 200, { ok: true, restored: done, safety });
+}
+
 const server = http.createServer(async (req, res) => {
   try {
     const urlPath = req.url.split('?')[0];
+    backups.tick(); // the day's 6 p.m. copy, if it is due and missing (the host may have put the server to sleep)
     if (urlPath === '/login' && req.method === 'GET') {
       req.url = '/login.html';
       return serveShared(req, res);
@@ -439,7 +629,7 @@ const server = http.createServer(async (req, res) => {
     // The pages. The Manager lands on the dashboard; Admin-only pages send anyone else back home.
     const home = req.user.role === 'manager' ? '/dashboard' : '/students';
     if (req.method === 'GET') {
-      const page = { '/students': 'index.html', '/dashboard': 'dashboard.html', '/users': 'users.html', '/activity': 'activity.html' }[urlPath];
+      const page = { '/students': 'index.html', '/dashboard': 'dashboard.html', '/users': 'users.html', '/activity': 'activity.html', '/partner-universities': 'direct.html' }[urlPath];
       if (urlPath === '/') return req.user.role === 'manager' ? send(res, 302, '', { Location: '/dashboard' }) : serveStatic(req, res);
       if (urlPath === '/fact-file') { // the list, or one university's page (?u=...); every account may read
         req.url = new URL(req.url, 'http://x').searchParams.get('u') ? '/fact-university.html' : '/fact-file.html';
@@ -475,15 +665,6 @@ const server = http.createServer(async (req, res) => {
       return sendJSON(res, 200, { ok: true });
     }
     // Admin's backups: a copy of all students or of the Fact File to keep, and what the server has copied by itself.
-    if (urlPath === '/api/backup/info' && req.method === 'GET') {
-      if (!isAdmin(req.user)) return sendJSON(res, 403, { error: 'Only Admin can make backups.' });
-      let daily = [];
-      try {
-        daily = fs.readdirSync(path.join(DATA_DIR, 'backups')).filter((f) => /^data-\d{4}-\d{2}-\d{2}\.json$/.test(f)).sort().reverse().slice(0, 14)
-          .map((name) => ({ name, bytes: fs.statSync(path.join(DATA_DIR, 'backups', name)).size }));
-      } catch (e) { /* none yet */ }
-      return sendJSON(res, 200, { daily, students: current ? current.sheets.reduce((n, s) => n + s.rows.length, 0) : 0, universities: facts.list().length });
-    }
     const backupMatch = urlPath.match(/^\/api\/backup\/(students|fact-file)\.json$/);
     if (backupMatch && req.method === 'GET') {
       if (!isAdmin(req.user)) return sendJSON(res, 403, { error: 'Only Admin can make backups.' });
@@ -497,6 +678,8 @@ const server = http.createServer(async (req, res) => {
       });
     }
     if (urlPath === '/api/facts' || /^\/api\/facts\/[a-f0-9]{12}(\/delete)?$/.test(urlPath)) return await handleFacts(req, res, urlPath);
+    if (urlPath === '/api/direct' || /^\/api\/direct\/[a-f0-9]{12}(\/delete|\/files(\/[a-f0-9]{12}(\/delete)?)?)?$/.test(urlPath)) return await handleDirect(req, res, urlPath);
+    if (urlPath === '/api/restore' || urlPath.startsWith('/api/restore/')) return await handleRestore(req, res, urlPath);
     if (urlPath === '/api/events' && req.method === 'GET') return handleEvents(req, res);
     if (urlPath === '/api/presence') {
       if (req.method === 'POST') return await handlePresence(req, res);

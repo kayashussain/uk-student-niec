@@ -18,8 +18,6 @@ const { newestSheet } = require('../shared/teams');
 // The stages in the order a student moves through them, then the ones that leave the pipeline.
 const PIPELINE = ['Inquiry', 'Application Stage', 'Mock Stage', 'Payment Stage', 'CAS Stage', 'CAS Issued', 'Visa Lodge', 'Visa Issued'];
 const LEFT = ['Visa Rejected', 'Defer', 'Withdrawn'];
-// Sheets whose Student Source column is hidden on the Student Details page (see HIDDEN_COLUMNS_BY_SHEET in app.js).
-const SOURCE_HIDDEN = (sheetName) => /\bsep/i.test(sheetName || '') && /2026/.test(sheetName || '');
 const TOP_N = 8;
 const MONTHS = 12;
 const DAY = 86400000;
@@ -224,7 +222,7 @@ function buildDashboard(workbook, { sheetId = '', includeHidden = false, today =
 
     // Only what has been recorded is counted; a student with nothing there is simply not in that chart.
     // The source column is not shown on the Sep Intake 2026 sheet, so nothing in it is counted either.
-    const source = SOURCE_HIDDEN(s.sheet.name) ? '' : text(row['STUDENT SOURCE']);
+    const source = text(row['STUDENT SOURCE']);
     [[sources, source], [partners, text(row['UNIVERSITY PARTNER'])], [universities, text(row['UNIVERSITY NAME'])], [courses, text(row['COURSE NAME'])]]
       .forEach(([map, label]) => { if (label) bump(map, label, p, s.left); });
 

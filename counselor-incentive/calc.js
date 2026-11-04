@@ -15,7 +15,7 @@
   function computeSummary(records, previousAdvance) {
     const sum = (key) => records.reduce((a, r) => a + num((r || {})[key]), 0);
     const totalCommissions = sum('enrollmentCommission') + sum('enrollmentCommissionUni')
-      + sum('newPartnershipCommission') + sum('selfStudentCommission') + sum('flywireCommission');
+      + sum('newPartnershipCommission') + sum('flywireCommission');
     const loanPayable = sum('loanCommission');
     const netCommissions = totalCommissions - loanPayable;
     const tds = Math.max(0, netCommissions) * TDS_RATE; // no TDS (and no negative TDS) when nothing is owed
