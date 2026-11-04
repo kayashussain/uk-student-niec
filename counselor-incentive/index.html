@@ -236,18 +236,7 @@
   .pay-remove { border: 0; background: none; padding: 2px 4px; color: var(--text-dim); font: inherit; font-size: 12px; text-decoration: underline; cursor: pointer; }
   .pay-remove:hover { color: var(--danger); }
   .pay-empty { padding: 18px 16px; }
-  /* 🔴 CSS CHANGED (2026-11-04): Company Earnings branch list turned into a real table | from: a plain list of rows (student and amount) with bold subtotal lines | to: a table with a header row (Student, Branch, University commission, Branch keeps 70%, Head office keeps 30%), light subtotal rows per branch, a shaded total row and no vertical lines between columns; same fonts and colours as the rest of the page */
-  .branch-table-wrap { padding: 14px 16px 16px; border-bottom: 1px solid var(--border); overflow-x: auto; }
-  .branch-table-title { margin: 0 0 10px; font-size: 13px; font-weight: 700; color: var(--text); }
-  .branch-table-title .hint { font-size: 11px; font-weight: 400; color: var(--text-dim); margin-left: 8px; }
-  .branch-table { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
-  .branch-table th { text-align: left; font-size: 11px; font-weight: 600; letter-spacing: .02em; color: var(--text-dim); padding: 8px 10px; border-bottom: 1px solid var(--border-strong); white-space: nowrap; }
-  .branch-table td { padding: 8px 10px; border-bottom: 1px solid var(--border); color: var(--text); }
-  .branch-table th, .branch-table td { border-left: 0; border-right: 0; }
-  .branch-table .n { text-align: right; white-space: nowrap; }
-  .branch-table tr.sub td { background: var(--bg); font-weight: 600; }
-  .branch-table tr.grand td { background: var(--accent-dim); font-weight: 700; border-bottom: none; }
-  .branch-table .hint { font-size: 11px; font-weight: 400; color: var(--text-dim); margin-left: 6px; }
+  /* 🔴 CSS CHANGED (2026-11-04): the Company Earnings branch table was taken out again | from: a table with a header row, subtotal rows and a shaded total row | to: simple rows like the rest of the card (name - branch, with the university commission in small grey text, and the amount the branch keeps on the right); no extra styles needed */
   /* 🔴 CSS CHANGED (2026-11-04): small explanation line at the top of the Payments Received card about the exchange rate | from: none (did not exist) | to: 12px grey text, 12px 16px padding, a thin line under it, same grey as the other hints */
   .pay-rate-note { margin: 0; padding: 12px 16px; font-size: 12px; line-height: 1.5; color: var(--text-dim); border-bottom: 1px solid var(--border); }
 </style>
@@ -1063,32 +1052,22 @@ function renderEarnings(students, summary) {
   $('#earnShare').textContent = e.sharePercent === null ? '-' : e.sharePercent.toFixed(2) + '%';
 }
 
-// Under the total commission: a table of every branch student, their branch, the university commission, what the branch
-// kept (70%) and what the head office kept (30%), with a subtotal for each branch that has more than one student and a total.
+// Under the total commission: one line for every branch student (name, branch, university commission) with what the branch
+// kept of it (70%). The total of those lines is taken off the company earnings in the rows below.
 function renderBranchList(students) {
   document.querySelectorAll('[data-branch-row]').forEach((n) => n.remove());
   const rows = branchDeductions(students);
   if (!rows.length) return;
-  const gbp = (n) => '£' + fmt(n);
-  const line = (r) => `<tr><td>${esc(r.name)}</td><td>${esc(r.branch)}</td><td class="n">${gbp(r.commission)}</td><td class="n">${gbp(r.deducted)}</td><td class="n">${gbp(r.commission - r.deducted)}</td></tr>`;
-  const total = (label, list, cls) => {
-    const c = list.reduce((a, r) => a + r.commission, 0);
-    const d = list.reduce((a, r) => a + r.deducted, 0);
-    return `<tr class="${cls}"><td colspan="2">${label}</td><td class="n">${gbp(c)}</td><td class="n">${gbp(d)}</td><td class="n">${gbp(c - d)}</td></tr>`;
-  };
-  const branches = [...new Set(rows.map((r) => r.branch))];
-  const body = branches.map((branch) => {
-    const group = rows.filter((r) => r.branch === branch);
-    return group.map(line).join('') + (group.length > 1 ? total(`${esc(branch)} subtotal <span class="hint">${group.length} students</span>`, group, 'sub') : '');
-  }).join('');
-  const wrap = document.createElement('div');
-  wrap.dataset.branchRow = '1';
-  wrap.className = 'branch-table-wrap';
-  wrap.innerHTML = `<p class="branch-table-title">Taken by the branches <span class="hint">the branch keeps ${BRANCH_SHARE_PERCENT}% of each branch student's university commission, the head office ${100 - BRANCH_SHARE_PERCENT}%</span></p>
-    <table class="branch-table"><thead><tr><th>Student</th><th>Branch</th><th class="n">University commission</th><th class="n">Branch keeps ${BRANCH_SHARE_PERCENT}%</th><th class="n">Head office keeps ${100 - BRANCH_SHARE_PERCENT}%</th></tr></thead>
-    <tbody>${body}${total(`All branches <span class="hint">${rows.length} student${rows.length === 1 ? '' : 's'}</span>`, rows, 'grand')}</tbody></table>`;
   const anchor = $('#earnBranchRow');
-  anchor.parentNode.insertBefore(wrap, anchor);
+  const add = (labelHtml, value) => {
+    const div = document.createElement('div');
+    div.className = 'summary-row';
+    div.dataset.branchRow = '1';
+    div.innerHTML = `<span class="label">${labelHtml}</span><span class="value">${esc(value)}</span>`;
+    anchor.parentNode.insertBefore(div, anchor);
+  };
+  add(`<strong>Taken by the branches</strong> <span class="hint">the branch keeps ${BRANCH_SHARE_PERCENT}% of each branch student's university commission</span>`, '');
+  rows.forEach((r) => add(`${esc(r.name)} - ${esc(r.branch)} <span class="hint">university commission £${esc(fmt(r.commission))}, branch keeps ${BRANCH_SHARE_PERCENT}%</span>`, '£' + fmt(r.deducted)));
 }
 
 function refreshRate() {

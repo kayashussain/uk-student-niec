@@ -9,6 +9,16 @@ Format: **date · file · what · from → to · why**
 
 ---
 
+## 2026-11-04 · `counselor-incentive/index.html` · Company Earnings: branch table taken out, simple rows instead
+
+- **What:** the "Taken by the branches" table was removed at the owner's request.
+- **From:** a table with a header row (Student, Branch, University commission, Branch keeps 70%, Head office keeps 30%), branch subtotal rows and a shaded "All branches" row → **to:** one ordinary row per branch student, like the other rows in the card: "Manisha Kawas - Chitwan Branch", with the university commission and "branch keeps 70%" in small grey text, and the amount the branch keeps on the right. No subtotals.
+- **Order of the card:** Students Enrolled, Total Commission from Universities, the branch student rows, Total Branch Share Deducted (-), Total Company Earnings (£).
+- **Why:** the owner only wants to see which student came from which branch and how much was taken from the head office commission.
+- **In the code:** marked with `🔴 CSS CHANGED` in the `<style>` block of `counselor-incentive/index.html` (where the table styles used to be).
+
+---
+
 ## 2026-11-04 · `counselor-incentive/index.html` · Payments Received card: exchange rate note
 
 - **What:** a small explanation line at the top of the Payments Received card, saying whether the exchange rate is live (updated every hour) or fixed from the first payment.
