@@ -11,7 +11,7 @@ const { makePatch, applyPatch } = require('../shared/patch');
 const { isAdmin, isManager, isReadOnly, teamOf, viewKey, viewFor, teamChanges } = require('../shared/teams');
 const { buildDashboard } = require('./dashboard-stats');
 const { createFacts } = require('./facts');
-const { createDirect } = require('./direct');
+const { createDirect, MAX_FILE_BYTES } = require('./direct');
 const { createAdvisorMcp } = require('./advisor-mcp');
 const {
   blankWorkbook, ensureRowIds, migrateWorkbook, isValidWorkbook, mergeWorkbooks, createHistory, describeChanges,
@@ -413,10 +413,59 @@ async function handleFacts(req, res, urlPath) {
   return sendJSON(res, 200, saved.university);
 }
 
+// The request body as it is (an uploaded file), refused past maxBytes.
+function readRawBody(req, maxBytes) {
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    let size = 0;
+    let failed = false;
+    req.on('data', (chunk) => {
+      if (failed) return;
+      size += chunk.length;
+      if (size > maxBytes) { failed = true; const err = new Error('Payload too large'); err.statusCode = 413; reject(err); return; }
+      chunks.push(chunk);
+    });
+    req.on('end', () => { if (!failed) resolve(Buffer.concat(chunks)); });
+    req.on('error', reject);
+  });
+}
+
 // Partnered Universities (campuses, commission slabs, agreement details): Admin only, for reading as well as changing.
 async function handleDirect(req, res, urlPath) {
   if (!isAdmin(req.user)) return sendJSON(res, 403, { error: 'Partnered Universities is for Admin only.' });
   const id = (urlPath.match(/^\/api\/direct\/([a-f0-9]{12})/) || [])[1];
+  // Agreement files: upload (the file itself is the request body), download, remove.
+  const fileMatch = urlPath.match(/^\/api\/direct\/[a-f0-9]{12}\/files(?:\/([a-f0-9]{12})(\/delete)?)?$/);
+  if (fileMatch) {
+    const fid = fileMatch[1];
+    if (req.method === 'GET' && fid && !fileMatch[2]) {
+      const file = direct.agreementFile(id, fid);
+      if (!file) return sendJSON(res, 404, { error: 'No such file.' });
+      activity.record(req, req.user, 'Downloaded agreement', { app: 'Student Details', changes: [`Downloaded ${file.name}`] });
+      return send(res, 200, fs.readFileSync(file.path), {
+        'Content-Type': file.type, 'Cache-Control': 'no-store', 'Content-Security-Policy': "sandbox; default-src 'none'",
+        'Content-Disposition': `attachment; filename="agreement${path.extname(file.path)}"; filename*=UTF-8''${encodeURIComponent(file.name)}`,
+      });
+    }
+    if (req.method !== 'POST') return send(res, 405, 'Method not allowed');
+    if (!fid) {
+      const name = new URL(req.url, 'http://x').searchParams.get('name') || '';
+      let bytes;
+      try {
+        bytes = await readRawBody(req, MAX_FILE_BYTES);
+      } catch (e) {
+        return sendJSON(res, e.statusCode || 400, { error: e.statusCode === 413 ? 'That file is too large (the limit is 10 MB).' : e.message });
+      }
+      const added = direct.addAgreement(id, name, bytes, req.user.label);
+      if (added.error) return sendJSON(res, 400, { error: added.error });
+      activity.record(req, req.user, 'Edited partnered universities', { app: 'Student Details', changes: [`Uploaded the agreement ${added.agreement.name} for ${added.university.name}`] });
+      return sendJSON(res, 200, added.university);
+    }
+    const gone = direct.removeAgreement(id, fid, req.user.label);
+    if (gone.error) return sendJSON(res, 404, { error: gone.error });
+    activity.record(req, req.user, 'Edited partnered universities', { app: 'Student Details', changes: [`Removed the agreement ${gone.removed.name} from ${gone.university.name}`] });
+    return sendJSON(res, 200, gone.university);
+  }
   if (req.method === 'GET') {
     if (!id) return send(res, 200, JSON.stringify(direct.list()), JSON_HEADERS);
     const uni = direct.get(id);
@@ -536,7 +585,7 @@ const server = http.createServer(async (req, res) => {
       });
     }
     if (urlPath === '/api/facts' || /^\/api\/facts\/[a-f0-9]{12}(\/delete)?$/.test(urlPath)) return await handleFacts(req, res, urlPath);
-    if (urlPath === '/api/direct' || /^\/api\/direct\/[a-f0-9]{12}(\/delete)?$/.test(urlPath)) return await handleDirect(req, res, urlPath);
+    if (urlPath === '/api/direct' || /^\/api\/direct\/[a-f0-9]{12}(\/delete|\/files(\/[a-f0-9]{12}(\/delete)?)?)?$/.test(urlPath)) return await handleDirect(req, res, urlPath);
     if (urlPath === '/api/events' && req.method === 'GET') return handleEvents(req, res);
     if (urlPath === '/api/presence') {
       if (req.method === 'POST') return await handlePresence(req, res);

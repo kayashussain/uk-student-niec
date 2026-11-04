@@ -8,8 +8,28 @@ const path = require('path');
 const crypto = require('crypto');
 const { writeFileAtomic } = require('../shared/server-utils');
 
+const fileName = (v) => String(v || '').replace(/[\\/\u0000-\u001f]/g, '').replace(/^\.+/, '').trim().slice(0, 120);
+
 const LIMITS = { name: 120, short: 300, text: 12000, campuses: 40, slabs: 60, contacts: 20, items: 300 };
 const STATUSES = ['Active', 'Pending', 'On hold', 'Ended'];
+// Agreement files: a few kinds of document, kept outside the code folder next to the list (see createDirect).
+const FILE_TYPES = {
+  '.pdf': 'application/pdf', '.doc': 'application/msword',
+  '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg',
+};
+// What a file must start with to be what its name says (a renamed program or script is refused).
+const MAGIC = {
+  '.pdf': [Buffer.from('%PDF-')],
+  '.doc': [Buffer.from([0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1])],
+  '.docx': [Buffer.from([0x50, 0x4b, 0x03, 0x04])],
+  '.png': [Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])],
+  '.jpg': [Buffer.from([0xff, 0xd8, 0xff])],
+  '.jpeg': [Buffer.from([0xff, 0xd8, 0xff])],
+};
+const looksLike = (ext, bytes) => (MAGIC[ext] || []).some((m) => bytes.length >= m.length && bytes.subarray(0, m.length).equals(m));
+const MAX_FILE_BYTES = 10 * 1024 * 1024;
+const MAX_FILES = 20;
 
 const str = (v, max) => (typeof v === 'string' ? v.replace(/\r\n?/g, '\n').slice(0, max) : '');
 const newId = () => crypto.randomBytes(6).toString('hex');
@@ -95,13 +115,17 @@ function createDirect(dir, { now = () => new Date(), starters = STARTERS } = {})
     cache = { mtimeMs: stat.mtimeMs, size: stat.size, data };
   }
 
-  const full = (u) => ({ ...clean(u, u), id: u.id, updatedAt: u.updatedAt, updatedBy: u.updatedBy || '' });
+  const filesDir = (id) => path.join(dir, 'direct-files', id);
+  const agreementsOf = (u) => (Array.isArray(u.agreements) ? u.agreements : []).filter((a) => a && /^[a-f0-9]{12}$/.test(a.id)).map((a) => ({
+    id: a.id, name: fileName(a.name), size: Number(a.size) || 0, uploadedAt: a.uploadedAt || '', uploadedBy: a.uploadedBy || '', ext: Object.prototype.hasOwnProperty.call(FILE_TYPES, a.ext) ? a.ext : '',
+  }));
+  const full = (u) => ({ ...clean(u, u), agreements: agreementsOf(u), id: u.id, updatedAt: u.updatedAt, updatedBy: u.updatedBy || '' });
   const summary = (u) => ({
     id: u.id, name: u.name, status: u.status,
     campuses: u.campuses.map((c) => [...new Set([c.name, c.city].filter(Boolean))].join(', ')),
     slabCount: u.slabs.length,
     slabs: u.slabs.map((x) => [x.level, x.students, x.commission].filter(Boolean).join(' ')),
-    agreementEnd: u.agreementEnd, updatedAt: u.updatedAt,
+    agreementEnd: u.agreementEnd, agreementCount: u.agreements.length, updatedAt: u.updatedAt,
     // The first contact person is shown in the list; the rest are on the university's page.
     contact: u.contacts[0] || { name: '', email: '', phone: '' }, contactCount: u.contacts.length,
   });
@@ -127,7 +151,7 @@ function createDirect(dir, { now = () => new Date(), starters = STARTERS } = {})
       const cleaned = clean(input, data.universities[i]);
       if (data.universities.some((u, k) => k !== i && u.name.toLowerCase() === cleaned.name.toLowerCase())) return { error: 'Another university already has that name.' };
       const universities = [...data.universities];
-      universities[i] = { ...cleaned, id, updatedAt: now().toISOString(), updatedBy: by };
+      universities[i] = { ...cleaned, agreements: agreementsOf(data.universities[i]), id, updatedAt: now().toISOString(), updatedBy: by };
       write({ ...data, universities });
       return { university: full(universities[i]) };
     },
@@ -136,9 +160,51 @@ function createDirect(dir, { now = () => new Date(), starters = STARTERS } = {})
       const uni = data.universities.find((u) => u.id === id);
       if (!uni) return { error: 'No such university.' };
       write({ ...data, universities: data.universities.filter((u) => u.id !== id) });
+      try { fs.rmSync(filesDir(id), { recursive: true, force: true }); } catch (e) { /* nothing to remove */ }
       return { removed: uni };
+    },
+    // Agreement files. The file is stored under its own id (never under the name typed), the name is only kept to show.
+    addAgreement(id, name, bytes, by) {
+      const data = load();
+      const i = data.universities.findIndex((u) => u.id === id);
+      if (i === -1) return { error: 'No such university.' };
+      const shown = fileName(name);
+      const ext = path.extname(shown).toLowerCase();
+      if (!shown || !Object.prototype.hasOwnProperty.call(FILE_TYPES, ext)) return { error: 'Please upload a PDF, Word document (.doc, .docx) or an image (.png, .jpg).' };
+      if (!bytes || !bytes.length) return { error: 'That file is empty.' };
+      if (bytes.length > MAX_FILE_BYTES) return { error: 'That file is too large (the limit is 10 MB).' };
+      if (!looksLike(ext, bytes)) return { error: 'That file is not really a ' + ext.slice(1).toUpperCase() + ' document. Please upload the original PDF, Word document or image.' };
+      const current = agreementsOf(data.universities[i]);
+      if (current.length >= MAX_FILES) return { error: 'This university already has the most files allowed.' };
+      const fid = newId();
+      fs.mkdirSync(filesDir(id), { recursive: true });
+      writeFileAtomic(path.join(filesDir(id), fid + ext), bytes);
+      const entry = { id: fid, name: shown, size: bytes.length, uploadedAt: now().toISOString(), uploadedBy: by || '', ext };
+      const universities = [...data.universities];
+      universities[i] = { ...data.universities[i], agreements: [...current, entry], updatedAt: now().toISOString(), updatedBy: by };
+      write({ ...data, universities });
+      return { university: full(universities[i]), agreement: entry };
+    },
+    // Where an agreement file is on disk, and how to send it. null if there is no such file.
+    agreementFile(id, fid) {
+      const u = load().universities.find((x) => x.id === id);
+      const entry = u && agreementsOf(u).find((a) => a.id === fid);
+      if (!entry || !entry.ext) return null;
+      const file = path.join(filesDir(id), fid + entry.ext);
+      return fs.existsSync(file) ? { path: file, name: entry.name, type: FILE_TYPES[entry.ext] } : null;
+    },
+    removeAgreement(id, fid, by) {
+      const data = load();
+      const i = data.universities.findIndex((u) => u.id === id);
+      const entry = i !== -1 && agreementsOf(data.universities[i]).find((a) => a.id === fid);
+      if (!entry) return { error: 'No such file.' };
+      try { fs.rmSync(path.join(filesDir(id), fid + entry.ext), { force: true }); } catch (e) { /* already gone */ }
+      const universities = [...data.universities];
+      universities[i] = { ...data.universities[i], agreements: agreementsOf(data.universities[i]).filter((a) => a.id !== fid), updatedAt: now().toISOString(), updatedBy: by };
+      write({ ...data, universities });
+      return { university: full(universities[i]), removed: entry };
     },
   };
 }
 
-module.exports = { createDirect, clean, STATUSES, STARTERS };
+module.exports = { createDirect, clean, STATUSES, STARTERS, FILE_TYPES, MAX_FILE_BYTES };

@@ -7,7 +7,7 @@ const fs = require('node:fs');
 const net = require('node:net');
 const path = require('node:path');
 const { spawn } = require('node:child_process');
-const { createDirect, STARTERS } = require('../student-details/direct');
+const { createDirect, STARTERS, MAX_FILE_BYTES } = require('../student-details/direct');
 
 const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), 'niec-direct-'));
 
@@ -89,7 +89,7 @@ test('only Admin can open the page or read and change the list on the real serve
 
   const person = () => {
     let cookie = '';
-    return async (method, url, body) => {
+    const call = async (method, url, body) => {
       const res = await fetch(base + url, { method, redirect: 'manual', body: body === undefined ? undefined : JSON.stringify(body), headers: { 'content-type': 'application/json', ...(cookie ? { cookie } : {}) } });
       const set = res.headers.get('set-cookie');
       if (set) cookie = set.split(';')[0];
@@ -98,6 +98,8 @@ test('only Admin can open the page or read and change the list on the real serve
       try { json = JSON.parse(text); } catch (e) { /* not JSON */ }
       return { status: res.status, json, location: res.headers.get('location') };
     };
+    call.cookie = () => cookie;
+    return call;
   };
   const admin = person();
   const code = fs.readFileSync(path.join(dir, 'first-admin-code.txt'), 'utf8').trim();
@@ -113,12 +115,25 @@ test('only Admin can open the page or read and change the list on the real serve
   assert.strictEqual((await admin('GET', `/api/direct/${id}`)).json.slabs[0].commission, '12%');
   assert.strictEqual((await admin('GET', '/api/direct')).json.length, 6, 'the five starters and the one just added');
 
+  // Agreement upload, download and removal over HTTP (Admin).
+  const up = await fetch(`${base}/api/direct/${id}/files?name=${encodeURIComponent('Agreement.pdf')}`, { method: 'POST', headers: { 'content-type': 'application/octet-stream', cookie: admin.cookie() }, body: Buffer.from('%PDF-1.4 test') });
+  assert.strictEqual(up.status, 200);
+  const fileId = (await up.json()).agreements[0].id;
+  const down = await fetch(`${base}/api/direct/${id}/files/${fileId}`, { headers: { cookie: admin.cookie() } });
+  assert.strictEqual(down.status, 200);
+  assert.match(down.headers.get('content-disposition'), /^attachment/);
+  assert.match(down.headers.get('content-security-policy'), /sandbox/);
+  assert.strictEqual(down.headers.get('x-content-type-options'), 'nosniff');
+  assert.strictEqual(await down.text(), '%PDF-1.4 test');
+  assert.strictEqual((await fetch(`${base}/api/direct/${id}/files?name=notpdf.pdf`, { method: 'POST', headers: { cookie: admin.cookie() }, body: Buffer.from('x') })).status, 400);
+
   // Not logged in: nothing.
   const nobody = person();
   assert.notStrictEqual((await nobody('GET', '/partnered-universities')).status, 200);
   assert.notStrictEqual((await nobody('GET', '/api/direct')).status, 200);
   assert.notStrictEqual((await nobody('GET', `/api/direct/${id}`)).status, 200);
   assert.notStrictEqual((await nobody('POST', '/api/direct', { name: 'X University' })).status, 200);
+  assert.notStrictEqual((await nobody('GET', `/api/direct/${id}/files/${fileId}`)).status, 200, 'a logged-out visitor cannot download the agreement');
 
   // Staff and Manager: refused for the page (sent home) and for every call.
   for (const [username, role, extra] of [['sita', 'staff', { departments: ['application'] }], ['chief', 'manager', {}]]) {
@@ -135,10 +150,41 @@ test('only Admin can open the page or read and change the list on the real serve
     assert.strictEqual((await them('POST', '/api/direct', { name: 'Y University' })).status, 403);
     assert.strictEqual((await them('POST', `/api/direct/${id}`, { name: 'Bangor University', notes: 'hacked' })).status, 403);
     assert.strictEqual((await them('POST', `/api/direct/${id}/delete`, {})).status, 403);
+    assert.strictEqual((await them('GET', `/api/direct/${id}/files/${fileId}`)).status, 403, `${role} cannot download the agreement`);
+    assert.strictEqual((await fetch(`${base}/api/direct/${id}/files?name=x.pdf`, { method: 'POST', headers: { cookie: them.cookie() }, body: Buffer.from('x') })).status, 403, `${role} cannot upload`);
+    assert.strictEqual((await them('POST', `/api/direct/${id}/files/${fileId}/delete`, {})).status, 403, `${role} cannot remove the agreement`);
   }
   assert.strictEqual((await admin('GET', `/api/direct/${id}`)).json.notes, '', 'nothing was changed by the others');
 
   // Admin removes it.
   assert.strictEqual((await admin('POST', `/api/direct/${id}/delete`, {})).status, 200);
   assert.strictEqual((await admin('GET', '/api/direct')).json.length, 5);
+});
+
+test('agreement files: only PDF, Word or image, kept under their own id, downloadable, removed with the university', () => {
+  const dir = tmp();
+  const direct = createDirect(dir, { starters: [] });
+  const id = direct.create('Bangor University', 'Kayas').university.id;
+  assert.ok(direct.addAgreement(id, 'virus.exe', Buffer.from('x'), 'Kayas').error, 'other kinds are refused');
+  assert.ok(direct.addAgreement(id, 'a.pdf', Buffer.alloc(0), 'Kayas').error, 'empty is refused');
+  assert.ok(direct.addAgreement(id, 'a.pdf', Buffer.concat([Buffer.from('%PDF-'), Buffer.alloc(MAX_FILE_BYTES)]), 'Kayas').error, 'too large is refused');
+  assert.ok(direct.addAgreement(id, 'script.pdf', Buffer.from('#!/bin/sh\nrm -rf /'), 'Kayas').error, 'a file that is not really a PDF is refused');
+  assert.ok(direct.addAgreement(id, 'page.png', Buffer.from('<script>alert(1)</script>'), 'Kayas').error, 'html renamed to an image is refused');
+  assert.ok(direct.addAgreement(id, 'a.pdf', Buffer.from('%PDF-1.4 one'), 'Kayas').agreement);
+  const added = direct.addAgreement(id, '../../etc/Agreement 2027.PDF', Buffer.from('%PDF-1.4 hello'), 'Kayas');
+  assert.strictEqual(added.agreement.name, 'etcAgreement 2027.PDF', 'a path in the name is stripped');
+  const file = direct.agreementFile(id, added.agreement.id);
+  assert.ok(file.path.startsWith(path.join(dir, 'direct-files', id)), 'stored inside the data folder under its own id');
+  assert.strictEqual(path.basename(file.path), added.agreement.id + '.pdf');
+  assert.strictEqual(fs.readFileSync(file.path, 'utf8'), '%PDF-1.4 hello');
+  assert.strictEqual(file.type, 'application/pdf');
+  assert.strictEqual(direct.agreementFile(id, 'ffffffffffff'), null);
+  assert.strictEqual(direct.list()[0].agreementCount, 2);
+  // saving the form does not lose the files
+  assert.strictEqual(direct.update(id, { name: 'Bangor University', notes: 'x' }, 'Kayas').university.agreements.length, 2);
+  assert.strictEqual(direct.removeAgreement(id, added.agreement.id, 'Kayas').university.agreements.length, 1);
+  assert.strictEqual(direct.agreementFile(id, added.agreement.id), null);
+  assert.ok(direct.removeAgreement(id, added.agreement.id, 'Kayas').error);
+  direct.remove(id);
+  assert.ok(!fs.existsSync(path.join(dir, 'direct-files', id)), 'the files go with the university');
 });

@@ -46,7 +46,7 @@
         const commission = el('td'); commission.dataset.label = 'Commission';
         if (u.slabs.length) { const ul = el('ul', 'campus-list'); u.slabs.forEach((x) => ul.append(el('li', '', x))); commission.append(ul); } else commission.textContent = 'None yet';
         const status = el('td'); status.dataset.label = 'Status'; status.append(el('span', 'pill ' + (PILL[u.status] || 'pill-wait'), u.status));
-        const end = cell('Agreement ends', u.agreementEnd || 'None yet');
+        const end = cell('Agreement ends', (u.agreementEnd || 'None yet') + (u.agreementCount ? ` (${u.agreementCount} file${u.agreementCount === 1 ? '' : 's'})` : ''));
         const c = u.contact || {};
         const person = cell('Contact person', (c.name || '') + (u.contactCount > 1 ? ` +${u.contactCount - 1} more` : '') || 'None yet');
         const phone = cell('Phone', c.phone || 'None yet');
@@ -123,6 +123,47 @@
     f.paymentTerms = area(uni.paymentTerms, 'When and how commission is paid.');
     pay.append(el('h3', '', 'Payment terms'), f.paymentTerms);
     form.append(pay);
+
+    // Agreement files: uploaded and removed at once (they are not part of Save).
+    const agree = el('div', 'section');
+    agree.append(el('h3', '', 'Agreement'));
+    const fileList = el('div', 'rows');
+    const size = (n) => (n >= 1048576 ? (n / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(n / 1024)) + ' KB');
+    function drawFiles() {
+      if (!uni.agreements.length) { fileList.replaceChildren(el('p', 'hint', 'No agreement uploaded yet.')); return; }
+      fileList.replaceChildren(...uni.agreements.map((a) => {
+        const row = el('div', 'row');
+        const link = el('a', 'open-link', a.name); link.href = `/api/direct/${uni.id}/files/${a.id}`; link.setAttribute('download', a.name);
+        const info = el('span', 'hint', `${size(a.size)} · uploaded ${new Date(a.uploadedAt).toLocaleDateString()}${a.uploadedBy ? ' by ' + a.uploadedBy : ''}`);
+        const rm = el('button', 'btn btn-danger btn-sm', 'Remove'); rm.type = 'button';
+        rm.addEventListener('click', async () => {
+          if (!(await window.NiecUI.confirm(`Remove the agreement file ${a.name}?`, { danger: true }))) return;
+          try { uni.agreements = (await api(`/api/direct/${uni.id}/files/${a.id}/delete`, {})).agreements; drawFiles(); loadList(); } catch (e) { say('editMsg', e.message, true); }
+        });
+        row.append(link, info, rm);
+        return row;
+      }));
+    }
+    drawFiles();
+    const pick = el('input'); pick.type = 'file'; pick.accept = '.pdf,.doc,.docx,.png,.jpg,.jpeg'; pick.setAttribute('aria-label', 'Agreement file');
+    const up = el('button', 'btn btn-sm', 'Upload agreement'); up.type = 'button';
+    up.addEventListener('click', async () => {
+      const file = pick.files && pick.files[0];
+      if (!file) { say('editMsg', 'Choose the agreement file first.', true); return; }
+      if (file.size > 10 * 1024 * 1024) { say('editMsg', 'That file is too large (the limit is 10 MB).', true); return; }
+      say('editMsg', 'Uploading...'); up.disabled = true;
+      try {
+        const res = await fetch(`/api/direct/${uni.id}/files?name=${encodeURIComponent(file.name)}`, { method: 'POST', headers: { 'Content-Type': 'application/octet-stream' }, body: file });
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(json.error || 'Could not upload it.');
+        uni.agreements = json.agreements; pick.value = ''; drawFiles(); loadList(); say('editMsg', ''); window.NiecUI.toast('Agreement uploaded', { type: 'success' });
+      } catch (e) { say('editMsg', e.message, true); }
+      up.disabled = false;
+    });
+    const picker = el('div', 'bar'); picker.style.marginTop = '0';
+    picker.append(pick, up, el('span', 'hint', 'PDF, Word or image, up to 10 MB.'));
+    agree.append(fileList, picker);
+    form.append(agree);
 
     const contacts = repeater('Contact person', '', [['name', 'Name', 'text'], ['phone', 'Phone', 'text'], ['email', 'Email', 'text']], uni.contacts, 'Add a contact');
     form.append(contacts.node);
