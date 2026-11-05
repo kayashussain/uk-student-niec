@@ -596,13 +596,19 @@ test('a student on Hold is counted on the dashboard as not moving forward, not a
   assert.strictEqual(d.kpis.students, 3);
 });
 
-test('the dashboard counts head office students: any source except a branch, an agent or none', () => {
-  const { isHeadOfficeSource } = require('../student-details/dashboard-stats');
+test('the dashboard counts active head office applicants: a head office source and a status from application to visa decision', () => {
+  const { isHeadOfficeSource, isActiveHeadOfficeApplicant } = require('../student-details/dashboard-stats');
   ['Visitor', 'Reference', 'Events', 'Social Media', 'Language Classes'].forEach((s) => assert.strictEqual(isHeadOfficeSource(s), true, s));
   ['Chitwan Branch', 'Pokhara Branch', 'Butwal Branch', 'palpa branch', 'Agent', 'Agents', '', '  ', undefined].forEach((s) => assert.strictEqual(isHeadOfficeSource(s), false, String(s)));
-  const row = (n, src) => ({ _id: n, 'FIRST NAME': n, 'APPLICATION STATUS': 'Application Stage', 'STUDENT SOURCE': src });
-  const wb = { sheets: [{ id: 'a', name: 'Sep', rows: [row('a', 'Visitor'), row('b', 'Language Classes'), row('c', 'Chitwan Branch'), row('d', 'Agent'), row('e', 'Events'), row('f', '')] }] };
+  ['Application Stage', 'Mock Stage', 'Payment Stage', 'CAS Stage', 'CAS Issued', 'Visa Lodge', 'Visa Issued', 'Visa Rejected'].forEach((st) => assert.strictEqual(isActiveHeadOfficeApplicant('Visitor', st), true, st));
+  ['Inquiry', 'Defer', 'Hold', 'Withdrawn', '', undefined].forEach((st) => assert.strictEqual(isActiveHeadOfficeApplicant('Visitor', st), false, String(st)));
+  assert.strictEqual(isActiveHeadOfficeApplicant('Chitwan Branch', 'Mock Stage'), false, 'a branch student is not head office');
+  const row = (n, src, status) => ({ _id: n, 'FIRST NAME': n, 'APPLICATION STATUS': status, 'STUDENT SOURCE': src });
+  const wb = { sheets: [{ id: 'a', name: 'Sep', rows: [
+    row('a', 'Visitor', 'Application Stage'), row('b', 'Language Classes', 'Visa Issued'), row('c', 'Chitwan Branch', 'Mock Stage'), row('d', 'Agent', 'Payment Stage'),
+    row('e', 'Events', 'Inquiry'), row('f', '', 'Mock Stage'), row('g', 'Reference', 'Withdrawn'), row('h', 'Social Media', 'CAS Stage'),
+  ] }] };
   const d = buildDashboard(wb, { today: new Date(2026, 10, 5) });
-  assert.strictEqual(d.kpis.students, 6);
-  assert.strictEqual(d.kpis.headOffice, 3, 'Visitor, Language Classes and Events');
+  assert.strictEqual(d.kpis.students, 8);
+  assert.strictEqual(d.kpis.activeHeadOffice, 3, 'Visitor (Application), Language Classes (Visa Issued) and Social Media (CAS Stage)');
 });

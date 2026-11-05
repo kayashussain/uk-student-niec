@@ -115,7 +115,7 @@
       ['Mock interviews held', num(k.mocksHeld), `${num(k.mockInterviews)} interviews in total`],
       ['Payments made', num(k.paymentsMade), d.paidInFull || d.partlyPaid ? `${num(d.paidInFull)} in full, ${num(d.partlyPaid)} part paid` : `${pct(k.paymentsMade, k.students)} of students paid`],
       ['Visas issued', num(k.visaIssued), `${k.conversionRate}% of students`],
-      ['Head office students', num(k.headOffice), `${pct(k.headOffice, k.students)} of students`],
+      ['Active head office applicant', num(k.activeHeadOffice), `${pct(k.activeHeadOffice, k.students)} of students`],
     ]);
     tiles($('kpis2'), [
       ['Visa success', rate(k.visaSuccessRate), 'visas issued out of visas decided'],
