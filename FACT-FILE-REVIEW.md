@@ -23,14 +23,17 @@ Rules used: nothing already on a page is overwritten; a fact that is already the
 - University of Roehampton: new row(s): BSc Business and Management; International Year One: filled academic; Undergraduate: filled scholarship; Postgraduate: filled academic; 71 course(s) that were missing.
 - Winchester University: Postgraduate: filled academic; 2 course(s) that were missing; CAS deadlines and key dates per intake.
 
-## Where a sheet disagrees with the page (the page was kept, please confirm)
+## Decided by the owner (5 November 2026)
 
-- University of Roehampton / Postgraduate, english: the page says "IELTS: 6.0 overall / 5.5 in each band", the sheet says "Overall 6.5 no band less than 5.5 - Waiver to UK".
-- University of Roehampton / Postgraduate, deposit: the page says "£8,500 CAS deposit,", the sheet says "£8,000 CAS deposit".
-- University of Ravensbourne / Postgraduate, english: the page says "IELTS: 6.5 overall / 5.5 in each band", the sheet says "Overall 6.0 & 5.5 in each band - Waiver with MOI from Nepal & India University only".
-- University of Ravensbourne / Postgraduate, tuition: the page says "Arts/Computer Science/Management/ Architechture: £18500 ,", the sheet says "MBA:£19,950".
-- Winchester University / Undergraduate, gap: the page says "Gap: Upto 9 Years of GAP Accepted", the sheet says "Upto 7 Years of GAP Accepted (Need to provide evidence & SOP)".
-- Health Science University / Postgraduate, scholarship: the page says "£2,500", the sheet says "Scholarships: £2,000".
+- University of Roehampton / Postgraduate, deposit: Kept the CAS deposit of £8,500. (the sheet said "£8,000 CAS deposit").
+- University of Ravensbourne / Postgraduate, english: Kept IELTS 6.5 overall for postgraduate. (the sheet said "Overall 6.0 & 5.5 in each band - Waiver with MOI from Nepal & India University only").
+- University of Ravensbourne / Postgraduate, tuition: Kept the MBA fee of £19,500. (the sheet said "MBA:£19,950").
+- Winchester University / Undergraduate, gap: Kept the gap of 9 years. (the sheet said "Upto 7 Years of GAP Accepted (Need to provide evidence & SOP)").
+- University of Roehampton Postgraduate IELTS is 6.5 overall (the sheet figure, replacing 6.0), and the Health Science University scholarship is £2,000 (the sheet figure, replacing £2,500), because the updated sheets are the truth unless the owner chose the page.
+- Ravensbourne postgraduate: the band minimum stays 5.5 in each band, as both the page and the sheet say.
+
+## Still open
+
 - University of West London (see the note on its page): UG GPA 2.5+ against 2.6 or 65%, UG PTE 59 against 51, UG Duolingo 120 against 105, PG gap 5 to 7 years against up to 10 years with work experience, Enhanced Extended 40%+ against any percentage, gap 8 against 10 years, and a £700 early payment discount on Enhanced Extended (the table says none).
 
 ## Repeats removed so each fact is shown once
@@ -43,4 +46,5 @@ Rules used: nothing already on a page is overwritten; a fact that is already the
 
 - 140 course lines on 10 pathway pages appear under more than one stage heading (a degree that can be reached from both Year Zero and Year One, for example). That shows both routes, so they were not merged.
 - Where a pathway page keeps one combined row for several stages (for example "Undergraduate"), a new fact is added to that row with its stage named in front of it.
+- A check of the university websites (Roehampton, Ravensbourne, Winchester) found no single clear official figure for these courses: the official pages point to course pages and the fee and score pages that third party sites quote contradict each other. No web figure was written into the Fact File. Each page says it was filled from the sheets, with the date.
 - Dates in the sheets that Excel had turned into nonsense (a university end date of 1930) were not copied.

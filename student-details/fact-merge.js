@@ -291,11 +291,15 @@ function dedupeCourses(page) {
 const newReport = () => ({ added: [], addedPrograms: [], conflicts: [], skipped: [] });
 
 // One university's new facts added to its page. `page` is changed in place; the report says what happened.
+const SOURCE_NOTE = 'Source: OIEG requirement sheets (Oxford Direct and Pathways), November 2026 to January 2027 intakes, added on 5 November 2026. The figures were taken from the sheets; they were not checked against the university website.';
 function mergeEntry(page, entry, report = newReport()) {
+  const before = report.added.length + report.addedPrograms.length;
   mergePrograms(page, entry.programs || [], report);
   mergeKeyDates(page, entry.intakes, report);
   mergeCourses(page, entry.courses, report);
   mergeNotes(page, entry.notes, report);
+  // Where the facts came from and when, once per page.
+  if (report.added.length + report.addedPrograms.length > before) mergeNotes(page, [SOURCE_NOTE], report);
   return report;
 }
 

@@ -9,6 +9,15 @@ Format: **date · file · what · from → to · why**
 
 ---
 
+## 2026-11-05 · `student-details/dashboard.css` · Dashboard number cards a little narrower
+
+- **What:** the row of number cards (Applications submitted, Offers received, Mock interviews held, Payments made, Visas issued and the new Head office students).
+- **From:** each card at least `150px` wide → **to:** at least `124px` wide, so all six sit in one row on a normal screen. On a narrow screen they wrap onto more rows, as before.
+- **Also (not CSS):** the Head office students card says "70% of students" only.
+- **In the code:** marked with `🔴 CSS CHANGED` above the `.kpis` rule in `student-details/dashboard.css`.
+
+---
+
 ## 2026-11-05 · `counselor-incentive/index.html` · exchange rate box in the "Add a payment" form
 
 - **What:** a new box "£1 = Rs (OANDA)" in the form where a payment is added, so the rate is typed together with the first payment.

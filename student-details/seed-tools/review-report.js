@@ -35,7 +35,11 @@ names.forEach((n) => {
   if (bits.length) out.push(`- ${n}: ${bits.join('; ')}.`);
 });
 
-out.push('', '## Where a sheet disagrees with the page (the page was kept, please confirm)', '');
+out.push('', '## Decided by the owner (5 November 2026)', '');
+OIEG_REPORT.decided.forEach((c) => out.push(`- ${c.where}, ${c.field}: ${c.decision} (the sheet said "${c.other}").`));
+out.push('- University of Roehampton Postgraduate IELTS is 6.5 overall (the sheet figure, replacing 6.0), and the Health Science University scholarship is £2,000 (the sheet figure, replacing £2,500), because the updated sheets are the truth unless the owner chose the page.');
+out.push('- Ravensbourne postgraduate: the band minimum stays 5.5 in each band, as both the page and the sheet say.');
+out.push('', '## Still open', '');
 OIEG_REPORT.conflicts.forEach((c) => out.push(`- ${c.where}, ${c.field}: the page says "${c.kept}", the sheet says "${c.other}".`));
 out.push('- University of West London (see the note on its page): UG GPA 2.5+ against 2.6 or 65%, UG PTE 59 against 51, UG Duolingo 120 against 105, PG gap 5 to 7 years against up to 10 years with work experience, Enhanced Extended 40%+ against any percentage, gap 8 against 10 years, and a £700 early payment discount on Enhanced Extended (the table says none).');
 
@@ -55,5 +59,6 @@ pages.forEach((u) => {
 out.push('', '## Left as it is, on purpose', '');
 out.push(`- ${stage} course lines on ${stagePages} pathway pages appear under more than one stage heading (a degree that can be reached from both Year Zero and Year One, for example). That shows both routes, so they were not merged.`);
 out.push('- Where a pathway page keeps one combined row for several stages (for example "Undergraduate"), a new fact is added to that row with its stage named in front of it.');
+out.push('- A check of the university websites (Roehampton, Ravensbourne, Winchester) found no single clear official figure for these courses: the official pages point to course pages and the fee and score pages that third party sites quote contradict each other. No web figure was written into the Fact File. Each page says it was filled from the sheets, with the date.');
 out.push('- Dates in the sheets that Excel had turned into nonsense (a university end date of 1930) were not copied.');
 process.stdout.write(out.join('\n') + '\n');

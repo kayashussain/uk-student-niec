@@ -43,12 +43,26 @@ Object.keys(STARTER_DETAILS).forEach((key) => { STARTER_DETAILS[key] = dedupeCou
 
 // What the OIEG sheets add to each page. A university that is not in the Fact File yet gets a page of its own.
 const OIEG_REPORT = newReport();
+// Differences between a page and a sheet that the owner has decided (5 November 2026). The two Excel sheets he gave are the
+// updated ones, so a sheet figure wins unless he chose the page figure.
+const DECIDED = [
+  ['University of Roehampton / Postgraduate', 'deposit', 'Kept the CAS deposit of £8,500.'],
+  ['University of Ravensbourne / Postgraduate', 'english', 'Kept IELTS 6.5 overall for postgraduate.'],
+  ['University of Ravensbourne / Postgraduate', 'tuition', 'Kept the MBA fee of £19,500.'],
+  ['Winchester University / Undergraduate', 'gap', 'Kept the gap of 9 years.'],
+];
+OIEG_REPORT.decided = [];
 Object.keys(OIEG).forEach((key) => {
   const entry = OIEG[key];
   const base = STARTER_DETAILS[key] ? JSON.parse(JSON.stringify(STARTER_DETAILS[key])) : { name: entry.name, city: entry.city || '', programs: [], intakes: [] };
   if (!base.name) base.name = entry.name;
   mergeEntry(base, entry, OIEG_REPORT);
   STARTER_DETAILS[key] = base;
+});
+OIEG_REPORT.conflicts = OIEG_REPORT.conflicts.filter((c) => {
+  const hit = DECIDED.find(([where, field]) => where === c.where && field === c.field);
+  if (hit) OIEG_REPORT.decided.push({ ...c, decision: hit[2] });
+  return !hit;
 });
 
 // Names the list starts with: the first six were there before the sheet, the rest are added once to an existing list.
