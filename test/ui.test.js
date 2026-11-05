@@ -617,6 +617,75 @@ test('screens: log in, edit, delete, search, team rules, Fact File', { timeout: 
     await page.close();
   });
 
+  await t.test('a picked date shows at once, a filter survives a refresh and a new student follows it, Language Classes is offered', async () => {
+    const cur = await (await admin.request.get('/api/data')).json();
+    const sheet = cur.sheets[0];
+    const originalRows = sheet.rows; // put back at the end, the tests after this one use them
+    sheet.rows = ['Application Stage', 'Application Stage', 'Mock Stage'].map((status, i) => {
+      const row = { _id: 'flt' + i };
+      sheet.columns.forEach((c) => { row[c] = ''; });
+      Object.assign(row, { 'FIRST NAME': 'Filter' + i, 'APPLICATION STATUS': status, 'STUDENT SOURCE': 'Visitor' });
+      return row;
+    });
+    assert.ok((await admin.request.post('/api/data', { data: { sheets: cur.sheets, activeSheetId: cur.activeSheetId, baseRevision: cur.revision } })).ok());
+    let page = await open(admin, '/students');
+    await page.waitForSelector('#body tr:not(.pad-row)');
+    const colIndex = (name) => page.$$eval('#headerRow th', (ths, n) => ths.findIndex((th) => th.dataset.col === n), name);
+    const rowsShown = () => page.locator('#body tr:not(.pad-row)').count();
+
+    // A date picked from the calendar is on the cell as soon as it is confirmed (it used to stay blank until a refresh).
+    const dateIdx = await colIndex('APPLICATION SUBMISSION DATE');
+    const cell = page.locator('#body tr:not(.pad-row)').first().locator('td').nth(dateIdx);
+    await cell.click({ position: { x: 20, y: 12 } });
+    await cell.locator('input').evaluate((el) => { el.value = '2026-11-12'; el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('change', { bubbles: true })); });
+    await page.waitForSelector('.eg-box');
+    await page.click('.eg-ok');
+    await page.waitForFunction(() => /11\/12\/2026/.test(document.querySelector('#body tr:not(.pad-row) td.date').textContent === '' ? '' : [...document.querySelectorAll('#body tr:not(.pad-row)')][0].innerText), null, { timeout: 5000 });
+
+    // The student source list offers Language Classes.
+    const sourceIdx = await colIndex('STUDENT SOURCE');
+    const sourceSelect = page.locator('#body tr:not(.pad-row)').first().locator('td').nth(sourceIdx).locator('select');
+    await sourceSelect.focus(); // the list of choices is filled in when the dropdown is opened
+    const options = await sourceSelect.locator('option').allTextContents();
+    assert.ok(options.includes('Language Classes'), 'Language Classes is in the Student Source list: ' + options.join(', '));
+
+    // Filter on Application Stage, then refresh: the filter is still on.
+    const statusTh = page.locator('#headerRow th[data-col="APPLICATION STATUS"]');
+    await statusTh.locator('.filter-btn').click();
+    await page.locator('.filter-menu-actions button', { hasText: 'Clear' }).click();
+    await page.locator('.filter-menu-item', { hasText: 'Application Stage' }).locator('input').check();
+    await page.locator('.filter-menu-footer .btn-primary').click();
+    await page.waitForFunction(() => document.querySelectorAll('#body tr:not(.pad-row)').length === 2);
+    await page.reload();
+    await page.waitForSelector('#body tr:not(.pad-row)');
+    assert.strictEqual(await rowsShown(), 2, 'still filtered to the two Application Stage students after a refresh');
+    assert.ok(await page.locator('#headerRow th[data-col="APPLICATION STATUS"] .filter-btn.active').count(), 'the filter button shows it is on');
+
+    // A new student added with the filter on gets that status and stays in the filtered list.
+    await page.click('#addRow');
+    await page.waitForSelector('.eg-box');
+    await page.click('.eg-ok');
+    await page.waitForFunction(() => document.querySelectorAll('#body tr:not(.pad-row)').length === 3);
+    const added = await page.locator('#body tr:not(.pad-row)').last().locator('td').nth(await colIndex('APPLICATION STATUS')).locator('select').inputValue();
+    assert.strictEqual(added, 'Application Stage', 'the new student starts at the filtered status');
+
+    // Clearing the filter (Select all, OK) is remembered too.
+    await statusTh.locator('.filter-btn').click();
+    await page.locator('.filter-menu-actions button', { hasText: 'Select all' }).click();
+    await page.locator('.filter-menu-footer .btn-primary').click();
+    await page.waitForFunction(() => document.querySelectorAll('#body tr:not(.pad-row)').length === 4);
+    await page.reload();
+    await page.waitForSelector('#body tr:not(.pad-row)');
+    assert.strictEqual(await rowsShown(), 4, 'all four students after the filter was cleared and the page refreshed');
+    assert.deepStrictEqual(page.errors, []);
+    await page.close();
+    // Back to the students the other tests use.
+    await new Promise((r) => setTimeout(r, 1500)); // the page saves a moment after each change
+    const after = await (await admin.request.get('/api/data')).json();
+    after.sheets[0].rows = originalRows;
+    assert.ok((await admin.request.post('/api/data', { data: { sheets: after.sheets, activeSheetId: after.activeSheetId, baseRevision: after.revision } })).ok());
+  });
+
   await t.test('every page opens for Admin without script errors', async () => {
     for (const url of ['/dashboard', '/users', '/activity', '/fact-file']) {
       const page = await open(admin, url);

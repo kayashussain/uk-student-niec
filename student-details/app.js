@@ -330,14 +330,23 @@
     input.className = 'date-input';
     input.setAttribute('aria-label', `${columnLabel(col)} for ${describeRow(rows[rowIdx])}`);
     input.value = original;
+    // Opening the calendar twice for one click (the cell's press and then the box's own click) closed it again,
+    // so a second request within a moment is ignored.
+    let pickerAt = 0;
+    input.openPicker = () => {
+      if (Date.now() - pickerAt < 700) return;
+      pickerAt = Date.now();
+      if (input.showPicker) { try { input.showPicker(); } catch (err) { /* opens on the next click */ } }
+    };
     input.addEventListener('click', (e) => {
       e.stopPropagation();
-      if (input.showPicker) { try { input.showPicker(); } catch (err) { /* unsupported */ } }
+      input.openPicker();
     });
     confirmDateInput(input, original, (value) => {
       pushUndo();
       rows[rowIdx][col] = value;
       markDirty();
+      renderRow(rowIdx, col); // the cell shows the date at once (it used to stay blank until the page was refreshed)
     });
     td.appendChild(input); // the cell's own text stays where it is; the box lies invisibly over it (see style.css)
     return input;
@@ -629,6 +638,30 @@
     updateUndoRedoButtons();
   }
 
+  // The filters stay when the page is refreshed: kept in this browser, for each sheet, until they are cleared.
+  const filtersKey = () => 'niec-sheet-filters-v1:' + ((me && (me.username || me.id)) || 'anyone');
+  function readSavedFilters() {
+    try { return JSON.parse(localStorage.getItem(filtersKey()) || '{}') || {}; } catch (e) { return {}; }
+  }
+  function saveFilters() {
+    if (BACKUP) return;
+    try {
+      const all = readSavedFilters();
+      const mine = {};
+      Object.entries(columnFilters).forEach(([col, set]) => { mine[col] = [...set]; });
+      if (Object.keys(mine).length) all[activeSheetId] = mine; else delete all[activeSheetId];
+      localStorage.setItem(filtersKey(), JSON.stringify(all));
+    } catch (e) { /* storage unavailable: the filter simply is not remembered */ }
+  }
+  function restoreFilters() {
+    const saved = readSavedFilters()[activeSheetId] || {};
+    const out = {};
+    Object.entries(saved).forEach(([col, values]) => {
+      if (columns.includes(col) && Array.isArray(values)) out[col] = new Set(values.map(String));
+    });
+    return out;
+  }
+
   function syncActiveSheet() {
     const sheet = getActiveSheet();
     columns = visibleColumns(sheet);
@@ -641,7 +674,7 @@
     rowSelectMode = false;
     sortCol = null;
     sortDir = 1;
-    columnFilters = {};
+    columnFilters = restoreFilters();
     searchEl.value = '';
   }
 
@@ -1102,6 +1135,7 @@
       const allowed = new Set(checkboxes.filter(({ cb }) => cb.checked).map(({ val }) => val));
       if (allowed.size === uniqueValues.length) delete columnFilters[col];
       else columnFilters[col] = allowed;
+      saveFilters();
       closeFilterMenu();
       renderHeader();
       renderBody();
@@ -1224,6 +1258,7 @@
   $('#clearFilters').addEventListener('click', () => {
     searchEl.value = '';
     columnFilters = {};
+    saveFilters();
     renderHeader();
     renderBody();
   });
@@ -1682,7 +1717,8 @@
       const control = td.querySelector('select, input') || (td.classList.contains('date') ? openDateCell(td) : null);
       if (!control) return;
       control.focus();
-      if (control.showPicker) { try { control.showPicker(); } catch (err) { /* some browsers need a click */ } }
+      if (control.openPicker) control.openPicker();
+      else if (control.showPicker) { try { control.showPicker(); } catch (err) { /* some browsers need a click */ } }
       return;
     }
     const original = rows[rowIdx][col] || '';
@@ -2153,6 +2189,13 @@
     pushUndo();
     const blank = { _id: makeRowId() };
     columns.forEach((c) => (blank[c] = ''));
+    // With a filter on (say Application Stage), the new student gets that value, so it shows up in the same filtered list
+    // instead of vanishing from it. A search that would hide the new row is cleared.
+    Object.entries(columnFilters).forEach(([col, allowed]) => {
+      const first = [...allowed].find((v) => v !== '');
+      if (first !== undefined && columns.includes(col) && !CALC_COLS[col]) blank[col] = first;
+    });
+    searchEl.value = '';
     // A team's new student starts at that team's stage (so it stays in the person's list) and is marked
     // with the department, which lets the person fill in the student's basics (the server checks both).
     if (isTeam()) {
@@ -2405,7 +2448,7 @@
       const input = openDateCell(td);
       if (!input) return; // not this team's column
       input.focus();
-      if (input.showPicker) { try { input.showPicker(); } catch (err) { /* opens on the next click */ } }
+      input.openPicker();
       return;
     }
     if (onControl) {

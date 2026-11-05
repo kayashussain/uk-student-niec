@@ -595,3 +595,14 @@ test('a student on Hold is counted on the dashboard as not moving forward, not a
   assert.deepStrictEqual(d.left.find((s) => s.label === 'Hold'), { label: 'Hold', count: 2 });
   assert.strictEqual(d.kpis.students, 3);
 });
+
+test('the dashboard counts head office students: any source except a branch, an agent or none', () => {
+  const { isHeadOfficeSource } = require('../student-details/dashboard-stats');
+  ['Visitor', 'Reference', 'Events', 'Social Media', 'Language Classes'].forEach((s) => assert.strictEqual(isHeadOfficeSource(s), true, s));
+  ['Chitwan Branch', 'Pokhara Branch', 'Butwal Branch', 'palpa branch', 'Agent', 'Agents', '', '  ', undefined].forEach((s) => assert.strictEqual(isHeadOfficeSource(s), false, String(s)));
+  const row = (n, src) => ({ _id: n, 'FIRST NAME': n, 'APPLICATION STATUS': 'Application Stage', 'STUDENT SOURCE': src });
+  const wb = { sheets: [{ id: 'a', name: 'Sep', rows: [row('a', 'Visitor'), row('b', 'Language Classes'), row('c', 'Chitwan Branch'), row('d', 'Agent'), row('e', 'Events'), row('f', '')] }] };
+  const d = buildDashboard(wb, { today: new Date(2026, 10, 5) });
+  assert.strictEqual(d.kpis.students, 6);
+  assert.strictEqual(d.kpis.headOffice, 3, 'Visitor, Language Classes and Events');
+});
