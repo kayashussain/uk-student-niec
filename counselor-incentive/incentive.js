@@ -8,12 +8,13 @@
 // there, grouped under the same sheet/tab name (the "intake"). Incentive-specific
 // numbers (Enrollment, Enrollment from University, New Partnership,
 // Flywire, Loan) live only in this app's own commissions.json, keyed by the student's
-// stable _id. Each intake's Previous Advance (and basic salary / salary months for the
+// stable _id. Each intake's payments received (and basic salary / salary months for the
 // earnings comparison) lives in advances.json, keyed by
 // the sheet's id, so renaming a sheet keeps it (see advances.js). Flywire Incentive is
 // auto-derived from Flywire Fee Payment (0.2% of the GBP amount, converted to NPR at the
 // day's rate): that rate is fetched from a public
-// API and cached in exchange-rate-cache.json, refreshed at most once per day.
+// API and cached in exchange-rate-cache.json, refreshed once an hour. An intake can instead use a rate the owner types in
+// from OANDA, and from its first payment on an intake keeps one fixed rate (see advances.json: manualRate, lockedRate, payments).
 
 const fs = require('fs');
 const path = require('path');
@@ -171,14 +172,20 @@ function createIncentive({ dataDir, studentDataFile, getWorkbook, activity }) {
     return v !== undefined && [0, 1, 2].includes(n) ? n : (Number(fallback) || 0);
   }
 
+  // A number from the page. Anything that is not a finite, sensible amount (letters, Infinity, 1e300) keeps the saved value.
   function num(v, fallback) {
     const n = parseFloat(v);
-    return isNaN(n) ? (fallback || 0) : n;
+    return Number.isFinite(n) && Math.abs(n) < 1e12 ? n : (fallback || 0);
   }
 
-  // GBP -> NPR, refetched at most once per day (cached to disk) so entering a Flywire
-  // Fee Payment doesn't hit the external API on every edit.
-  async function getGbpToNprRate() {
+  // GBP -> NPR, refetched at most once an hour (cached to disk) so entering a Flywire
+  // Fee Payment doesn't hit the external API on every edit. Callers that arrive while a fetch is under way share it.
+  let rateFetch = null;
+  function getGbpToNprRate() {
+    if (!rateFetch) rateFetch = fetchGbpToNprRate().finally(() => { rateFetch = null; });
+    return rateFetch;
+  }
+  async function fetchGbpToNprRate() {
     // fetchedOn is our own calendar day; `date` is the rate's own date from the API, which can lag a day.
     // The rate is fetched again once the saved one is an hour old.
     const today = localDate();
@@ -188,11 +195,11 @@ function createIncentive({ dataDir, studentDataFile, getWorkbook, activity }) {
       return { ok: true, rate: cache.rate, date: cache.date, fetchedAt: cache.fetchedAt || null, cached: true };
     }
     try {
-      const res = await fetch(EXCHANGE_RATE_URL);
+      const res = await fetch(EXCHANGE_RATE_URL, { signal: AbortSignal.timeout(8000) }); // a slow rate site must not hold a request open
       if (!res.ok) throw new Error('HTTP ' + res.status);
       const data = await res.json();
       const rate = data && data.rates && data.rates.NPR;
-      if (typeof rate !== 'number') throw new Error('NPR rate missing from exchange rate response');
+      if (typeof rate !== 'number' || !Number.isFinite(rate) || rate <= 0 || rate >= 100000) throw new Error('NPR rate missing or not sensible in the exchange rate response');
       const record = { date: data.date || today, rate, fetchedOn: today, fetchedAt: new Date().toISOString() };
       writeJSONAtomic(EXCHANGE_RATE_FILE, record);
       return { ok: true, rate, date: record.date, fetchedAt: record.fetchedAt, cached: false };

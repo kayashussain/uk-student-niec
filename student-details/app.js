@@ -753,7 +753,7 @@
     const trimmed = newName.trim();
     if (!sheet || !trimmed || trimmed === sheet.name) { renderSheetTabs(); return; }
     if (sheets.some((s) => s.id !== id && s.name.trim().toLowerCase() === trimmed.toLowerCase())) {
-      // The Incentive page groups students (and each intake's Previous Advance) by sheet name.
+      // The Incentive page groups students (and each intake's payments and rates) by sheet name.
       NiecUI.toast(`There's already a sheet called "${trimmed}". Please pick a different name.`, { type: 'error' });
       renderSheetTabs();
       return;

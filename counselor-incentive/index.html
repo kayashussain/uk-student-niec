@@ -710,7 +710,7 @@ async function getExchangeRate() {
   // The server fetches a new rate every hour; asking it every few minutes keeps this page within that hour.
   if (exchangeRateCache && Date.now() - exchangeRateCache.at < 5 * 60 * 1000) return exchangeRateCache.result;
   try {
-    const res = await fetch(BASE + '/api/exchange-rate');
+    const res = await fetch(BASE + '/api/exchange-rate', { signal: AbortSignal.timeout(12000) });
     const data = await res.json();
     if (data.ok) {
       const result = { rate: data.rate, date: data.date, fetchedAt: data.fetchedAt || null, stale: Boolean(data.stale) };

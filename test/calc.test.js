@@ -191,3 +191,15 @@ test('the payment summary shows its working: rupees, pounds, the pounds changed 
   assert.strictEqual(none.needsRate, true);
   assert.strictEqual(incentive.paymentsTotal(undefined), 0);
 });
+
+test('amounts are kept to two decimals so the rows of the summary add up exactly as shown', () => {
+  // TDS of 15% on 186,071.30 is 27,910.695: it is rounded once, and the net payable is worked from the rounded figures.
+  const s = incentive.computeSummary([{ enrollmentCommission: 186071.3 }], 0, {});
+  assert.strictEqual(s.tds, 27910.7);
+  assert.strictEqual(s.netPayable, 158160.6);
+  // Nonsense numbers count as nothing, never as Infinity.
+  assert.strictEqual(incentive.num('Infinity'), 0);
+  assert.strictEqual(incentive.computeSummary([{ enrollmentCommission: Infinity }], 0, {}).totalCommissions, 0);
+  assert.strictEqual(incentive.round2(1.005), 1.01);
+  assert.strictEqual(incentive.round2(-1.005), -1.01);
+});

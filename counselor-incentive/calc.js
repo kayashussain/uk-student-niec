@@ -11,8 +11,15 @@
   const FLEX_FIELDS = ['enrollmentCommission', 'enrollmentCommissionUni', 'newPartnershipCommission'];
   const unitField = (field) => field + 'Unit';
 
-  function num(v) { const n = parseFloat(v); return isNaN(n) ? 0 : n; }
-  function round2(n) { return Math.round(n * 100) / 100; }
+  function num(v) { const n = parseFloat(v); return Number.isFinite(n) ? n : 0; }
+  // To two decimals, the way a person rounds: half a paisa goes up (floats store 27910.695 as 27910.69499..., so the
+  // number is first cleaned to 12 significant digits).
+  function round2(n) {
+    const x = Number(n);
+    if (!Number.isFinite(x)) return 0;
+    const paisa = Number((Math.abs(x) * 100).toPrecision(12)); // 100.49999999999999 is really 100.5
+    return Math.sign(x) * Math.round(paisa) / 100 || 0;
+  }
 
   // What one flexible incentive is worth in rupees. commissionGbp is the student's Commission Amount (for percentages),
   // gbpToNpr today's rate. Pounds and percentages cannot be worked out without a rate: they give null, never a wrong number.
@@ -82,7 +89,7 @@
     const rate = ctx.gbpToNpr || null;
     let needsRate = false;
     const sum = (key) => records.reduce((a, r) => a + num((r || {})[key]), 0);
-    let nprEntered = sum('flywireCommission');
+    let nprEntered = sum('flywireCommission'); // every figure below is kept to 2 decimals, so the rows add up exactly as shown
     let gbpEntered = 0;
     records.forEach((r, i) => {
       const commissionGbp = ctx.commissionsGbp ? ctx.commissionsGbp[i] : 0;
@@ -95,16 +102,17 @@
         else nprEntered += value;
       });
     });
+    nprEntered = round2(nprEntered);
     gbpEntered = round2(gbpEntered);
     if (gbpEntered && !rate) needsRate = true;
     const gbpConverted = rate ? round2(gbpEntered * rate) : 0;
-    const totalCommissions = nprEntered + gbpConverted;
-    const loanPayable = sum('loanCommission');
-    const netCommissions = totalCommissions - loanPayable;
-    const tds = Math.max(0, netCommissions) * TDS_RATE; // no TDS (and no negative TDS) when nothing is owed
-    const advance = num(previousAdvance);
+    const totalCommissions = round2(nprEntered + gbpConverted);
+    const loanPayable = round2(sum('loanCommission'));
+    const netCommissions = round2(totalCommissions - loanPayable);
+    const tds = round2(Math.max(0, netCommissions) * TDS_RATE); // no TDS (and no negative TDS) when nothing is owed
+    const advance = round2(num(previousAdvance));
     const received = paymentsTotal(ctx.payments);
-    const netPayable = netCommissions - tds - advance - received;
+    const netPayable = round2(netCommissions - tds - advance - received);
     return { nprEntered, gbpEntered, gbpConverted, gbpToNpr: rate, totalCommissions, loanPayable, netCommissions, tds,
       previousAdvance: advance, paymentsReceived: received, netPayable, needsRate };
   }
