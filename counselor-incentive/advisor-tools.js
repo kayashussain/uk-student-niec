@@ -71,7 +71,12 @@ function createIncentiveTools({ getSync, getCommissions, getAdvances, getRate })
     return {
       intakes: (sync.intakes || []).map((name) => {
         const locked = (advances[name] || {}).lockedRate;
-        const rate = locked && locked.rate > 0 ? locked : liveRate;
+        const manual = (advances[name] || {}).manualRate;
+        // The rate an intake uses: the one fixed at its first payment, else the one the owner typed in from OANDA, else the live one.
+        const rate = locked && locked.rate > 0 ? locked
+          : manual && manual.rate > 0 ? { rate: manual.rate, date: null, fetchedAt: null, source: 'manual' } : liveRate;
+        const rateSource = locked && locked.rate > 0 ? (locked.source === 'manual' ? 'typed in from OANDA, fixed at the first payment' : 'fixed at the first payment')
+          : manual && manual.rate > 0 ? 'typed in from OANDA' : 'live rate';
         const gbpToNpr = rate ? rate.rate : null;
         return {
         name,
@@ -117,6 +122,7 @@ function createIncentiveTools({ getSync, getCommissions, getAdvances, getRate })
           };
         }),
         rate,
+        rateSource,
         };
       }),
     };
@@ -158,7 +164,7 @@ function createIncentiveTools({ getSync, getCommissions, getAdvances, getRate })
         working: {
           incentivesEnteredInRupeesNpr: round2(s.nprEntered), incentivesInPoundsGbp: s.gbpEntered,
           exchangeRateGbpToNpr: gbpToNpr, exchangeRateFetchedAt: rate ? rate.fetchedAt || null : null,
-          rateFixedFromFirstPayment: Boolean(intake.rateFixed), poundIncentivesConvertedNpr: round2(s.gbpConverted),
+          rateFixedFromFirstPayment: Boolean(intake.rateFixed), rateSource: intake.rateSource, poundIncentivesConvertedNpr: round2(s.gbpConverted),
         },
         paymentHistory: (intake.advance.payments || []).map((p) => ({ date: p.date, amountNpr: p.amount, ...(p.note ? { note: p.note } : {}) })),
         ...(s.needsRate ? { warning: 'Some incentives are in pounds or percent and there is no exchange rate, so they are not counted.' } : {}),

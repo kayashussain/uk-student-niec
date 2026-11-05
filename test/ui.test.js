@@ -366,6 +366,12 @@ test('screens: log in, edit, delete, search, team rules, Fact File', { timeout: 
     assert.strictEqual(saved.enrollmentCommissionUniUnit, 2);
     assert.ok(!saved.newPartnershipCommissionUnit, 'rupees is the default and is not saved as a unit');
 
+    // The page saves a moment after each change: wait for it before leaving.
+    for (let i = 0; i < 40; i++) {
+      const now = Object.values(await (await admin.request.get(incentiveBase + '/api/commissions')).json())[0] || {};
+      if (now.enrollmentCommission === 600 && now.enrollmentCommissionUnit === 1) break;
+      await new Promise((r) => setTimeout(r, 250));
+    }
     // Company Earnings: Student Source Visitor keeps all of the commission ...
     assert.strictEqual((await page.textContent('#earnGbp')).trim(), '£1,600.00');
     assert.strictEqual((await page.textContent('#earnBranch')).trim(), '£0.00');
@@ -457,8 +463,73 @@ test('screens: log in, edit, delete, search, team rules, Fact File', { timeout: 
     // A payment that is not a positive amount is refused by the server.
     const bad = await admin.request.put(incentiveBase + '/api/advances/' + encodeURIComponent(Object.keys(savedPay)[0] || 'x'), { data: { payments: [{ date: 'nope', amount: -5 }] } });
     assert.strictEqual(bad.status(), 400);
+    // The owner can type the OANDA rate: the intake uses it instead of the live Rs 250, and the first payment fixes it.
+    await fixedPage.fill('#manualRate', '300');
+    await fixedPage.press('#manualRate', 'Tab');
+    await fixedPage.waitForSelector('.eg-box');
+    await fixedPage.click('.eg-ok');
+    await fixedPage.waitForFunction(() => /£1 = Rs 300/.test(document.querySelector('#sumRate').textContent), null, { timeout: 8000 });
+    assert.match(await fixedPage.textContent('#sumRateTime'), /your OANDA rate/);
+    assert.strictEqual((await fixedPage.textContent('#sumTotalCommissions')).trim(), '233,000.00', '£760 at the typed Rs 300 + Rs 5,000');
+    assert.match(await fixedPage.textContent('#manualRateHint'), /live rate now: £1 = Rs 250/, 'the live rate is still shown for reference');
+    await fixedPage.fill('#payDate', '2026-11-03');
+    await fixedPage.fill('#payAmount', '1000');
+    await fixedPage.click('#payAdd');
+    await fixedPage.waitForSelector('.eg-box');
+    await fixedPage.click('.eg-ok');
+    await fixedPage.waitForFunction(() => /fixed since the first payment \(your OANDA rate\)/.test(document.querySelector('#sumRateTime').textContent), null, { timeout: 8000 });
+    assert.strictEqual(await fixedPage.locator('#manualRate').isDisabled(), true, 'the typed rate cannot be changed once a payment fixes it');
+    let fixedEntry = {};
+    for (let i = 0; i < 40; i++) {
+      const a = await (await admin.request.get(incentiveBase + '/api/advances')).json();
+      fixedEntry = Object.values(a).find((e) => e.lockedRate && e.lockedRate.rate === 300) || {};
+      if (fixedEntry.lockedRate) break;
+      await new Promise((r) => setTimeout(r, 250));
+    }
+    assert.ok(fixedEntry.lockedRate, 'the server fixed the typed Rs 300');
+    assert.strictEqual(fixedEntry.lockedRate.rate, 300);
+    assert.strictEqual(fixedEntry.lockedRate.source, 'manual');
+    const intakeName = Object.keys(await (await admin.request.get(incentiveBase + '/api/advances')).json())[0];
+    const tryChange = await admin.request.put(incentiveBase + '/api/advances/' + encodeURIComponent(intakeName), { data: { manualRate: 310 } });
+    assert.ok(tryChange.ok());
+    assert.strictEqual((await tryChange.json()).lockedRate.rate, 300, 'the fixed rate does not move, whatever is typed later');
+    await admin.request.put(incentiveBase + '/api/advances/' + encodeURIComponent(intakeName), { data: { manualRate: 300 } });
+    assert.strictEqual((await admin.request.put(incentiveBase + '/api/advances/' + encodeURIComponent(intakeName), { data: { manualRate: 'abc' } })).status(), 400);
+    // Remove the payment and the typed rate: back to the live rate.
+    await fixedPage.locator('.pay-item').first().locator('[data-remove]').click();
+    await fixedPage.waitForSelector('.eg-box');
+    await fixedPage.click('.eg-ok');
+    await fixedPage.waitForFunction(() => /your OANDA rate, typed in by you/.test(document.querySelector('#sumRateTime').textContent), null, { timeout: 8000 });
+    await fixedPage.click('#manualRateClear');
+    await fixedPage.waitForSelector('.eg-box');
+    await fixedPage.click('.eg-ok');
+    await fixedPage.waitForFunction(() => /£1 = Rs 250/.test(document.querySelector('#sumRate').textContent), null, { timeout: 8000 });
+    for (let i = 0; i < 40; i++) {
+      const a = await (await admin.request.get(incentiveBase + '/api/advances')).json();
+      const e = Object.values(a)[0] || {};
+      if (!e.manualRate && !e.lockedRate && !(e.payments || []).length) break;
+      await new Promise((r) => setTimeout(r, 250));
+    }
     await fixedPage.close();
 
+    // The yellow "rate has not arrived" warning must not flash while the rate is still on its way ...
+    assert.ok((await admin.request.post(incentiveBase + '/api/unlock', { data: { password: 'Test Gate Pass 1' } })).ok());
+    const slow = await admin.newPage();
+    await slow.route('**/api/exchange-rate', async (route) => { await new Promise((r) => setTimeout(r, 1500)); await route.continue(); });
+    await slow.goto(incentiveBase + '/');
+    await slow.waitForSelector('#rows tr');
+    assert.strictEqual((await slow.innerHTML('#needsRateBanner')).trim(), '', 'no warning while the rate is loading');
+    await slow.waitForFunction(() => /£1 = Rs 250/.test(document.querySelector('#sumRate').textContent), null, { timeout: 8000 });
+    assert.strictEqual((await slow.innerHTML('#needsRateBanner')).trim(), '', 'and none once it has arrived');
+    await slow.close();
+    // ... but it does appear when the rate really cannot be had.
+    assert.ok((await admin.request.post(incentiveBase + '/api/unlock', { data: { password: 'Test Gate Pass 1' } })).ok());
+    const broken = await admin.newPage();
+    await broken.route('**/api/exchange-rate', (route) => route.fulfill({ status: 502, contentType: 'application/json', body: JSON.stringify({ ok: false, error: 'down' }) }));
+    await broken.goto(incentiveBase + '/');
+    await broken.waitForSelector('#rows tr');
+    await broken.waitForFunction(() => /exchange rate has not arrived/.test(document.querySelector('#needsRateBanner').textContent), null, { timeout: 8000 });
+    await broken.close();
   });
 
   await t.test('a team member colours a student row and Admin sees the colour', async () => {

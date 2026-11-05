@@ -84,7 +84,7 @@ test('the payment summary and company earnings are worked out like the Incentive
   // incentives: a = 10,000 + 500, b = 5,000 -> 15,500; loan 1,000 -> net 14,500; TDS 15% = 2,175; advance 2,000
   // a payment of 3,000 was received on 2026-10-20, so what is still to pay is 14,500 - 2,175 - 2,000 - 3,000
   assert.deepStrictEqual(sep.paymentSummaryNpr, { totalIncentives: 15500, loanIncentiveToShare: 1000, netIncentives: 14500, tds15Percent: 2175, previousAdvance: 2000, paymentsReceived: 3000, netPayable: 7325,
-    working: { incentivesEnteredInRupeesNpr: 15500, incentivesInPoundsGbp: 0, exchangeRateGbpToNpr: 180, exchangeRateFetchedAt: '2026-11-04T10:30:00.000Z', rateFixedFromFirstPayment: false, poundIncentivesConvertedNpr: 0 },
+    working: { incentivesEnteredInRupeesNpr: 15500, incentivesInPoundsGbp: 0, exchangeRateGbpToNpr: 180, exchangeRateFetchedAt: '2026-11-04T10:30:00.000Z', rateFixedFromFirstPayment: false, rateSource: 'live rate', poundIncentivesConvertedNpr: 0 },
     paymentHistory: [{ date: '2026-10-20', amountNpr: 3000, note: 'first' }] });
   assert.strictEqual(call(make(), 'get_payment_summary', {}).exchangeRate.fetchedAt, '2026-11-04T10:30:00.000Z', 'the time the rate was fetched is given');
   // commission: 1,500 + 1,200 + 0 = 2,700 GBP, x 180 = 486,000 NPR; salary 70,000 x 4 = 280,000; counselor total 280,000 + 14,500
@@ -237,4 +237,16 @@ test('an intake with a payment keeps the exchange rate it had at the first payme
   // The student rows follow the same rule.
   const rows = call(build(true), 'get_incentives', { intake: 'Sep Intake 2026' });
   assert.ok(JSON.stringify(rows).includes('15000'), 'student rows use the fixed rate too');
+});
+
+test('an intake uses the OANDA rate the owner typed in, until a payment fixes a rate', () => {
+  const commissions = { a: { enrollmentCommission: 100, enrollmentCommissionUnit: 1 } }; // £100
+  const build = (advance) => make({ incentive: { getCommissions: () => commissions, getAdvances: (sheets) => advancesByName({ 'sheet-1': advance }, sheets), getRate: () => ({ rate: 180, date: '2026-11-04' }) } });
+  const typed = call(build({ manualRate: { rate: 206.5 } }), 'get_payment_summary', { intake: 'Sep Intake 2026' }).intakes[0].paymentSummaryNpr;
+  assert.strictEqual(typed.totalIncentives, 20650, '£100 at the typed Rs 206.5, not the live Rs 180');
+  assert.strictEqual(typed.working.rateSource, 'typed in from OANDA');
+  const fixed = call(build({ manualRate: { rate: 206.5 }, payments: [{ id: 'p', date: '2026-11-05', amount: 100 }], lockedRate: { rate: 206.5, source: 'manual' } }), 'get_payment_summary', { intake: 'Sep Intake 2026' }).intakes[0].paymentSummaryNpr;
+  assert.strictEqual(fixed.working.rateSource, 'typed in from OANDA, fixed at the first payment');
+  const live = call(build({}), 'get_payment_summary', { intake: 'Sep Intake 2026' }).intakes[0].paymentSummaryNpr;
+  assert.strictEqual(live.working.rateSource, 'live rate');
 });

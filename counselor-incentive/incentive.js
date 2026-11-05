@@ -301,6 +301,20 @@ function createIncentive({ dataDir, studentDataFile, getWorkbook, activity }) {
         ['basicSalary', 'salaryMonths'].forEach((f) => {
           if (f in body) entry[f] = num(body[f], existing[f]);
         });
+        // The pound rate typed in from OANDA for this intake. Once a payment fixes the rate, the fixed rate is what counts
+        // (the page does not allow changing it then); the typed one is kept for if every payment is removed.
+        const manualLines = [];
+        if ('manualRate' in body) {
+          const r = body.manualRate === null || body.manualRate === '' ? 0 : Number(body.manualRate);
+          if (!Number.isFinite(r) || r < 0 || r >= 100000) return sendJSON(res, 400, { error: 'manualRate must be a rate above 0' });
+          const had = existing.manualRate && existing.manualRate.rate > 0 ? existing.manualRate.rate : 0;
+          const rate = Math.round(r * 10000) / 10000;
+          if (rate !== had) {
+            if (rate > 0) entry.manualRate = { rate, enteredAt: new Date().toISOString() };
+            else delete entry.manualRate;
+            manualLines.push(rate > 0 ? `${intake} › Exchange rate typed in from OANDA: £1 = Rs ${rate}` : `${intake} › Typed-in exchange rate removed, the live rate is used`);
+          }
+        }
         // Part payments received (date + amount). The page sends the whole list; it replaces the saved one.
         let paymentLines = [];
         if ('payments' in body) {
@@ -312,16 +326,28 @@ function createIncentive({ dataDir, studentDataFile, getWorkbook, activity }) {
           // until every payment is removed again.
           if (!list.length) {
             delete entry.lockedRate;
-          } else if (!(existing.lockedRate && existing.lockedRate.rate > 0)) {
+          } else {
             const sent = body.lockedRate;
+            const prevLock = existing.lockedRate && existing.lockedRate.rate > 0 ? existing.lockedRate : null;
             let locked = null;
             if (sent && Number.isFinite(Number(sent.rate)) && Number(sent.rate) > 0 && Number(sent.rate) < 100000) {
-              locked = { rate: Number(sent.rate), date: String(sent.date || '').slice(0, 10), fetchedAt: String(sent.fetchedAt || '').slice(0, 40) || null };
+              // The page says which rate it is showing; the same rate as already fixed keeps its original date.
+              locked = prevLock && Number(sent.rate) === prevLock.rate ? { ...prevLock }
+                : { rate: Number(sent.rate), date: String(sent.date || '').slice(0, 10), fetchedAt: String(sent.fetchedAt || '').slice(0, 40) || null, source: sent.source === 'manual' ? 'manual' : 'live' };
+            } else if (prevLock) {
+              locked = { ...prevLock };
+            } else if (entry.manualRate && entry.manualRate.rate > 0) {
+              locked = { rate: entry.manualRate.rate, date: '', fetchedAt: null, source: 'manual' };
             } else {
               const live = await getGbpToNprRate();
-              if (live.ok) locked = { rate: live.rate, date: live.date, fetchedAt: live.fetchedAt || null };
+              if (live.ok) locked = { rate: live.rate, date: live.date, fetchedAt: live.fetchedAt || null, source: 'live' };
             }
-            if (locked) { locked.lockedAt = new Date().toISOString(); entry.lockedRate = locked; paymentLines.push(`${intake} › Exchange rate fixed at £1 = Rs ${locked.rate} from the first payment`); }
+            if (locked) {
+              const isNew = !prevLock || prevLock.rate !== locked.rate;
+              locked.lockedAt = isNew ? new Date().toISOString() : (prevLock.lockedAt || new Date().toISOString());
+              entry.lockedRate = locked;
+              if (isNew) paymentLines.push(`${intake} › Exchange rate fixed at £1 = Rs ${locked.rate}${locked.source === 'manual' ? ' (typed in from OANDA)' : ''} from the first payment`);
+            }
           }
           const had = new Set((existing.payments || []).map((p) => p.id));
           const has = new Set(list.map((p) => p.id));
@@ -332,7 +358,7 @@ function createIncentive({ dataDir, studentDataFile, getWorkbook, activity }) {
         const all = setAdvance(stored, sheets, intake, entry);
         writeWithBackup(ADVANCES_FILE, 'advances.backup.json', all);
         recordChanges(req, `${intake} advances`, existing, entry, ['previousAdvance', 'basicSalary', 'salaryMonths']);
-        if (paymentLines.length) activity.record(req, req.user, 'Changed', { app: 'Incentive', changes: paymentLines });
+        if (paymentLines.length || manualLines.length) activity.record(req, req.user, 'Changed', { app: 'Incentive', changes: manualLines.concat(paymentLines) });
         notifyLive();
         return sendJSON(res, 200, entry);
       }

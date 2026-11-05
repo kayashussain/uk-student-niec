@@ -292,6 +292,10 @@
       <span class="label">Exchange rate <span class="info" title="The live pound to rupee rate used for every pound and percent incentive below. It is fetched once a day.">ⓘ</span></span>
       <span class="value"><span id="sumRate">-</span><span class="hint" id="sumRateTime"></span></span>
     </div>
+    <div class="summary-row" id="manualRateRow">
+      <span class="label">Your rate from OANDA <span class="info" title="Type the pound rate you read on OANDA (the rate UKVI accepts) and this intake uses it instead of the live rate. Leave it empty to use the live rate. It cannot be changed once a payment is recorded, because the rate is fixed from the first payment.">ⓘ</span><span class="hint" id="manualRateHint"></span></span>
+      <span class="pay-right"><input class="adv-input" id="manualRate" type="number" step="0.0001" min="0" placeholder="e.g. 206.12" aria-label="Pound to rupee rate from OANDA (£1 = Rs)"><button type="button" class="pay-remove" id="manualRateClear">Use live rate</button></span>
+    </div>
     <div class="summary-row">
       <span class="label">Incentives entered in rupees (NPR) <span class="info" title="Every incentive typed in rupees, plus the Flywire incentives, added up.">ⓘ</span></span>
       <span class="value" id="sumNprEntered">0.00</span>
@@ -408,7 +412,7 @@ fetch('/api/me', { cache: 'no-store' }).then((r) => (r.ok ? r.json() : null)).th
 <script>
 // Closing, reloading or leaving this page locks Incentive again, so its password is asked every time. A page brought back
 // from the browser's memory (the Back button) is reloaded, which shows the password page instead of the old figures.
-window.addEventListener('pagehide', () => { try { navigator.sendBeacon('/incentive/api/lock'); } catch (e) { /* the 20-minute idle lock still applies */ } });
+window.addEventListener('pagehide', () => { try { if (window.__flushSaves) window.__flushSaves(); } catch (e) { /* nothing to save */ } try { navigator.sendBeacon('/incentive/api/lock'); } catch (e) { /* the 20-minute idle lock still applies */ } });
 window.addEventListener('pageshow', (e) => { if (e.persisted) location.reload(); });
 </script>
 <script src="edit-guard.js"></script>
@@ -570,12 +574,13 @@ function createSaver(pending, request) {
   const inFlight = new Set();
   const queued = new Set();
 
-  async function run(key) {
-    if (inFlight.has(key)) { queued.add(key); return; }
+  // `leaving`: the page is closing, so the save is sent at once and allowed to finish after the page is gone (keepalive).
+  async function run(key, leaving) {
+    if (inFlight.has(key) && !leaving) { queued.add(key); return; }
     inFlight.add(key);
     const version = versions[key];
     try {
-      const res = await request(key);
+      const res = await request(key, leaving);
       if (!res.ok) throw new Error('HTTP ' + res.status);
       if (versions[key] === version) pending.delete(key);
     } catch (e) {
@@ -589,15 +594,18 @@ function createSaver(pending, request) {
     }
   }
 
-  return function schedule(key) {
+  function schedule(key) {
     pending.add(key);
     versions[key] = (versions[key] || 0) + 1;
     clearTimeout(timers[key]);
     timers[key] = setTimeout(() => run(key), 300);
-  };
+  }
+  // Sends everything not saved yet right now (used when the page is hidden or closed, so nothing typed is lost).
+  schedule.flush = () => { [...pending].forEach((key) => { clearTimeout(timers[key]); run(key, true); }); };
+  return schedule;
 }
 
-const scheduleSaveCommission = createSaver(pendingCommissions, async (id) => {
+const scheduleSaveCommission = createSaver(pendingCommissions, async (id, leaving) => {
   const sent = { ...(unsavedFields[id] || {}) };
   const body = {};
   Object.keys(sent).forEach((f) => { body[f] = commissionValue(id, f); });
@@ -605,6 +613,7 @@ const scheduleSaveCommission = createSaver(pendingCommissions, async (id) => {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
+    keepalive: Boolean(leaving),
   });
   const left = unsavedFields[id];
   if (res.ok && left) {
@@ -615,14 +624,19 @@ const scheduleSaveCommission = createSaver(pendingCommissions, async (id) => {
   return res;
 });
 
-const scheduleSaveAdvance = createSaver(pendingAdvances, (intake) => fetch(BASE + '/api/advances/' + encodeURIComponent(intake), {
+const scheduleSaveAdvance = createSaver(pendingAdvances, (intake, leaving) => fetch(BASE + '/api/advances/' + encodeURIComponent(intake), {
   method: 'PUT',
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify(advanceBody(state.advances[intake] || {})),
+  keepalive: Boolean(leaving),
 }));
+// Anything typed but not saved yet is sent the moment the page is hidden or closed (the page lock follows it).
+window.__flushSaves = () => { scheduleSaveCommission.flush(); scheduleSaveAdvance.flush(); };
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') window.__flushSaves(); });
 // Only fields that have been set are sent, so an unset salary keeps following the default.
 function advanceBody(entry) {
   const body = { previousAdvance: num(entry.previousAdvance) };
+  body.manualRate = entry.manualRate && entry.manualRate.rate > 0 ? entry.manualRate.rate : null;
   if (Array.isArray(entry.payments)) { body.payments = entry.payments; body.lockedRate = entry.lockedRate || null; }
   ['basicSalary', 'salaryMonths'].forEach((f) => { if (entry[f] !== undefined) body[f] = num(entry[f]); });
   return body;
@@ -730,7 +744,7 @@ async function applyChangesNow(changes) {
 
   let rate = null;
   if (feeChanges.some((ch) => ch.to !== 0)) {
-    const fx = await getExchangeRate();
+    const fx = earningsRate && (earningsRate.manual || earningsRate.locked) ? earningsRate : await getExchangeRate();
     rate = fx ? fx.rate : null;
     if (!fx) {
       rateBannerEl.innerHTML = '<div class="banner error">⚠ Could not fetch today\'s GBP→NPR exchange rate, so Flywire Incentive was left as it was. You can enter it by hand, or try again.</div>';
@@ -932,6 +946,7 @@ function niceDate(iso) {
 // When the rate was fetched, in the viewer's own time: "4 Nov 2026, 10:32".
 function fetchedText(fx) {
   if (!fx) return '';
+  if (fx.source === 'manual') return 'typed in by you from OANDA';
   if (fx.fetchedAt) {
     const d = new Date(fx.fetchedAt);
     if (!isNaN(d)) return d.toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
@@ -963,11 +978,19 @@ function recalc(students) {
   const s = computeSummary(students);
   $('#sumRate').textContent = earningsRate ? `£1 = Rs ${earningsRate.rate}` : 'not available right now';
   $('#sumRateTime').textContent = !earningsRate ? ''
-    : earningsRate.locked ? ` fixed since the first payment (rate fetched ${fetchedText(earningsRate)})`
+    : earningsRate.locked ? ` fixed since the first payment (${earningsRate.source === 'manual' ? 'your OANDA rate' : 'rate fetched ' + fetchedText(earningsRate)})`
+    : earningsRate.manual ? ' your OANDA rate, typed in by you'
     : ` fetched ${fetchedText(earningsRate)}${earningsRate.stale ? ' (last known rate)' : ''}, updated every hour`;
+  const manualBox = $('#manualRate');
+  const isLocked = Boolean(lockedRateOf(state.activeIntake));
+  manualBox.disabled = isLocked;
+  $('#manualRateClear').hidden = isLocked || !manualRateOf(state.activeIntake);
+  if (document.activeElement !== manualBox) { const m = manualRateOf(state.activeIntake); manualBox.value = m ? m.rate : ''; }
+  $('#manualRateHint').textContent = isLocked ? 'fixed from the first payment'
+    : liveRate ? `live rate now: £1 = Rs ${liveRate.rate} (not OANDA)` : '';
   $('#payRateNote').textContent = earningsRate && earningsRate.locked
-    ? `The exchange rate for this intake is fixed at £1 = Rs ${earningsRate.rate} (rate fetched ${fetchedText(earningsRate)}), from when the first payment was added on ${niceDate(String(earningsRate.lockedAt || '').slice(0, 10))}. It stays the same, whatever the market does, so the amounts you give stay the same. It follows the live rate again only if every payment is removed.`
-    : 'Until the first payment is added, the exchange rate follows the live rate and is updated every hour. When you add the first payment, the rate is fixed for this intake.';
+    ? `The exchange rate for this intake is fixed at £1 = Rs ${earningsRate.rate} (${earningsRate.source === 'manual' ? 'the OANDA rate you typed in' : 'rate fetched ' + fetchedText(earningsRate)}), from when the first payment was added on ${niceDate(String(earningsRate.lockedAt || '').slice(0, 10))}. It stays the same, whatever the market does, so the amounts you give stay the same. It follows the live rate again only if every payment is removed.`
+    : 'Until the first payment is added, the exchange rate is the one you typed in from OANDA, or the live rate (updated every hour) if you typed none. When you add the first payment, the rate is fixed for this intake.';
   $('#sumNprEntered').textContent = fmt(s.nprEntered);
   $('#sumGbpEntered').textContent = '£' + fmt(s.gbpEntered);
   $('#sumGbpConverted').textContent = fmt(s.gbpConverted);
@@ -981,7 +1004,7 @@ function recalc(students) {
   $('#sumNetCommissions').textContent = fmt(s.netCommissions);
   $('#sumTds').textContent = fmt(s.tds);
   $('#sumNetPayable').textContent = fmt(s.netPayable);
-  $('#needsRateBanner').innerHTML = s.needsRate
+  $('#needsRateBanner').innerHTML = s.needsRate && rateChecked
     ? '<div class="banner">⚠ Some incentives are in pounds or percent, and today\'s exchange rate has not arrived, so they are not counted in these totals yet. They are counted as soon as the rate loads.</div>' : '';
   renderEarnings(students, s);
 }
@@ -997,10 +1020,21 @@ function lockedRateOf(intake) {
   const l = (state.advances[intake] || {}).lockedRate;
   return l && l.rate > 0 ? l : null;
 }
+// The rate typed in by hand from OANDA, if there is one for this intake.
+function manualRateOf(intake) {
+  const m = (state.advances[intake] || {}).manualRate;
+  return m && m.rate > 0 ? m : null;
+}
+// Which rate this intake uses: the one fixed at its first payment, else the one typed in from OANDA, else the live one.
 function syncRate() {
   const l = lockedRateOf(state.activeIntake);
-  earningsRate = l ? { rate: l.rate, date: l.date, fetchedAt: l.fetchedAt, lockedAt: l.lockedAt, locked: true } : liveRate;
+  const m = manualRateOf(state.activeIntake);
+  if (l) earningsRate = { rate: l.rate, date: l.date, fetchedAt: l.fetchedAt, lockedAt: l.lockedAt, locked: true, source: l.source || 'live' };
+  else if (m) earningsRate = { rate: m.rate, date: '', fetchedAt: null, enteredAt: m.enteredAt, manual: true, source: 'manual' };
+  else earningsRate = liveRate;
 }
+let firstRateDone = false;
+let rateChecked = false; // true once the first attempt to get the live rate has finished (so "no rate" is not shown while it loads)
 
 function intakeSetting(field, fallback) {
   const v = (state.advances[state.activeIntake] || {})[field];
@@ -1042,7 +1076,7 @@ function renderEarnings(students, summary) {
   $('#earnHead').textContent = '£' + fmt(e.headOfficeGbp);
   $('#earnNpr').textContent = e.companyNpr === null ? '-' : fmt(e.companyNpr);
   $('#earnRateHint').textContent = earningsRate
-    ? `£1 = ${earningsRate.rate} NPR, ${earningsRate.locked ? 'fixed from the first payment, rate ' : ''}fetched ${fetchedText(earningsRate)}${earningsRate.stale ? ' (last known)' : ''}`
+    ? `£1 = ${earningsRate.rate} NPR, ${earningsRate.locked ? 'fixed from the first payment, ' : ''}${earningsRate.source === 'manual' ? '' : 'fetched '}${fetchedText(earningsRate)}${earningsRate.stale ? ' (last known)' : ''}`
     : 'exchange rate not available right now';
   if (document.activeElement !== salaryInput) salaryInput.value = intakeSetting('basicSalary', DEFAULT_BASIC_SALARY);
   if (document.activeElement !== monthsInput) monthsInput.value = intakeSetting('salaryMonths', DEFAULT_SALARY_MONTHS);
@@ -1072,9 +1106,11 @@ function renderBranchList(students) {
 
 function refreshRate() {
   getExchangeRate().then((fx) => {
+    rateChecked = true;
     const changed = !liveRate !== !fx || (fx && liveRate && (fx.rate !== liveRate.rate || fx.fetchedAt !== liveRate.fetchedAt));
     liveRate = fx || liveRate;
-    if (!changed) return;
+    if (!changed && firstRateDone) return;
+    firstRateDone = true;
     if (editing) recalc(intakeStudents()); else render();
   });
 }
@@ -1100,6 +1136,26 @@ function bindIntakeSetting(input, field, fallback) {
 bindIntakeSetting(salaryInput, 'basicSalary', DEFAULT_BASIC_SALARY);
 bindIntakeSetting(monthsInput, 'salaryMonths', DEFAULT_SALARY_MONTHS);
 
+// The rate typed in from OANDA for this intake (empty = follow the live rate).
+const manualRateBox = $('#manualRate');
+function changeManualRate(value) {
+  const intake = state.activeIntake;
+  if (!intake || lockedRateOf(intake)) return;
+  const prev = manualRateOf(intake);
+  const v = Math.round(num(value) * 10000) / 10000;
+  const next = v > 0 && v < 100000 ? { rate: v, enteredAt: new Date().toISOString() } : null;
+  if ((prev ? prev.rate : 0) === (next ? next.rate : 0)) { manualRateBox.value = prev ? prev.rate : ''; return; }
+  confirmChange(() => {
+    pushUndo({ kind: 'advance', intake, field: 'manualRate', from: prev, to: next });
+    if (!state.advances[intake]) state.advances[intake] = {};
+    state.advances[intake].manualRate = next;
+    render();
+    scheduleSaveAdvance(intake);
+  }, () => { manualRateBox.value = prev ? prev.rate : ''; });
+}
+manualRateBox.addEventListener('change', () => changeManualRate(manualRateBox.value));
+$('#manualRateClear').addEventListener('click', () => changeManualRate(''));
+
 // Part payments: each one is a date and an amount. The whole list is saved together with the intake's settings.
 const payForm = $('#payForm');
 const payDate = $('#payDate');
@@ -1111,7 +1167,7 @@ function changePayments(next) {
   const prev = paymentsOf();
   const lockFrom = lockedRateOf(intake);
   // The first payment fixes the rate shown now; removing every payment lets it follow the live rate again.
-  const lockTo = !next.length ? null : lockFrom || (liveRate ? { rate: liveRate.rate, date: liveRate.date, fetchedAt: liveRate.fetchedAt, lockedAt: new Date().toISOString() } : null);
+  const lockTo = !next.length ? null : lockFrom || (earningsRate ? { rate: earningsRate.rate, date: earningsRate.date || '', fetchedAt: earningsRate.fetchedAt || null, source: earningsRate.source === 'manual' ? 'manual' : 'live', lockedAt: new Date().toISOString() } : null);
   confirmChange(() => {
     pushUndo({ kind: 'advance', intake, field: 'payments', from: prev, to: next, lockFrom, lockTo });
     if (!state.advances[intake]) state.advances[intake] = {};
