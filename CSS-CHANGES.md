@@ -9,6 +9,31 @@ Format: **date · file · what · from → to · why**
 
 ---
 
+## 2026-11-05 · `student-details/app.js` · dropdown columns in the sheet a little wider
+
+- **What:** the width of the columns that hold a dropdown (Student Source, Application Status, Pre CAS Interview and so on) is worked out in the script.
+- **From:** the longest choice measured in the small bold font (600 11px) plus 64 → **to:** measured in the font the chip really uses (500 12px) plus 66. The Student Source column grows a few pixels, so "Language Classes" is no longer cut off with "...".
+- **In the code:** marked with `🔴 CSS CHANGED` above that line in `student-details/app.js`.
+
+---
+
+## 2026-11-05 · `shared/theme.css` and `shared/login.html` · the whole site in the calmer "Mist" off-white
+
+- **What:** the bright white of the pages, sheet cells, cards, headers, menus and question boxes was replaced by a soft cool off-white, chosen by the owner (option 3, "Mist") so that long days on screen are easier on the eyes. Dark mode is not touched.
+- **Colours, from → to:**
+  - page background `#f5f6f8` → `#e7eaef`
+  - panels, cells, cards, headings `#fdfdfe` → `#f2f4f7`
+  - borders `#e4e8ed` → `#d8dde4`; strong borders `#d0d7df` → `#c3cad3`
+  - quiet fill (hover, open menu, tags) `#eef1f5` → `#e6e9ee`
+  - alternate row stripe `#f7f9fb` → `#ecf0f3`; row hover `#eff4f9` → `#e2e9f1`
+  - typing cell `#f8fafc` → `#f7f9fb`; blue tints `#ecf4fb` → `#e6eff8` and `#d3e7f6` → `#cfe2f2`
+  - confirm dialogs and messages `#ffffff` → the panel colour
+  - login page: page `#f5f6f8` → `#e7eaef`, panel `#fdfdfe` → `#f2f4f7`, left side gradient `#fdfdfe`/`#f0f5fa` → `#f2f4f7`/`#e6ecf2`
+- **Not changed:** text colours (text contrast stays about 13 to 1), brand blue and orange, fonts, layout, the QR code box (stays white so it can be scanned) and printing.
+- **In the code:** marked with `🔴 CSS CHANGED` in `shared/theme.css` (three places) and in `shared/login.html`.
+
+---
+
 ## 2026-11-05 · `student-details/dashboard.css` · Dashboard number cards a little narrower
 
 - **What:** the row of number cards (Applications submitted, Offers received, Mock interviews held, Payments made, Visas issued and the new Head office students).

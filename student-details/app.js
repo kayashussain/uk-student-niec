@@ -981,7 +981,8 @@
     const header = textWidth(columnLabel(col), `600 12px ${family}`) + HEAD_PAD;
     let cell;
     if (col === LANGUAGE_TEST_COL) cell = 420;
-    else if (SELECT_COLS[col]) cell = Math.max(...SELECT_COLS[col].map((o) => textWidth(o, `600 11px ${family}`)), 60) + 64;
+    // 🔴 CSS CHANGED (2026-11-05): dropdown columns (Student Source, Application Status and so on) are measured with the font they really use, so the longest choice (Language Classes) is no longer cut off | from: measured at 600 11px, plus 64 | to: measured at 500 12px, plus 66
+    else if (SELECT_COLS[col]) cell = Math.max(...SELECT_COLS[col].map((o) => textWidth(o, `500 12px ${family}`)), 60) + 66;
     else if (DATE_COLS.has(col)) cell = 150;
     else if (NUM_COLS.has(col)) cell = 124;
     else cell = measuredText(col) + CELL_PAD;

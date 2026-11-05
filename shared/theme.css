@@ -7,22 +7,26 @@
   --ink: #1f2933;
   --niec-blue: #00adef;
   --niec-blue-text: #066a97; --blue-text: #066a97; --brand-text: #066a97;
-  --bg: #f5f6f8;
-  --panel: #fdfdfe;
-  --surface: #fdfdfe;
-  --border: #e4e8ed;
-  --border-strong: #d0d7df;
+  /* 🔴 CSS CHANGED (2026-11-05): the whole site goes from bright white to the calmer "Mist" off-white, for long days on screen | from: page #f5f6f8, panels and cells #fdfdfe, border #e4e8ed, strong border #d0d7df, soft fill #eef1f5 | to: page #e7eaef, panels and cells #f2f4f7, border #d8dde4, strong border #c3cad3, soft fill #e6e9ee (neutral cool, no yellow; text contrast about 13 to 1) */
+  --bg: #e7eaef;
+  --panel: #f2f4f7;
+  --surface: #f2f4f7;
+  --border: #d8dde4;
+  --border-strong: #c3cad3;
   --text: var(--ink);
   --text-dim: #4f5b69;
-  --soft: #eef1f5; /* the quiet fill for hover, the open menu and small tags */
-  --header-bg: #fdfdfe; /* the column headings sit on the same off-white as the data */
+  --soft: #e6e9ee; /* the quiet fill for hover, the open menu and small tags */
+  --header-bg: #f2f4f7; /* the column headings sit on the same off-white as the data */
   --head-ink: #3b4757;
-  --row-alt: #f7f9fb;
-  --row-hover: #eff4f9;
-  --edit-bg: #f8fafc;
+  /* 🔴 CSS CHANGED (2026-11-05): row stripes, hover, the typing cell and the blue tints follow the new off-white | from: stripe #f7f9fb, hover #eff4f9, typing cell #f8fafc, tints #ecf4fb and #d3e7f6 | to: stripe #ecf0f3, hover #e2e9f1, typing cell #f7f9fb, tints #e6eff8 and #cfe2f2 */
+  --row-alt: #ecf0f3;
+  --row-hover: #e2e9f1;
+  --edit-bg: #f7f9fb;
   --focus: #0a84c6;
-  --focus-dim: #ecf4fb;
-  --focus-strong: #d3e7f6;
+  --focus-dim: #e6eff8;
+  --focus-strong: #cfe2f2;
+  /* 🔴 CSS CHANGED (2026-11-05): the question boxes and messages (confirm dialogs) use the same off-white instead of pure white | from: #ffffff | to: the panel colour */
+  --ui-panel: var(--panel);
   --range-tint: rgba(10, 132, 198, .10);
   --accent-strong: #0f5d8c; --accent-strong-hover: #0b4d76; --on-accent: #ffffff; /* NIEC blue, deepened for white text */
   --primary: #17324d; --primary-hover: #0f2438; --on-primary: #ffffff; /* the main action: deep navy */
