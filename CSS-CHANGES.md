@@ -9,6 +9,14 @@ Format: **date · file · what · from → to · why**
 
 ---
 
+## 2026-11-05 · `counselor-incentive/index.html` · exchange rate box in the "Add a payment" form
+
+- **What:** a new box "£1 = Rs (OANDA)" in the form where a payment is added, so the rate is typed together with the first payment.
+- **From:** nothing → **to:** a 160px wide box, same look as the amount box (rounded, 13px text), before the date box. It disappears once the rate is fixed.
+- **In the code:** marked with `🔴 CSS CHANGED` at the end of the `<style>` block of `counselor-incentive/index.html`.
+
+---
+
 ## 2026-11-04 · `counselor-incentive/index.html` · Company Earnings: branch table taken out, simple rows instead
 
 - **What:** the "Taken by the branches" table was removed at the owner's request.

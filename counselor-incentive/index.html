@@ -239,6 +239,8 @@
   /* 🔴 CSS CHANGED (2026-11-04): the Company Earnings branch table was taken out again | from: a table with a header row, subtotal rows and a shaded total row | to: simple rows like the rest of the card (name - branch, with the university commission in small grey text, and the amount the branch keeps on the right); no extra styles needed */
   /* 🔴 CSS CHANGED (2026-11-04): small explanation line at the top of the Payments Received card about the exchange rate | from: none (did not exist) | to: 12px grey text, 12px 16px padding, a thin line under it, same grey as the other hints */
   .pay-rate-note { margin: 0; padding: 12px 16px; font-size: 12px; line-height: 1.5; color: var(--text-dim); border-bottom: 1px solid var(--border); }
+  /* 🔴 CSS CHANGED (2026-11-05): new exchange rate box in the "Add a payment" form | from: none (did not exist) | to: a 160px wide box, same look as the amount box, placed before the date box */
+  .pay-fields #payRate { width: 160px; }
 </style>
 <link rel="stylesheet" href="theme.css" />
 </head>
@@ -340,6 +342,7 @@
     <form class="summary-row pay-form" id="payForm">
       <span class="label">Add a payment</span>
       <span class="pay-fields">
+        <input class="adv-input pay-rate" id="payRate" type="number" step="0.0001" min="0.0001" placeholder="£1 = Rs (OANDA)" aria-label="Exchange rate from OANDA, pounds to rupees (£1 = Rs)" title="The pound rate you type for this first payment. It is fixed for this intake from now on.">
         <input class="adv-input pay-date" id="payDate" type="date" required aria-label="Date the payment was received">
         <input class="adv-input" id="payAmount" type="number" step="0.01" min="0.01" required placeholder="Amount (NPR)" aria-label="Amount received (NPR)">
         <input class="adv-input pay-note" id="payNote" type="text" maxlength="80" placeholder="Note (optional)" aria-label="Note for this payment">
@@ -986,11 +989,20 @@ function recalc(students) {
   manualBox.disabled = isLocked;
   $('#manualRateClear').hidden = isLocked || !manualRateOf(state.activeIntake);
   if (document.activeElement !== manualBox) { const m = manualRateOf(state.activeIntake); manualBox.value = m ? m.rate : ''; }
+  const payRateBox = $('#payRate');
+  payRateBox.hidden = isLocked; // once a payment fixes the rate there is nothing more to type
+  payRateBox.required = !isLocked;
+  // The box follows the intake's typed rate, unless something else was typed in it by hand.
+  if (!isLocked && (!payRateBox.value || (document.activeElement !== payRateBox && payRateBox.value === payRateBox.dataset.auto))) {
+    const m = manualRateOf(state.activeIntake);
+    payRateBox.value = m ? m.rate : '';
+    payRateBox.dataset.auto = payRateBox.value;
+  }
   $('#manualRateHint').textContent = isLocked ? 'fixed from the first payment'
     : liveRate ? `live rate now: £1 = Rs ${liveRate.rate} (not OANDA)` : '';
   $('#payRateNote').textContent = earningsRate && earningsRate.locked
     ? `The exchange rate for this intake is fixed at £1 = Rs ${earningsRate.rate} (${earningsRate.source === 'manual' ? 'the OANDA rate you typed in' : 'rate fetched ' + fetchedText(earningsRate)}), from when the first payment was added on ${niceDate(String(earningsRate.lockedAt || '').slice(0, 10))}. It stays the same, whatever the market does, so the amounts you give stay the same. It follows the live rate again only if every payment is removed.`
-    : 'Until the first payment is added, the exchange rate is the one you typed in from OANDA, or the live rate (updated every hour) if you typed none. When you add the first payment, the rate is fixed for this intake.';
+    : 'Type the OANDA rate (£1 = Rs) together with the first payment. From then on it is fixed for this intake and no live rate is used, so the amounts you give stay the same. Until then the figures use the rate typed above, or the live rate as an estimate.';
   $('#sumNprEntered').textContent = fmt(s.nprEntered);
   $('#sumGbpEntered').textContent = '£' + fmt(s.gbpEntered);
   $('#sumGbpConverted').textContent = fmt(s.gbpConverted);
@@ -1159,20 +1171,23 @@ $('#manualRateClear').addEventListener('click', () => changeManualRate(''));
 // Part payments: each one is a date and an amount. The whole list is saved together with the intake's settings.
 const payForm = $('#payForm');
 const payDate = $('#payDate');
-function resetPayForm() { payDate.value = localDay(); $('#payAmount').value = ''; $('#payNote').value = ''; }
+function resetPayForm() { payDate.value = localDay(); $('#payAmount').value = ''; $('#payNote').value = ''; $('#payRate').value = ''; }
 resetPayForm();
-function changePayments(next) {
+function changePayments(next, typedRate) {
   const intake = state.activeIntake;
   if (!intake) return;
   const prev = paymentsOf();
   const lockFrom = lockedRateOf(intake);
   // The first payment fixes the rate shown now; removing every payment lets it follow the live rate again.
-  const lockTo = !next.length ? null : lockFrom || (earningsRate ? { rate: earningsRate.rate, date: earningsRate.date || '', fetchedAt: earningsRate.fetchedAt || null, source: earningsRate.source === 'manual' ? 'manual' : 'live', lockedAt: new Date().toISOString() } : null);
+  const typed = Math.round(num(typedRate) * 10000) / 10000;
+  const lockTo = !next.length ? null : lockFrom || (typed > 0 ? { rate: typed, date: '', fetchedAt: null, source: 'manual', lockedAt: new Date().toISOString() } : earningsRate ? { rate: earningsRate.rate, date: earningsRate.date || '', fetchedAt: earningsRate.fetchedAt || null, source: earningsRate.source === 'manual' ? 'manual' : 'live', lockedAt: new Date().toISOString() } : null);
   confirmChange(() => {
     pushUndo({ kind: 'advance', intake, field: 'payments', from: prev, to: next, lockFrom, lockTo });
     if (!state.advances[intake]) state.advances[intake] = {};
     state.advances[intake].payments = next;
     if (lockTo) state.advances[intake].lockedRate = lockTo; else delete state.advances[intake].lockedRate;
+    // The rate typed with the payment is also the intake's typed rate, so it is still there if every payment is removed.
+    if (lockTo && lockTo.source === 'manual' && !lockFrom) state.advances[intake].manualRate = { rate: lockTo.rate, enteredAt: lockTo.lockedAt };
     recalc(intakeStudents());
     scheduleSaveAdvance(intake);
   }, () => {});
@@ -1182,7 +1197,10 @@ payForm.addEventListener('submit', (ev) => {
   const amount = Math.round(Number($('#payAmount').value) * 100) / 100;
   if (!payDate.value || !(amount > 0)) return;
   const id = 'p' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
-  changePayments(paymentsOf().concat({ id, date: payDate.value, amount, note: $('#payNote').value.trim() }));
+  const needsRate = !lockedRateOf(state.activeIntake);
+  const rate = num($('#payRate').value);
+  if (needsRate && !(rate > 0)) { $('#payRate').focus(); return; }
+  changePayments(paymentsOf().concat({ id, date: payDate.value, amount, note: $('#payNote').value.trim() }), needsRate ? rate : 0);
   resetPayForm();
 });
 $('#payList').addEventListener('click', (ev) => {

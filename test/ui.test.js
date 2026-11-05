@@ -410,6 +410,7 @@ test('screens: log in, edit, delete, search, team rules, Fact File', { timeout: 
 
     // Part payments: add one, it is listed and Net Payable follows; add the rest and it reaches zero; remove one and it comes back.
     const addPayment = async (date, amount, note) => {
+      if (await again.locator('#payRate').isVisible()) await again.fill('#payRate', '200'); // the first payment is submitted with the rate typed in
       await again.fill('#payDate', date);
       await again.fill('#payAmount', String(amount));
       await again.fill('#payNote', note || '');
@@ -417,6 +418,13 @@ test('screens: log in, edit, delete, search, team rules, Fact File', { timeout: 
       await again.waitForSelector('.eg-box');
       await again.click('.eg-ok');
     };
+    // The first payment needs the rate: without it nothing is added.
+    await again.fill('#payDate', '2026-10-19');
+    await again.fill('#payAmount', '1');
+    await again.fill('#payRate', '');
+    await again.click('#payAdd');
+    assert.strictEqual(await again.locator('.eg-box').count(), 0, 'no question and no payment while the rate is empty');
+    assert.strictEqual(await again.locator('.pay-item').count(), 0);
     await addPayment('2026-10-20', 10000, 'first instalment');
     await again.waitForFunction(() => document.querySelector('#sumNetPayable').textContent.trim() === '123,450.00', null, { timeout: 8000 });
     assert.strictEqual((await again.textContent('#sumPayments')).trim(), '10,000.00');
@@ -454,8 +462,14 @@ test('screens: log in, edit, delete, search, team rules, Fact File', { timeout: 
     assert.match(await fixedPage.textContent('#sumRate'), /£1 = Rs 200/, 'still Rs 200, not the live Rs 250');
     assert.strictEqual((await fixedPage.textContent('#sumTotalCommissions')).trim(), '157,000.00', 'the amount did not move');
     assert.strictEqual(await fixedPage.locator('#advanceInput').count(), 0, 'there is no Previous Advance box any more');
-    // Remove the payment: the intake follows the live rate again.
+    // Remove the payment: the rate typed with it stays as the intake's typed rate (not the live Rs 250) until it is cleared.
     await fixedPage.locator('.pay-item').first().locator('[data-remove]').click();
+    await fixedPage.waitForSelector('.eg-box');
+    await fixedPage.click('.eg-ok');
+    await fixedPage.waitForFunction(() => /your OANDA rate, typed in by you/.test(document.querySelector('#sumRateTime').textContent), null, { timeout: 8000 });
+    assert.match(await fixedPage.textContent('#sumRate'), /£1 = Rs 200/);
+    assert.strictEqual(await fixedPage.locator('#payRate').inputValue(), '200', 'the rate box is filled in again for the next first payment');
+    await fixedPage.click('#manualRateClear');
     await fixedPage.waitForSelector('.eg-box');
     await fixedPage.click('.eg-ok');
     await fixedPage.waitForFunction(() => /£1 = Rs 250/.test(document.querySelector('#sumRate').textContent), null, { timeout: 8000 });
