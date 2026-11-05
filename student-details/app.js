@@ -1224,6 +1224,7 @@
     const ae = document.activeElement;
     const hadGridFocus = !ae || ae === document.body || body.contains(ae);
     viewIndices = getFilteredSortedIndices();
+    renderFilterBar();
     viewPos = new Map(viewIndices.map((rowIdx, p) => [rowIdx, p]));
     viewDupPhones = duplicatePhones(rows, WHATSAPP_COL); // across the whole sheet, not just the filtered rows
     body.textContent = '';
@@ -1256,13 +1257,29 @@
       : (isViewOnly() ? 'Students will appear here once they are added.' : 'Click “+ Add student” to add the first one.');
     emptyEl.querySelector('button').hidden = !narrowed;
   }
-  $('#clearFilters').addEventListener('click', () => {
+  function clearAllFilters() {
     searchEl.value = '';
     columnFilters = {};
     saveFilters();
     renderHeader();
     renderBody();
-  });
+  }
+  $('#clearFilters').addEventListener('click', clearAllFilters);
+  $('#clearAllFilters').addEventListener('click', clearAllFilters);
+  // A bar that says when a search or a filter is hiding students, with a button to clear them all. The filters are remembered
+  // after a refresh, so this is how to get every student back.
+  function renderFilterBar() {
+    const bar = $('#filterBar');
+    const cols = Object.keys(columnFilters);
+    const searching = searchEl.value.trim() !== '';
+    bar.hidden = !cols.length && !searching;
+    if (bar.hidden) return;
+    const parts = [];
+    if (cols.length) parts.push(`Filtered by ${cols.map(columnLabel).join(', ')}`);
+    if (searching) parts.push(`searching for “${searchEl.value.trim()}”`);
+    const total = rows.filter((r) => !isTeam() || Teams.seesRow(me, r)).length;
+    $('#filterBarText').textContent = `${parts.join(' and ')}. Showing ${viewIndices.length} of ${total} students.`;
+  }
 
   // Draws the rows that should be on screen now and removes the ones that scrolled well away.
   // Returns true if it changed anything.

@@ -669,11 +669,16 @@ test('screens: log in, edit, delete, search, team rules, Fact File', { timeout: 
     const added = await page.locator('#body tr:not(.pad-row)').last().locator('td').nth(await colIndex('APPLICATION STATUS')).locator('select').inputValue();
     assert.strictEqual(added, 'Application Stage', 'the new student starts at the filtered status');
 
-    // Clearing the filter (Select all, OK) is remembered too.
+    // The bar says a filter is on and has a button that clears everything; the filter menu lists every status, with counts.
+    assert.match(await page.textContent('#filterBarText'), /Filtered by Application Status\. Showing 3 of 4 students/);
     await statusTh.locator('.filter-btn').click();
-    await page.locator('.filter-menu-actions button', { hasText: 'Select all' }).click();
-    await page.locator('.filter-menu-footer .btn-primary').click();
+    const menuItems = (await page.locator('.filter-menu-item').allTextContents()).map((t) => t.trim());
+    assert.deepStrictEqual(menuItems, ['Application Stage', 'Mock Stage'], 'the filter menu lists what is in the column, as before');
+    await page.keyboard.press('Escape');
+    await page.mouse.click(700, 600);
+    await page.click('#clearAllFilters');
     await page.waitForFunction(() => document.querySelectorAll('#body tr:not(.pad-row)').length === 4);
+    assert.strictEqual(await page.isHidden('#filterBar'), true, 'the bar goes away once nothing is filtered');
     await page.reload();
     await page.waitForSelector('#body tr:not(.pad-row)');
     assert.strictEqual(await rowsShown(), 4, 'all four students after the filter was cleared and the page refreshed');

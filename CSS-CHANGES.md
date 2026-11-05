@@ -9,6 +9,16 @@ Format: **date · file · what · from → to · why**
 
 ---
 
+## 2026-11-05 · `student-details/style.css` · "Clear all filters" bar in Student Details
+
+- **What:** a new slim bar under the status cards. It appears only while a search or a column filter is on, says what is filtering and how many students are shown ("Filtered by Application Status. Showing 7 of 12 students."), and has a **Clear all filters** button.
+- **From:** nothing (the only clear button was inside the "No students match" message) → **to:** a pale blue bar with rounded corners, 13px text and the button on the right.
+- **Why:** filters are now remembered after a refresh, so there must always be a visible way to remove them.
+- **Not changed:** the filter menu itself. It lists what is in the column, exactly as before.
+- **In the code:** marked with `🔴 CSS CHANGED` above the `.filter-bar` rule at the end of `student-details/style.css`.
+
+---
+
 ## 2026-11-05 · `shared/theme.css` · dropdown lists show every choice
 
 - **What:** the list that opens under a dropdown cell (Application Status, Student Source, Pre CAS Interview and so on).

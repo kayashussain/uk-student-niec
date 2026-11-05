@@ -725,3 +725,7 @@ body:not([data-role="admin"]) .sheet-tab-menu-btn { display: none; }
 .color-menu .swatch.rc-blue { background: var(--rc-blue); }
 .color-menu .swatch.rc-purple { background: var(--rc-purple); }
 .color-menu .swatch.rc-grey { background: var(--rc-grey); }
+
+/* 🔴 CSS CHANGED (2026-11-05): new bar under the status cards that says a search or filter is on, with a "Clear all filters" button | from: none (did not exist) | to: a slim pale blue bar, 13px text, rounded corners, the button on the right; it is hidden while nothing is filtered */
+.filter-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin: 0 24px 8px; padding: 8px 14px; border-radius: 12px; background: var(--focus-dim, #e6eff8); border: 1px solid var(--focus-strong, #cfe2f2); color: var(--text); font-size: 13px; }
+.filter-bar[hidden] { display: none; }
