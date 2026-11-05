@@ -18,14 +18,15 @@
   const css = `
     .eg-overlay { position: fixed; inset: 0; z-index: 10000; display: flex; align-items: center; justify-content: center;
       padding: 16px; background: rgba(15, 23, 42, .45); }
-    .eg-box { width: 100%; max-width: 400px; background: #fff; color: #1f2937; border-radius: 10px; padding: 20px;
+    /* 🔴 CSS CHANGED (2026-11-05): the "Do you really want to make this change?" box and its Cancel button use the calmer off-white (its own copy of white was missed the first time) | from: background #fff | to: the page panel colour (#f2f4f7) */
+    .eg-box { width: 100%; max-width: 400px; background: var(--panel, #f2f4f7); color: #1f2937; border-radius: 10px; padding: 20px;
       box-shadow: 0 20px 50px rgba(0, 0, 0, .3); font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
     .eg-box h2 { margin: 0 0 6px; font-size: 16px; }
     .eg-box p { margin: 0 0 14px; color: #4b5563; }
     .eg-box label { display: flex; align-items: center; gap: 8px; margin-bottom: 18px; cursor: pointer; color: #374151; }
     .eg-actions { display: flex; justify-content: flex-end; gap: 8px; }
     .eg-actions button { padding: 7px 16px; border-radius: 6px; font: inherit; font-weight: 600; cursor: pointer;
-      border: 1px solid #d1d5db; background: #fff; color: #374151; }
+      border: 1px solid #d1d5db; background: var(--panel, #f2f4f7); color: #374151; }
     .eg-actions .eg-ok { background: #cc4a0a; border-color: #cc4a0a; color: #fff; }
     .eg-actions button:focus-visible { outline: 2px solid #2563eb; outline-offset: 2px; }
     @media (prefers-color-scheme: dark) {

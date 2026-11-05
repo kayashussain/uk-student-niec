@@ -9,6 +9,16 @@ Format: **date · file · what · from → to · why**
 
 ---
 
+## 2026-11-05 · `shared/edit-guard.js`, `shared/ui.css`, `student-details/dashboard.css` · the pieces of white the first Mist pass missed
+
+- **What:** a second, stricter check (every page, every menu, dialog and message, every element at any size) found three places that still had their own pure white or light shimmer.
+- **"Do you really want to make this change?" box and its Cancel button** (`shared/edit-guard.js`): background `#fff` → the page panel colour `#f2f4f7`.
+- **Grey loading bars** (`shared/ui.css` and `student-details/dashboard.css`): `#eaeef3` / `#f6f8fb` → `#dde2e9` / `#eceff3`.
+- **Left white on purpose:** the QR code box (so phones can scan it), printed pages, the emails the system sends, and the "type here" cells on the Incentive page (`#f7f9fb`, a touch lighter than the rest so people see where to type).
+- **In the code:** each is marked with `🔴 CSS CHANGED` where it changed.
+
+---
+
 ## 2026-11-05 · `student-details/app.js` · dropdown columns in the sheet a little wider
 
 - **What:** the width of the columns that hold a dropdown (Student Source, Application Status, Pre CAS Interview and so on) is worked out in the script.
