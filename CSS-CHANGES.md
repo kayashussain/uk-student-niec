@@ -9,6 +9,15 @@ Format: **date · file · what · from → to · why**
 
 ---
 
+## 2026-11-05 · `shared/theme.css` · dropdown lists show every choice
+
+- **What:** the list that opens under a dropdown cell (Application Status, Student Source, Pre CAS Interview and so on).
+- **From:** the list was at most `340px` tall and each choice had `8px` padding, so Application Status stopped after "Visa Rejected" and Defer, Hold and Withdrawn were hidden below with nothing to show they were there → **to:** up to `480px` tall (never taller than the window), choices with `6px` padding, so all of the choices fit, and the list opens **above** the cell when there is no room below.
+- **Why:** it looked as if statuses (CAS Stage, Visa Issued and others) had been removed. They were never removed from the list; they were cut off.
+- **In the code:** marked with `🔴 CSS CHANGED` above the `select::picker(select)` rule in `shared/theme.css`.
+
+---
+
 ## 2026-11-05 · `shared/edit-guard.js`, `shared/ui.css`, `student-details/dashboard.css` · the pieces of white the first Mist pass missed
 
 - **What:** a second, stricter check (every page, every menu, dialog and message, every element at any size) found three places that still had their own pure white or light shimmer.

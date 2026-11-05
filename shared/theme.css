@@ -319,11 +319,12 @@ select:not(.status-select):disabled { opacity: .5; cursor: not-allowed; }
   select:open::picker-icon { rotate: 180deg; }
   select.status-select::picker-icon { display: none; } /* the status pills draw their own small arrow */
   select::picker(select) {
-    box-sizing: border-box; min-width: anchor-size(width); max-height: 340px; margin-top: 6px; padding: 6px;
+    /* 🔴 CSS CHANGED (2026-11-05): the dropdown lists (Application Status and the others) show every choice instead of being cut off after nine, and open upward when there is no room below | from: max-height 340px, row height padding 8px 12px | to: max-height up to 480px (never taller than the window), row padding 6px 12px, flips above the cell when the room below is short */
+    box-sizing: border-box; min-width: anchor-size(width); max-height: min(480px, calc(100vh - 24px)); margin-top: 6px; padding: 6px; position-try-fallbacks: flip-block; scrollbar-width: thin;
     border: 1px solid var(--border-strong); border-radius: 14px; background: var(--panel); color: var(--text); font: inherit; font-size: 13px;
     box-shadow: var(--sh-3); overflow: auto;
   }
-  select option { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-radius: 10px; background: transparent; color: var(--text); font-weight: 400; cursor: pointer; transition: background-color .12s ease; }
+  select option { display: flex; align-items: center; gap: 10px; padding: 6px 12px; border-radius: 10px; background: transparent; color: var(--text); font-weight: 400; cursor: pointer; transition: background-color .12s ease; }
   select option:hover, select option:focus-visible { background: var(--soft); outline: none; }
   select option:focus { outline: none; }
   select option:checked { background: color-mix(in srgb, var(--blue-bg) 70%, transparent); color: var(--blue-fg); font-weight: 500; }
