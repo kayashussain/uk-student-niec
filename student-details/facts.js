@@ -11,6 +11,10 @@ const { YSJU_DETAILS } = require('./fact-seed-ysju');
 const { BANGOR_DETAILS } = require('./fact-seed-bangor');
 // The January 2027 intake sheet: each university's criteria, fees, courses and key dates (see fact-seed-sheet.json).
 const SHEET = require('./fact-seed-sheet.json');
+// The November 2026 and January 2027 requirement sheets of the Oxford International Education Group (Oxford Direct and
+// Pathways), read by seed-tools/build_oieg_seed.py. Added to the pages without overwriting anything (see fact-merge.js).
+const OIEG = require('./fact-seed-oieg.json');
+const { mergeEntry, newReport, unifyCourses, dedupeCourses } = require('./fact-merge');
 
 // The hand-written pages (from each university's own fact file or flyer). The January 2027 sheet adds an intake to them.
 const HAND_DETAILS = { 'university of west london': UWL_DETAILS, 'york st john university': YSJU_DETAILS, 'bangor university': BANGOR_DETAILS };
@@ -25,11 +29,34 @@ Object.keys(SHEET).forEach((key) => {
 });
 Object.keys(HAND_DETAILS).forEach((key) => { if (!STARTER_DETAILS[key]) STARTER_DETAILS[key] = HAND_DETAILS[key]; });
 
+// The pages that were written from the university's own fact file already hold the requirements of the January sheet in
+// their fees table, so the sheet's repeated requirement blocks are not shown a second time under the intakes.
+const REQUIREMENTS_IN_TABLE = new Set(['university of west london', 'york st john university']);
+REQUIREMENTS_IN_TABLE.forEach((key) => {
+  if (STARTER_DETAILS[key]) STARTER_DETAILS[key] = { ...STARTER_DETAILS[key], intakes: STARTER_DETAILS[key].intakes.map((i) => ({ ...i, requirements: '' })) };
+});
+
+// A course listed twice on a page is kept once.
+Object.keys(STARTER_DETAILS).forEach((key) => { STARTER_DETAILS[key] = dedupeCourses(JSON.parse(JSON.stringify(STARTER_DETAILS[key]))); });
+// A page that kept a course list for each intake shows its courses once, under the levels (see unifyCourses).
+['university of west london'].forEach((key) => { if (STARTER_DETAILS[key]) STARTER_DETAILS[key] = unifyCourses(JSON.parse(JSON.stringify(STARTER_DETAILS[key]))); });
+
+// What the OIEG sheets add to each page. A university that is not in the Fact File yet gets a page of its own.
+const OIEG_REPORT = newReport();
+Object.keys(OIEG).forEach((key) => {
+  const entry = OIEG[key];
+  const base = STARTER_DETAILS[key] ? JSON.parse(JSON.stringify(STARTER_DETAILS[key])) : { name: entry.name, city: entry.city || '', programs: [], intakes: [] };
+  if (!base.name) base.name = entry.name;
+  mergeEntry(base, entry, OIEG_REPORT);
+  STARTER_DETAILS[key] = base;
+});
+
 // Names the list starts with: the first six were there before the sheet, the rest are added once to an existing list.
 const ORIGINAL_STARTERS = ['University of West London', 'Bangor University', 'University of Roehampton', 'University of East London', 'University of York'];
 const FIRST_ADDITION = 'York St John University';
 const STARTER_UNIVERSITIES = [...ORIGINAL_STARTERS, FIRST_ADDITION];
 Object.keys(SHEET).forEach((key) => { const n = SHEET[key].name; if (!STARTER_UNIVERSITIES.some((x) => x.toLowerCase() === key)) STARTER_UNIVERSITIES.push(n); });
+Object.keys(OIEG).forEach((key) => { if (OIEG[key].isNew && !STARTER_UNIVERSITIES.some((x) => x.toLowerCase() === key)) STARTER_UNIVERSITIES.push(OIEG[key].name); });
 
 // The usual steps for a student, as a starting point for each new university to adjust.
 const STARTER_STEPS = [
@@ -155,6 +182,7 @@ function createFacts(dir, { now = () => new Date() } = {}) {
           ...withStarterDetails(clean({ name, process: STARTER_STEPS.map((title) => ({ title })) })), id: newId(), updatedAt: now().toISOString(), updatedBy: '',
         })),
         starterAdded: [...STARTER_UNIVERSITIES],
+        oiegApplied: true, // a new list is built from the starter details, which already hold the OIEG facts
       };
       write(data);
     } else {
@@ -171,6 +199,21 @@ function createFacts(dir, { now = () => new Date() } = {}) {
         changed = true;
       });
       data.starterAdded = [...seen];
+      // A page an Admin has already saved keeps its text; what the OIEG sheets add is put into it once, and nothing is
+      // overwritten (a page nobody has edited is rebuilt from the starter details below, which include the same facts).
+      if (!data.oiegApplied) {
+        data.universities = data.universities.map((u) => {
+          const entry = OIEG[startKey(u.name)];
+          if (!u.updatedBy || !entry) return u;
+          const copy = JSON.parse(JSON.stringify(u));
+          const report = newReport();
+          mergeEntry(copy, entry, report);
+          if (!report.added.length && !report.addedPrograms.length) return u;
+          return { ...copy, updatedAt: now().toISOString() };
+        });
+        data.oiegApplied = true;
+        changed = true;
+      }
       data.universities = data.universities.map((u) => {
         if (!hasStarter(u.name) || !(isBlank(u) || !u.updatedBy)) return u;
         const fresh = { ...withStarterDetails(u), id: u.id, updatedAt: u.updatedAt, updatedBy: u.updatedBy || '' };
@@ -230,4 +273,4 @@ function createFacts(dir, { now = () => new Date() } = {}) {
   };
 }
 
-module.exports = { createFacts, viewFacts, clean, STARTER_UNIVERSITIES, STARTER_STEPS };
+module.exports = { createFacts, viewFacts, clean, STARTER_UNIVERSITIES, STARTER_STEPS, OIEG_REPORT };

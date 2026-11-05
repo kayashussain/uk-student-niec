@@ -1,0 +1,46 @@
+# Fact File review: OIEG requirement sheets
+
+Sources: the Nov to Jan Oxford Direct requirement sheet and the Nov to Jan Pathways requirement sheet (Oxford International Education Group).
+Rules used: nothing already on a page is overwritten; a fact that is already there is not added again however it is worded; a new fact is added once; where a sheet disagrees with a page, the page keeps its value and the difference is listed below for a person to decide.
+
+## Universities added
+
+- Lincoln Bishop University: 2 requirement row(s), January 2027, 2 course(s).
+- Sheffield Hallam University: 4 requirement row(s), January 2027, June 2027, September 2027, 53 course(s).
+
+## What was added to existing pages
+
+- Bangor University International College (BUIC): International Year Zero: filled scholarship, deposit; International Incorporated Master's Term 1: filled english, scholarship, deposit; CAS deadlines and key dates per intake.
+- Edinburgh Napier University International College (ENUIC): International Stage 1: filled english, tuition, scholarship, deposit; International Stage 2: filled tuition; International Incorporated Master's Term-1: filled english, tuition, scholarship, deposit; International Incorporated Master's Term-2: filled english, tuition; 13 course(s) that were missing; CAS deadlines and key dates per intake.
+- Health Science University: CAS deadlines and key dates per intake.
+- International College of Dundee (ICD)-Scotland: new row(s): International Stage Two (IS2); International Stage One (IS1): filled deposit; International Incorporated Master's Term1: filled deposit; 38 course(s) that were missing; CAS deadlines and key dates per intake.
+- Ulster University: 45 course(s) that were missing; CAS deadlines and key dates per intake.
+- University of Bradford: new row(s): MSc Project planning and management; Postgraduate: filled academic; 31 course(s) that were missing; CAS deadlines and key dates per intake.
+- University of Bradford International College (UBIC): International Year Zero: filled scholarship, deposit; International Incorporated Master's Term-1: filled english, scholarship, deposit; 10 course(s) that were missing; CAS deadlines and key dates per intake.
+- University of Greenwich International College (UGIC): International Year Zero: filled academic, scholarship, deposit; International Year One: filled academic; International Incorporated Master's Term1: filled deposit; 2 course(s) that were missing; CAS deadlines and key dates per intake.
+- University of Kent International College (UKIC): new row(s): International Incorporated Master's Term-1, International Incorporated Master's Term-2; International Year Zero: filled tuition; 5 course(s) that were missing; CAS deadlines and key dates per intake.
+- University of Ravensbourne: 13 course(s) that were missing; CAS deadlines and key dates per intake.
+- University of Roehampton: new row(s): BSc Business and Management; International Year One: filled academic; Undergraduate: filled scholarship; Postgraduate: filled academic; 71 course(s) that were missing.
+- Winchester University: Postgraduate: filled academic; 2 course(s) that were missing; CAS deadlines and key dates per intake.
+
+## Where a sheet disagrees with the page (the page was kept, please confirm)
+
+- University of Roehampton / Postgraduate, english: the page says "IELTS: 6.0 overall / 5.5 in each band", the sheet says "Overall 6.5 no band less than 5.5 - Waiver to UK".
+- University of Roehampton / Postgraduate, deposit: the page says "£8,500 CAS deposit,", the sheet says "£8,000 CAS deposit".
+- University of Ravensbourne / Postgraduate, english: the page says "IELTS: 6.5 overall / 5.5 in each band", the sheet says "Overall 6.0 & 5.5 in each band - Waiver with MOI from Nepal & India University only".
+- University of Ravensbourne / Postgraduate, tuition: the page says "Arts/Computer Science/Management/ Architechture: £18500 ,", the sheet says "MBA:£19,950".
+- Winchester University / Undergraduate, gap: the page says "Gap: Upto 9 Years of GAP Accepted", the sheet says "Upto 7 Years of GAP Accepted (Need to provide evidence & SOP)".
+- Health Science University / Postgraduate, scholarship: the page says "£2,500", the sheet says "Scholarships: £2,000".
+- University of West London (see the note on its page): UG GPA 2.5+ against 2.6 or 65%, UG PTE 59 against 51, UG Duolingo 120 against 105, PG gap 5 to 7 years against up to 10 years with work experience, Enhanced Extended 40%+ against any percentage, gap 8 against 10 years, and a £700 early payment discount on Enhanced Extended (the table says none).
+
+## Repeats removed so each fact is shown once
+
+- University of West London: the fees table, the February block and the January block all gave the requirements. They are now one table (UG, PG, Enhanced Extended PG, PG Placement Year, Extended Nursing Studies Top Up). The two course lists are now one list, and a course that runs in one intake only says so.
+- York St John University: the January requirements are now a row of the fees table instead of a second block under the intake.
+- A course listed twice under the same heading, or in an intake and again in the page course list, is kept once (for example MSc Global Sustainable Management at Worcester).
+
+## Left as it is, on purpose
+
+- 140 course lines on 10 pathway pages appear under more than one stage heading (a degree that can be reached from both Year Zero and Year One, for example). That shows both routes, so they were not merged.
+- Where a pathway page keeps one combined row for several stages (for example "Undergraduate"), a new fact is added to that row with its stage named in front of it.
+- Dates in the sheets that Excel had turned into nonsense (a university end date of 1930) were not copied.
