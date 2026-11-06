@@ -197,3 +197,20 @@ test('history keeps recent revisions but never more than its memory budget', () 
   again.remember(wb(1)); again.remember(wb(1)); again.remember(wb(1));
   assert.ok(again.get(1));
 });
+
+test('the Student Source choice "Agents" becomes "Agent" in every sheet, whatever its case; other choices are untouched', () => {
+  const wb = migrateWorkbook({ revision: 1, sheets: [
+    { id: 'a', name: 'Sep', columns: ['STUDENT SOURCE'], rows: [{ _id: '1', 'STUDENT SOURCE': 'Agents' }, { _id: '2', 'STUDENT SOURCE': ' agents ' }, { _id: '3', 'STUDENT SOURCE': 'Visitor' }, { _id: '4', 'STUDENT SOURCE': '' }, { _id: '5' }] },
+    { id: 'b', name: 'Jan', columns: ['STUDENT SOURCE'], rows: [{ _id: '6', 'STUDENT SOURCE': 'AGENTS' }, { _id: '7', 'STUDENT SOURCE': 'Agent' }, { _id: '8', 'UNIVERSITY NAME': 'Agents Academy' }] },
+  ] });
+  assert.deepStrictEqual(wb.sheets[0].rows.map((r) => r['STUDENT SOURCE']), ['Agent', 'Agent', 'Visitor', '', undefined]);
+  assert.deepStrictEqual(wb.sheets[1].rows.map((r) => r['STUDENT SOURCE']), ['Agent', 'Agent', undefined]);
+  assert.strictEqual(wb.sheets[1].rows[2]['UNIVERSITY NAME'], 'Agents Academy', 'only the Student Source column is renamed');
+});
+
+test('describeChanges records a row colour change', () => {
+  const { describeChanges } = require('../student-details/workbook');
+  const before = workbook([{ _id: 'r1', 'FIRST NAME': 'Asha' }]);
+  const after = workbook([{ _id: 'r1', 'FIRST NAME': 'Asha', _color: 'green' }]);
+  assert.deepStrictEqual(describeChanges(before, after), ['Jan › Asha › Row colour: (blank) → "green"']);
+});

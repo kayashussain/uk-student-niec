@@ -30,6 +30,7 @@
   --amber-bg: #fef3e0; --amber-fg: #b45309;
   --gray-bg: #eef0f2; --gray-fg: #5b6472;
   --red-bg: #fce8e8; --red-fg: #b91c1c;
+  --rc-green: #bbf0c8; --rc-yellow: #fdf0a6; --rc-orange: #fdd5a8; --rc-red: #fbc4c4; --rc-blue: #c3dafc; --rc-purple: #ddd0fa; --rc-grey: #d6dae0;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -56,6 +57,7 @@
     --amber-bg: #3a2a10; --amber-fg: #f2b705;
     --gray-bg: #262b33; --gray-fg: #aab1bb;
     --red-bg: #3a1616; --red-fg: #f87171;
+    --rc-green: #1d5a35; --rc-yellow: #5c5415; --rc-orange: #5e3a14; --rc-red: #5e2222; --rc-blue: #223e72; --rc-purple: #41307a; --rc-grey: #3b414b;
   }
 }
 
@@ -303,6 +305,15 @@ tbody tr.alt td { background: var(--row-alt); }
 tbody tr.pad-row td { padding: 0; border: none; background: none; height: 0; }
 tbody tr.pad-row:hover td { background: none; }
 tbody tr:hover td { background: var(--row-hover); }
+/* Rows the team has coloured (Colour rows in the toolbar). Selecting a row still shows the selection on top. */
+tbody tr.rc-green td { background: var(--rc-green); }
+tbody tr.rc-yellow td { background: var(--rc-yellow); }
+tbody tr.rc-orange td { background: var(--rc-orange); }
+tbody tr.rc-red td { background: var(--rc-red); }
+tbody tr.rc-blue td { background: var(--rc-blue); }
+tbody tr.rc-purple td { background: var(--rc-purple); }
+tbody tr.rc-grey td { background: var(--rc-grey); }
+tbody tr[class*="rc-"]:hover td { filter: brightness(0.95); }
 tbody tr.selected td { background: var(--focus-dim); }
 
 /* Whole rows picked from their S.N: Delete clears these rows, so they look clearly different from the
@@ -338,13 +349,28 @@ td.date { font-variant-numeric: tabular-nums; color: var(--text-dim); padding: 3
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2.2'%3E%3Crect x='3' y='5' width='18' height='16' rx='2'/%3E%3Cpath d='M3 10h18M8 3v4M16 3v4'/%3E%3C/svg%3E");
   background-repeat: no-repeat; background-position: right 8px center;
 }
-/* While a date is being picked the real date box is in the cell, with its own icon. */
-#body td.date:has(input) { background-image: none; padding: 3px 6px; }
+/* While a date is being picked the real date box is in the cell, and it must look exactly like the cell did before: the same
+   text in the same place, the same calendar icon (the cell's own), no outline, no "mm/dd/yyyy", no extra buttons. Clicking a
+   cell by mistake therefore changes nothing you can see. The box only borrows the cell's shape to take the click and the typing. */
+#body td.date { position: relative; }
+#body td.date .date-input {
+  position: absolute; inset: 0; display: block; width: 100%; height: 100%; margin: 0; padding: 0 32px 0 13px; border: 0; border-radius: 0;
+  background: transparent; box-shadow: none; outline: none; color: inherit; font: inherit; line-height: inherit; cursor: pointer;
+}
+#body td.date .date-input:focus { outline: none; background: transparent; box-shadow: none; }
+/* The cell's own text (for example "10 May 2026") stays on show. The box's own text (05/10/2026) only appears once the person starts typing. */
+#body td.date .date-input:not(.typing)::-webkit-datetime-edit { opacity: 0; }
+#body td.date .date-input.typing { background: var(--panel); }
+#body td.date .date-input::-webkit-datetime-edit { padding: 0; }
+#body td.date .date-input::-webkit-datetime-edit-fields-wrapper { padding: 0; }
+#body td.date .date-input::-webkit-calendar-picker-indicator { position: absolute; right: 0; top: 0; width: 34px; height: 100%; margin: 0; padding: 0; opacity: 0; cursor: pointer; }
 /* A WhatsApp number shared by more than one student on the sheet. !important beats the striped/hover row backgrounds. */
 td.duplicate-phone { background: #fff176 !important; color: #1c2126; font-weight: 600; }
 td.date-note { color: var(--text-dim); font-style: italic; }
-td.lang-test { padding: 3px 6px; white-space: nowrap; }
-td.lang-test .date-input { width: auto; margin-left: 6px; }
+#body td.lang-test, td.lang-test { padding: 5px 8px; white-space: nowrap; text-overflow: clip; }
+td.lang-test .date-input { width: 128px; margin-left: 8px; padding: 2px 0; vertical-align: middle; outline: none; border: 0; border-radius: 0; box-shadow: none; background: transparent; }
+td.lang-test .date-input:focus { outline: none; background: transparent; }
+td.lang-test .date-input::-webkit-calendar-picker-indicator { opacity: .7; }
 
 .date-input {
   width: 100%;
@@ -368,7 +394,7 @@ td.lang-test .date-input { width: auto; margin-left: 6px; }
 }
 .date-input::-webkit-calendar-picker-indicator:hover { opacity: 1; }
 /* An empty date shows just the calendar icon, not "mm/dd/yyyy", until it's clicked. */
-.date-input.empty:not(:focus)::-webkit-datetime-edit { color: transparent; }
+.date-input.empty::-webkit-datetime-edit { color: transparent; }
 
 .lang-test-flag {
   display: inline-block;
@@ -639,6 +665,8 @@ body:not([data-role="admin"]):not([data-role="manager"]) #exportExcel { display:
 td.locked { color: var(--text-dim); cursor: default; }
 select.status-select:disabled { opacity: 0.85; cursor: default; }
 body:not([data-role]) #addRow,
+body:not([data-role]) #colorRow,
+body[data-viewonly] #colorRow,
 body[data-viewonly] #addRow,
 body[data-viewonly] #undoBtn,
 body[data-viewonly] #redoBtn,
@@ -683,3 +711,21 @@ body:not([data-role="admin"]) .sheet-tab-menu-btn { display: none; }
 /* The page's one main area: the toolbar, the sheet and the footer, stacked as they were before it was a landmark. */
 .app-main { display: flex; flex-direction: column; flex: 1; min-height: 0; }
 .table-wrap:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+
+/* Colour rows: the button's dot, and the swatches in its menu. */
+.swatch-dot { display: inline-block; width: 10px; height: 10px; margin-right: 6px; border-radius: 50%; vertical-align: -1px; background: conic-gradient(var(--rc-green) 0 25%, var(--rc-yellow) 0 50%, var(--rc-orange) 0 75%, var(--rc-blue) 0); border: 1px solid var(--border-strong); }
+.color-menu { min-width: 170px; }
+.color-menu .sheet-menu-item { display: flex; align-items: center; gap: 8px; }
+.color-menu .swatch { width: 16px; height: 16px; border-radius: 4px; border: 1px solid var(--border-strong); background: var(--panel); flex: none; }
+.color-menu .swatch.none { background: repeating-linear-gradient(45deg, transparent 0 3px, var(--border-strong) 3px 4px); }
+.color-menu .swatch.rc-green { background: var(--rc-green); }
+.color-menu .swatch.rc-yellow { background: var(--rc-yellow); }
+.color-menu .swatch.rc-orange { background: var(--rc-orange); }
+.color-menu .swatch.rc-red { background: var(--rc-red); }
+.color-menu .swatch.rc-blue { background: var(--rc-blue); }
+.color-menu .swatch.rc-purple { background: var(--rc-purple); }
+.color-menu .swatch.rc-grey { background: var(--rc-grey); }
+
+/* 🔴 CSS CHANGED (2026-11-05): new bar under the status cards that says a search or filter is on, with a "Clear all filters" button | from: none (did not exist) | to: a slim pale blue bar, 13px text, rounded corners, the button on the right; it is hidden while nothing is filtered */
+.filter-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin: 0 24px 8px; padding: 8px 14px; border-radius: 12px; background: var(--focus-dim, #e6eff8); border: 1px solid var(--focus-strong, #cfe2f2); color: var(--text); font-size: 13px; }
+.filter-bar[hidden] { display: none; }

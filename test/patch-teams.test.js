@@ -162,3 +162,23 @@ test('a team cannot add a student at another stage, with other columns, or claim
   Object.assign(claim.sheets[0].rows[0], { _addedByTeam: 'followup', 'FIRST NAME': 'Changed' });
   assert.ok(teamChanges('followup', fu, claim).errors.some((e) => /First Name/.test(e)));
 });
+
+test('a team can colour the students it sees, with the listed colours only', () => {
+  const base = viewFor('followup', book());
+  const mine = clone(base);
+  mine.sheets[0].rows[0]._color = 'green';
+  assert.deepStrictEqual(teamChanges('followup', base, mine),
+    { changes: [{ sheetId: 'a', rowId: mine.sheets[0].rows[0]._id, col: '_color', value: 'green' }], adds: [], deletes: [], errors: [] });
+
+  const odd = clone(base);
+  odd.sheets[0].rows[0]._color = 'url(x)';
+  assert.strictEqual(teamChanges('followup', base, odd).errors.length, 1, 'a colour outside the list is refused');
+
+  const other = clone(base);
+  other.sheets[0].rows[0]._addedByTeam = 'mock'; // other hidden fields still can't be changed
+  assert.deepStrictEqual(teamChanges('followup', base, other).changes, []);
+
+  const { canColor } = require('../shared/teams');
+  assert.ok(canColor('followup', {}) && canColor('application', {}));
+  assert.ok(!canColor({ role: 'manager', departments: [] }, {}), 'a view-only Manager cannot');
+});

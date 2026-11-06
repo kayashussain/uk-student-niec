@@ -116,6 +116,7 @@
       ['Mock interviews held', num(k.mocksHeld), `${num(k.mockInterviews)} interviews in total`],
       ['Payments made', num(k.paymentsMade), d.paidInFull || d.partlyPaid ? `${num(d.paidInFull)} in full, ${num(d.partlyPaid)} part paid` : `${pct(k.paymentsMade, k.students)} of students paid`],
       ['Visas issued', num(k.visaIssued), `${k.conversionRate}% of students`],
+      ['Active head office applicant', num(k.activeHeadOffice), `${pct(k.activeHeadOffice, k.students)} of students`],
     ]);
     tiles($('kpis2'), [
       ['Visa success', rate(k.visaSuccessRate), 'visas issued out of visas decided'],
@@ -140,7 +141,7 @@
     c.append(list);
     if (d.chase.length) {
       c.append(el('div', 'group-title', 'Longest waiting'));
-      table(c, ['Student', 'Waiting', 'Stage', 'What is missing'], d.chase.map((x) => [x.name, x.days ? `${x.days} days` : '-', x.stage, x.reason]), true);
+      table(c, ['Student', 'Waiting', 'Stage', 'What is missing'], d.chase.map((x) => [x.name, x.days ? `${x.days} days` : 'No date', x.stage, x.reason]), true);
     }
   }
 

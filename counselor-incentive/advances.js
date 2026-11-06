@@ -1,4 +1,4 @@
-// Previous Advance figures are stored by the Student Details sheet's id, so renaming a sheet keeps its
+// An intake's settings (payments received, rates, salary) are stored by the Student Details sheet's id, so renaming a sheet keeps its
 // advance. The page still talks in intake (sheet) names; these translate between the two. Entries saved
 // before this change are keyed by name, and are still found (and moved to the id on their next save).
 

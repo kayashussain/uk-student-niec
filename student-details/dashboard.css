@@ -31,11 +31,12 @@
 }
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
-.page { max-width: 1240px; margin: 0 auto; padding: 20px 16px 48px; transition: opacity .15s; }
+html { scrollbar-gutter: stable; }
+.page { max-width: 1200px; margin: 0 auto; padding: 20px 16px 48px; transition: opacity .15s; }
 .page.loading { opacity: .6; }
 
 .page-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 14px; flex-wrap: wrap; margin-bottom: 16px; }
-.page-head h1 { margin: 0; font-size: 22px; }
+.page-head h1 { margin: 0; font-size: 26px; font-weight: 700; letter-spacing: -.015em; line-height: 1.2; }
 .page-head p { margin: 2px 0 0; color: var(--ink-2); }
 .filters { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
 .filters label { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: var(--ink-2); }
@@ -51,8 +52,9 @@ body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.45 syst
 .hero-label { font-size: 13px; font-weight: 600; color: var(--ink-2); }
 .hero-value { font-size: 64px; font-weight: 700; line-height: 1.05; letter-spacing: -.02em; }
 .hero-sub { font-size: 12px; color: var(--ink-3); margin-top: 4px; }
-.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
-.kpi { display: flex; flex-direction: column; gap: 2px; padding: 14px 16px; background: var(--surface); border: 1px solid var(--border); border-radius: 14px; box-shadow: var(--shadow); }
+/* 🔴 CSS CHANGED (2026-11-05): the Dashboard number cards can be narrower, so the new Head office students card sits in the same row as the other five | from: minmax(150px, 1fr) | to: minmax(124px, 1fr) */
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(124px, 1fr)); gap: 12px; }
+.kpi { display: grid; grid-row: span 3; grid-template-rows: subgrid; align-content: start; gap: 2px; padding: 14px 16px; background: var(--surface); border: 1px solid var(--border); border-radius: 14px; box-shadow: var(--shadow); }
 .kpi-label { font-size: 13px; font-weight: 600; color: var(--ink-2); }
 .kpi-value { font-size: 30px; font-weight: 700; line-height: 1.15; }
 .kpi-sub { font-size: 12px; color: var(--ink-3); }
@@ -144,8 +146,9 @@ details.rates summary { cursor: pointer; color: var(--brand-text); font-weight: 
 #attention table.data td { white-space: normal; }
 
 /* Before the first numbers arrive: grey bars where the charts and tables will be (they fill in on their own). */
+/* 🔴 CSS CHANGED (2026-11-05): the Dashboard loading bars follow the off-white | from: #eaeef3 and #f6f8fb | to: #dde2e9 and #eceff3 */
 .first-load :is(#attention, #speed, #notes, [id^="chart"]):empty {
-  min-height: 96px; margin: 4px 18px 18px; border-radius: 8px; background: linear-gradient(90deg, #eaeef3 25%, #f6f8fb 37%, #eaeef3 63%); background-size: 400% 100%; animation: dash-shimmer 1.4s ease infinite;
+  min-height: 96px; margin: 4px 18px 18px; border-radius: 8px; background: linear-gradient(90deg, #dde2e9 25%, #eceff3 37%, #dde2e9 63%); background-size: 400% 100%; animation: dash-shimmer 1.4s ease infinite;
 }
 @media (prefers-color-scheme: dark) { .first-load :is(#attention, #speed, #notes, [id^="chart"]):empty { background: linear-gradient(90deg, #232a35 25%, #2b3340 37%, #232a35 63%); background-size: 400% 100%; } }
 @keyframes dash-shimmer { 0% { background-position: 100% 50%; } 100% { background-position: 0 50%; } }

@@ -262,7 +262,7 @@ test('the dashboard counts students, milestones, months and groups', () => {
   const row = (o) => ({ 'FIRST NAME': 'S', ...o });
   const wb = { sheets: [
     { id: 'a', name: 'Jan', rows: [
-      row({ [S]: 'Visa Issued', 'STUDENT SOURCE': 'Agents', 'UNIVERSITY PARTNER': 'Navitas', 'APPLICATION SUBMISSION DATE': '2026-08-02', 'PAYMENT DATE': '9/5/2026', 'VISA RECEIVED DATE': '2026-10-01', 'TUITION FEE DEPOSIT(1st Installment)': '1,500', 'MOCK SCHEDULE 1': '2026-08-20', 'PRE CAS INTERVIEW': 'Passed' }),
+      row({ [S]: 'Visa Issued', 'STUDENT SOURCE': 'Agent', 'UNIVERSITY PARTNER': 'Navitas', 'APPLICATION SUBMISSION DATE': '2026-08-02', 'PAYMENT DATE': '9/5/2026', 'VISA RECEIVED DATE': '2026-10-01', 'TUITION FEE DEPOSIT(1st Installment)': '1,500', 'MOCK SCHEDULE 1': '2026-08-20', 'PRE CAS INTERVIEW': 'Passed' }),
       row({ [S]: 'Mock Stage', 'STUDENT SOURCE': 'Visitor', 'UNIVERSITY PARTNER': 'Navitas', 'APPLICATION SUBMISSION DATE': '2026-09-02' }),
       row({ [S]: 'Defer', 'LAST NAME': '' }),
       { _id: 'blank' }, // no name: not a student
@@ -454,17 +454,17 @@ test('the dashboard says how many paying students have paid in full and how many
   assert.ok(!JSON.stringify(d).includes('depositsGbp'), 'no deposit totals on the dashboard');
 });
 
-test('the dashboard lists only what is recorded: no "Not recorded" rows, and no source counted on the Sep 2026 sheet', () => {
+test('the dashboard lists only what is recorded: no "Not recorded" rows, and the Student Source of the Sep 2026 sheet is counted like any other', () => {
   const row = (extra) => ({ _id: Math.random().toString(36), 'FIRST NAME': 'A', 'LAST NAME': 'B', ...extra });
   const wb = { sheets: [
     { id: 'sep', name: 'Sep Intake 2026', rows: [row({ 'STUDENT SOURCE': 'Visitor', 'UNIVERSITY PARTNER': 'Navitas' }), row({})] },
-    { id: 'jan', name: 'Jan Intake 2027', rows: [row({ 'STUDENT SOURCE': 'Agents', 'UNIVERSITY NAME': 'Coventry University' }), row({})] },
+    { id: 'jan', name: 'Jan Intake 2027', rows: [row({ 'STUDENT SOURCE': 'Agent', 'UNIVERSITY NAME': 'Coventry University' }), row({})] },
   ] };
   const sep = buildDashboard(wb, { sheetId: 'sep', today: new Date('2026-10-28T00:00:00') });
-  assert.deepStrictEqual(sep.sources, []);
+  assert.deepStrictEqual(sep.sources.map((g) => g.label), ['Visitor'], 'the Student Source column is shown on the Sep 2026 sheet now, so it is counted');
   assert.deepStrictEqual(sep.partners.map((g) => g.label), ['Navitas']);
   const jan = buildDashboard(wb, { sheetId: 'jan', today: new Date('2026-10-28T00:00:00') });
-  assert.deepStrictEqual(jan.sources.map((g) => g.label), ['Agents']);
+  assert.deepStrictEqual(jan.sources.map((g) => g.label), ['Agent']);
   assert.deepStrictEqual(jan.universities.map((g) => g.label), ['Coventry University']);
   assert.deepStrictEqual(jan.courses, []);
   assert.ok(!JSON.stringify([sep, jan]).includes('Not recorded'));
@@ -583,6 +583,31 @@ test('application and mock staff delete one student at a time and can send Mock 
   assert.ok(Teams.statusChoices(both, 'Mock Stage', ['x']).includes('Payment Stage'));
 });
 
+test('a student on Hold is counted on the dashboard as not moving forward, not as an active application', () => {
+  const row = (extra) => ({ _id: Math.random().toString(36), 'FIRST NAME': 'A', 'LAST NAME': 'B', ...extra });
+  const wb = { sheets: [{ id: 'jan', name: 'Jan Intake 2027', rows: [row({ [S]: 'Hold' }), row({ [S]: 'Hold' }), row({ [S]: 'Application Stage' })] }], activeSheetId: 'jan' };
+  const d = buildDashboard(wb, { today: new Date('2026-10-28T00:00:00') });
+  assert.deepStrictEqual(d.left.find((s) => s.label === 'Hold'), { label: 'Hold', count: 2 });
+  assert.strictEqual(d.kpis.students, 3);
+});
+
+test('the dashboard counts active head office applicants: a head office source and a status from application to visa decision', () => {
+  const { isHeadOfficeSource, isActiveHeadOfficeApplicant } = require('../student-details/dashboard-stats');
+  ['Visitor', 'Reference', 'Events', 'Social Media', 'Language Classes'].forEach((s) => assert.strictEqual(isHeadOfficeSource(s), true, s));
+  ['Chitwan Branch', 'Pokhara Branch', 'Butwal Branch', 'palpa branch', 'Agent', 'Agents', '', '  ', undefined].forEach((s) => assert.strictEqual(isHeadOfficeSource(s), false, String(s)));
+  ['Application Stage', 'Mock Stage', 'Payment Stage', 'CAS Stage', 'CAS Issued', 'Visa Lodge', 'Visa Issued', 'Visa Rejected'].forEach((st) => assert.strictEqual(isActiveHeadOfficeApplicant('Visitor', st), true, st));
+  ['Inquiry', 'Defer', 'Hold', 'Withdrawn', '', undefined].forEach((st) => assert.strictEqual(isActiveHeadOfficeApplicant('Visitor', st), false, String(st)));
+  assert.strictEqual(isActiveHeadOfficeApplicant('Chitwan Branch', 'Mock Stage'), false, 'a branch student is not head office');
+  const row = (n, src, status) => ({ _id: n, 'FIRST NAME': n, 'APPLICATION STATUS': status, 'STUDENT SOURCE': src });
+  const wb = { sheets: [{ id: 'a', name: 'Sep', rows: [
+    row('a', 'Visitor', 'Application Stage'), row('b', 'Language Classes', 'Visa Issued'), row('c', 'Chitwan Branch', 'Mock Stage'), row('d', 'Agent', 'Payment Stage'),
+    row('e', 'Events', 'Inquiry'), row('f', '', 'Mock Stage'), row('g', 'Reference', 'Withdrawn'), row('h', 'Social Media', 'CAS Stage'),
+  ] }] };
+  const d = buildDashboard(wb, { today: new Date(2026, 10, 5) });
+  assert.strictEqual(d.kpis.students, 8);
+  assert.strictEqual(d.kpis.activeHeadOffice, 3, 'Visitor (Application), Language Classes (Visa Issued) and Social Media (CAS Stage)');
+});
+
 test('a Manager who works in a team deletes only that team\'s students, not ones at other stages', () => {
   const wb = { revision: 1, sheets: [{ id: 'sheet-mjzzzzzzaaaaa', name: 'Jan', columns: ['FIRST NAME', S], rows: [
     { _id: 'm', [S]: 'Mock Stage', 'FIRST NAME': 'M' }, { _id: 'v', [S]: 'Visa Issued', 'FIRST NAME': 'V' }] }] };
@@ -633,4 +658,22 @@ test('a site that ran with the authenticator keeps all its accounts and goes str
   assert.strictEqual((await fresh.call('GET', '/api/login/state')).json.stage, 'password');
   assert.strictEqual((await fresh.call('POST', '/api/login', { username: 'kayas', password: 'a long admin password' })).json.stage, 'done');
   assert.deepStrictEqual((await fresh.call('GET', '/api/users')).json.map((u) => u.username).sort(), ['kayas', 'sita']);
+});
+
+test('the dashboard follows Nepal time: 01:15 on 1 December in Kathmandu is already December', () => {
+  const wb = { sheets: [{ id: 'a', name: 'Jan', columns: [], rows: [{ _id: 'x', 'FIRST NAME': 'A', 'APPLICATION STATUS': 'Visa Issued', 'VISA RECEIVED DATE': '2026-12-01' }] }] };
+  const d = buildDashboard(wb, { today: new Date('2026-11-30T19:30:00Z') });
+  assert.strictEqual(JSON.stringify(d).includes('2026-12'), true, 'the month of 1 December is shown');
+});
+
+test('a student at Payment Stage is waiting to pay: counted as paid only with a payment date or a deposit, or from CAS Stage on', () => {
+  const row = (extra) => ({ _id: Math.random().toString(36), 'FIRST NAME': 'A', 'LAST NAME': 'B', ...extra });
+  const wb = { sheets: [{ id: 'a', name: 'Jan', rows: [
+    row({ [S]: 'Payment Stage' }),
+    row({ [S]: 'Payment Stage', 'PAYMENT DATE': '2026-10-20' }),
+    row({ [S]: 'Payment Stage', 'TUITION FEE DEPOSIT(1st Installment)': '2000' }),
+    row({ [S]: 'CAS Stage' }),
+  ] }] };
+  const by = Object.fromEntries(buildDashboard(wb, { today: new Date('2026-10-28T00:00:00') }).milestones.map((m) => [m.key, m.count]));
+  assert.strictEqual(by.paid, 3);
 });

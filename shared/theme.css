@@ -1,0 +1,332 @@
+/* NIEC design system, made for a full working day. The sheet is read and edited for 9 to 10 hours, so it is tuned
+   for tired eyes before anything else: warm paper instead of glaring white, soft charcoal instead of black text
+   (still well above the readable minimum), a faint stripe on alternate rows to follow a line across, no large dark
+   blocks, no movement and no blur. NIEC blue appears only where something is active or focused. Loaded last on every
+   page, so a value changed here changes every page. */
+:root {
+  --ink: #1f2933;
+  --niec-blue: #00adef;
+  --niec-blue-text: #066a97; --blue-text: #066a97; --brand-text: #066a97;
+  /* 🔴 CSS CHANGED (2026-11-05): the whole site goes from bright white to the calmer "Mist" off-white, for long days on screen | from: page #f5f6f8, panels and cells #fdfdfe, border #e4e8ed, strong border #d0d7df, soft fill #eef1f5 | to: page #e7eaef, panels and cells #f2f4f7, border #d8dde4, strong border #c3cad3, soft fill #e6e9ee (neutral cool, no yellow; text contrast about 13 to 1) */
+  --bg: #e7eaef;
+  --panel: #f2f4f7;
+  --surface: #f2f4f7;
+  --border: #d8dde4;
+  --border-strong: #c3cad3;
+  --text: var(--ink);
+  --text-dim: #4f5b69;
+  --soft: #e6e9ee; /* the quiet fill for hover, the open menu and small tags */
+  --header-bg: #f2f4f7; /* the column headings sit on the same off-white as the data */
+  --head-ink: #3b4757;
+  /* 🔴 CSS CHANGED (2026-11-05): row stripes, hover, the typing cell and the blue tints follow the new off-white | from: stripe #f7f9fb, hover #eff4f9, typing cell #f8fafc, tints #ecf4fb and #d3e7f6 | to: stripe #ecf0f3, hover #e2e9f1, typing cell #f7f9fb, tints #e6eff8 and #cfe2f2 */
+  --row-alt: #ecf0f3;
+  --row-hover: #e2e9f1;
+  --edit-bg: #f7f9fb;
+  --focus: #0a84c6;
+  --focus-dim: #e6eff8;
+  --focus-strong: #cfe2f2;
+  /* 🔴 CSS CHANGED (2026-11-05): the question boxes and messages (confirm dialogs) use the same off-white instead of pure white | from: #ffffff | to: the panel colour */
+  --ui-panel: var(--panel);
+  --range-tint: rgba(10, 132, 198, .10);
+  --accent-strong: #0f5d8c; --accent-strong-hover: #0b4d76; --on-accent: #ffffff; /* NIEC blue, deepened for white text */
+  --primary: #17324d; --primary-hover: #0f2438; --on-primary: #ffffff; /* the main action: deep navy */
+  --green-bg: #d9eedf; --green-fg: #1b5a33;
+  --blue-bg: #d6e6f7; --blue-fg: #1a4a78;
+  --amber-bg: #f8e6bd; --amber-fg: #7a4709;
+  --gray-bg: #e2e8ef; --gray-fg: #46546a;
+  --red-bg: #f8e1de; --red-fg: #8a2b25;
+  --warn-bg: #f8e8c3; --warn: #6f4310; --ok-bg: #dcefe0; --ok: #2d6340; --wait-bg: #f8e8c3; --wait: #6f4310; --bad-bg: #f8e0dc; --bad: #8f352f;
+  --serif: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+  --r-sm: 10px; --r-md: 14px; --r-lg: 20px;
+  --sh-1: 0 1px 2px rgba(23, 54, 79, .06);
+  --sh-2: 0 1px 2px rgba(23, 54, 79, .05), 0 8px 20px -14px rgba(23, 54, 79, .20);
+  --sh-3: 0 2px 4px rgba(23, 54, 79, .06), 0 16px 34px -18px rgba(23, 54, 79, .28);
+  --ease: cubic-bezier(.2, .7, .2, 1);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --niec-blue-text: #7cc4e8; --blue-text: #7cc4e8; --brand-text: #7cc4e8;
+    --ink: #dfe6ee; --bg: #151b22; --panel: #1b222b; --surface: #1b222b; --border: #29323d; --border-strong: #384452;
+    --text: #e1e7ee; --text-dim: #a3afbd; --soft: #25303c; --header-bg: #1b222b; --head-ink: #c3cfdc; --row-alt: #18202a; --row-hover: #243342; --edit-bg: #1f2833;
+    --focus-dim: #1b2c3b; --focus-strong: #24394a; --range-tint: rgba(110, 170, 220, .14);
+    --accent-strong: #8fc0e4; --accent-strong-hover: #a6cdea; --on-accent: #10202c; --primary: #f08a4b; --primary-hover: #f39d68; --on-primary: #1f1308;
+    --green-bg: #1b2a22; --green-fg: #86c79a; --blue-bg: #1b2738; --blue-fg: #93b3e0;
+    --warn-bg: #2e2818; --warn: #e2bd6e; --ok-bg: #1b2a22; --ok: #86c79a; --wait-bg: #2e2818; --wait: #e2bd6e; --bad-bg: #2f1f20; --bad: #e6a39d;
+    --amber-bg: #2e2818; --amber-fg: #dcb25a; --gray-bg: #232c37; --gray-fg: #a9b4c2; --red-bg: #2f1f20; --red-fg: #e09a94;
+    --sh-1: 0 1px 2px rgba(0, 0, 0, .35); --sh-2: 0 8px 20px -14px rgba(0, 0, 0, .6); --sh-3: 0 16px 34px -18px rgba(0, 0, 0, .7);
+  }
+}
+/* One font for everything you read and type: the system's own (Segoe UI on Windows, San Francisco on a Mac). The serif is
+   only for page titles and the big numbers. Buttons and fields do not take the page font by themselves, so they are told to. */
+:root { --font: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+html, body, button, input, select, textarea, table, th, td, dialog, a, .niec-header, .niec-header *, .ui-toast, .ui-dialog, .ui-dialog * { font-family: var(--font); }
+body { background: var(--bg); color: var(--text); letter-spacing: 0; }
+h1, .kpi-value, .hero-value, .stat-card .stat-value, .summary-title, .summary-row.final .value { font-family: var(--serif); }
+.hero-value { font-weight: 500; letter-spacing: -.035em; }
+
+/* ---- header ---- */
+.niec-header { --h-bg: var(--panel); --h-border: var(--border); --h-hover: var(--soft); min-height: 64px; padding: 0 28px; gap: 28px; box-shadow: none; border-bottom: 1px solid var(--border); background: var(--panel); }
+.niec-header::after { content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 3px; background: linear-gradient(90deg, #00adef 0%, #00adef 62%, #fc6e1f 100%); }
+.niec-brand-name { color: var(--ink); font-weight: 650; letter-spacing: -.015em; font-size: 15px; }
+.niec-brand-sub { letter-spacing: .01em; }
+.niec-nav { gap: 2px; align-items: center; }
+.niec-nav a { margin: 0; padding: 8px 14px; border: 0; border-radius: 999px; font-weight: 500; color: var(--text-dim); transition: color .2s var(--ease), background-color .2s var(--ease); }
+.niec-nav a:hover { background: transparent; color: var(--ink); }
+.niec-nav a[aria-current="page"] { background: var(--soft); color: var(--ink); font-weight: 600; box-shadow: none; }
+.niec-avatar { background: var(--accent-strong); color: var(--on-accent); font-weight: 600; letter-spacing: .02em; }
+.niec-account-btn:hover, .niec-account-btn[aria-expanded="true"] { background: var(--soft); border-color: transparent; }
+.niec-menu { border-radius: var(--r-md); box-shadow: var(--sh-3); border-color: var(--border); }
+@media (max-width: 760px) { .niec-header { min-height: 56px; padding: 0 12px; gap: 8px; } .niec-nav a { padding: 7px 11px; } }
+
+/* ---- buttons: a clear outlined pill everywhere; quiet (no outline) only in the toolbars of the sheet and Incentive; one solid action ---- */
+.btn, button.btn, a.btn {
+  display: inline-flex; align-items: center; justify-content: center; min-height: 34px; padding: 0 16px; border: 1px solid var(--border-strong); border-radius: 999px;
+  background: var(--panel); box-shadow: var(--sh-1); color: var(--ink); font-size: 13px; font-weight: 500; text-decoration: none; cursor: pointer;
+  transition: background-color .18s var(--ease), border-color .18s var(--ease), color .18s var(--ease), box-shadow .2s var(--ease), transform .12s;
+}
+.btn.btn-sm { min-height: 30px; padding: 0 13px; font-size: 12.5px; }
+.btn:hover:not(:disabled) { background: var(--soft); box-shadow: var(--sh-1); }
+.btn:disabled, .btn:disabled:hover { opacity: .4; background: var(--panel); cursor: not-allowed; }
+.btn-danger { color: var(--red-fg); border-color: color-mix(in srgb, var(--red-fg) 40%, var(--border)); }
+.btn-danger:hover:not(:disabled) { background: var(--red-bg); border-color: var(--red-fg); }
+.topbar .btn, .toolbar .btn { border-color: transparent; background: transparent; box-shadow: none; color: var(--text-dim); }
+.topbar .btn:hover:not(:disabled), .toolbar .btn:hover:not(:disabled) { background: var(--soft); color: var(--ink); }
+.topbar .btn:disabled, .toolbar .btn:disabled { background: transparent; }
+.topbar .btn-danger:hover:not(:disabled), .toolbar .btn-danger:hover:not(:disabled) { background: var(--red-bg); color: var(--red-fg); }
+.btn-primary, button.btn-primary, .btn.btn-primary, .topbar .btn-primary { background: var(--primary); border-color: var(--primary); color: var(--on-primary); font-weight: 600; box-shadow: var(--sh-1); }
+.btn-primary:hover:not(:disabled), button.btn-primary:hover:not(:disabled), .topbar .btn-primary:hover:not(:disabled) { background: var(--primary-hover); border-color: var(--primary-hover); color: var(--on-primary); }
+input[type="text"], input[type="search"], input[type="email"], input[type="password"], input[type="date"], input:not([type]), select, textarea, #search, .topbar #search {
+  border: 1px solid var(--border-strong); border-radius: var(--r-sm); background: var(--panel); transition: border-color .18s, box-shadow .18s;
+}
+#search, .topbar #search { height: 38px; width: 280px; padding: 0 16px; border-radius: 999px; font-size: 13px; border-color: var(--border); background: var(--panel); box-shadow: var(--sh-1); }
+input:focus, select:focus, textarea:focus, #search:focus, .topbar #search:focus {
+  outline: none; border-color: var(--niec-blue); box-shadow: 0 0 0 4px rgba(0, 173, 239, .16);
+}
+
+/* ---- the sheet: toolbar, status strip, table ---- */
+.topbar { padding: 12px 24px 6px; gap: 10px 8px; background: var(--bg); border: 0; }
+.topbar .toolbar-group { gap: 2px; }
+.topbar .toolbar-group + .toolbar-group { margin-left: 6px; padding-left: 10px; border-left: 1px solid var(--border); }
+.save-status { font-size: 12px; color: var(--text-dim); }
+.status-summary { background: var(--bg); border: 0; padding: 2px 24px 10px; gap: 4px; }
+.stat-group-title { color: var(--text-dim); font-weight: 600; font-size: 10.5px; letter-spacing: .12em; }
+.stat-group-cards { gap: 2px; padding-bottom: 4px; }
+.stat-card, .stat-card.stat-total {
+  background: transparent; border: 0; border-radius: var(--r-md); box-shadow: none; padding: 4px 11px 4px 10px; min-width: 0;
+  transition: background-color .15s ease;
+}
+.stat-card .stat-value, .stat-card.stat-total .stat-value { font-size: 26px; font-weight: 500; color: var(--ink); letter-spacing: -.02em; line-height: 1.1; }
+.stat-card .stat-label { font-size: 10.5px; letter-spacing: .05em; color: var(--text-dim); font-weight: 500; }
+.stat-card.stat-total { background: var(--soft); box-shadow: inset 0 -2px 0 var(--niec-blue); }
+.stat-card.stat-total .stat-value { color: var(--ink); }
+.stat-card.stat-total .stat-label { color: var(--text-dim); }
+.stat-card .stat-visa { color: var(--niec-blue-text); }
+
+.table-wrap { background: var(--panel); border-top: 1px solid var(--border); }
+#sheet thead th {
+  background: var(--header-bg); border-right: 1px solid color-mix(in srgb, var(--head-ink) 14%, transparent); border-bottom: 1px solid var(--border-strong); padding: 12px 12px 11px;
+  font-size: 12.5px; font-weight: 600; letter-spacing: .01em; text-transform: none; color: var(--head-ink);
+}
+#sheet thead th.col-idx { color: var(--head-ink); }
+#sheet thead th:hover { color: var(--ink); }
+#sheet td { border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); padding: 8px 13px; font-size: 14px; font-weight: 400; line-height: 1.4; color: var(--text); }
+#sheet td.col-idx { color: var(--text-dim); font-size: 12.5px; font-weight: 500; }
+#sheet th.col-idx { background: var(--panel); }
+/* the invisible spacer rows that stand in for students scrolled out of view must stay empty */
+#sheet tbody tr.pad-row td { padding: 0; border: 0; height: 0; }
+#sheet tbody tr { transition: background-color .15s; }
+#sheet tbody tr:not([class*="rc-"]):hover td { background-color: var(--row-hover); } /* colour only: the shorthand would wipe the calendar icon out of the date cells */
+#sheet tbody tr:not([class*="rc-"]):hover td.col-idx { background-color: var(--row-hover); }
+#sheet td.calculated { background-color: transparent !important; color: var(--text-dim); font-style: normal; }
+#body td.active-cell { outline: 2px solid var(--niec-blue); outline-offset: -2px; border-radius: 3px; }
+.sheet-tabs { background: var(--bg); border-top: 1px solid var(--border); padding: 8px 20px; }
+.sheet-tab { border-radius: 999px; border: 0; background: transparent; color: var(--text-dim); }
+.sheet-tab.active { background: var(--panel); color: var(--ink); box-shadow: var(--sh-2); font-weight: 600; }
+.legend, .sheet-tabs + *, #rowCount { color: var(--text-dim); }
+
+/* ---- cards: Dashboard, Users, Activity, Fact File, Incentive ---- */
+.page-head h1 { font-weight: 500; font-size: 34px; letter-spacing: -.025em; }
+.page-head p { font-size: 14.5px; }
+.page { padding-top: 36px; }
+.card, .kpi, .uni-card, .summary-card, .table-card {
+  background: var(--panel); border: 1px solid var(--border); border-radius: var(--r-lg); box-shadow: var(--sh-1);
+  transition: box-shadow .2s ease;
+}
+.kpi { padding: 20px 22px; }
+.kpi-value { font-weight: 500; letter-spacing: -.03em; }
+.kpi-label { letter-spacing: .01em; }
+.uni-card h2 { font-weight: 600; letter-spacing: -.015em; font-size: 17px; }
+.page-head .search { align-self: flex-end; }
+
+/* ---- page entrance and details ---- */
+::selection { background: rgba(0, 173, 239, .2); }
+::-webkit-scrollbar { width: 12px; height: 12px; }
+::-webkit-scrollbar-thumb { background: #c3cfdc; border: 3px solid transparent; background-clip: content-box; border-radius: 99px; }
+::-webkit-scrollbar-thumb:hover { background: #a5b4c6; background-clip: content-box; border: 3px solid transparent; }
+@media (prefers-color-scheme: dark) { ::-webkit-scrollbar-thumb { background: #3a4656; background-clip: content-box; } }
+
+#sheet thead th.col-idx { background: var(--panel); }
+@media (max-width: 760px) {
+  .topbar { padding: 12px 14px 6px; }
+  .topbar .toolbar-group + .toolbar-group { margin-left: 0; padding-left: 0; border-left: 0; }
+  #search, .topbar #search { width: 100%; }
+  .status-summary { padding: 4px 14px 14px; }
+  .page-head h1 { font-size: 28px; }
+}
+
+/* ---- Incentive page ---- */
+.wrap { padding: 8px 28px 56px; }
+.top { margin: 0 -28px 12px !important; padding: 26px 28px 6px !important; background: transparent !important; border: 0 !important; align-items: flex-end; }
+.top .brand h1 { font-family: var(--serif); font-size: 34px !important; font-weight: 500 !important; letter-spacing: -.025em !important; color: var(--ink) !important; }
+.top .subtitle { font-size: 14px !important; color: var(--text-dim); margin-top: 2px; }
+input.search { height: 38px; width: 260px; padding: 0 16px; border-radius: 999px; border-color: var(--border); background: var(--panel); box-shadow: var(--sh-1); }
+input.search:focus { outline: none; border-color: var(--niec-blue); box-shadow: 0 0 0 4px rgba(0, 173, 239, .16); }
+.tab { border-radius: 999px; padding: 7px 16px; font-size: 13px; transition: background-color .18s var(--ease), color .18s; }
+.tab:hover { background: var(--soft); color: var(--ink); }
+.tab.active { background: var(--panel); border-color: transparent; box-shadow: var(--sh-2); color: var(--ink); }
+.banner { border-radius: var(--r-md); border-color: transparent; }
+.table-card th, .table-card td { border-right: 1px solid var(--border); }
+.table-card th:last-child, .table-card td:last-child { border-right: 0; }
+.table-card thead th { background: var(--header-bg); color: var(--head-ink); font-weight: 600; border-bottom: 1px solid var(--border-strong); padding: 12px 12px 11px; }
+.table-card thead th .info { color: var(--text-dim); }
+.table-card td { padding: 7px 12px; font-size: 14px; font-weight: 400; border-bottom: 1px solid var(--border); }
+.table-card tbody tr:hover td { background: var(--row-hover); }
+.summary-title { font-family: var(--serif); font-size: 22px; font-weight: 500; letter-spacing: -.02em; margin: 28px 0 12px; }
+.summary-card { overflow: hidden; }
+.summary-row { padding: 14px 22px; }
+.summary-row.final { background: var(--soft); }
+.summary-row.final .label, .summary-row.final .value { color: var(--ink); }
+.summary-row.final .value { font-family: var(--serif); font-size: 22px; font-weight: 500; letter-spacing: -.02em; }
+.adv-input { border-radius: var(--r-sm); border-color: var(--border-strong); background: var(--panel); }
+.grid-footer { color: var(--text-dim); }
+@media (prefers-color-scheme: dark) { .summary-row.final { background: #1d222b; } }
+@media (max-width: 760px) { .wrap { padding: 6px 14px 40px; } .top { margin: 0 -14px 10px !important; padding: 18px 14px 4px !important; } .top .brand h1 { font-size: 28px !important; } input.search { width: 100%; } }
+.page-head h1 .pill, h1 .pill { font-family: var(--font); font-weight: 600; letter-spacing: 0; }
+.row > .btn { justify-self: start; }
+
+
+/* =====================================================================================================
+   Life and brand: the parts that make it feel like a finished product. Colour comes back where it carries
+   meaning or invites a click (NIEC light blue and orange); cards answer the mouse; nothing moves on its own.
+   ===================================================================================================== */
+
+/* ---- the status strip: every box the same size, the numbers on one line, equal gaps (no zigzag) ---- */
+.stat-group-cards { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(70px, 1fr); gap: 5px; width: max(85%, 1120px); max-width: 100%; align-items: stretch; overflow-x: auto; padding-bottom: 4px; }
+.stat-card, .stat-card.stat-total {
+  display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 4px; min-width: 0; padding: 9px 3px 8px; text-align: center;
+  background: var(--panel); border: 1px solid var(--border); border-radius: var(--r-md); box-shadow: var(--sh-1);
+  transition: box-shadow .2s ease, border-color .2s ease, background-color .2s ease;
+}
+.stat-card:hover { border-color: var(--niec-blue); box-shadow: var(--sh-2); }
+.stat-card .stat-label { display: block; width: 100%; min-height: 2.5em; white-space: normal; line-height: 1.25; text-align: center; font-size: 9.5px; letter-spacing: .02em; font-weight: 500; overflow: hidden; text-overflow: clip; }
+.stat-card .stat-value, .stat-card.stat-total .stat-value { font-size: 22px; }
+@media (max-width: 1100px) { .stat-group-cards { width: 100%; max-width: 100%; } }
+.stat-card.stat-total { background: var(--blue-bg); border-color: color-mix(in srgb, var(--niec-blue) 45%, var(--border)); box-shadow: inset 0 -3px 0 var(--niec-blue), var(--sh-1); }
+.stat-card.stat-total .stat-label { color: var(--blue-fg); }
+.stat-card.stat-rate { border-color: color-mix(in srgb, #fc6e1f 40%, var(--border)); box-shadow: inset 0 -3px 0 #fc6e1f, var(--sh-1); }
+
+/* ---- status pills and menus: tidy, even, a little depth ---- */
+.badge, .status-select { font-weight: 500; font-size: 12px; letter-spacing: 0; padding-top: 3px; padding-bottom: 3px; border: 1px solid color-mix(in srgb, currentColor 22%, transparent); }
+.status-select { padding-left: 11px; min-height: 26px; transition: box-shadow .15s ease, border-color .15s ease; }
+.status-select:hover { box-shadow: var(--sh-1); border-color: color-mix(in srgb, currentColor 45%, transparent); }
+.filter-menu, .ui-dialog { border-radius: var(--r-md); border: 1px solid var(--border-strong); box-shadow: var(--sh-3); }
+
+/* ---- cards that answer the mouse (hover only: the page itself stays still) ---- */
+.kpi, .hero, .uni-card { position: relative; transition: transform .25s var(--ease), box-shadow .25s var(--ease), border-color .25s ease; }
+.kpi, .hero { border-radius: 22px; border-color: var(--border); box-shadow: var(--sh-1); transition: transform .28s var(--ease), box-shadow .28s var(--ease), border-color .28s ease, background-image .28s ease; }
+.kpi:hover, .hero:hover {
+  transform: translateY(-5px);
+  border-color: color-mix(in srgb, var(--niec-blue) 38%, var(--border));
+  box-shadow: 0 26px 46px -22px rgba(0, 173, 239, .38), 0 12px 24px -16px rgba(252, 110, 31, .26), 0 2px 6px rgba(23, 54, 79, .06);
+  background-image: linear-gradient(180deg, color-mix(in srgb, var(--blue-bg) 55%, transparent), transparent 55%);
+}
+
+/* ---- Fact File: brand colour, a monogram, a lift on hover ---- */
+.uni-card { border-left: 4px solid var(--niec-blue); border-radius: var(--r-lg); padding: 20px 22px 18px; gap: 8px; }
+.uni-card:hover { transform: translateY(-4px); box-shadow: var(--sh-3); border-left-color: #fc6e1f; }
+.uni-card h2 { padding-right: 46px; font-weight: 600; letter-spacing: -.015em; font-size: 17px; }
+.uni-mono { position: absolute; top: 16px; right: 16px; display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; font-size: 12px; font-weight: 700; letter-spacing: .02em; color: var(--blue-fg); background: var(--blue-bg); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--niec-blue) 35%, transparent); transition: background-color .2s ease, color .2s ease; }
+.uni-card:hover .uni-mono { background: #fde6d6; color: #8a3a08; box-shadow: inset 0 0 0 1px #fc6e1f55; }
+.uni-card .updated:not(:empty)::before { content: ""; display: inline-block; width: 6px; height: 6px; margin-right: 7px; border-radius: 50%; background: #fc6e1f; vertical-align: 1px; }
+.chip { background: var(--blue-bg); color: var(--blue-fg); font-weight: 600; }
+p.count { display: inline-block; padding: 2px 10px; border-radius: 999px; background: var(--blue-bg); color: var(--blue-fg); font-weight: 600; }
+p.count:empty { display: none; }
+.doc { border-radius: var(--r-lg); box-shadow: var(--sh-2); }
+.doc h2::before { content: ""; display: inline-block; width: 4px; height: 16px; margin-right: 10px; border-radius: 2px; background: #fc6e1f; vertical-align: -2px; }
+.toc a { transition: background-color .15s ease, border-color .15s ease, color .15s ease; }
+.toc a:hover, .toc a:focus-visible { background: var(--blue-bg); border-color: var(--niec-blue); color: var(--blue-fg); }
+
+/* ---- a gentle fade when a page opens (opacity only, nothing slides) ---- */
+.page, .wrap, .app-main { animation: t-fade .25s ease both; }
+@keyframes t-fade { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .kpi:hover, .hero:hover, .uni-card:hover { transform: none; } .page, .wrap, .app-main { animation: none; } }
+.uni-card:hover { border-color: var(--border-strong); border-left-color: #fc6e1f; }
+
+/* ---- names in lists are normal text, not blue links ---- */
+.open-link { color: var(--text); font-weight: 500; }
+.open-link:hover { color: var(--text); text-decoration: underline; text-decoration-color: var(--niec-blue); text-underline-offset: 3px; }
+
+/* ---- Fact File university page: the NIEC brand kept as a soft tint, in the same family as the rest ---- */
+.doc h2 { color: var(--text); }
+.glance { background: color-mix(in srgb, var(--blue-bg) 60%, var(--panel)); }
+.glance dt { color: var(--blue-fg); }
+.programs th { background: color-mix(in srgb, var(--blue-bg) 60%, var(--panel)); color: var(--head-ink); }
+
+
+/* ---- date cells: room for the calendar icon, the same text position whether resting or open ---- */
+#sheet td.date { padding-right: 32px; }
+
+/* ---- the filter menu: the same finish as the rest of the sheet ---- */
+.filter-menu { width: 264px; max-height: 380px; border-radius: 16px; border: 1px solid var(--border); background: var(--panel); box-shadow: var(--sh-3); font-size: 13px; overflow: hidden; }
+.filter-menu-title { padding: 12px 16px 2px; font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--text-dim); }
+.filter-menu-search { padding: 8px 12px 10px; border-bottom: 0; }
+.filter-menu-search input { height: 34px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--border-strong); background: var(--panel); font-size: 13px; }
+.filter-menu-actions { gap: 14px; padding: 0 16px 8px; border-bottom: 1px solid var(--border); }
+.filter-menu-actions button { color: var(--niec-blue-text); font-size: 12px; font-weight: 500; padding: 2px 0; }
+.filter-menu-list { padding: 6px 6px; }
+.filter-menu-item { gap: 10px; padding: 7px 10px; border-radius: 10px; font-size: 13px; transition: background-color .12s ease; }
+.filter-menu-item:hover { background: var(--soft); }
+.filter-menu-item input[type="checkbox"] { width: 16px; height: 16px; margin: 0; accent-color: var(--accent-strong); cursor: pointer; }
+.filter-menu-footer { padding: 10px 12px; gap: 8px; border-top: 1px solid var(--border); background: color-mix(in srgb, var(--soft) 45%, var(--panel)); }
+.filter-menu-footer .btn { min-height: 32px; padding: 0 16px; font-size: 13px; }
+.sheet-menu, .color-menu { border-radius: 14px; border: 1px solid var(--border); box-shadow: var(--sh-3); background: var(--panel); }
+
+/* a coloured row is coloured all the way across, the S.N cell included (every second row used to show plain grey there) */
+#sheet tbody tr.rc-green td.col-idx { background-color: var(--rc-green); }
+#sheet tbody tr.rc-yellow td.col-idx { background-color: var(--rc-yellow); }
+#sheet tbody tr.rc-orange td.col-idx { background-color: var(--rc-orange); }
+#sheet tbody tr.rc-red td.col-idx { background-color: var(--rc-red); }
+#sheet tbody tr.rc-blue td.col-idx { background-color: var(--rc-blue); }
+#sheet tbody tr.rc-purple td.col-idx { background-color: var(--rc-purple); }
+#sheet tbody tr.rc-grey td.col-idx { background-color: var(--rc-grey); }
+
+
+/* =====================================================================================================
+   Dropdowns: the closed box and the opened list share the same finish as the rest (rounded, soft, roomy).
+   Browsers that can style the opened list get the full look; others keep their own list, with the same closed box.
+   ===================================================================================================== */
+select:not(.status-select) {
+  min-height: 38px; padding: 0 14px; border: 1px solid var(--border-strong); border-radius: 12px; background-color: var(--panel); color: var(--text);
+  font-size: 13px; cursor: pointer; transition: border-color .15s ease, box-shadow .15s ease;
+}
+select:not(.status-select):hover { border-color: color-mix(in srgb, var(--niec-blue) 55%, var(--border-strong)); }
+select:not(.status-select):disabled { opacity: .5; cursor: not-allowed; }
+
+@supports (appearance: base-select) {
+  select, select::picker(select), select.status-select, select.status-select::picker(select) { appearance: base-select; }
+  select:not(.status-select) { display: inline-flex; align-items: center; justify-content: space-between; gap: 10px; }
+  select::picker-icon { color: var(--text-dim); font-size: 11px; transition: rotate .2s ease; }
+  select:open::picker-icon { rotate: 180deg; }
+  select.status-select::picker-icon { display: none; } /* the status pills draw their own small arrow */
+  select::picker(select) {
+    /* 🔴 CSS CHANGED (2026-11-05): the dropdown lists (Application Status and the others) show every choice instead of being cut off after nine, and open upward when there is no room below | from: max-height 340px, row height padding 8px 12px | to: max-height up to 480px (never taller than the window), row padding 6px 12px, flips above the cell when the room below is short */
+    box-sizing: border-box; min-width: anchor-size(width); max-height: min(480px, calc(100vh - 24px)); margin-top: 6px; padding: 6px; position-try-fallbacks: flip-block; scrollbar-width: thin;
+    border: 1px solid var(--border-strong); border-radius: 14px; background: var(--panel); color: var(--text); font: inherit; font-size: 13px;
+    box-shadow: var(--sh-3); overflow: auto;
+  }
+  select option { display: flex; align-items: center; gap: 10px; padding: 6px 12px; border-radius: 10px; background: transparent; color: var(--text); font-weight: 400; cursor: pointer; transition: background-color .12s ease; }
+  select option:hover, select option:focus-visible { background: var(--soft); outline: none; }
+  select option:focus { outline: none; }
+  select option:checked { background: color-mix(in srgb, var(--blue-bg) 70%, transparent); color: var(--blue-fg); font-weight: 500; }
+  select option::checkmark { color: var(--niec-blue-text); font-size: 12px; }
+}

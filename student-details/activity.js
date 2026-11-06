@@ -118,5 +118,116 @@
     }
   });
 
+  // ---- Restore data (Admin only; the server checks again) ----
+  const KIND = { daily: 'Daily backup', manual: 'Backup made by hand', 'before-restore': 'Saved before a restore' };
+  const size = (b) => (b > 1048576 ? (b / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(b / 1024)) + ' KB');
+  const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
+  const restoreSay = (text, error) => { $('restoreMsg').textContent = text || ''; $('restoreMsg').className = 'msg' + (error ? ' error' : ''); };
+  async function post(url, body) {
+    const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body || {}) });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(json.error || `Server error ${res.status}`);
+    return json;
+  }
+
+  // The little panel under a row: what to restore, then the final button.
+  function restorePanel(b, row) {
+    const old = document.getElementById('restoreChoice');
+    if (old) old.remove();
+    const tr = el('tr'); tr.id = 'restoreChoice';
+    const td = el('td'); td.colSpan = 6;
+    td.append(el('b', '', `Restore from ${b.id}`));
+    const box = el('div', 'filter-row'); box.style.marginTop = '8px';
+    const parts = [['students', `Students${b.counts && b.counts.students != null ? ` (${b.counts.students})` : ''}`], ['facts', `Fact File${b.counts && b.counts.facts != null ? ` (${b.counts.facts})` : ''}`], ['partners', `Partner Universities${b.counts && b.counts.partners != null ? ` (${b.counts.partners})` : ''}`]];
+    const boxes = parts.map(([key, label]) => {
+      const l = el('label'); l.style.flexDirection = 'row'; l.style.gap = '6px'; l.style.alignItems = 'center';
+      const c = el('input'); c.type = 'checkbox'; c.checked = true; c.value = key; c.style.width = 'auto';
+      l.append(c, document.createTextNode(label));
+      box.append(l);
+      return c;
+    });
+    const go = el('button', 'btn btn-danger btn-sm', 'Restore these'); go.type = 'button';
+    const cancel = el('button', 'btn btn-sm', 'Cancel'); cancel.type = 'button';
+    cancel.addEventListener('click', () => tr.remove());
+    go.addEventListener('click', async () => {
+      const chosen = boxes.filter((c) => c.checked).map((c) => c.value);
+      if (!chosen.length) { restoreSay('Tick at least one thing to restore.', true); return; }
+      const yes = await NiecUI.confirm(`The ${chosen.map((k) => ({ students: 'students', facts: 'Fact File', partners: 'Partner Universities' }[k])).join(', ')} will be replaced with the copy saved as ${b.id}. Anything changed since then is lost, except that today's data is saved first as a "before restore" backup.`,
+        { title: 'Restore this backup?', confirmText: 'Restore', danger: true });
+      if (!yes) return;
+      go.disabled = true; restoreSay('Restoring...');
+      try {
+        const r = await post('/api/restore', { id: b.id, parts: chosen });
+        tr.remove();
+        restoreSay(`Restored ${r.restored.join(', ')}. The data as it was before is saved as ${r.safety}. Ask everyone to refresh their page.`);
+        NiecUI.toast('Backup restored', { type: 'success' });
+        loadBackups();
+      } catch (err) { restoreSay(err.message, true); go.disabled = false; }
+    });
+    box.append(go, cancel);
+    const preview = el('div'); preview.style.marginTop = '8px'; preview.style.fontSize = '13px';
+    td.append(preview);
+    td.append(box);
+    tr.append(td);
+    row.after(tr);
+    // What a restore would change, so the decision is made knowing it (the same preview as on the backup pages).
+    preview.textContent = 'Checking what a restore would change...';
+    window.NiecBackup.loadCompare(b.id).then((compare) => {
+      preview.replaceChildren();
+      if (!compare) { preview.textContent = 'Could not work out what would change.'; return; }
+      ['students', 'facts', 'partners'].forEach((key) => {
+        const d = window.NiecBackup.describe(key, compare[key]);
+        const line = el('div'); line.append(el('b', '', window.NiecBackup.NAMES[key][0].toUpperCase() + window.NiecBackup.NAMES[key].slice(1) + ': '), document.createTextNode(d.text));
+        if (d.warn) line.style.color = 'var(--danger)';
+        preview.append(line);
+        if (d.names) { const n = el('div', '', d.names); n.style.color = 'var(--danger)'; n.style.marginLeft = '12px'; preview.append(n); }
+      });
+    });
+  }
+
+  async function loadBackups() {
+    try {
+      const res = await fetch('/api/restore/backups', { cache: 'no-store' });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.error || `Server error ${res.status}`);
+      const n = json.now;
+      $('restoreNow').textContent = `Right now: ${n.students == null ? '?' : n.students} students, ${n.facts} universities in the Fact File, ${n.partners} Partner Universities.`;
+      const body = $('backupRows');
+      if (!json.backups.length) { body.replaceChildren(Object.assign(el('tr'), {})); const td = el('td', 'muted', 'No backups yet. The first one is saved after 6 p.m., or press Back up now.'); td.colSpan = 6; body.firstChild.append(td); return; }
+      body.replaceChildren(...json.backups.map((b) => {
+        const tr = el('tr');
+        const name = el('td'); name.append(el('b', '', b.id.replace(/^[a-z-]+?-(\d{4})/, '$1')), el('div', 'muted', KIND[b.kind] || b.kind));
+        const c = b.counts;
+        const holds = el('td', '', c ? `${c.students ?? '-'} students, ${c.facts ?? '-'} universities, ${c.partners ?? '-'} partners` : 'Could not be read');
+        const act = el('td'); act.style.whiteSpace = 'nowrap';
+        if (c) {
+          const view = el('a', 'btn btn-sm', 'View'); view.href = `/students?backup=${encodeURIComponent(b.id)}`; view.target = '_blank'; view.rel = 'noopener';
+          view.title = 'Opens this backup in a new tab: the real Student Details, Fact File and Partner Universities pages as they were, read only';
+          const btn = el('button', 'btn btn-sm', 'Restore'); btn.type = 'button'; btn.style.marginLeft = '6px'; btn.addEventListener('click', () => restorePanel(b, tr));
+          act.append(view, btn);
+        }
+        const d = new Date(b.createdAt);
+        tr.append(name, el('td', '', d.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })), el('td', '', d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })), holds, el('td', '', size(b.bytes)), act);
+        return tr;
+      }));
+    } catch (err) { $('backupRows').replaceChildren(Object.assign(el('tr'), {})); const td = el('td', 'muted', err.message); td.colSpan = 6; $('backupRows').firstChild.append(td); }
+  }
+
+  $('backupNow').addEventListener('click', async () => {
+    $('backupNow').disabled = true; restoreSay('Saving...');
+    try { const r = await post('/api/restore/backup-now'); restoreSay(`Saved as ${r.id}.`); loadBackups(); } catch (err) { restoreSay(err.message, true); }
+    $('backupNow').disabled = false;
+  });
+
+
+  const tabNames = ['activity', 'restore'];
+  function showTab(name) {
+    tabNames.forEach((t) => { $('tab-' + t).setAttribute('aria-selected', String(t === name)); $('panel-' + t).hidden = t !== name; });
+    if (name === 'restore') loadBackups();
+    try { history.replaceState(null, '', '#' + name); } catch (e) { /* not important */ }
+  }
+  tabNames.forEach((t) => $('tab-' + t).addEventListener('click', () => showTab(t)));
+  if (location.hash === '#restore') showTab('restore');
+
   load(false);
 })();

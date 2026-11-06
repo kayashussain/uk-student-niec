@@ -36,10 +36,11 @@ test('summary nets loans, takes 15% TDS, then the previous advance', () => {
     { enrollmentCommission: 10000, flywireCommission: 2000, loanCommission: 1000 },
     { enrollmentCommissionUni: 5000, newPartnershipCommission: 1000, selfStudentCommission: 3000 },
   ], '4000');
-  assert.strictEqual(s.totalCommissions, 21000);
-  assert.strictEqual(s.netCommissions, 20000);
-  assert.strictEqual(s.tds, 3000);
-  assert.strictEqual(s.netPayable, 13000);
+  // The old Direct Student Incentive column is gone: a value saved there earlier is kept in the file but is not part of the totals.
+  assert.strictEqual(s.totalCommissions, 18000);
+  assert.strictEqual(s.netCommissions, 17000);
+  assert.strictEqual(s.tds, 2550);
+  assert.strictEqual(s.netPayable, 10450);
 });
 
 test('no TDS is taken when nothing is owed', () => {
@@ -104,23 +105,120 @@ test('visa dates show in one format whichever way they were stored', () => {
   assert.strictEqual(incentive.displayDate(''), '');
 });
 
+// ---- Incentives in rupees, pounds or percent ----
+test('an incentive is typed in rupees, pounds or percent, and a plain number keeps the unit the cell had', () => {
+  const U = incentive.UNIT;
+  assert.deepStrictEqual(incentive.parseIncentiveInput('40000', U.NPR), { value: 40000, unit: U.NPR });
+  assert.deepStrictEqual(incentive.parseIncentiveInput('Rs. 40,000', U.GBP), { value: 40000, unit: U.NPR }, 'Rs sets rupees');
+  assert.deepStrictEqual(incentive.parseIncentiveInput('£500', U.NPR), { value: 500, unit: U.GBP });
+  assert.deepStrictEqual(incentive.parseIncentiveInput('500 GBP', U.NPR), { value: 500, unit: U.GBP });
+  assert.deepStrictEqual(incentive.parseIncentiveInput('15%', U.NPR), { value: 15, unit: U.PCT });
+  assert.deepStrictEqual(incentive.parseIncentiveInput('600', U.GBP), { value: 600, unit: U.GBP }, 'a plain number keeps pounds');
+  assert.deepStrictEqual(incentive.parseIncentiveInput('', U.PCT), { value: 0, unit: U.PCT });
+  assert.strictEqual(incentive.parseIncentiveInput('lots', U.NPR), null, 'text is refused');
+  assert.strictEqual(incentive.incentiveLabel(500, U.GBP), '£500.00');
+  assert.strictEqual(incentive.incentiveLabel(15, U.PCT), '15%');
+  assert.strictEqual(incentive.incentiveLabel(12.5, U.PCT), '12.50%');
+  assert.strictEqual(incentive.incentiveLabel(40000, U.NPR), 'Rs 40,000.00');
+  assert.strictEqual(incentive.incentiveLabel(0, U.GBP), '', 'zero shows as an empty cell');
+  ['40000', '£500', '15%', '12.5%'].forEach((t) => {
+    const p = incentive.parseIncentiveInput(t, 0);
+    assert.strictEqual(incentive.incentiveTyped(p.value, p.unit), t, `${t} copies back out the way it was typed`);
+  });
+});
+
+test('pounds and percent are converted to rupees at the rate; with no rate they are not guessed', () => {
+  const rec = { enrollmentCommission: 500, enrollmentCommissionUnit: 1, enrollmentCommissionUni: 15, enrollmentCommissionUniUnit: 2, newPartnershipCommission: 1000 };
+  assert.strictEqual(incentive.flexNpr(rec, 'enrollmentCommission', 2000, 200), 100000, '£500 at 200');
+  assert.strictEqual(incentive.flexNpr(rec, 'enrollmentCommissionUni', 2000, 200), 60000, '15% of £2,000 = £300, at 200');
+  assert.strictEqual(incentive.flexNpr(rec, 'newPartnershipCommission', 2000, 200), 1000, 'no unit saved means rupees, as before');
+  assert.strictEqual(incentive.flexNpr(rec, 'enrollmentCommission', 2000, null), null, 'pounds need a rate');
+  assert.strictEqual(incentive.flexNpr(rec, 'newPartnershipCommission', 2000, null), 1000, 'rupees never need one');
+  const s = incentive.computeSummary([rec], 0, { gbpToNpr: 200, commissionsGbp: [2000] });
+  assert.strictEqual(s.totalCommissions, 100000 + 60000 + 1000);
+  assert.strictEqual(s.needsRate, false);
+  const noRate = incentive.computeSummary([rec], 0, { gbpToNpr: null, commissionsGbp: [2000] });
+  assert.strictEqual(noRate.totalCommissions, 1000, 'only the rupee amount is counted without a rate');
+  assert.strictEqual(noRate.needsRate, true, 'and the page is told something could not be counted');
+  // Incentives saved before units existed give the same totals as always.
+  const old = incentive.computeSummary([{ enrollmentCommission: 10000, flywireCommission: 500 }], 0);
+  assert.strictEqual(old.totalCommissions, 10500);
+});
+
+test('a student from a branch earns the head office only 30% of the university commission', () => {
+  // The owner's example: a university commission of £2,000 on a branch student. 70% goes to the branch.
+  const e = incentive.computeEarnings({ commissionGbp: 2000, branchCommissionGbp: 2000, gbpToNpr: 200, basicSalary: 0, salaryMonths: 0, myIncentives: 0 });
+  assert.strictEqual(e.branchShareGbp, 1400);
+  assert.strictEqual(e.headOfficeGbp, 600);
+  assert.strictEqual(e.companyNpr, 120000, 'Company Earnings are worked out from the 30% only');
+  assert.strictEqual(e.commissionGbp, 2000, 'the total commission is still shown as it was');
+  // Branch and other students together: only the branch student's commission is shared.
+  const mixed = incentive.computeEarnings({ commissionGbp: 5000, branchCommissionGbp: 2000, gbpToNpr: 200, basicSalary: 0, salaryMonths: 0, myIncentives: 0 });
+  assert.strictEqual(mixed.headOfficeGbp, 3600, '£3,000 from the others plus 30% of £2,000');
+  // No branch students: nothing changes from before.
+  const none = incentive.computeEarnings({ commissionGbp: 5000, gbpToNpr: 200, basicSalary: 0, salaryMonths: 0, myIncentives: 0 });
+  assert.strictEqual(none.headOfficeGbp, 5000);
+  assert.strictEqual(none.companyNpr, 1000000);
+});
+
+test('any Student Source that ends in Branch counts as a branch', () => {
+  ['Chitwan Branch', 'Pokhara Branch', 'Butwal Branch', 'Palpa branch', 'BRANCH'].forEach((n) => assert.ok(incentive.isBranchSource(n), n));
+  ['Visitor', 'Reference', 'Agent', 'Events', 'Social Media', 'Language Classes', '', undefined].forEach((n) => assert.ok(!incentive.isBranchSource(n), String(n)));
+});
+
+test('the payment summary shows its working: rupees, pounds, the pounds changed to rupees, and part payments', () => {
+  const recs = [
+    { enrollmentCommission: 40000 },                                                         // Rs 40,000
+    { enrollmentCommission: 200, enrollmentCommissionUnit: 1, enrollmentCommissionUni: 10, enrollmentCommissionUniUnit: 2, flywireCommission: 1000 }, // £200 and 10% of £2,000 (= £200), Flywire Rs 1,000
+    { newPartnershipCommission: 100, newPartnershipCommissionUnit: 1, loanCommission: 5000 }, // £100, loan Rs 5,000
+  ];
+  const s = incentive.computeSummary(recs, 2000, { gbpToNpr: 200, commissionsGbp: [0, 2000, 0], payments: [{ amount: 10000 }, { amount: 500.5 }, { amount: -3 }, {}] });
+  assert.strictEqual(s.nprEntered, 41000, 'rupees typed, plus Flywire');
+  assert.strictEqual(s.gbpEntered, 500, 'pounds typed plus the percentage (in pounds)');
+  assert.strictEqual(s.gbpConverted, 100000, '£500 at Rs 200');
+  assert.strictEqual(s.totalCommissions, s.nprEntered + s.gbpConverted, 'the total is exactly the two parts added');
+  assert.strictEqual(s.netCommissions, 141000 - 5000);
+  assert.strictEqual(s.tds, 136000 * 0.15);
+  assert.strictEqual(s.paymentsReceived, 10500.5, 'zero, negative and empty payments count for nothing');
+  assert.strictEqual(s.netPayable, 136000 - 20400 - 2000 - 10500.5);
+  // Everything paid: the net payable reaches zero.
+  const paid = incentive.computeSummary(recs, 0, { gbpToNpr: 200, commissionsGbp: [0, 2000, 0], payments: [{ amount: 115600 }] });
+  assert.strictEqual(paid.netPayable, 0);
+  // No rate: the pound part is reported but not counted.
+  const none = incentive.computeSummary(recs, 0, { gbpToNpr: null, commissionsGbp: [0, 2000, 0] });
+  assert.strictEqual(none.gbpEntered, 500);
+  assert.strictEqual(none.gbpConverted, 0);
+  assert.strictEqual(none.needsRate, true);
+  assert.strictEqual(incentive.paymentsTotal(undefined), 0);
+});
+
+test('amounts are kept to two decimals so the rows of the summary add up exactly as shown', () => {
+  // TDS of 15% on 186,071.30 is 27,910.695: it is rounded once, and the net payable is worked from the rounded figures.
+  const s = incentive.computeSummary([{ enrollmentCommission: 186071.3 }], 0, {});
+  assert.strictEqual(s.tds, 27910.7);
+  assert.strictEqual(s.netPayable, 158160.6);
+  // Nonsense numbers count as nothing, never as Infinity.
+  assert.strictEqual(incentive.num('Infinity'), 0);
+  assert.strictEqual(incentive.computeSummary([{ enrollmentCommission: Infinity }], 0, {}).totalCommissions, 0);
+  assert.strictEqual(incentive.round2(1.005), 1.01);
+  assert.strictEqual(incentive.round2(-1.005), -1.01);
+});
+
 test('money cells: first number only, commas and currency signs, % read from in front of the sign', () => {
-  const C = require('../student-details/calc');
-  assert.strictEqual(C.parseNum('£12,500'), 12500);
-  assert.strictEqual(C.parseNum('Rs. 1,250'), 1250);
-  assert.strictEqual(C.parseNum('approx. 500'), 500);
-  assert.strictEqual(C.parseNum('3000 (2 parts)'), 3000);
-  assert.strictEqual(C.resolveDiscount('50% (£5,000)', 10000), 5000);
-  assert.strictEqual(C.resolveDiscount('15% + 500', 10000), 1500);
-  assert.strictEqual(C.resolveDiscount('10%', 10000), 1000);
-  assert.strictEqual(C.netTuitionFee({ 'GROSS FEE': '10000', 'ADDITIONAL DISCOUNT': '5%' }), 9500);
-  assert.strictEqual(C.netTuitionFee({ 'GROSS FEE': '10000', SCHOLARSHIP: '12000' }), 0, 'never negative');
-  const I = require('../counselor-incentive/calc');
-  assert.strictEqual(I.num('1,500'), 1500);
-  assert.strictEqual(I.num('£12,500'), 12500);
-  assert.strictEqual(I.universityCommission('12,500', 15), 1875);
-  const s = I.computeSummary([{ enrollmentCommission: 1000.30 }], 0);
+  assert.strictEqual(tracker.parseNum('£12,500'), 12500);
+  assert.strictEqual(tracker.parseNum('Rs. 1,250'), 1250);
+  assert.strictEqual(tracker.parseNum('approx. 500'), 500);
+  assert.strictEqual(tracker.parseNum('3000 (2 parts)'), 3000);
+  assert.strictEqual(tracker.resolveDiscount('50% (£5,000)', 10000), 5000);
+  assert.strictEqual(tracker.resolveDiscount('15% + 500', 10000), 1500);
+  assert.strictEqual(tracker.resolveDiscount('10%', 10000), 1000);
+  assert.strictEqual(tracker.netTuitionFee({ 'GROSS FEE': '10000', 'ADDITIONAL DISCOUNT': '5%' }), 9500);
+  assert.strictEqual(tracker.netTuitionFee({ 'GROSS FEE': '10000', SCHOLARSHIP: '12000' }), 0, 'never negative');
+  assert.strictEqual(incentive.num('1,500'), 1500);
+  assert.strictEqual(incentive.num('£12,500'), 12500);
+  assert.strictEqual(incentive.universityCommission('12,500', 15), 1875);
+  const s = incentive.computeSummary([{ enrollmentCommission: 1000.30 }], 0);
   assert.strictEqual(s.tds, 150.05);
   assert.strictEqual(s.netPayable, 850.25, 'the lines shown add up');
-  assert.strictEqual(I.displayDate('2026-9-3'), '9/3/2026');
+  assert.strictEqual(incentive.displayDate('2026-9-3'), '9/3/2026');
 });

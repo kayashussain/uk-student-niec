@@ -71,7 +71,7 @@
   .brand { display: flex; align-items: center; gap: 10px; }
   .brand h1 { font-size: 16px; margin: 0; text-transform: uppercase; letter-spacing: 0.02em; }
 
-  /* The page's toolbar under the shared header (shared/header.css), matching Student Details. */
+  /* The page's own top bar. The Incentive page is separate from Student Details and has no shared NIEC header. */
   .top { background: var(--panel); border-bottom: 1px solid var(--border); padding: 8px 18px; }
   .top .brand h1 { color: #0077a8; font-size: 16px; font-weight: 700; text-transform: none; letter-spacing: .01em; }
   .top .subtitle { color: var(--text-dim); font-size: 11px; }
@@ -137,6 +137,10 @@
   .grid-key { display: inline-flex; gap: 12px; flex-wrap: wrap; }
   .grid-key i { display: inline-block; width: 11px; height: 11px; border-radius: 3px; border: 1px solid var(--border-strong); vertical-align: -1px; margin-right: 4px; }
   thead th.num { text-align: right; }
+  /* Every number column (tuition, commission, incentives) is the same width: only numbers are typed in them, so the heading
+     wraps onto two or three lines instead of making the column wide. */
+  thead th.num, tbody td.num { width: 132px; min-width: 132px; max-width: 132px; }
+  thead th.num { white-space: normal; line-height: 1.3; vertical-align: bottom; }
   /* Light-blue NIEC column headings, matching Student Details. */
   thead th { background: #e8f7fe; color: #0a5878; border-bottom: 2px solid #00adef; border-right-color: #cdebf8; }
   thead th .info { color: #2f6f8a; }
@@ -161,7 +165,7 @@
     font-variant-numeric: tabular-nums; cursor: pointer;
   }
   tbody tr.row-picked td.sn { background: var(--focus); color: #fff; font-weight: 600; }
-  td.num { text-align: right; font-variant-numeric: tabular-nums; min-width: 110px; }
+  td.num { text-align: right; font-variant-numeric: tabular-nums; }
   .muted { color: var(--text-dim); }
 
   /* Spreadsheet grid: the cell cursor, a multi-cell selection, and the cell being typed in. */
@@ -210,7 +214,35 @@
     font-weight: 600; font-variant-numeric: tabular-nums; color: var(--text);
   }
   .adv-input:focus { outline: 2px solid var(--focus); outline-offset: -1px; }
+  /* 🔴 CSS CHANGED (2026-11-04): new Rs / £ / % unit dropdown inside the three flexible incentive cells (Enrollment Incentive, Enrollment Incentive from University, New Partnership Incentive)
+     | from: those cells were just a right-aligned number (132px wide, like every number column), with the unit typed as a symbol
+     | to: a small rounded dropdown sits at the left of the cell and the number stays at the right; these three columns (heading and cells) are 200px wide so the dropdown and a number like Rs 100,000.00 both fit */
+  thead th.num.flex-col, tbody td.num.flex-cell { width: 200px; min-width: 200px; max-width: 200px; }
+  #sheet tbody td.num.flex-cell { position: relative; padding-left: 78px; }
+  tbody td.num.flex-cell .unit-select { position: absolute; left: 8px; top: 50%; transform: translateY(-50%); width: 62px; min-height: 28px; padding: 0 8px; font-size: 12px; border-radius: 999px; }
+  tbody td.num.flex-cell .amount { display: inline-block; min-width: 40px; outline: none; }
+  /* 🔴 CSS CHANGED (2026-11-04): new Payments Received card (add form + history list) and a small time note on the exchange rate row | from: none (these did not exist) | to: add form = date, amount and note boxes in one wrapping row with a navy "Add payment" button; each history row = date and note on the left, amount and a quiet "Remove" link on the right. Uses the existing summary-row look, no colour or font changes elsewhere. */
+  .rate-row .value { font-weight: 700; }
+  .pay-fields { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; align-items: center; }
+  .pay-fields .pay-date { width: 150px; text-align: left; }
+  .pay-fields #payAmount { width: 160px; }
+  .pay-fields .pay-note { width: 200px; text-align: left; font-weight: 400; }
+  .pay-add {
+    padding: 6px 14px; border-radius: 6px; border: 1px solid #17324d; background: #17324d; color: #fff;
+    font: inherit; font-size: 13px; font-weight: 600; cursor: pointer;
+  }
+  .pay-add:hover { background: #0f2538; }
+  .pay-right { display: inline-flex; align-items: center; gap: 14px; }
+  .pay-remove { border: 0; background: none; padding: 2px 4px; color: var(--text-dim); font: inherit; font-size: 12px; text-decoration: underline; cursor: pointer; }
+  .pay-remove:hover { color: var(--danger); }
+  .pay-empty { padding: 18px 16px; }
+  /* 🔴 CSS CHANGED (2026-11-04): the Company Earnings branch table was taken out again | from: a table with a header row, subtotal rows and a shaded total row | to: simple rows like the rest of the card (name - branch, with the university commission in small grey text, and the amount the branch keeps on the right); no extra styles needed */
+  /* 🔴 CSS CHANGED (2026-11-04): small explanation line at the top of the Payments Received card about the exchange rate | from: none (did not exist) | to: 12px grey text, 12px 16px padding, a thin line under it, same grey as the other hints */
+  .pay-rate-note { margin: 0; padding: 12px 16px; font-size: 12px; line-height: 1.5; color: var(--text-dim); border-bottom: 1px solid var(--border); }
+  /* 🔴 CSS CHANGED (2026-11-05): new exchange rate box in the "Add a payment" form | from: none (did not exist) | to: a 160px wide box, same look as the amount box, placed before the date box */
+  .pay-fields #payRate { width: 160px; }
 </style>
+<link rel="stylesheet" href="theme.css" />
 </head>
 <body>
 <header class="niec-header" data-page="incentive"></header>
@@ -224,7 +256,7 @@
       </div>
     </div>
     <div class="toolbar">
-      <input id="search" class="search" type="text" placeholder="Search student, university…" aria-label="Search students and universities">
+      <input id="search" class="search" type="text" placeholder="Search student, university, partner, source…" aria-label="Search students, universities, university partners and student sources">
       <button class="btn" id="undoBtn" title="Undo (Ctrl+Z)" disabled>↶ Undo</button>
       <button class="btn" id="redoBtn" title="Redo (Ctrl+Y)" disabled>↷ Redo</button>
       <button class="btn" id="exportExcelBtn" hidden>Export Excel</button>
@@ -234,6 +266,7 @@
 
   <div id="syncBanner"></div>
   <div id="rateBanner"></div>
+  <div id="needsRateBanner"></div>
   <div class="tabs" id="tabs"></div>
 
   <div class="table-card">
@@ -257,8 +290,28 @@
 
   <p class="summary-title" id="summaryTitle">Payment Summary</p>
   <div class="summary-card">
+    <div class="summary-row rate-row">
+      <span class="label">Exchange rate <span class="info" title="The live pound to rupee rate used for every pound and percent incentive below. It is fetched once a day.">ⓘ</span></span>
+      <span class="value"><span id="sumRate">-</span><span class="hint" id="sumRateTime"></span></span>
+    </div>
+    <div class="summary-row" id="manualRateRow">
+      <span class="label">Your rate from OANDA <span class="info" title="Type the pound rate you read on OANDA (the rate UKVI accepts) and this intake uses it instead of the live rate. Leave it empty to use the live rate. It cannot be changed once a payment is recorded, because the rate is fixed from the first payment.">ⓘ</span><span class="hint" id="manualRateHint"></span></span>
+      <span class="pay-right"><input class="adv-input" id="manualRate" type="number" step="0.0001" min="0" placeholder="e.g. 206.12" aria-label="Pound to rupee rate from OANDA (£1 = Rs)"><button type="button" class="pay-remove" id="manualRateClear">Use live rate</button></span>
+    </div>
     <div class="summary-row">
-      <span class="label">Total Incentives <span class="info" title="Enrollment + Enrollment from University + New Partnership + Direct Student + Flywire incentives, for every student in this intake.">ⓘ</span></span>
+      <span class="label">Incentives entered in rupees (NPR) <span class="info" title="Every incentive typed in rupees, plus the Flywire incentives, added up.">ⓘ</span></span>
+      <span class="value" id="sumNprEntered">0.00</span>
+    </div>
+    <div class="summary-row">
+      <span class="label">Incentives entered in pounds (£) <span class="info" title="Every incentive typed in pounds, plus the percentage ones (a percentage is a share of that student's commission in pounds), added up.">ⓘ</span></span>
+      <span class="value" id="sumGbpEntered">£0.00</span>
+    </div>
+    <div class="summary-row">
+      <span class="label">Pounds changed to rupees<span class="hint" id="sumGbpWorking"></span></span>
+      <span class="value" id="sumGbpConverted">0.00</span>
+    </div>
+    <div class="summary-row">
+      <span class="label">Total Incentives <span class="info" title="Rupees entered + pounds changed to rupees, for every student in this intake.">ⓘ</span></span>
       <span class="value" id="sumTotalCommissions">0.00</span>
     </div>
     <div class="summary-row subtract">
@@ -274,13 +327,29 @@
       <span class="value" id="sumTds">0.00</span>
     </div>
     <div class="summary-row subtract">
-      <span class="label">Previous Advance <span class="info" title="Money already paid to you in advance for this intake. Type it in.">ⓘ</span></span>
-      <input class="adv-input" id="advanceInput" type="number" step="0.01" min="0" value="0" aria-label="Previous advance already paid (NPR)">
+      <span class="label">Payments received<span class="hint" id="sumPaymentsCount"></span></span>
+      <span class="value" id="sumPayments">0.00</span>
     </div>
     <div class="summary-row final">
-      <span class="label">Net Payable <span class="info" title="What is still to be paid to you: Net Incentives − TDS − Previous Advance.">ⓘ</span></span>
+      <span class="label">Net Payable <span class="info" title="What is still to be paid to you: Net Incentives − TDS − Payments received.">ⓘ</span></span>
       <span class="value" id="sumNetPayable">0.00</span>
     </div>
+  </div>
+
+  <p class="summary-title earnings-title" id="paymentsTitle">Payments Received</p>
+  <div class="summary-card">
+    <p class="pay-rate-note" id="payRateNote"></p>
+    <form class="summary-row pay-form" id="payForm">
+      <span class="label">Add a payment</span>
+      <span class="pay-fields">
+        <input class="adv-input pay-rate" id="payRate" type="number" step="0.0001" min="0.0001" placeholder="£1 = Rs (OANDA)" aria-label="Exchange rate from OANDA, pounds to rupees (£1 = Rs)" title="The pound rate you type for this first payment. It is fixed for this intake from now on.">
+        <input class="adv-input pay-date" id="payDate" type="date" required aria-label="Date the payment was received">
+        <input class="adv-input" id="payAmount" type="number" step="0.01" min="0.01" required placeholder="Amount (NPR)" aria-label="Amount received (NPR)">
+        <input class="adv-input pay-note" id="payNote" type="text" maxlength="80" placeholder="Note (optional)" aria-label="Note for this payment">
+        <button type="submit" class="pay-add" id="payAdd">Add payment</button>
+      </span>
+    </form>
+    <div id="payList"></div>
   </div>
 
   <p class="summary-title earnings-title" id="earningsTitle">Company Earnings</p>
@@ -293,8 +362,16 @@
       <span class="label">Total Commission from Universities (£) <span class="info" title="The Commission Amount column added up.">ⓘ</span></span>
       <span class="value" id="earnGbp">0.00</span>
     </div>
+    <div class="summary-row subtract" id="earnBranchRow">
+      <span class="label">Total Branch Share Deducted (70%) <span class="info" title="For a student who came through a branch (the Student Source ends in Branch, like Chitwan Branch or Pokhara Branch), the branch keeps 70% of the university commission. Only the other 30% is the head office's.">ⓘ</span></span>
+      <span class="value" id="earnBranch">£0.00</span>
+    </div>
     <div class="summary-row final">
-      <span class="label">Company Earnings (NPR)<span class="hint" id="earnRateHint"></span></span>
+      <span class="label">Total Company Earnings (£) <span class="info" title="Total commission from the universities, less the branches' 70% share. This is what the company earned on this intake.">ⓘ</span></span>
+      <span class="value" id="earnHead">£0.00</span>
+    </div>
+    <div class="summary-row">
+      <span class="label">Total Company Earnings in rupees (NPR)<span class="hint" id="earnRateHint"></span></span>
       <span class="value" id="earnNpr">-</span>
     </div>
     <div class="summary-row">
@@ -327,13 +404,19 @@
 
 <script src="calc.js"></script>
 <script src="session.js"></script>
-<script src="ui.js"></script>
 <script src="header.js"></script>
+<script src="ui.js"></script>
 <script>
 // Exporting everything is for Admin only. /api/me is answered by Student Details (at the site's root).
 fetch('/api/me', { cache: 'no-store' }).then((r) => (r.ok ? r.json() : null)).then((me) => {
   if (me && me.role === 'admin') document.getElementById('exportExcelBtn').hidden = false;
 }).catch(() => {});
+</script>
+<script>
+// Closing, reloading or leaving this page locks Incentive again, so its password is asked every time. A page brought back
+// from the browser's memory (the Back button) is reloaded, which shows the password page instead of the old figures.
+window.addEventListener('pagehide', () => { try { if (window.__flushSaves) window.__flushSaves(); } catch (e) { /* nothing to save */ } try { navigator.sendBeacon('/incentive/api/lock'); } catch (e) { /* the 20-minute idle lock still applies */ } });
+window.addEventListener('pageshow', (e) => { if (e.persisted) location.reload(); });
 </script>
 <script src="edit-guard.js"></script>
 <script>
@@ -341,32 +424,36 @@ fetch('/api/me', { cache: 'no-store' }).then((r) => (r.ok ? r.json() : null)).th
 // derive that prefix from the URL actually used to load it, so every API call still hits
 // this app and not whatever else is mounted at the true root.
 const BASE = location.pathname.replace(/\/index\.html$/, '').replace(/\/+$/, '');
-const { num, flywireIncentive, universityCommission, DEFAULT_BASIC_SALARY, DEFAULT_SALARY_MONTHS } = window.IncentiveCalc;
+const { num, flywireIncentive, universityCommission, DEFAULT_BASIC_SALARY, DEFAULT_SALARY_MONTHS,
+  unitField, flexNpr, parseIncentiveInput, incentiveLabel, incentiveTyped, isBranchSource, BRANCH_SHARE_PERCENT, round2 } = window.IncentiveCalc;
+// How the three flexible incentive columns are typed: the unit goes with the number.
+const FLEX_HINT = "Type it the way it was agreed: 40000 (or Rs 40000) for rupees, £500 for pounds, or 15% for a percentage of this student's Commission Amount. A plain number keeps the unit already in the cell.";
 const POLL_MS = 3000; // safety net only: changes normally arrive at once over /api/live
 
 // Student details are synced read-only from UK Student NIEC; the money columns are edited here.
 const COLUMNS = [
+  { key: 'source', label: 'Student Source', width: 20 },
   { key: 'name', label: 'Student Name', width: 24 },
   { key: 'course', label: 'Course Name', width: 32 },
   { key: 'university', label: 'University Name', width: 30 },
+  { key: 'agent', label: 'University Partner', width: 24 },
   { key: 'studentId', label: 'Student ID', width: 14 },
   { key: 'tuitionFee', label: 'Total Tuition Fee (£)', width: 18, amount: true,
     title: 'Synced from UK Student NIEC: Gross Fee − Scholarship − Early Bird Discount − Additional Discount.' },
-  { key: 'uniCommissionRate', label: 'Commission %', width: 13, money: true, percent: true,
+  { key: 'uniCommissionRate', label: 'Commission %', width: 18, money: true, percent: true,
     title: "The % of the tuition fee the university pays us as commission. Type it in, e.g. 15." },
-  { key: 'uniCommissionAmount', label: 'Commission Amount (£)', width: 20, amount: true,
+  { key: 'uniCommissionAmount', label: 'Commission Amount (£)', width: 18, amount: true,
     calc: (s) => universityCommission(s.tuitionFee, commissionValue(s.id, 'uniCommissionRate')),
     title: 'Auto-calculated: Total Tuition Fee × Commission %.' },
   { key: 'visaIssuedDate', label: 'Visa Issue Date', width: 15, synced: true },
-  { key: 'enrollmentCommission', label: 'Enrollment Incentive (NPR)', width: 22, money: true },
-  { key: 'enrollmentCommissionUni', label: 'Enrollment Incentive from University (NPR)', width: 32, money: true },
-  { key: 'newPartnershipCommission', label: 'New Partnership Incentive (NPR)', width: 25, money: true },
-  { key: 'selfStudentCommission', label: 'Direct Student Incentive (NPR)', width: 25, money: true },
-  { key: 'flywireFeePayment', label: 'Flywire Fee Payment (£)', width: 20, money: true,
+  { key: 'enrollmentCommission', label: 'Enrollment Incentive', width: 22, money: true, flex: true, title: FLEX_HINT },
+  { key: 'enrollmentCommissionUni', label: 'Enrollment Incentive from University', width: 22, money: true, flex: true, title: FLEX_HINT },
+  { key: 'newPartnershipCommission', label: 'New Partnership Incentive', width: 22, money: true, flex: true, title: FLEX_HINT },
+  { key: 'flywireFeePayment', label: 'Flywire Fee Payment (£)', width: 18, money: true,
     title: 'The tuition fee the student paid through Flywire, in pounds. Fills in Flywire Incentive for you.' },
-  { key: 'flywireCommission', label: 'Flywire Incentive (NPR)', width: 20, money: true,
+  { key: 'flywireCommission', label: 'Flywire Incentive (NPR)', width: 18, money: true,
     title: "Auto-filled: 0.2% of Flywire Fee Payment (GBP), converted to NPR at today's rate. You can still edit it." },
-  { key: 'loanCommission', label: 'Loan Incentive to Share (NPR)', width: 24, money: true,
+  { key: 'loanCommission', label: 'Loan Incentive to Share (NPR)', width: 18, money: true,
     title: 'Loan incentive that is shared out. It is taken off your Total Incentives in the Payment Summary.' },
 ];
 const FIRST_KEY = COLUMNS[0].key;
@@ -389,7 +476,6 @@ const gridStatusEl = $('#gridStatus');
 const gridHintEl = $('#gridHint');
 const liveDot = $('#liveDot');
 const liveText = $('#liveText');
-const advanceInput = $('#advanceInput');
 const undoBtn = $('#undoBtn');
 const redoBtn = $('#redoBtn');
 
@@ -400,6 +486,56 @@ function colIndex(key) { return COLUMNS.findIndex((c) => c.key === key); }
 function isMoney(key) { const c = COLUMNS[colIndex(key)]; return Boolean(c && c.money); }
 function isPercent(key) { const c = COLUMNS[colIndex(key)]; return Boolean(c && c.percent); }
 function commissionValue(id, key) { return num((state.commissions[id] || {})[key]); }
+function isFlex(key) { const c = COLUMNS[colIndex(key)]; return Boolean(c && c.flex); }
+// 0 rupees, 1 pounds, 2 percent (rupees for anything saved before units existed).
+function unitOf(id, key) { return num((state.commissions[id] || {})[unitField(key)]); }
+function commissionAmountOf(s) { return infoValue(s, COLUMNS[colIndex('uniCommissionAmount')]); }
+// A flexible incentive in rupees at today's rate (null when it needs a rate that has not arrived).
+function flexNprOf(s, key) { return flexNpr(state.commissions[s.id] || {}, key, commissionAmountOf(s), earningsRate ? earningsRate.rate : null); }
+// What a money cell shows. The three flexible columns always show their unit.
+function moneyCellText(id, key) {
+  return isFlex(key) ? amountText(commissionValue(id, key), unitOf(id, key)) : cellText(key, commissionValue(id, key));
+}
+// The number in a flexible cell, without its unit (the dropdown beside it says which: Rs, £ or %).
+function amountText(value, unit) {
+  if (!num(value)) return '';
+  return unit === 2 ? num(value).toLocaleString('en-US', { maximumFractionDigits: 2 }) : fmt(value);
+}
+const UNIT_CHOICES = [['0', 'Rs'], ['1', '£'], ['2', '%']];
+const UNIT_NAMES = { 0: 'rupees', 1: 'pounds', 2: 'percent' };
+// The Rs / £ / % dropdown in a flexible cell. Changing it asks first, like any change, and saves with the number.
+function makeUnitSelect(id, key) {
+  const select = document.createElement('select');
+  select.className = 'unit-select';
+  select.setAttribute('aria-label', `Unit of ${COLUMNS[colIndex(key)].label}: rupees, pounds or percent`);
+  UNIT_CHOICES.forEach(([value, label]) => {
+    const o = document.createElement('option');
+    o.value = value;
+    o.textContent = label;
+    select.appendChild(o);
+  });
+  const current = unitOf(id, key);
+  select.value = String(current);
+  // The grid selects a cell on mouse down and would stop the list opening: this is a control, not part of the grid.
+  select.addEventListener('mousedown', (e) => { e.stopPropagation(); if (editing) commitEdit({ refocus: false }); });
+  select.addEventListener('keydown', (e) => e.stopPropagation());
+  select.addEventListener('change', () => {
+    const to = Number(select.value);
+    if (to === current) return;
+    selectCell(id, key, { scroll: false });
+    applyChanges([{ id, key: unitField(key), to }]); // asks "Do you really want to make this change?" itself; cancelling redraws the cell with the saved unit
+  });
+  return select;
+}
+// Hover text on a pound or percent cell: what it comes to in rupees.
+function flexCellTitle(s, key) {
+  const unit = unitOf(s.id, key);
+  if (!commissionValue(s.id, key) || unit === 0) return FLEX_HINT;
+  const n = flexNprOf(s, key);
+  if (n === null) return "In pounds or percent, so it needs today's exchange rate. It is not counted in the totals until the rate arrives.";
+  const how = unit === 2 ? `${commissionValue(s.id, key)}% of £${fmt(commissionAmountOf(s))}, at £1 = Rs ${earningsRate.rate}` : `at £1 = Rs ${earningsRate.rate}`;
+  return `About Rs ${fmt(n)} (${how}).`;
+}
 // A synced or calculated (non-editable) column's value for a student.
 function infoValue(s, col) { return col.calc ? col.calc(s) : s[col.key]; }
 // How an editable cell shows its value: "15%" for a percentage, "1,250.00" for an amount.
@@ -441,12 +577,13 @@ function createSaver(pending, request) {
   const inFlight = new Set();
   const queued = new Set();
 
-  async function run(key) {
-    if (inFlight.has(key)) { queued.add(key); return; }
+  // `leaving`: the page is closing, so the save is sent at once and allowed to finish after the page is gone (keepalive).
+  async function run(key, leaving) {
+    if (inFlight.has(key) && !leaving) { queued.add(key); return; }
     inFlight.add(key);
     const version = versions[key];
     try {
-      const res = await request(key);
+      const res = await request(key, leaving);
       if (!res.ok) throw new Error('HTTP ' + res.status);
       if (versions[key] === version) pending.delete(key);
     } catch (e) {
@@ -460,15 +597,18 @@ function createSaver(pending, request) {
     }
   }
 
-  return function schedule(key) {
+  function schedule(key) {
     pending.add(key);
     versions[key] = (versions[key] || 0) + 1;
     clearTimeout(timers[key]);
     timers[key] = setTimeout(() => run(key), 300);
-  };
+  }
+  // Sends everything not saved yet right now (used when the page is hidden or closed, so nothing typed is lost).
+  schedule.flush = () => { [...pending].forEach((key) => { clearTimeout(timers[key]); run(key, true); }); };
+  return schedule;
 }
 
-const scheduleSaveCommission = createSaver(pendingCommissions, async (id) => {
+const scheduleSaveCommission = createSaver(pendingCommissions, async (id, leaving) => {
   const sent = { ...(unsavedFields[id] || {}) };
   const body = {};
   Object.keys(sent).forEach((f) => { body[f] = commissionValue(id, f); });
@@ -476,6 +616,7 @@ const scheduleSaveCommission = createSaver(pendingCommissions, async (id) => {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
+    keepalive: Boolean(leaving),
   });
   const left = unsavedFields[id];
   if (res.ok && left) {
@@ -486,14 +627,20 @@ const scheduleSaveCommission = createSaver(pendingCommissions, async (id) => {
   return res;
 });
 
-const scheduleSaveAdvance = createSaver(pendingAdvances, (intake) => fetch(BASE + '/api/advances/' + encodeURIComponent(intake), {
+const scheduleSaveAdvance = createSaver(pendingAdvances, (intake, leaving) => fetch(BASE + '/api/advances/' + encodeURIComponent(intake), {
   method: 'PUT',
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify(advanceBody(state.advances[intake] || {})),
+  keepalive: Boolean(leaving),
 }));
+// Anything typed but not saved yet is sent the moment the page is hidden or closed (the page lock follows it).
+window.__flushSaves = () => { scheduleSaveCommission.flush(); scheduleSaveAdvance.flush(); };
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') window.__flushSaves(); });
 // Only fields that have been set are sent, so an unset salary keeps following the default.
 function advanceBody(entry) {
   const body = { previousAdvance: num(entry.previousAdvance) };
+  body.manualRate = entry.manualRate && entry.manualRate.rate > 0 ? entry.manualRate.rate : null;
+  if (Array.isArray(entry.payments)) { body.payments = entry.payments; body.lockedRate = entry.lockedRate || null; }
   ['basicSalary', 'salaryMonths'].forEach((f) => { if (entry[f] !== undefined) body[f] = num(entry[f]); });
   return body;
 }
@@ -529,6 +676,10 @@ function applyAction(action, dir) {
   } else if (action.kind === 'advance') {
     if (!state.advances[action.intake]) state.advances[action.intake] = {};
     state.advances[action.intake][action.field || 'previousAdvance'] = action[dir];
+    if (action.field === 'payments') {
+      const lock = dir === 'from' ? action.lockFrom : action.lockTo;
+      if (lock) state.advances[action.intake].lockedRate = lock; else delete state.advances[action.intake].lockedRate;
+    }
     scheduleSaveAdvance(action.intake);
   }
   render();
@@ -553,21 +704,21 @@ function redo() {
 // Cached per calendar day on top of the server's own daily cache.
 // Returns { rate, date, stale } (stale: today's rate couldn't be fetched, so this is the last known one),
 // or null when there's no rate at all.
-let exchangeRateCache = null; // { result, day }
+let exchangeRateCache = null; // { result, at }
 function localDay() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 async function getExchangeRate() {
-  const today = localDay();
-  if (exchangeRateCache && exchangeRateCache.day === today) return exchangeRateCache.result;
+  // The server fetches a new rate every hour; asking it every few minutes keeps this page within that hour.
+  if (exchangeRateCache && Date.now() - exchangeRateCache.at < 5 * 60 * 1000) return exchangeRateCache.result;
   try {
-    const res = await fetch(BASE + '/api/exchange-rate');
+    const res = await fetch(BASE + '/api/exchange-rate', { signal: AbortSignal.timeout(12000) });
     const data = await res.json();
     if (data.ok) {
-      const result = { rate: data.rate, date: data.date, stale: Boolean(data.stale) };
+      const result = { rate: data.rate, date: data.date, fetchedAt: data.fetchedAt || null, stale: Boolean(data.stale) };
       // A stale rate isn't cached here, so the next edit tries for today's again.
-      if (!result.stale) exchangeRateCache = { result, day: today };
+      if (!result.stale) exchangeRateCache = { result, at: Date.now() };
       return result;
     }
   } catch (e) { /* fall through */ }
@@ -596,7 +747,7 @@ async function applyChangesNow(changes) {
 
   let rate = null;
   if (feeChanges.some((ch) => ch.to !== 0)) {
-    const fx = await getExchangeRate();
+    const fx = earningsRate && (earningsRate.manual || earningsRate.locked) ? earningsRate : await getExchangeRate();
     rate = fx ? fx.rate : null;
     if (!fx) {
       rateBannerEl.innerHTML = '<div class="banner error">⚠ Could not fetch today\'s GBP→NPR exchange rate, so Flywire Incentive was left as it was. You can enter it by hand, or try again.</div>';
@@ -635,6 +786,7 @@ async function loadAll() {
   try {
     const [syncRes, commRes, advRes] = await Promise.all(['/api/sync', '/api/commissions', '/api/advances'].map((p) =>
       fetch(BASE + p, { cache: 'no-store' }).then((r) => {
+        if (r.status === 403) { location.reload(); throw new Error('locked'); } // the password window ended: show the password page
         if (!r.ok) throw new Error('HTTP ' + r.status);
         return r.json();
       })));
@@ -698,7 +850,7 @@ function renderTabs() {
 
 function renderHead() {
   headRow.innerHTML = '<th>S.N</th>' + COLUMNS.map((c) =>
-    `<th${c.money || c.amount ? ' class="num"' : ''}${c.title ? ` title="${esc(c.title)}"` : ''}>${esc(c.label)}${c.title ? ' <span class="info">ⓘ</span>' : ''}</th>`).join('');
+    `<th${c.money || c.amount ? ` class="num${c.flex ? ' flex-col' : ''}"` : ''}${c.title ? ` title="${esc(c.title)}"` : ''}>${esc(c.label)}${c.title ? ' <span class="info">ⓘ</span>' : ''}</th>`).join('');
 }
 
 // Every visa-issued student in the open intake. The Payment Summary and the Excel export always use
@@ -711,7 +863,7 @@ function currentStudents() {
   const list = intakeStudents();
   const q = searchInput.value.trim().toLowerCase();
   if (!q) return list;
-  return list.filter((s) => (s.name + ' ' + s.university + ' ' + s.course + ' ' + s.studentId).toLowerCase().includes(q));
+  return list.filter((s) => (s.name + ' ' + s.university + ' ' + s.agent + ' ' + s.source + ' ' + s.course + ' ' + s.studentId).toLowerCase().includes(q));
 }
 
 let renderPending = false;
@@ -719,6 +871,7 @@ let renderPending = false;
 function render() {
   // Rebuilding the table would throw away a cell that's being typed in: wait until it's finished.
   if (editing) { renderPending = true; return; }
+  syncRate();
   renderTabs();
   $('#summaryTitle').textContent = state.activeIntake ? `Payment Summary (NPR) · ${state.activeIntake}` : 'Payment Summary (NPR)';
 
@@ -743,8 +896,16 @@ function render() {
       td.tabIndex = -1;
       if (col.money) {
         const value = commissionValue(s.id, col.key);
-        td.className = 'num editable';
-        td.textContent = cellText(col.key, value);
+        td.className = 'num editable' + (col.flex ? ' flex-cell' : '');
+        if (col.flex) {
+          const amount = document.createElement('span');
+          amount.className = 'amount';
+          amount.textContent = amountText(value, unitOf(s.id, col.key));
+          td.append(makeUnitSelect(s.id, col.key), amount);
+          td.title = flexCellTitle(s, col.key);
+        } else {
+          td.textContent = cellText(col.key, value);
+        }
       } else if (col.amount) {
         const value = infoValue(s, col);
         td.title = col.calc ? col.title : INFO_HINT;
@@ -763,9 +924,6 @@ function render() {
   rowsEl.innerHTML = '';
   rowsEl.appendChild(frag);
 
-  if (document.activeElement !== advanceInput) {
-    advanceInput.value = num((state.advances[state.activeIntake] || {}).previousAdvance);
-  }
   recalc(intakeStudents());
   applySelectionClasses();
   if (hadGridFocus) focusActiveCell({ scroll: false });
@@ -776,16 +934,90 @@ function computeSummary(students) {
   return window.IncentiveCalc.computeSummary(
     students.map((s) => state.commissions[s.id] || {}),
     (state.advances[state.activeIntake] || {}).previousAdvance,
+    { gbpToNpr: earningsRate ? earningsRate.rate : null, commissionsGbp: students.map(commissionAmountOf), payments: paymentsOf() },
   );
 }
 
+function paymentsOf() { return (state.advances[state.activeIntake] || {}).payments || []; }
+
+// "4 Nov 2026" from 2026-11-04 (read as a plain date, so no time zone can shift it by a day).
+function niceDate(iso) {
+  const m = String(iso || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!m) return String(iso || '');
+  return new Date(Date.UTC(+m[1], +m[2] - 1, +m[3])).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
+}
+// When the rate was fetched, in the viewer's own time: "4 Nov 2026, 10:32".
+function fetchedText(fx) {
+  if (!fx) return '';
+  if (fx.source === 'manual') return 'typed in by you from OANDA';
+  if (fx.fetchedAt) {
+    const d = new Date(fx.fetchedAt);
+    if (!isNaN(d)) return d.toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  }
+  return fx.date ? 'rate dated ' + niceDate(fx.date) : '';
+}
+
+function renderPayments() {
+  const list = paymentsOf().slice().sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+  const legacy = num((state.advances[state.activeIntake] || {}).previousAdvance); // an advance typed in before payments were recorded
+  const total = IncentiveCalc.paymentsTotal(list) + legacy;
+  $('#paymentsTitle').textContent = state.activeIntake ? `Payments Received · ${state.activeIntake}` : 'Payments Received';
+  const host = $('#payList');
+  if (!list.length && !legacy) {
+    host.innerHTML = '<div class="empty-state pay-empty">No payments yet. Add each payment you receive, with its date, and Net Payable updates by itself.</div>';
+    return;
+  }
+  const legacyRow = legacy ? `<div class="summary-row pay-item"><span class="label">Earlier advance<span class="hint">entered before payments were recorded, no date</span></span>
+      <span class="pay-right"><span class="value">${esc(fmt(legacy))}</span><button type="button" class="pay-remove" data-remove-advance="1" aria-label="Remove the earlier advance of ${esc(fmt(legacy))}">Remove</button></span></div>` : '';
+  host.innerHTML = legacyRow + list.map((p) => `<div class="summary-row pay-item" data-pay="${esc(p.id)}">
+      <span class="label">${esc(niceDate(p.date))}${p.note ? `<span class="hint">${esc(p.note)}</span>` : ''}</span>
+      <span class="pay-right"><span class="value">${esc(fmt(p.amount))}</span><button type="button" class="pay-remove" data-remove="${esc(p.id)}" aria-label="Remove the payment of ${esc(fmt(p.amount))} on ${esc(niceDate(p.date))}">Remove</button></span>
+    </div>`).join('')
+    + `<div class="summary-row final"><span class="label">Total received (${list.length + (legacy ? 1 : 0)} payment${list.length + (legacy ? 1 : 0) === 1 ? '' : 's'})</span><span class="value">${esc(fmt(total))}</span></div>`;
+}
+
 function recalc(students) {
+  syncRate();
   const s = computeSummary(students);
+  $('#sumRate').textContent = earningsRate ? `£1 = Rs ${earningsRate.rate}` : 'not available right now';
+  $('#sumRateTime').textContent = !earningsRate ? ''
+    : earningsRate.locked ? ` fixed since the first payment (${earningsRate.source === 'manual' ? 'your OANDA rate' : 'rate fetched ' + fetchedText(earningsRate)})`
+    : earningsRate.manual ? ' your OANDA rate, typed in by you'
+    : ` fetched ${fetchedText(earningsRate)}${earningsRate.stale ? ' (last known rate)' : ''}, updated every hour`;
+  const manualBox = $('#manualRate');
+  const isLocked = Boolean(lockedRateOf(state.activeIntake));
+  manualBox.disabled = isLocked;
+  $('#manualRateClear').hidden = isLocked || !manualRateOf(state.activeIntake);
+  if (document.activeElement !== manualBox) { const m = manualRateOf(state.activeIntake); manualBox.value = m ? m.rate : ''; }
+  const payRateBox = $('#payRate');
+  payRateBox.hidden = isLocked; // once a payment fixes the rate there is nothing more to type
+  payRateBox.required = !isLocked;
+  // The box follows the intake's typed rate, unless something else was typed in it by hand.
+  if (!isLocked && (!payRateBox.value || (document.activeElement !== payRateBox && payRateBox.value === payRateBox.dataset.auto))) {
+    const m = manualRateOf(state.activeIntake);
+    payRateBox.value = m ? m.rate : '';
+    payRateBox.dataset.auto = payRateBox.value;
+  }
+  $('#manualRateHint').textContent = isLocked ? 'fixed from the first payment'
+    : liveRate ? `live rate now: £1 = Rs ${liveRate.rate} (not OANDA)` : '';
+  $('#payRateNote').textContent = earningsRate && earningsRate.locked
+    ? `The exchange rate for this intake is fixed at £1 = Rs ${earningsRate.rate} (${earningsRate.source === 'manual' ? 'the OANDA rate you typed in' : 'rate fetched ' + fetchedText(earningsRate)}), from when the first payment was added on ${niceDate(String(earningsRate.lockedAt || '').slice(0, 10))}. It stays the same, whatever the market does, so the amounts you give stay the same. It follows the live rate again only if every payment is removed.`
+    : 'Type the OANDA rate (£1 = Rs) together with the first payment. From then on it is fixed for this intake and no live rate is used, so the amounts you give stay the same. Until then the figures use the rate typed above, or the live rate as an estimate.';
+  $('#sumNprEntered').textContent = fmt(s.nprEntered);
+  $('#sumGbpEntered').textContent = '£' + fmt(s.gbpEntered);
+  $('#sumGbpConverted').textContent = fmt(s.gbpConverted);
+  $('#sumGbpWorking').textContent = s.gbpToNpr ? `£${fmt(s.gbpEntered)} × ${s.gbpToNpr}` : 'needs the exchange rate';
+  const paidCount = paymentsOf().length + (s.previousAdvance ? 1 : 0);
+  $('#sumPayments').textContent = fmt(s.paymentsReceived + s.previousAdvance);
+  $('#sumPaymentsCount').textContent = paidCount ? `${paidCount} payment${paidCount === 1 ? '' : 's'}, listed below` : 'none yet';
+  renderPayments();
   $('#sumTotalCommissions').textContent = fmt(s.totalCommissions);
   $('#sumLoanPayable').textContent = fmt(s.loanPayable);
   $('#sumNetCommissions').textContent = fmt(s.netCommissions);
   $('#sumTds').textContent = fmt(s.tds);
   $('#sumNetPayable').textContent = fmt(s.netPayable);
+  $('#needsRateBanner').innerHTML = s.needsRate && rateChecked
+    ? '<div class="banner">⚠ Some incentives are in pounds or percent, and today\'s exchange rate has not arrived, so they are not counted in these totals yet. They are counted as soon as the rate loads.</div>' : '';
   renderEarnings(students, s);
 }
 
@@ -793,17 +1025,52 @@ function recalc(students) {
 // against the counselor's salary for the intake period plus their incentives.
 const salaryInput = $('#salaryInput');
 const monthsInput = $('#monthsInput');
-let earningsRate = null; // { rate, date, stale } once fetched
+let liveRate = null; // the live rate { rate, date, fetchedAt, stale } once fetched, refreshed every hour
+let earningsRate = null; // the rate this intake uses: its fixed rate once a payment is recorded, otherwise the live one
+// From the first payment on, an intake keeps the rate it had then, so the amount owed does not move between payments.
+function lockedRateOf(intake) {
+  const l = (state.advances[intake] || {}).lockedRate;
+  return l && l.rate > 0 ? l : null;
+}
+// The rate typed in by hand from OANDA, if there is one for this intake.
+function manualRateOf(intake) {
+  const m = (state.advances[intake] || {}).manualRate;
+  return m && m.rate > 0 ? m : null;
+}
+// Which rate this intake uses: the one fixed at its first payment, else the one typed in from OANDA, else the live one.
+function syncRate() {
+  const l = lockedRateOf(state.activeIntake);
+  const m = manualRateOf(state.activeIntake);
+  if (l) earningsRate = { rate: l.rate, date: l.date, fetchedAt: l.fetchedAt, lockedAt: l.lockedAt, locked: true, source: l.source || 'live' };
+  else if (m) earningsRate = { rate: m.rate, date: '', fetchedAt: null, enteredAt: m.enteredAt, manual: true, source: 'manual' };
+  else earningsRate = liveRate;
+}
+let firstRateDone = false;
+let rateChecked = false; // true once the first attempt to get the live rate has finished (so "no rate" is not shown while it loads)
 
 function intakeSetting(field, fallback) {
   const v = (state.advances[state.activeIntake] || {})[field];
   return v === undefined ? fallback : num(v);
 }
 
+// The students who came through a branch, with the commission the branch keeps (70%) of each. Branch by branch, in the
+// order the students are listed. Used by the Company Earnings list and the Excel export, so they cannot disagree.
+function branchDeductions(students) {
+  const amountCol = COLUMNS[colIndex('uniCommissionAmount')];
+  const list = students.filter((st) => isBranchSource(st.source)).map((st) => {
+    const commission = infoValue(st, amountCol);
+    return { name: st.name || '(no name)', branch: String(st.source).trim(), commission, deducted: round2(commission * BRANCH_SHARE_PERCENT / 100) };
+  });
+  const order = [...new Set(list.map((r) => r.branch))].sort((a, b) => a.localeCompare(b));
+  return order.flatMap((branch) => list.filter((r) => r.branch === branch));
+}
+
 function computeEarnings(students, summary) {
   const amountCol = COLUMNS[colIndex('uniCommissionAmount')];
   return window.IncentiveCalc.computeEarnings({
     commissionGbp: students.reduce((a, st) => a + infoValue(st, amountCol), 0),
+    // A student from a branch (Student Source ends in Branch): the branch keeps 70% of the commission, the head office 30%.
+    branchCommissionGbp: students.filter((st) => isBranchSource(st.source)).reduce((a, st) => a + infoValue(st, amountCol), 0),
     gbpToNpr: earningsRate ? earningsRate.rate : null,
     basicSalary: intakeSetting('basicSalary', DEFAULT_BASIC_SALARY),
     salaryMonths: intakeSetting('salaryMonths', DEFAULT_SALARY_MONTHS),
@@ -816,9 +1083,12 @@ function renderEarnings(students, summary) {
   const e = computeEarnings(students, summary);
   $('#earnStudents').textContent = students.length;
   $('#earnGbp').textContent = '£' + fmt(e.commissionGbp);
+  $('#earnBranch').textContent = '£' + fmt(e.branchShareGbp);
+  renderBranchList(students);
+  $('#earnHead').textContent = '£' + fmt(e.headOfficeGbp);
   $('#earnNpr').textContent = e.companyNpr === null ? '-' : fmt(e.companyNpr);
   $('#earnRateHint').textContent = earningsRate
-    ? `at today's rate, £1 = ${earningsRate.rate} NPR${earningsRate.stale ? ' (last known)' : ''}`
+    ? `£1 = ${earningsRate.rate} NPR, ${earningsRate.locked ? 'fixed from the first payment, ' : ''}${earningsRate.source === 'manual' ? '' : 'fetched '}${fetchedText(earningsRate)}${earningsRate.stale ? ' (last known)' : ''}`
     : 'exchange rate not available right now';
   if (document.activeElement !== salaryInput) salaryInput.value = intakeSetting('basicSalary', DEFAULT_BASIC_SALARY);
   if (document.activeElement !== monthsInput) monthsInput.value = intakeSetting('salaryMonths', DEFAULT_SALARY_MONTHS);
@@ -828,7 +1098,36 @@ function renderEarnings(students, summary) {
   $('#earnShare').textContent = e.sharePercent === null ? '-' : e.sharePercent.toFixed(2) + '%';
 }
 
-getExchangeRate().then((fx) => { earningsRate = fx; recalc(intakeStudents()); });
+// Under the total commission: one line for every branch student (name, branch, university commission) with what the branch
+// kept of it (70%). The total of those lines is taken off the company earnings in the rows below.
+function renderBranchList(students) {
+  document.querySelectorAll('[data-branch-row]').forEach((n) => n.remove());
+  const rows = branchDeductions(students);
+  if (!rows.length) return;
+  const anchor = $('#earnBranchRow');
+  const add = (labelHtml, value) => {
+    const div = document.createElement('div');
+    div.className = 'summary-row';
+    div.dataset.branchRow = '1';
+    div.innerHTML = `<span class="label">${labelHtml}</span><span class="value">${esc(value)}</span>`;
+    anchor.parentNode.insertBefore(div, anchor);
+  };
+  add(`<strong>Taken by the branches</strong> <span class="hint">the branch keeps ${BRANCH_SHARE_PERCENT}% of each branch student's university commission</span>`, '');
+  rows.forEach((r) => add(`${esc(r.name)} - ${esc(r.branch)} <span class="hint">university commission £${esc(fmt(r.commission))}, branch keeps ${BRANCH_SHARE_PERCENT}%</span>`, '£' + fmt(r.deducted)));
+}
+
+function refreshRate() {
+  getExchangeRate().then((fx) => {
+    rateChecked = true;
+    const changed = !liveRate !== !fx || (fx && liveRate && (fx.rate !== liveRate.rate || fx.fetchedAt !== liveRate.fetchedAt));
+    liveRate = fx || liveRate;
+    if (!changed && firstRateDone) return;
+    firstRateDone = true;
+    if (editing) recalc(intakeStudents()); else render();
+  });
+}
+refreshRate();
+setInterval(refreshRate, 5 * 60 * 1000); // render: pound and percent cells say what they come to
 
 function bindIntakeSetting(input, field, fallback) {
   input.addEventListener('change', () => {
@@ -849,20 +1148,74 @@ function bindIntakeSetting(input, field, fallback) {
 bindIntakeSetting(salaryInput, 'basicSalary', DEFAULT_BASIC_SALARY);
 bindIntakeSetting(monthsInput, 'salaryMonths', DEFAULT_SALARY_MONTHS);
 
-advanceInput.addEventListener('change', () => {
+// The rate typed in from OANDA for this intake (empty = follow the live rate).
+const manualRateBox = $('#manualRate');
+function changeManualRate(value) {
+  const intake = state.activeIntake;
+  if (!intake || lockedRateOf(intake)) return;
+  const prev = manualRateOf(intake);
+  const v = Math.round(num(value) * 10000) / 10000;
+  const next = v > 0 && v < 100000 ? { rate: v, enteredAt: new Date().toISOString() } : null;
+  if ((prev ? prev.rate : 0) === (next ? next.rate : 0)) { manualRateBox.value = prev ? prev.rate : ''; return; }
+  confirmChange(() => {
+    pushUndo({ kind: 'advance', intake, field: 'manualRate', from: prev, to: next });
+    if (!state.advances[intake]) state.advances[intake] = {};
+    state.advances[intake].manualRate = next;
+    render();
+    scheduleSaveAdvance(intake);
+  }, () => { manualRateBox.value = prev ? prev.rate : ''; });
+}
+manualRateBox.addEventListener('change', () => changeManualRate(manualRateBox.value));
+$('#manualRateClear').addEventListener('click', () => changeManualRate(''));
+
+// Part payments: each one is a date and an amount. The whole list is saved together with the intake's settings.
+const payForm = $('#payForm');
+const payDate = $('#payDate');
+function resetPayForm() { payDate.value = localDay(); $('#payAmount').value = ''; $('#payNote').value = ''; $('#payRate').value = ''; }
+resetPayForm();
+function changePayments(next, typedRate) {
   const intake = state.activeIntake;
   if (!intake) return;
-  const prev = num((state.advances[intake] || {}).previousAdvance);
-  const v = num(advanceInput.value);
-  if (v < 0) { advanceInput.value = prev; showHint('The advance already paid cannot be below 0.'); return; }
-  if (v === prev) return;
+  const prev = paymentsOf();
+  const lockFrom = lockedRateOf(intake);
+  // The first payment fixes the rate shown now; removing every payment lets it follow the live rate again.
+  const typed = Math.round(num(typedRate) * 10000) / 10000;
+  const lockTo = !next.length ? null : lockFrom || (typed > 0 ? { rate: typed, date: '', fetchedAt: null, source: 'manual', lockedAt: new Date().toISOString() } : earningsRate ? { rate: earningsRate.rate, date: earningsRate.date || '', fetchedAt: earningsRate.fetchedAt || null, source: earningsRate.source === 'manual' ? 'manual' : 'live', lockedAt: new Date().toISOString() } : null);
   confirmChange(() => {
-    pushUndo({ kind: 'advance', intake, from: prev, to: v });
+    pushUndo({ kind: 'advance', intake, field: 'payments', from: prev, to: next, lockFrom, lockTo });
     if (!state.advances[intake]) state.advances[intake] = {};
-    state.advances[intake].previousAdvance = v;
+    state.advances[intake].payments = next;
+    if (lockTo) state.advances[intake].lockedRate = lockTo; else delete state.advances[intake].lockedRate;
+    // The rate typed with the payment is also the intake's typed rate, so it is still there if every payment is removed.
+    if (lockTo && lockTo.source === 'manual' && !lockFrom) state.advances[intake].manualRate = { rate: lockTo.rate, enteredAt: lockTo.lockedAt };
     recalc(intakeStudents());
     scheduleSaveAdvance(intake);
-  }, () => { advanceInput.value = prev; });
+  }, () => {});
+}
+payForm.addEventListener('submit', (ev) => {
+  ev.preventDefault();
+  const amount = Math.round(Number($('#payAmount').value) * 100) / 100;
+  if (!payDate.value || !(amount > 0)) return;
+  const id = 'p' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  const needsRate = !lockedRateOf(state.activeIntake);
+  const rate = num($('#payRate').value);
+  if (needsRate && !(rate > 0)) { $('#payRate').focus(); return; }
+  changePayments(paymentsOf().concat({ id, date: payDate.value, amount, note: $('#payNote').value.trim() }), needsRate ? rate : 0);
+  resetPayForm();
+});
+$('#payList').addEventListener('click', (ev) => {
+  const btn = ev.target.closest('[data-remove]');
+  if (btn) changePayments(paymentsOf().filter((p) => p.id !== btn.dataset.remove));
+  if (ev.target.closest('[data-remove-advance]')) {
+    const intake = state.activeIntake;
+    const prev = num((state.advances[intake] || {}).previousAdvance);
+    confirmChange(() => {
+      pushUndo({ kind: 'advance', intake, from: prev, to: 0 });
+      state.advances[intake].previousAdvance = 0;
+      recalc(intakeStudents());
+      scheduleSaveAdvance(intake);
+    }, () => {});
+  }
 });
 
 // ---------------------------------------------------------------------------------------------
@@ -1021,13 +1374,17 @@ function startEdit({ replaceWith = null } = {}) {
   const td = cellTd(id, key);
   if (!td) return;
   const original = commissionValue(id, key);
-  editing = { td, id, key, original, typed: replaceWith !== null };
-  td.contentEditable = 'true';
+  // A flexible cell has its unit dropdown beside the number: only the number is typed in.
+  const el = isFlex(key) ? td.querySelector('.amount') : td;
+  editing = { td, el, id, key, original, typed: replaceWith !== null };
+  el.contentEditable = 'true';
   td.classList.add('editing');
-  td.textContent = replaceWith !== null ? replaceWith : (original ? String(original) : '');  // plain number while typing
-  td.focus({ preventScroll: true });
+  el.textContent = replaceWith !== null ? replaceWith
+    : (isFlex(key) ? (original ? String(original) : '') : (original ? String(original) : ''));  // the plain number while typing
+  if (isFlex(key)) showHint(FLEX_HINT);
+  el.focus({ preventScroll: true });
   const range = document.createRange();
-  range.selectNodeContents(td);
+  range.selectNodeContents(el);
   range.collapse(false);
   const sel = window.getSelection();
   sel.removeAllRanges();
@@ -1040,19 +1397,36 @@ function finishEditing() {
 
 function commitEdit({ move = null, refocus = true } = {}) {
   if (!editing) return;
-  const { td, id, key, original } = editing;
+  const { td, el, id, key, original } = editing;
   editing = null;
-  td.removeAttribute('contenteditable');
+  el.removeAttribute('contenteditable');
   td.classList.remove('editing');
-  const value = parseMoney(td.textContent);
-  if (value === null) {
-    td.textContent = cellText(key, original);
-    showHint('Only numbers can go in incentive cells.');
-    finishEditing();
+  if (isFlex(key)) {
+    const unit = unitOf(id, key);
+    const typed = parseIncentiveInput(el.textContent, unit);
+    if (typed === null) {
+      el.textContent = moneyCellText(id, key);
+      showHint('Only a number can go here. Pick Rs, £ or % beside it.');
+      finishEditing();
+    } else {
+      el.textContent = amountText(typed.value, typed.unit);
+      const changes = [];
+      if (typed.value !== original) changes.push({ id, key, to: typed.value });
+      if (typed.unit !== unit) changes.push({ id, key: unitField(key), to: typed.unit });
+      if (changes.length) applyChanges(changes);
+      else finishEditing();
+    }
   } else {
-    td.textContent = cellText(key, value);
-    if (value !== original) applyChanges([{ id, key, to: value }]);
-    else finishEditing();
+    const value = parseMoney(el.textContent);
+    if (value === null) {
+      el.textContent = cellText(key, original);
+      showHint('Only numbers can go in incentive cells.');
+      finishEditing();
+    } else {
+      el.textContent = cellText(key, value);
+      if (value !== original) applyChanges([{ id, key, to: value }]);
+      else finishEditing();
+    }
   }
   if (move) moveActiveCell(move[0], move[1]);
   else if (refocus) focusActiveCell({ scroll: false });
@@ -1060,11 +1434,11 @@ function commitEdit({ move = null, refocus = true } = {}) {
 
 function cancelEdit() {
   if (!editing) return;
-  const { td, key, original } = editing;
+  const { td, el, id, key, original } = editing;
   editing = null;
-  td.removeAttribute('contenteditable');
+  el.removeAttribute('contenteditable');
   td.classList.remove('editing');
-  td.textContent = cellText(key, original);
+  el.textContent = isFlex(key) ? moneyCellText(id, key) : cellText(key, original);
   finishEditing();
   focusActiveCell({ scroll: false });
 }
@@ -1090,7 +1464,8 @@ function selectionToTsv() {
     const cells = [];
     for (let c = r.left; c <= r.right; c += 1) {
       const col = COLUMNS[c];
-      const value = col.money ? String(commissionValue(s.id, col.key)) : String(infoValue(s, col) || '');
+      const value = col.flex ? incentiveTyped(commissionValue(s.id, col.key), unitOf(s.id, col.key))
+        : col.money ? String(commissionValue(s.id, col.key)) : String(infoValue(s, col) || '');
       cells.push(value.replace(/[\t\r\n]+/g, ' '));
     }
     lines.push(cells.join('\t'));
@@ -1117,9 +1492,17 @@ function pasteIntoSelection(text) {
       const key = COLUMNS[r.left + dc].key;
       if (raw === undefined || !isMoney(key)) continue;
       touchedMoney = true;
+      const rowId = visible[r.top + dr].id;
+      if (isFlex(key)) {
+        const typed = parseIncentiveInput(raw, unitOf(rowId, key));
+        if (typed === null) { skippedText = true; continue; }
+        changes.push({ id: rowId, key, to: typed.value });
+        if (typed.unit !== unitOf(rowId, key)) changes.push({ id: rowId, key: unitField(key), to: typed.unit });
+        continue;
+      }
       const value = parseMoney(raw);
       if (value === null) { skippedText = true; continue; }
-      changes.push({ id: visible[r.top + dr].id, key, to: value });
+      changes.push({ id: rowId, key, to: value });
     }
   }
 
@@ -1205,7 +1588,7 @@ rowsEl.addEventListener('dblclick', (e) => {
 
 // Clicking anywhere outside the cell being typed in (search box, a button, a tab) saves it.
 rowsEl.addEventListener('focusout', (e) => {
-  if (editing && e.target === editing.td) commitEdit({ refocus: false });
+  if (editing && e.target === editing.el) commitEdit({ refocus: false });
 });
 
 // True when the grid (not the search box, the advance field, or a cell being typed in) has the keyboard.
@@ -1247,6 +1630,7 @@ document.addEventListener('keydown', (e) => {
   if (!activeCell || e.defaultPrevented) return;
   const ae = document.activeElement;
   if (!(ae === document.body || rowsEl.contains(ae))) return; // search box, advance field, buttons: not ours
+  if (ae && ae.tagName === 'SELECT') return; // the unit dropdown in a cell keeps its own keys
 
   if (editing) {
     if (e.key === 'Enter') { e.preventDefault(); commitEdit({ move: [e.shiftKey ? -1 : 1, 0] }); }
@@ -1293,13 +1677,13 @@ undoBtn.addEventListener('click', undo);
 redoBtn.addEventListener('click', redo);
 searchInput.addEventListener('input', render);
 
-// Google Sheets-style undo/redo hotkeys. Skipped while typing in the search box, the Previous Advance
+// Google Sheets-style undo/redo hotkeys. Skipped while typing in the search box, the Basic Salary
 // field, or a cell, so ordinary text undo still works there.
 document.addEventListener('keydown', (e) => {
   if (!(e.ctrlKey || e.metaKey)) return;
   const key = e.key.toLowerCase();
   if (key !== 'z' && key !== 'y') return;
-  if (editing || document.activeElement === searchInput || document.activeElement === advanceInput) return;
+  if (editing || document.activeElement === searchInput) return;
   e.preventDefault();
   if (key === 'y' || (key === 'z' && e.shiftKey)) redo();
   else undo();
@@ -1308,7 +1692,7 @@ document.addEventListener('keydown', (e) => {
 // ---------------------------------------------------------------------------------------------
 // Excel export: bold headers, sized columns and a payment summary block, ready to forward.
 // ---------------------------------------------------------------------------------------------
-const EXCEL_COLUMNS = [{ header: 'S.N', width: 6 }, ...COLUMNS.map((c) => ({ header: c.label, width: c.width, num: Boolean(c.money || c.amount) }))];
+const EXCEL_COLUMNS = [{ header: 'S.N', width: 6 }, ...COLUMNS.map((c) => ({ header: c.label, width: c.width, num: Boolean((c.money && !c.flex) || c.amount) }))];
 const THIN_BORDER = { style: 'thin', color: { argb: 'FFC7CCD4' } };
 const ALL_BORDERS = { top: THIN_BORDER, bottom: THIN_BORDER, left: THIN_BORDER, right: THIN_BORDER };
 
@@ -1362,7 +1746,7 @@ $('#exportExcelBtn').addEventListener('click', async () => {
   });
 
   students.forEach((s, i) => {
-    const row = ws.addRow([i + 1, ...COLUMNS.map((c) => (c.money ? commissionValue(s.id, c.key) : c.amount ? num(infoValue(s, c)) : s[c.key] || ''))]);
+    const row = ws.addRow([i + 1, ...COLUMNS.map((c) => (c.flex ? incentiveLabel(commissionValue(s.id, c.key), unitOf(s.id, c.key)) : c.money ? commissionValue(s.id, c.key) : c.amount ? num(infoValue(s, c)) : s[c.key] || ''))]);
     row.height = 24;
     row.font = { size: 11 };
     EXCEL_COLUMNS.forEach((col, idx) => {
@@ -1384,11 +1768,18 @@ $('#exportExcelBtn').addEventListener('click', async () => {
   titleRow.getCell(2).font = { bold: true, size: 13 };
   titleRow.getCell(2).alignment = { vertical: 'middle' };
 
+  addExcelSummaryRow(ws, 'Exchange rate (£1 = Rs)', earningsRate ? earningsRate.rate : 'not available');
+  if (earningsRate) addExcelSummaryRow(ws, earningsRate.locked ? 'Exchange rate fixed from the first payment, rate fetched' : 'Exchange rate fetched', fetchedText(earningsRate));
+  addExcelSummaryRow(ws, 'Incentives entered in rupees (NPR)', s.nprEntered);
+  addExcelSummaryRow(ws, 'Incentives entered in pounds (£)', s.gbpEntered);
+  addExcelSummaryRow(ws, 'Pounds changed to rupees', s.gbpConverted);
   addExcelSummaryRow(ws, 'Total Incentives', s.totalCommissions);
   addExcelSummaryRow(ws, 'Loan Incentive to Share (-)', s.loanPayable, { color: 'FFDC2626' });
   addExcelSummaryRow(ws, 'Net Incentives', s.netCommissions);
   addExcelSummaryRow(ws, 'TDS 15% (-)', s.tds, { color: 'FFDC2626' });
-  addExcelSummaryRow(ws, 'Previous Advance (-)', s.previousAdvance, { color: 'FFDC2626' });
+  if (s.previousAdvance) addExcelSummaryRow(ws, 'Earlier advance (-)', s.previousAdvance, { color: 'FFDC2626' });
+  paymentsOf().slice().sort((a, b) => (a.date < b.date ? -1 : 1)).forEach((p) => addExcelSummaryRow(ws, `Payment received ${niceDate(p.date)}${p.note ? ' (' + p.note + ')' : ''} (-)`, p.amount, { color: 'FFDC2626' }));
+  addExcelSummaryRow(ws, 'Payments received (-)', s.paymentsReceived + s.previousAdvance, { color: 'FFDC2626' });
   addExcelSummaryRow(ws, 'Net Payable', s.netPayable, { bold: true, color: 'FF1D4ED8', fill: 'FFEAF1FF' });
 
   const e = computeEarnings(students, s);
@@ -1403,8 +1794,13 @@ $('#exportExcelBtn').addEventListener('click', async () => {
   addExcelSummaryRow(ws, 'Students Enrolled', students.length);
   ws.lastRow.getCell(5).numFmt = '0';
   addExcelSummaryRow(ws, 'Total Commission from Universities (£)', e.commissionGbp);
+  branchDeductions(students).forEach((r) => {
+    addExcelSummaryRow(ws, `${r.name} (${r.branch}): ${BRANCH_SHARE_PERCENT}% of £${fmt(r.commission)}`, r.deducted);
+  });
+  addExcelSummaryRow(ws, `Total Branch Share Deducted (${BRANCH_SHARE_PERCENT}%) (-) (£)`, e.branchShareGbp, { color: 'FFDC2626' });
+  addExcelSummaryRow(ws, 'Total Company Earnings (£)', e.headOfficeGbp, { bold: true, color: 'FF1D4ED8', fill: 'FFEAF1FF' });
   if (e.companyNpr !== null) {
-    addExcelSummaryRow(ws, `Company Earnings (NPR, £1 = ${earningsRate.rate})`, e.companyNpr, { bold: true, color: 'FF1D4ED8', fill: 'FFEAF1FF' });
+    addExcelSummaryRow(ws, `Company Earnings (NPR, £1 = ${earningsRate.rate}, fetched ${fetchedText(earningsRate)})`, e.companyNpr, { bold: true, color: 'FF1D4ED8', fill: 'FFEAF1FF' });
   }
   addExcelSummaryRow(ws, 'Basic Salary (per month, NPR)', intakeSetting('basicSalary', DEFAULT_BASIC_SALARY));
   addExcelSummaryRow(ws, 'Total Months for this Intake', intakeSetting('salaryMonths', DEFAULT_SALARY_MONTHS));

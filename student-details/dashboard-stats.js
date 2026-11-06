@@ -18,9 +18,7 @@ const { localDate } = require('../shared/server-utils');
 
 // The stages in the order a student moves through them, then the ones that leave the pipeline.
 const PIPELINE = ['Inquiry', 'Application Stage', 'Mock Stage', 'Payment Stage', 'CAS Stage', 'CAS Issued', 'Visa Lodge', 'Visa Issued'];
-const LEFT = ['Visa Rejected', 'Defer', 'Withdrawn'];
-// Sheets whose Student Source column is hidden on the Student Details page (see HIDDEN_COLUMNS_BY_SHEET in app.js).
-const SOURCE_HIDDEN = (sheetName) => /\bsep/i.test(sheetName || '') && /2026/.test(sheetName || '');
+const LEFT = ['Visa Rejected', 'Defer', 'Hold', 'Withdrawn'];
 const TOP_N = 8;
 const MONTHS = 12;
 const DAY = 86400000;
@@ -51,6 +49,20 @@ const dayNumber = (v) => {
   const iso = isoDate(v);
   return iso ? Date.parse(iso + 'T00:00:00Z') / DAY : NaN;
 };
+
+// A student is a head office student when the Student Source says so: Visitor, Reference, Events, Social Media,
+// Language Classes and the like. A student who came through a branch (Chitwan Branch, Pokhara Branch, Butwal Branch ...)
+// or through an agent is not, and neither is a student with no source filled in yet.
+// An active head office applicant: a head office student who is at one of the steps from the application to the visa decision.
+// Inquiries, deferred, on hold and withdrawn students are not counted, nor is a student with no status.
+const ACTIVE_STATUSES = ['Application Stage', 'Mock Stage', 'Payment Stage', 'CAS Stage', 'CAS Issued', 'Visa Lodge', 'Visa Issued', 'Visa Rejected'];
+function isActiveHeadOfficeApplicant(source, status) {
+  return isHeadOfficeSource(source) && ACTIVE_STATUSES.includes(text(status));
+}
+function isHeadOfficeSource(source) {
+  const s = text(source);
+  return s !== '' && !/\bbranch\b/i.test(s) && !/^agents?$/i.test(s);
+}
 
 const isStudent = (row) => has(row, 'FIRST NAME') || has(row, 'LAST NAME');
 const INSTALLMENTS = ['TUITION FEE DEPOSIT(1st Installment)', 'TUITION FEE DEPOSIT(2nd Installment)', 'TUITION FEE DEPOSIT(3rd Installment)'];
@@ -197,7 +209,7 @@ function buildDashboard(workbook, { sheetId = '', includeHidden = false, today: 
   const reachedCount = Object.fromEntries(STEPS.map((s) => [s.key, 0]));
   const gaps = Object.fromEntries(GAPS.map((g) => [g.key, []]));
   const k = {
-    students: students.length, mockInterviews: 0, noStatus: 0, active: 0, left: 0, rejected: 0,
+    students: students.length, mockInterviews: 0, noStatus: 0, active: 0, left: 0, rejected: 0, activeHeadOffice: 0,
   };
   const pay = { full: 0, partly: 0, unknown: 0 }; // students who have paid: the whole fee, part of it, or no fee entered to compare with
   const quality = {
@@ -230,7 +242,8 @@ function buildDashboard(workbook, { sheetId = '', includeHidden = false, today: 
 
     // Only what has been recorded is counted; a student with nothing there is simply not in that chart.
     // The source column is not shown on the Sep Intake 2026 sheet, so nothing in it is counted either.
-    const source = SOURCE_HIDDEN(s.sheet.name) ? '' : text(row['STUDENT SOURCE']);
+    const source = text(row['STUDENT SOURCE']);
+    if (isActiveHeadOfficeApplicant(source, status)) k.activeHeadOffice += 1;
     [[sources, source], [partners, text(row['UNIVERSITY PARTNER'])], [universities, text(row['UNIVERSITY NAME'])], [courses, text(row['COURSE NAME'])]]
       .forEach(([map, label]) => { if (label) bump(map, label, p, s.left); });
 
@@ -301,4 +314,4 @@ function buildDashboard(workbook, { sheetId = '', includeHidden = false, today: 
   };
 }
 
-module.exports = { buildDashboard, isoDate, PIPELINE, LEFT };
+module.exports = { buildDashboard, isoDate, isHeadOfficeSource, isActiveHeadOfficeApplicant, ACTIVE_STATUSES, PIPELINE, LEFT };

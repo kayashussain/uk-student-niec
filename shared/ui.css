@@ -11,8 +11,9 @@
   --ui-border: #dfe3e8;
   --ui-danger: #dc2626;
   --ui-focus: #0284c7;
-  --ui-skeleton-a: #eaeef3;
-  --ui-skeleton-b: #f6f8fb;
+  /* 🔴 CSS CHANGED (2026-11-05): the grey loading bars follow the off-white | from: #eaeef3 and #f6f8fb | to: #dde2e9 and #eceff3 */
+  --ui-skeleton-a: #dde2e9;
+  --ui-skeleton-b: #eceff3;
   --ui-shadow: 0 18px 48px rgba(15, 23, 42, .28);
 }
 @media (prefers-color-scheme: dark) {
@@ -31,6 +32,12 @@
     --ui-shadow: 0 18px 48px rgba(0, 0, 0, .55);
   }
 }
+
+/* Crisper text, a calmer text selection, and buttons that answer a press. */
+html { text-rendering: optimizeLegibility; }
+::selection { background: rgba(0, 173, 239, .22); }
+button, a, select, input, summary { transition: background-color .15s ease, border-color .15s ease, color .15s ease, box-shadow .15s ease, opacity .15s ease; }
+button:disabled { cursor: not-allowed; }
 
 /* Keyboard focus: one clear ring everywhere (the mouse doesn't trigger it). */
 a:focus-visible, button:focus-visible, select:focus-visible, summary:focus-visible,

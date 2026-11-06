@@ -1,9 +1,9 @@
 // The header every page shares: the NIEC logo and name, navigation between the pages, and the account
 // menu with Log out. A page puts <header class="niec-header" data-page="..."></header> at the top (page
-// is dashboard, sheet, incentive, users or activity), loads header.css and this file (after
+// is dashboard, sheet, incentive, users, activity or direct), loads header.css and this file (after
 // session.js), and the header fills itself in.
 //
-// Navigation depends on the account: Admin sees every page, the Manager the Dashboard, Student Details and
+// Navigation depends on the account: Admin sees every page (Users and Activity in the account menu), the Manager the Dashboard, Student Details and
 // Fact File, and the teams Student Details and Fact File.
 (function () {
   const header = document.querySelector('.niec-header');
@@ -14,16 +14,21 @@
   header.innerHTML = `
     <a class="niec-brand" href="/students" title="Home" id="niecHome">
       <img class="niec-logo" src="niec-logo.png" alt="NIEC, Your Future, Our Responsibility" width="79" height="38">
-      <span class="niec-brand-text"><span class="niec-brand-name">UK Student NIEC</span><span class="niec-brand-sub">Nepal International Education Consultancy</span></span>
+      <span class="niec-brand-text"><span class="niec-brand-name">UK Student NIEC</span><span class="niec-brand-sub">Nepal International Educational Consultancy</span></span>
     </a>
     <nav class="niec-nav" aria-label="Pages"></nav>
     <div class="niec-account"></div>`;
 
   const LINKS = {
     admin: [['dashboard', '/dashboard', 'Dashboard'], ['sheet', '/students', 'Student Details'],
-      ['users', '/users', 'Users'], ['activity', '/activity', 'Activity'], ['factfile', '/fact-file', 'Fact File']],
+      ['direct', '/partner-universities', 'Partner Universities'], ['factfile', '/fact-file', 'Fact File']],
     manager: [['dashboard', '/dashboard', 'Dashboard'], ['sheet', '/students', 'Student Details'], ['factfile', '/fact-file', 'Fact File']],
     staff: [['sheet', '/students', 'Student Details'], ['factfile', '/fact-file', 'Fact File']],
+  };
+
+  // Admin's own pages (people and the record of what happened) are in the account menu, not in the top menu.
+  const MENU_LINKS = {
+    admin: [['users', '/users', 'Users'], ['activity', '/activity', 'Activity'], ['incentive', '/incentive/', 'Incentive']],
   };
 
   function render(me) {
@@ -38,7 +43,7 @@
     edge();
     // The current page is scrolled into view in a menu that doesn't fit.
     const here = nav.querySelector('[aria-current="page"]');
-    if (here && here.scrollIntoView) nav.scrollLeft = Math.max(0, here.offsetLeft - 24);
+    if (here) nav.scrollLeft = Math.max(0, here.getBoundingClientRect().left - nav.getBoundingClientRect().left + nav.scrollLeft - (nav.clientWidth - here.offsetWidth) / 2);
     // The logo goes home: the dashboard for the Manager, Student Details for everyone else.
     header.querySelector('#niecHome').setAttribute('href', me.role === 'manager' ? '/dashboard' : '/students');
     const initials = String(me.name || '?').split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase();
@@ -51,6 +56,7 @@
       </button>
       <div class="niec-menu" role="menu" hidden>
         <div class="niec-menu-head"><b>${esc(me.name)}</b><span>${esc(me.username)} · ${esc(me.roleLabel)}</span></div>
+        ${(MENU_LINKS[me.role] || []).map(([id, href, label]) => `<a role="menuitem" href="${href}"${id === page ? ' aria-current="page"' : ''}>${label}</a>`).join('')}
         <button type="button" role="menuitem" class="niec-logout">Log out</button>
       </div>`;
     const btn = account.querySelector('.niec-account-btn');

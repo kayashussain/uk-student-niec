@@ -62,3 +62,17 @@ test('hostile requests never cause a server error or stop the server', { timeout
   assert.strictEqual(await call('GET', '/login', undefined, false), 200, 'the server is still up');
   assert.strictEqual(await call('GET', '/healthz', undefined, false), 200, 'the health check answers without a login');
 });
+
+test('a data file that still says "Agents" is moved to "Agent" when the server starts, and saved that way', { timeout: 60000 }, async (t) => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'niec-rename-'));
+  fs.writeFileSync(path.join(dir, 'data.json'), JSON.stringify({ revision: 5, activeSheetId: 's', sheets: [{ id: 's', name: 'Sep Intake 2026', columns: ['STUDENT SOURCE'], rows: [
+    { _id: 'row-1', 'STUDENT SOURCE': 'Agents', 'FIRST NAME': 'A' }, { _id: 'row-2', 'STUDENT SOURCE': 'Visitor', 'FIRST NAME': 'B' },
+  ] }] }));
+  const port = await freePort();
+  const server = spawn(process.execPath, ['server.js'], { cwd: path.join(__dirname, '..', 'student-details'), env: { ...process.env, PORT: String(port), STUDENT_DETAILS_DATA_DIR: dir }, stdio: 'ignore' });
+  t.after(() => server.kill());
+  const base = `http://127.0.0.1:${port}`;
+  for (let i = 0; i < 60; i += 1) { try { if ((await fetch(base + '/login')).ok) break; } catch (e) { /* not up yet */ } await wait(250); }
+  const saved = JSON.parse(fs.readFileSync(path.join(dir, 'data.json'), 'utf8'));
+  assert.deepStrictEqual(saved.sheets[0].rows.map((r) => r['STUDENT SOURCE']), ['Agent', 'Visitor'], 'the file on disk was rewritten');
+});

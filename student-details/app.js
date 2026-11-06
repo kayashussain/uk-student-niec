@@ -23,11 +23,11 @@
   const BOTTOM_STATUSES = new Set(['Inquiry']);
   const isBottomRow = (row) => BOTTOM_STATUSES.has(row['APPLICATION STATUS']);
   const SOURCE_COL = 'STUDENT SOURCE';
-  const SOURCE_OPTIONS = ['Visitor', 'Reference', 'Chitwan Branch', 'Pokhara Branch', 'Agents', 'Events', 'Social Media'];
+  const SOURCE_OPTIONS = ['Visitor', 'Reference', 'Chitwan Branch', 'Pokhara Branch', 'Agent', 'Events', 'Social Media', 'Language Classes'];
   const SELECT_COLS = {
     'APPLICATION STATUS': [
       'Inquiry', 'Application Stage', 'Mock Stage', 'Payment Stage',
-      'CAS Stage', 'CAS Issued', 'Visa Lodge', 'Visa Issued', 'Visa Rejected', 'Defer', 'Withdrawn',
+      'CAS Stage', 'CAS Issued', 'Visa Lodge', 'Visa Issued', 'Visa Rejected', 'Defer', 'Hold', 'Withdrawn',
     ],
     'PRE CAS INTERVIEW': ['Passed', 'Fail'],
     'NOC': ['Submitted'],
@@ -60,7 +60,7 @@
   const HIDDEN_COLUMNS_BY_SHEET = [
     {
       matches: (name) => /\bsep/i.test(name) && /2026/.test(name),
-      columns: ['REMARKS', 'STUDENT SOURCE', 'APPLICATION SUBMISSION DATE', 'OFFER RECEIVED DATE'],
+      columns: ['REMARKS', 'APPLICATION SUBMISSION DATE', 'OFFER RECEIVED DATE'],
     },
   ];
   // Column names are stored in capitals (they match the imported spreadsheet). On screen they're shown
@@ -112,6 +112,9 @@
   // columns (shared/teams.js; the server enforces the same rules).
   const Teams = window.TeamRules;
   let me = null;
+  // ?backup=ID opens this page on an earlier daily backup, read only (Admin; see backup-bar.js): the data comes from the
+  // backup, nothing is saved, and nothing is polled or sent to the server.
+  const BACKUP = new URLSearchParams(location.search).get('backup') || '';
   const isTeam = () => Boolean(Teams.teamOf(me)); // anyone but Admin
   const isViewOnly = () => Teams.isReadOnly(me);
   const canEditCol = (col, row = null) => Teams.canEdit(me, col, row); // row: a student the person's team added can have its basics filled in
@@ -206,7 +209,7 @@
   // year (0002), so a typed date is only confirmed once the typing is done: Enter, leaving the box, or a
   // 2-second pause. A date picked from the calendar is confirmed straight away.
   // An empty date box shows no "mm/dd/yyyy" until it's clicked (see .date-input.empty in style.css).
-  function markEmptyDate(input) { input.classList.toggle('empty', !input.value); }
+  function markEmptyDate(input) { input.classList.toggle('empty', !input.value && !input.classList.contains('typing')); }
 
   function confirmDateInput(input, original, apply) {
     let lastKey = 0;
@@ -223,6 +226,7 @@
     markEmptyDate(input);
     input.addEventListener('input', () => markEmptyDate(input));
     input.addEventListener('keydown', (e) => {
+      if (/^\d$/.test(e.key)) { input.classList.add('typing'); markEmptyDate(input); } // the first digit typed shows the date being typed
       lastKey = Date.now();
       if (pending) { clearTimeout(timer); timer = setTimeout(finish, 2000); }
       if (e.key === 'Enter') finish();
@@ -233,7 +237,7 @@
       if (Date.now() - lastKey > 500) finish();
       else timer = setTimeout(finish, 2000);
     });
-    input.addEventListener('blur', finish);
+    input.addEventListener('blur', () => { input.classList.remove('typing'); markEmptyDate(input); finish(); });
   }
 
   // Undo steps hold each sheet as JSON text, which takes a fraction of the memory of a live copy.
@@ -335,9 +339,17 @@
     input.className = 'date-input';
     input.setAttribute('aria-label', `${columnLabel(col)} for ${describeRow(rows[rowIdx])}`);
     input.value = original;
+    // Opening the calendar twice for one click (the cell's press and then the box's own click) closed it again,
+    // so a second request within a moment is ignored.
+    let pickerAt = 0;
+    input.openPicker = () => {
+      if (Date.now() - pickerAt < 700) return;
+      pickerAt = Date.now();
+      if (input.showPicker) { try { input.showPicker(); } catch (err) { /* opens on the next click */ } }
+    };
     input.addEventListener('click', (e) => {
       e.stopPropagation();
-      if (input.showPicker) { try { input.showPicker(); } catch (err) { /* unsupported */ } }
+      input.openPicker();
     });
     const student = rows[rowIdx];
     confirmDateInput(input, original, (value) => {
@@ -346,9 +358,9 @@
       pushUndo();
       target[col] = value;
       markDirty();
+      renderRow(rowIdx, col); // the cell shows the date at once (it used to stay blank until the page was refreshed)
     });
-    td.textContent = '';
-    td.appendChild(input);
+    td.appendChild(input); // the cell's own text stays where it is; the box lies invisibly over it (see style.css)
     return input;
   }
 
@@ -628,11 +640,12 @@
     let json;
     try {
       const [res, who] = await Promise.all([
-        fetch('/api/data', { cache: 'no-store' }),
+        fetch(BACKUP ? '/api/restore/snapshot/' + encodeURIComponent(BACKUP) + '/data' : '/api/data', { cache: 'no-store' }),
         me ? null : fetch('/api/me', { cache: 'no-store' }).then((r) => (r.ok ? r.json() : null)),
       ]);
       if (who) {
-        me = who;
+        me = BACKUP ? { ...who, role: 'manager', departments: [] } : who; // a backup is looked at, never changed
+        if (BACKUP) document.body.dataset.backup = '1';
         document.body.dataset.role = me.role;
         $('#viewOnly').hidden = !Teams.isReadOnly(me);
         document.body.toggleAttribute('data-viewonly', Teams.isReadOnly(me));
@@ -649,6 +662,7 @@
     }
     $('#sheetLoading').hidden = true;
     sheets = json.sheets;
+    colWidthsFor = null; // measure the columns again on the new data
     revision = json.revision || 0;
     synced = Patch.snapshot({ sheets });
     activeSheetId = newestSheet(shownSheets()).id; // a reload always opens the latest intake
@@ -663,6 +677,30 @@
     updateUndoRedoButtons();
   }
 
+  // The filters stay when the page is refreshed: kept in this browser, for each sheet, until they are cleared.
+  const filtersKey = () => 'niec-sheet-filters-v1:' + ((me && (me.username || me.id)) || 'anyone');
+  function readSavedFilters() {
+    try { return JSON.parse(localStorage.getItem(filtersKey()) || '{}') || {}; } catch (e) { return {}; }
+  }
+  function saveFilters() {
+    if (BACKUP) return;
+    try {
+      const all = readSavedFilters();
+      const mine = {};
+      Object.entries(columnFilters).forEach(([col, set]) => { mine[col] = [...set]; });
+      if (Object.keys(mine).length) all[activeSheetId] = mine; else delete all[activeSheetId];
+      localStorage.setItem(filtersKey(), JSON.stringify(all));
+    } catch (e) { /* storage unavailable: the filter simply is not remembered */ }
+  }
+  function restoreFilters() {
+    const saved = readSavedFilters()[activeSheetId] || {};
+    const out = {};
+    Object.entries(saved).forEach(([col, values]) => {
+      if (columns.includes(col) && Array.isArray(values)) out[col] = new Set(values.map(String));
+    });
+    return out;
+  }
+
   function syncActiveSheet() {
     const sheet = getActiveSheet();
     columns = visibleColumns(sheet);
@@ -675,7 +713,7 @@
     rowSelectMode = false;
     sortCol = null;
     sortDir = 1;
-    columnFilters = {};
+    columnFilters = restoreFilters();
     searchEl.value = '';
   }
 
@@ -787,7 +825,7 @@
     const trimmed = newName.trim();
     if (!sheet || !trimmed || trimmed === sheet.name) { renderSheetTabs(); return; }
     if (sheets.some((s) => s.id !== id && s.name.trim().toLowerCase() === trimmed.toLowerCase())) {
-      // The Incentive page groups students (and each intake's Previous Advance) by sheet name.
+      // The Incentive page groups students (and each intake's payments and rates) by sheet name.
       NiecUI.toast(`There's already a sheet called "${trimmed}". Please pick a different name.`, { type: 'error' });
       renderSheetTabs();
       return;
@@ -941,16 +979,62 @@
     return Math.ceil(measureCtx.measureText(text).width);
   }
 
+  // Column widths: each column is as wide as what is in it needs, within limits that suit what it holds, measured from the
+  // sheet's own students. Not narrower than its heading (with room for the sort arrow and filter button), and never so wide
+  // that one long entry stretches it. Short, exact things (names, email, phone numbers) are always shown in full; long
+  // free text (university, course, remarks) is cut with "..." at the limit and shown in full on hover or when edited.
+  // Measured once per sheet load and only ever made wider while editing, so columns never jump around under the cursor.
+  const CELL_PAD = 36; // the cell's side padding, its border and a little room to breathe
+  const HEAD_PAD = 66; // heading padding, the sort arrow and the filter button
+  const SHOW_IN_FULL = new Set(['FIRST NAME', 'LAST NAME', 'EMAIL', 'CONTACT NUMBER', 'UK CONTACT NUMBER', 'STUDENT ID', 'NOC NUMBER']);
+  const TEXT_LIMITS = { // [narrowest, widest] width of the cell's text
+    'FIRST NAME': [84, 180], 'LAST NAME': [84, 180], 'EMAIL': [170, 440], 'CONTACT NUMBER': [100, 150], 'UK CONTACT NUMBER': [100, 150],
+    'STUDENT ID': [90, 170], 'NOC NUMBER': [90, 170], 'UNIVERSITY NAME': [150, 300], 'COURSE NAME': [170, 320],
+    'RECEIVING PARTNER': [120, 240], 'UNIVERSITY PARTNER': [120, 240], 'REMARKS': [90, 132],
+  };
+  let colWidths = {};
+  let colWidthsFor = null;
+  const cellFont = () => `400 14px ${getComputedStyle(document.body).fontFamily}`;
+
+  function measuredText(col) {
+    const [min, max] = TEXT_LIMITS[col] || (LONG_TEXT_COLS.has(col) ? [150, 300] : [110, 260]);
+    const font = cellFont();
+    // Long sheets: measuring every value of every column is slow on an older PC and gains nothing. The widest values are
+    // among the longest in characters, so those (plus an even spread of the rest) are measured, not all of them.
+    let values = Array.from(new Set(rows.map((r) => String(r[col] || '').trim()).filter(Boolean))).sort((x, y) => x.length - y.length);
+    if (values.length > 160) {
+      const step = Math.ceil((values.length - 40) / 120);
+      values = values.filter((v, i) => i >= values.length - 40 || i % step === 0);
+    }
+    const sizes = values.map((v) => textWidth(v, font)).sort((x, y) => x - y);
+    if (!sizes.length) return min;
+    // Short exact things: the longest one. Free text: nearly the longest, so one odd entry doesn't stretch the column.
+    const wanted = SHOW_IN_FULL.has(col) ? sizes[sizes.length - 1] : sizes[Math.floor((sizes.length - 1) * 0.92)];
+    return Math.min(max, Math.max(min, wanted));
+  }
+
   function columnWidth(col) {
+    if (colWidthsFor !== activeSheetId) { colWidths = {}; colWidthsFor = activeSheetId; }
+    if (colWidths[col]) return colWidths[col];
     const family = getComputedStyle(document.body).fontFamily;
-    const header = textWidth(columnLabel(col) + ' ▾', `600 12px ${family}`) + 42; // padding + filter button
-    let cell = 160;
-    if (LONG_TEXT_COLS.has(col)) cell = 240;
-    else if (col === LANGUAGE_TEST_COL) cell = 310;
-    else if (SELECT_COLS[col]) cell = Math.max(...SELECT_COLS[col].map((o) => textWidth(o, `600 11px ${family}`)), 60) + 56;
-    else if (DATE_COLS.has(col)) cell = 144;
-    else if (NUM_COLS.has(col)) cell = 110;
-    return Math.max(cell, header);
+    const header = textWidth(columnLabel(col), `600 12px ${family}`) + HEAD_PAD;
+    let cell;
+    if (col === LANGUAGE_TEST_COL) cell = 420;
+    // 🔴 CSS CHANGED (2026-11-05): dropdown columns (Student Source, Application Status and so on) are measured with the font they really use, so the longest choice (Language Classes) is no longer cut off | from: measured at 600 11px, plus 64 | to: measured at 500 12px, plus 66
+    else if (SELECT_COLS[col]) cell = Math.max(...SELECT_COLS[col].map((o) => textWidth(o, `500 12px ${family}`)), 60) + 66;
+    else if (DATE_COLS.has(col)) cell = 150;
+    else if (NUM_COLS.has(col)) cell = 124;
+    else cell = measuredText(col) + CELL_PAD;
+    colWidths[col] = Math.max(cell, header);
+    return colWidths[col];
+  }
+
+  // Something typed that is longer than its column: the column grows to fit it (up to the column's limit), never shrinks.
+  function widenColumn(col, value) {
+    if (!colWidths[col] || !value || DATE_COLS.has(col) || SELECT_COLS[col] || col === LANGUAGE_TEST_COL) return;
+    const max = (TEXT_LIMITS[col] || (LONG_TEXT_COLS.has(col) ? [0, 300] : [0, 260]))[1] + CELL_PAD;
+    const needed = Math.min(max, textWidth(String(value), cellFont()) + CELL_PAD);
+    if (needed > colWidths[col]) { colWidths[col] = needed; renderHeader(); }
   }
 
   function renderHeader() {
@@ -1023,6 +1107,11 @@
     menu.className = 'filter-menu';
     menu.dataset.col = col;
 
+    const title = document.createElement('div');
+    title.className = 'filter-menu-title';
+    title.textContent = 'Filter · ' + columnLabel(col);
+    menu.appendChild(title);
+
     const searchWrap = document.createElement('div');
     searchWrap.className = 'filter-menu-search';
     const searchInput = document.createElement('input');
@@ -1086,6 +1175,7 @@
       const allowed = new Set(checkboxes.filter(({ cb }) => cb.checked).map(({ val }) => val));
       if (allowed.size === uniqueValues.length) delete columnFilters[col];
       else columnFilters[col] = allowed;
+      saveFilters();
       closeFilterMenu();
       renderHeader();
       renderBody();
@@ -1173,6 +1263,7 @@
     const ae = document.activeElement;
     const hadGridFocus = !ae || ae === document.body || body.contains(ae);
     viewIndices = getFilteredSortedIndices();
+    renderFilterBar();
     viewPos = new Map(viewIndices.map((rowIdx, p) => [rowIdx, p]));
     viewDupPhones = duplicatePhones(rows, WHATSAPP_COL); // across the whole sheet, not just the filtered rows
     body.textContent = '';
@@ -1205,12 +1296,29 @@
       : (isViewOnly() ? 'Students will appear here once they are added.' : 'Click “+ Add student” to add the first one.');
     emptyEl.querySelector('button').hidden = !narrowed;
   }
-  $('#clearFilters').addEventListener('click', () => {
+  function clearAllFilters() {
     searchEl.value = '';
     columnFilters = {};
+    saveFilters();
     renderHeader();
     renderBody();
-  });
+  }
+  $('#clearFilters').addEventListener('click', clearAllFilters);
+  $('#clearAllFilters').addEventListener('click', clearAllFilters);
+  // A bar that says when a search or a filter is hiding students, with a button to clear them all. The filters are remembered
+  // after a refresh, so this is how to get every student back.
+  function renderFilterBar() {
+    const bar = $('#filterBar');
+    const cols = Object.keys(columnFilters);
+    const searching = searchEl.value.trim() !== '';
+    bar.hidden = !cols.length && !searching;
+    if (bar.hidden) return;
+    const parts = [];
+    if (cols.length) parts.push(`Filtered by ${cols.map(columnLabel).join(', ')}`);
+    if (searching) parts.push(`searching for “${searchEl.value.trim()}”`);
+    const total = rows.filter((r) => !isTeam() || Teams.seesRow(me, r)).length;
+    $('#filterBarText').textContent = `${parts.join(' and ')}. Showing ${viewIndices.length} of ${total} students.`;
+  }
 
   // Draws the rows that should be on screen now and removes the ones that scrolled well away.
   // Returns true if it changed anything.
@@ -1303,6 +1411,8 @@
     tr.dataset.rowIdx = rowIdx;
     tr.dataset.displayIdx = displayIdx;
     if (displayIdx % 2) tr.className = 'alt'; // striped by position (spacer rows would upset :nth-child)
+    const rowColor = rows[rowIdx]._color;
+    if (Teams.ROW_COLORS.includes(rowColor)) tr.classList.add('rc-' + rowColor);
     rowEls.set(rowIdx, tr);
 
     // Clicks on rows and cells are handled once, on the table body (see the grid section below).
@@ -1421,6 +1531,7 @@
         // shown in full on hover (or by double-clicking to edit), so rows never grow taller.
         td.textContent = val;
         td.classList.add(NUM_COLS.has(col) ? 'num' : 'text');
+        if (col === 'FIRST NAME' || col === 'LAST NAME') td.classList.add('name'); // the columns people look people up by: bolder
         if (LONG_TEXT_COLS.has(col)) td.classList.add('long-text');
         if (val) td.title = val;
         if (col === WHATSAPP_COL && dupPhones.has(normalizePhone(val))) {
@@ -1666,7 +1777,8 @@
       const control = td.querySelector('select, input') || (td.classList.contains('date') ? openDateCell(td) : null);
       if (!control) return;
       control.focus();
-      if (control.showPicker) { try { control.showPicker(); } catch (err) { /* some browsers need a click */ } }
+      if (control.openPicker) control.openPicker();
+      else if (control.showPicker) { try { control.showPicker(); } catch (err) { /* some browsers need a click */ } }
       return;
     }
     const original = rows[rowIdx][col] || '';
@@ -1706,6 +1818,7 @@
         if (!rows.includes(row)) return;
         pushUndo();
         row[col] = value;
+        widenColumn(col, value);
         markDirty();
         skipRefocus = true; // the caller decides where focus goes next
         renderRow(rows.indexOf(row), col); // recalculates the fee columns and redraws status badges
@@ -1923,7 +2036,9 @@
 
     const statusCards = group('Application Status');
     statusCards.appendChild(totalCard);
-    statusOptions.forEach((status) => statusCards.appendChild(card(countStatus(status), status)));
+    // "CAS Stage" stays a status students can have, but it has no box of its own up here: the strip reads
+    // Payment Stage, then CAS Issued.
+    statusOptions.filter((status) => status !== 'CAS Stage').forEach((status) => statusCards.appendChild(card(countStatus(status), status)));
     const visaIssuedCount = countStatus('Visa Issued');
     const conversionRate = indices.length ? (visaIssuedCount / indices.length) * 100 : 0;
     const rateCard = card(`${conversionRate.toFixed(1)}%`, 'Conversion Rate', '',
@@ -1960,7 +2075,7 @@
   // One save at a time, so an older copy of the workbook can never land after a newer one.
   async function saveData() {
     clearTimeout(saveTimer);
-    if (conflicted) return;
+    if (conflicted || BACKUP) return;
     if (saving) { saveQueued = true; return; }
     saving = true;
     const savedChange = changeCount;
@@ -2055,6 +2170,7 @@
     };
 
     sheets = json.sheets;
+    colWidthsFor = null;
     revision = json.revision || 0;
     synced = syncedOverride || Patch.snapshot({ sheets });
     const sameSheet = shownSheets().some((s) => s.id === keep.sheetId);
@@ -2101,7 +2217,7 @@
 
   async function checkForRemoteChanges() {
     const busy = () => dirty || saving || conflicted || busyEditing();
-    if (busy() || document.hidden) return;
+    if (BACKUP || busy() || document.hidden) return;
     try {
       const res = await fetch('/api/revision', { cache: 'no-store' });
       if (!res.ok) return;
@@ -2173,6 +2289,13 @@
     pushUndo();
     const blank = { _id: makeRowId() };
     columns.forEach((c) => (blank[c] = ''));
+    // With a filter on (say Application Stage), the new student gets that value, so it shows up in the same filtered list
+    // instead of vanishing from it. A search that would hide the new row is cleared.
+    Object.entries(columnFilters).forEach(([col, allowed]) => {
+      const first = [...allowed].find((v) => v !== '');
+      if (first !== undefined && columns.includes(col) && !CALC_COLS[col]) blank[col] = first;
+    });
+    searchEl.value = '';
     // A team's new student starts at that team's stage (so it stays in the person's list) and is marked
     // with the department, which lets the person fill in the student's basics (the server checks both).
     if (isTeam()) {
@@ -2240,6 +2363,53 @@
       markDirty();
     }
     renderBody();
+  }
+
+  // Colour rows: marks the picked students' rows (e.g. green = interested, Admin follows up). The colour is
+  // saved on the row, so everyone who sees the student sees it.
+  const COLOR_LABELS = { green: 'Green', yellow: 'Yellow', orange: 'Orange', red: 'Red', blue: 'Blue', purple: 'Purple', grey: 'Grey' };
+
+  function openColorMenu() {
+    if (isViewOnly()) return;
+    if (openSheetMenu && openSheetMenu.dataset.sheetId === 'color') { closeSheetMenu(); return; }
+    closeSheetMenu();
+    if (selectedRows.size === 0) {
+      NiecUI.toast('Click a row number (S.N) first, or Ctrl+Click several, then pick a colour.');
+      return;
+    }
+    const menu = document.createElement('div');
+    menu.className = 'sheet-menu color-menu';
+    menu.dataset.sheetId = 'color';
+    const head = document.createElement('div');
+    head.className = 'all-sheets-heading';
+    head.textContent = selectedRows.size === 1 ? 'Colour this row' : `Colour ${selectedRows.size} rows`;
+    menu.appendChild(head);
+    [...Teams.ROW_COLORS, ''].forEach((color) => {
+      const item = document.createElement('div');
+      item.className = 'sheet-menu-item';
+      item.innerHTML = '<i class="swatch"></i><span></span>';
+      item.firstChild.classList.add(color ? 'rc-' + color : 'none');
+      item.lastChild.textContent = color ? COLOR_LABELS[color] : 'No colour';
+      item.addEventListener('click', () => { closeSheetMenu(); colorSelectedRows(color); });
+      menu.appendChild(item);
+    });
+    document.body.appendChild(menu);
+    const rect = $('#colorRow').getBoundingClientRect();
+    menu.style.left = Math.max(8, Math.min(rect.left, window.innerWidth - menu.offsetWidth - 8)) + 'px';
+    menu.style.top = rect.bottom + 4 + 'px';
+    openSheetMenu = menu;
+    setTimeout(() => document.addEventListener('mousedown', onSheetMenuDocClick, true), 0);
+  }
+
+  function colorSelectedRows(color) {
+    const targets = Array.from(selectedRows).map((i) => rows[i])
+      .filter((r) => r && Teams.canColor(me, r) && (r._color || '') !== color);
+    if (!targets.length) return;
+    pushUndo();
+    targets.forEach((r) => { if (color) r._color = color; else delete r._color; });
+    markDirty();
+    renderBody();
+    NiecUI.toast(color ? `${targets.length === 1 ? 'Row' : targets.length + ' rows'} coloured ${COLOR_LABELS[color].toLowerCase()}.` : 'Colour removed.');
   }
 
   async function exportExcel() {
@@ -2311,6 +2481,7 @@
   $('#addRow').addEventListener('click', addRow);
   $('#delRow').addEventListener('click', () => { if (Teams.canDelete(me)) deleteRow(); });
   $('#exportExcel').addEventListener('click', exportExcel);
+  $('#colorRow').addEventListener('click', openColorMenu);
   $('#addSheet').addEventListener('click', () => { if (!isTeam()) addSheet(); });
   if (undoBtn) undoBtn.addEventListener('click', undo);
   if (redoBtn) redoBtn.addEventListener('click', redo);
@@ -2384,7 +2555,7 @@
       const input = openDateCell(td);
       if (!input) return; // not this team's column
       input.focus();
-      if (input.showPicker) { try { input.showPicker(); } catch (err) { /* opens on the next click */ } }
+      input.openPicker();
       return;
     }
     if (onControl) {
@@ -2645,7 +2816,7 @@
   });
 
   window.addEventListener('beforeunload', (e) => {
-    if (!dirty) return;
+    if (!dirty || BACKUP) return;
     // A regular fetch can be cancelled mid-flight when the page unloads; sendBeacon
     // is designed to survive that, so use it to flush any pending debounced save.
     if (!conflicted) {
@@ -2696,7 +2867,7 @@
 
   // The server pushes every change over this connection (reconnects by itself); the 5-second request
   // below is only a safety net for hosts that hold streams back.
-  if (window.EventSource) {
+  if (window.EventSource && !BACKUP) {
     const stream = new EventSource('/api/events?id=' + encodeURIComponent(myId));
     stream.onmessage = (e) => { try { applyState(JSON.parse(e.data)); } catch (err) { /* ignore */ } };
   }
@@ -2704,7 +2875,7 @@
   // Tells the server where this tab's cursor is and learns where everyone else's is, plus the latest
   // revision, in one request. Runs every 5 seconds, and straight away when the cursor moves.
   async function syncPresence() {
-    if (document.hidden) return;
+    if (document.hidden || BACKUP) return;
     const mine = myPresence();
     lastSent = JSON.stringify(mine);
     try {

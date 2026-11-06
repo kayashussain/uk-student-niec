@@ -8,11 +8,16 @@ const crypto = require('crypto');
 const { writeFileAtomic } = require('../shared/server-utils');
 const { UWL_DETAILS } = require('./fact-seed-uwl');
 const { YSJU_DETAILS } = require('./fact-seed-ysju');
+const { BANGOR_DETAILS } = require('./fact-seed-bangor');
 // The January 2027 intake sheet: each university's criteria, fees, courses and key dates (see fact-seed-sheet.json).
 const SHEET = require('./fact-seed-sheet.json');
+// The November 2026 and January 2027 requirement sheets of the Oxford International Education Group (Oxford Direct and
+// Pathways), read by seed-tools/build_oieg_seed.py. Added to the pages without overwriting anything (see fact-merge.js).
+const OIEG = require('./fact-seed-oieg.json');
+const { mergeEntry, newReport, unifyCourses, dedupeCourses } = require('./fact-merge');
 
 // The hand-written pages (from each university's own fact file or flyer). The January 2027 sheet adds an intake to them.
-const HAND_DETAILS = { 'university of west london': UWL_DETAILS, 'york st john university': YSJU_DETAILS };
+const HAND_DETAILS = { 'university of west london': UWL_DETAILS, 'york st john university': YSJU_DETAILS, 'bangor university': BANGOR_DETAILS };
 
 // Universities that start with their details filled in (matched by name, ignoring case). Where there is a hand-written
 // page the sheet only adds its January 2027 intake; every other university takes the whole page from the sheet.
@@ -24,11 +29,48 @@ Object.keys(SHEET).forEach((key) => {
 });
 Object.keys(HAND_DETAILS).forEach((key) => { if (!STARTER_DETAILS[key]) STARTER_DETAILS[key] = HAND_DETAILS[key]; });
 
+// The pages that were written from the university's own fact file already hold the requirements of the January sheet in
+// their fees table, so the sheet's repeated requirement blocks are not shown a second time under the intakes.
+const REQUIREMENTS_IN_TABLE = new Set(['university of west london', 'york st john university']);
+REQUIREMENTS_IN_TABLE.forEach((key) => {
+  if (STARTER_DETAILS[key]) STARTER_DETAILS[key] = { ...STARTER_DETAILS[key], intakes: STARTER_DETAILS[key].intakes.map((i) => ({ ...i, requirements: '' })) };
+});
+
+// A course listed twice on a page is kept once.
+Object.keys(STARTER_DETAILS).forEach((key) => { STARTER_DETAILS[key] = dedupeCourses(JSON.parse(JSON.stringify(STARTER_DETAILS[key]))); });
+// A page that kept a course list for each intake shows its courses once, under the levels (see unifyCourses).
+['university of west london'].forEach((key) => { if (STARTER_DETAILS[key]) STARTER_DETAILS[key] = unifyCourses(JSON.parse(JSON.stringify(STARTER_DETAILS[key]))); });
+
+// What the OIEG sheets add to each page. A university that is not in the Fact File yet gets a page of its own.
+const OIEG_REPORT = newReport();
+// Differences between a page and a sheet that the owner has decided (5 November 2026). The two Excel sheets he gave are the
+// updated ones, so a sheet figure wins unless he chose the page figure.
+const DECIDED = [
+  ['University of Roehampton / Postgraduate', 'deposit', 'Kept the CAS deposit of £8,500.'],
+  ['University of Ravensbourne / Postgraduate', 'english', 'Kept IELTS 6.5 overall for postgraduate.'],
+  ['University of Ravensbourne / Postgraduate', 'tuition', 'Kept the MBA fee of £19,500.'],
+  ['Winchester University / Undergraduate', 'gap', 'Kept the gap of 9 years.'],
+];
+OIEG_REPORT.decided = [];
+Object.keys(OIEG).forEach((key) => {
+  const entry = OIEG[key];
+  const base = STARTER_DETAILS[key] ? JSON.parse(JSON.stringify(STARTER_DETAILS[key])) : { name: entry.name, city: entry.city || '', programs: [], intakes: [] };
+  if (!base.name) base.name = entry.name;
+  mergeEntry(base, entry, OIEG_REPORT);
+  STARTER_DETAILS[key] = base;
+});
+OIEG_REPORT.conflicts = OIEG_REPORT.conflicts.filter((c) => {
+  const hit = DECIDED.find(([where, field]) => where === c.where && field === c.field);
+  if (hit) OIEG_REPORT.decided.push({ ...c, decision: hit[2] });
+  return !hit;
+});
+
 // Names the list starts with: the first six were there before the sheet, the rest are added once to an existing list.
 const ORIGINAL_STARTERS = ['University of West London', 'Bangor University', 'University of Roehampton', 'University of East London', 'University of York'];
 const FIRST_ADDITION = 'York St John University';
 const STARTER_UNIVERSITIES = [...ORIGINAL_STARTERS, FIRST_ADDITION];
 Object.keys(SHEET).forEach((key) => { const n = SHEET[key].name; if (!STARTER_UNIVERSITIES.some((x) => x.toLowerCase() === key)) STARTER_UNIVERSITIES.push(n); });
+Object.keys(OIEG).forEach((key) => { if (OIEG[key].isNew && !STARTER_UNIVERSITIES.some((x) => x.toLowerCase() === key)) STARTER_UNIVERSITIES.push(OIEG[key].name); });
 
 // The usual steps for a student, as a starting point for each new university to adjust.
 const STARTER_STEPS = [
@@ -91,6 +133,34 @@ const isBlank = (u) => !(u.city || u.website || u.overview || u.entryRequirement
 const starterFields = (u) => JSON.stringify([u.city, u.location, u.overview, u.website, u.entryRequirements, u.languageTests, u.courses, u.interview, u.notes, u.programs || [], u.intakes || [], u.process || []]);
 const withStarterDetails = (u) => (hasStarter(u.name) ? { ...u, ...clean({ ...STARTER_DETAILS[startKey(u.name)], name: u.name, website: u.website || STARTER_DETAILS[startKey(u.name)].website || '' }, u) } : u);
 
+const summary = (u) => ({ id: u.id, name: u.name, city: u.city, intakes: u.intakes.map((i) => i.name), updatedAt: u.updatedAt });
+
+// Course lines of a page: the course list and each intake's, without the "## " sub-headings.
+const courseLines = (u) => [u.courses, ...u.intakes.map((i) => i.courses)]
+  .join('\n').split('\n').map((l) => l.trim()).filter((l) => l && !l.startsWith('##') && !/^The course list is under/.test(l));
+
+// Universities matching every word typed, by name, city or any course, so "cyber security" finds who
+// teaches it. `matches` holds up to four of the courses that matched; `matchCount` is how many.
+function searchIn(universities, q) {
+  const words = String(q || '').toLowerCase().split(/\s+/).filter(Boolean).slice(0, 6);
+  if (!words.length) return universities.map(summary);
+  const hits = [];
+  universities.forEach((u) => {
+    const head = `${u.name} ${u.city}`.toLowerCase();
+    const nameHit = words.every((w) => head.includes(w));
+    const lines = courseLines(u).filter((l) => { const t = l.toLowerCase(); return words.every((w) => t.includes(w)); });
+    if (nameHit || lines.length) hits.push({ ...summary(u), matches: [...new Set(lines)].slice(0, 4), matchCount: new Set(lines).size, nameHit });
+  });
+  return hits.sort((a, b) => (b.nameHit - a.nameHit) || (b.matchCount - a.matchCount) || a.name.localeCompare(b.name));
+}
+
+
+const listIn = (universities, q = '') => (String(q).trim() ? searchIn(universities, q) : universities.map(summary).sort((a, b) => a.name.localeCompare(b.name)));
+// Pages saved before the overview and fees table existed come back with those empty.
+const getIn = (universities, id) => { const u = universities.find((x) => x.id === id); return u ? { overview: '', programs: [], ...u } : null; };
+// Read only list and pages of a given set of universities (a backup), with the same shape and search as the live Fact File.
+const viewFacts = (universities) => ({ list: (q) => listIn(universities, q), get: (id) => getIn(universities, id) });
+
 function createFacts(dir, { now = () => new Date() } = {}) {
   const file = path.join(dir, 'fact-file.json');
 
@@ -126,6 +196,7 @@ function createFacts(dir, { now = () => new Date() } = {}) {
           ...withStarterDetails(clean({ name, process: STARTER_STEPS.map((title) => ({ title })) })), id: newId(), updatedAt: now().toISOString(), updatedBy: '',
         })),
         starterAdded: [...STARTER_UNIVERSITIES],
+        oiegApplied: true, // a new list is built from the starter details, which already hold the OIEG facts
       };
       write(data);
     } else {
@@ -142,6 +213,21 @@ function createFacts(dir, { now = () => new Date() } = {}) {
         changed = true;
       });
       data.starterAdded = [...seen];
+      // A page an Admin has already saved keeps its text; what the OIEG sheets add is put into it once, and nothing is
+      // overwritten (a page nobody has edited is rebuilt from the starter details below, which include the same facts).
+      if (!data.oiegApplied) {
+        data.universities = data.universities.map((u) => {
+          const entry = OIEG[startKey(u.name)];
+          if (!u.updatedBy || !entry) return u;
+          const copy = JSON.parse(JSON.stringify(u));
+          const report = newReport();
+          mergeEntry(copy, entry, report);
+          if (!report.added.length && !report.addedPrograms.length) return u;
+          return { ...copy, updatedAt: now().toISOString() };
+        });
+        data.oiegApplied = true;
+        changed = true;
+      }
       data.universities = data.universities.map((u) => {
         if (!hasStarter(u.name) || !(isBlank(u) || !u.updatedBy)) return u;
         const fresh = { ...withStarterDetails(u), id: u.id, updatedAt: u.updatedAt, updatedBy: u.updatedBy || '' };
@@ -154,33 +240,12 @@ function createFacts(dir, { now = () => new Date() } = {}) {
     return data;
   }
 
-  const summary = (u) => ({ id: u.id, name: u.name, city: u.city, intakes: u.intakes.map((i) => i.name), updatedAt: u.updatedAt });
-
-  // Course lines of a page: the course list and each intake's, without the "## " sub-headings.
-  const courseLines = (u) => [u.courses, ...u.intakes.map((i) => i.courses)]
-    .join('\n').split('\n').map((l) => l.trim()).filter((l) => l && !l.startsWith('##') && !/^The course list is under/.test(l));
-
-  // Universities matching every word typed, by name, city or any course, so "cyber security" finds who
-  // teaches it. `matches` holds up to four of the courses that matched; `matchCount` is how many.
-  function search(q) {
-    const words = String(q || '').toLowerCase().split(/\s+/).filter(Boolean).slice(0, 6);
-    if (!words.length) return load().universities.map(summary);
-    const hits = [];
-    load().universities.forEach((u) => {
-      const head = `${u.name} ${u.city}`.toLowerCase();
-      const nameHit = words.every((w) => head.includes(w));
-      const lines = courseLines(u).filter((l) => { const t = l.toLowerCase(); return words.every((w) => t.includes(w)); });
-      if (nameHit || lines.length) hits.push({ ...summary(u), matches: [...new Set(lines)].slice(0, 4), matchCount: new Set(lines).size, nameHit });
-    });
-    return hits.sort((a, b) => (b.nameHit - a.nameHit) || (b.matchCount - a.matchCount) || a.name.localeCompare(b.name));
-  }
-
   return {
-    list: (q = '') => (String(q).trim() ? search(q) : load().universities.map(summary).sort((a, b) => a.name.localeCompare(b.name))),
+    list: (q = '') => listIn(load().universities, q),
     // Pages saved before the overview and fees table existed come back with those empty.
     // Every university with all its details (for Admin's backup copy).
     all: () => load().universities,
-    get: (id) => { const u = load().universities.find((x) => x.id === id); return u ? { overview: '', programs: [], ...u } : null; },
+    get: (id) => getIn(load().universities, id),
     // Adds a university (just its name; the rest is filled in on its page).
     create(name, by) {
       const data = load();
@@ -209,7 +274,17 @@ function createFacts(dir, { now = () => new Date() } = {}) {
       write({ ...data, universities: data.universities.filter((u) => u.id !== id) });
       return { removed: uni };
     },
+    // Puts back a whole list from a backup (each page checked and cleaned like any save).
+    restoreAll(universities) {
+      if (!Array.isArray(universities)) return { error: 'The backup has no Fact File in it.' };
+      const data = load();
+      const restored = universities.filter((u) => u && /^[a-f0-9]{12}$/.test(u.id) && u.name).map((u) => ({
+        ...clean(u, { id: u.id, name: u.name }), id: u.id, updatedAt: u.updatedAt || now().toISOString(), updatedBy: typeof u.updatedBy === 'string' ? u.updatedBy : '',
+      }));
+      write({ ...data, universities: restored });
+      return { count: restored.length };
+    },
   };
 }
 
-module.exports = { createFacts, clean, STARTER_UNIVERSITIES, STARTER_STEPS };
+module.exports = { createFacts, viewFacts, clean, STARTER_UNIVERSITIES, STARTER_STEPS, OIEG_REPORT };

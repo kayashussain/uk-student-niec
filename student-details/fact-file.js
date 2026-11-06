@@ -5,6 +5,9 @@
   let list = [];
   let query = '';
   let loadedOnce = false;
+  // ?backup=ID: this is an earlier daily backup, read only (see backup-bar.js).
+  const BACKUP = new URLSearchParams(location.search).get('backup') || '';
+  const API = BACKUP ? '/api/restore/snapshot/' + encodeURIComponent(BACKUP) + '/facts' : '/api/facts';
   let searchTimer = null;
   let searchSeq = 0; // answers arriving out of order: only the latest search is shown
 
@@ -16,9 +19,17 @@
     return e;
   }
 
+  // Two letters from the university's name ("University of West London" -> "WL"), for the little badge on its card.
+  function monogram(name) {
+    const words = String(name || '').replace(/\(.*?\)/g, ' ').split(/[^A-Za-z]+/).filter((w) => w && !/^(of|the|and|for|in)$/i.test(w) && !/^university$/i.test(w));
+    const pick = words.length ? words : String(name || '?').split(/\s+/);
+    return (pick.length > 1 ? pick[0][0] + pick[pick.length - 1][0] : String(pick[0] || '?').slice(0, 2)).toUpperCase();
+  }
+
   function card(u) {
     const a = el('a', 'uni-card');
-    a.href = '/fact-file?u=' + encodeURIComponent(u.id);
+    a.href = '/fact-file?u=' + encodeURIComponent(u.id) + (BACKUP ? '&backup=' + encodeURIComponent(BACKUP) : '');
+    a.append(el('span', 'uni-mono', monogram(u.name)));
     a.append(el('h2', '', u.name));
     if (u.city) a.append(el('div', 'city', u.city));
     if (u.matches && u.matches.length) {
@@ -35,6 +46,7 @@
       u.intakes.forEach((n) => chips.append(el('span', 'chip', n)));
       a.append(chips);
     }
+    if (!u.city && !u.intakes.length && !(u.matches && u.matches.length)) a.append(el('div', 'city', 'Details not added yet'));
     a.append(el('div', 'updated', u.updatedAt ? 'Updated ' + when(u.updatedAt) : ''));
     return a;
   }
@@ -64,7 +76,7 @@
   async function load() {
     const seq = ++searchSeq;
     try {
-      const res = await fetch('/api/facts' + (query ? '?q=' + encodeURIComponent(query) : ''), { cache: 'no-store' });
+      const res = await fetch(API + (query ? '?q=' + encodeURIComponent(query) : ''), { cache: 'no-store' });
       if (!res.ok) throw new Error('HTTP ' + res.status);
       const data = await res.json();
       if (seq !== searchSeq) return;
@@ -102,7 +114,7 @@
     location.href = '/fact-file?u=' + json.id + '&edit=1'; // straight to its page, ready to fill in
   });
 
-  fetch('/api/me', { cache: 'no-store' }).then((r) => r.json()).then((me) => { $('addForm').hidden = me.role !== 'admin'; }).catch(() => {});
+  fetch('/api/me', { cache: 'no-store' }).then((r) => r.json()).then((me) => { $('addForm').hidden = me.role !== 'admin' || Boolean(BACKUP); }).catch(() => {});
   skeletons();
   load();
 })();

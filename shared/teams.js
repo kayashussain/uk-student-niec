@@ -18,6 +18,10 @@
   else root.TeamRules = factory();
 })(typeof self !== 'undefined' ? self : this, () => {
   const STATUS = 'APPLICATION STATUS';
+  // A row can be coloured (stored on the row as `_color`) so the Follow-up team can flag interested students
+  // for Admin. Anyone who can see a student and isn't view only may colour it; it changes no student detail.
+  const COLOR = '_color';
+  const ROW_COLORS = ['green', 'yellow', 'orange', 'red', 'blue', 'purple', 'grey'];
 
   // Everything up to NOC Number (the Application Team's part of the sheet).
   const APPLICATION_COLUMNS = [
@@ -148,6 +152,15 @@
     if (team.editable.has(col)) return true;
     if (!row && team.sources.size) return col !== SOURCE; // asked in general (not about one student)
     return Boolean(row && team.departments.includes(row._addedByTeam) && NEW_STUDENT_COLUMNS.includes(col));
+  }
+
+  // Whether this account may colour (or clear the colour of) this student.
+  function canColor(x, row = null) {
+    const team = teamOf(x);
+    if (!team) return true;
+    if (team.readOnly) return false;
+    if (row && team.manager && !team.statuses.has(String(row[STATUS] || '').trim()) && !ownedByBranch(team, row)) return false;
+    return true;
   }
 
   // Application and Mock staff can delete a student at one of their own stages (a duplicate entry), one at a
@@ -282,6 +295,14 @@
           return;
         }
         new Set([...Object.keys(before), ...Object.keys(row)]).forEach((col) => {
+          if (col === COLOR) {
+            const value = String(row[col] ?? '');
+            if (value === String(before[col] ?? '')) return;
+            if (value && !ROW_COLORS.includes(value)) errors.push('That colour is not one of the choices.');
+            else if (!canColor(x, before)) errors.push("Your account can't colour this student.");
+            else changes.push({ sheetId: sheet.id, rowId: row._id, col, value });
+            return;
+          }
           if (col.startsWith('_') || skip.has(col)) return;
           if (String(before[col] ?? '') === String(row[col] ?? '')) return;
           if (col === STATUS) {
@@ -311,8 +332,8 @@
   }
 
   return {
-    DEPARTMENTS, MOVES, STATUS, NEW_STUDENT_COLUMNS,
-    who, canDelete, isAdmin, isManager, isReadOnly, teamOf, viewKey, seesRow, canEdit, addableDepartments, newStudentStatus,
+    DEPARTMENTS, MOVES, STATUS, NEW_STUDENT_COLUMNS, ROW_COLORS,
+    who, canDelete, canColor, isAdmin, isManager, isReadOnly, teamOf, viewKey, seesRow, canEdit, addableDepartments, newStudentStatus,
     statusChoices, checkMove, newestSheet, viewFor, teamChanges,
   };
 });

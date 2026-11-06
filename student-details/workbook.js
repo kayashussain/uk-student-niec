@@ -44,6 +44,25 @@ function ensureRowIds(workbook) {
   return workbook;
 }
 
+// Dropdown choices that were renamed. Older files, backups and tabs opened before the change still hold the left-hand
+// value; migrateWorkbook turns it into the right-hand one, in every sheet. Matched ignoring case and extra spaces.
+const RENAMED_VALUES = {
+  'STUDENT SOURCE': { agents: 'Agent' },
+};
+
+function renameValues(workbook) {
+  (workbook.sheets || []).forEach((sheet) => {
+    (sheet.rows || []).forEach((row) => {
+      Object.keys(RENAMED_VALUES).forEach((col) => {
+        if (typeof row[col] !== 'string') return;
+        const to = RENAMED_VALUES[col][row[col].trim().toLowerCase()];
+        if (to) row[col] = to;
+      });
+    });
+  });
+  return workbook;
+}
+
 function renameColumns(workbook) {
   (workbook.sheets || []).forEach((sheet) => {
     if (Array.isArray(sheet.columns)) {
@@ -145,7 +164,7 @@ function migrateWorkbook(parsed) {
       activeSheetId: 'sheet-1',
     };
   if (!Number.isInteger(workbook.revision)) workbook.revision = 0;
-  return addHiddenFlags(ensureRowIds(addMissingColumns(renameColumns(workbook))));
+  return addHiddenFlags(ensureRowIds(addMissingColumns(renameValues(renameColumns(workbook)))));
 }
 
 function isValidWorkbook(parsed) {
@@ -276,11 +295,11 @@ function describeChanges(before, after, limit = 300) {
       }
       const cols = new Set([...Object.keys(prev), ...Object.keys(row)]);
       cols.forEach((col) => {
-        if (col.startsWith('_')) return;
+        if (col.startsWith('_') && col !== '_color') return;
         const a = prev[col] ?? '';
         const b = row[col] ?? '';
         if (String(a) !== String(b)) {
-          lines.push(`${sheet.name} › ${studentName(row)} › ${col}: ${show(a)} → ${show(b)}`);
+          lines.push(`${sheet.name} › ${studentName(row)} › ${col === '_color' ? 'Row colour' : col}: ${show(a)} → ${show(b)}`);
         }
       });
     });
