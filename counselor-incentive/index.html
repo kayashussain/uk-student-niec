@@ -634,15 +634,19 @@ const scheduleSaveCommission = createSaver(pendingCommissions, async (id, leavin
 const scheduleSaveAdvance = createSaver(pendingAdvances, (intake, leaving) => fetch(BASE + '/api/advances/' + encodeURIComponent(intake), {
   method: 'PUT',
   headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify(advanceBody(state.advances[intake] || {})),
+  body: JSON.stringify(advanceBody(state.advances[intake] || {}, intake)),
   keepalive: Boolean(leaving),
 }));
 // Anything typed but not saved yet is sent the moment the page is hidden or closed (the page lock follows it).
 window.__flushSaves = () => { scheduleSaveCommission.flush(); scheduleSaveAdvance.flush(); };
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') window.__flushSaves(); });
 // Only fields that have been set are sent, so an unset salary keeps following the default.
-function advanceBody(entry) {
+// The payments this page removed (by id) since it was opened. The server keeps every payment that someone else added meanwhile,
+// except these: two people adding payments at the same moment no longer delete each other's.
+const removedPaymentIds = {}; // intake -> [ids]
+function advanceBody(entry, intake) {
   const body = { previousAdvance: num(entry.previousAdvance) };
+  if (intake) body.removedPaymentIds = removedPaymentIds[intake] || [];
   body.manualRate = entry.manualRate && entry.manualRate.rate > 0 ? entry.manualRate.rate : null;
   if (Array.isArray(entry.payments)) { body.payments = entry.payments; body.lockedRate = entry.lockedRate || null; }
   ['basicSalary', 'salaryMonths'].forEach((f) => { if (entry[f] !== undefined) body[f] = num(entry[f]); });
@@ -1181,6 +1185,9 @@ function changePayments(next, typedRate) {
   const intake = state.activeIntake;
   if (!intake) return;
   const prev = paymentsOf();
+  prev.filter((p) => !next.some((n) => n.id === p.id)).forEach((p) => {
+    removedPaymentIds[intake] = (removedPaymentIds[intake] || []).concat(p.id);
+  });
   const lockFrom = lockedRateOf(intake);
   // The first payment fixes the rate shown now; removing every payment lets it follow the live rate again.
   const typed = Math.round(num(typedRate) * 10000) / 10000;

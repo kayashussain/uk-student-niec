@@ -348,6 +348,13 @@ function createIncentive({ dataDir, studentDataFile, getWorkbook, activity }) {
         if ('payments' in body) {
           const list = cleanPayments(body.payments);
           if (!list) return sendJSON(res, 400, { error: 'payments must be a list of { date, amount }' });
+          // A page that says which payments it removed (removedPaymentIds) does not delete the ones it never saw: a payment another
+          // person added in the meantime is kept. An older page that says nothing replaces the list, as before.
+          if (Array.isArray(body.removedPaymentIds)) {
+            const seen = new Set(list.map((p) => p.id));
+            const removed = new Set(body.removedPaymentIds.filter((id) => typeof id === 'string').slice(0, 5000));
+            (existing.payments || []).forEach((p) => { if (!seen.has(p.id) && !removed.has(p.id)) list.push(p); });
+          }
           entry.payments = list;
           // The pound rate is fixed from the first payment on, so the amounts owed stay the same for the accounts. It is
           // the rate the page was showing when the payment was added (or the latest one if the page did not say), kept

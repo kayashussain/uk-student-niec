@@ -59,7 +59,7 @@ async function startServer(t, extraEnv = {}) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'niec-fixes-'));
   const port = await freePort();
   const server = spawn(process.execPath, ['server.js'], {
-    cwd: path.join(__dirname, '..', 'student-details'), env: { ...process.env, PORT: String(port), STUDENT_DETAILS_DATA_DIR: dir, INCENTIVE_PASSWORD: 'Test Gate Pass 1', ...extraEnv }, stdio: 'ignore',
+    cwd: path.join(__dirname, '..', 'student-details'), env: { ...process.env, PORT: String(port), STUDENT_DETAILS_DATA_DIR: dir, COUNSELOR_DATA_DIR: path.join(dir, 'incentive'), INCENTIVE_PASSWORD: 'Test Gate Pass 1', ...extraEnv }, stdio: 'ignore',
   });
   t.after(() => server.kill());
   const base = `http://127.0.0.1:${port}`;
@@ -174,4 +174,23 @@ test('the Dashboard ignores impossible dates (2026-02-30, 30/10/2026) in the mon
   assert.strictEqual(at('2026-10'), 1, 'only the real October date is counted (not 30/10/2026 read as month 30)');
   assert.strictEqual(at('2026-02'), 0, 'the 30th of February is not a day');
   assert.strictEqual(d.quality.applicationsWithoutDate, 2, 'both impossible dates count as "no valid date"');
+});
+
+test('two people adding payments at the same moment keep both payments; a removal the page names still removes', { timeout: 120000 }, async (t) => {
+  const { admin } = await startServer(t);
+  assert.strictEqual((await admin('POST', '/incentive/api/unlock', { password: 'Test Gate Pass 1' })).status, 200);
+  const put = (body) => admin('PUT', '/incentive/api/advances/Jan', body);
+  const lock = { rate: 150, source: 'manual' };
+  const base = [{ id: 'p0', date: '2026-10-01', amount: 100 }];
+  assert.strictEqual((await put({ payments: base, lockedRate: lock, removedPaymentIds: [] })).status, 200);
+  // Both pages started from [p0]; A adds pa, B adds pb, B saves after A.
+  await put({ payments: base.concat({ id: 'pa', date: '2026-10-02', amount: 200 }), lockedRate: lock, removedPaymentIds: [] });
+  const merged = await put({ payments: base.concat({ id: 'pb', date: '2026-10-03', amount: 300 }), lockedRate: lock, removedPaymentIds: [] });
+  assert.deepStrictEqual(merged.json.payments.map((p) => p.id).sort(), ['p0', 'pa', 'pb'], 'A\'s payment was not deleted by B\'s save');
+  // B now removes pa on purpose and says so.
+  const removed = await put({ payments: merged.json.payments.filter((p) => p.id !== 'pa'), lockedRate: lock, removedPaymentIds: ['pa'] });
+  assert.deepStrictEqual(removed.json.payments.map((p) => p.id).sort(), ['p0', 'pb']);
+  // An older page that sends no removedPaymentIds still replaces the list, as before.
+  const old = await put({ payments: [{ id: 'p0', date: '2026-10-01', amount: 100 }], lockedRate: lock });
+  assert.deepStrictEqual(old.json.payments.map((p) => p.id), ['p0']);
 });
