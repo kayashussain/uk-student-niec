@@ -199,6 +199,23 @@ input.search:focus { outline: none; border-color: var(--niec-blue); box-shadow: 
 .summary-row.final .value { font-family: var(--serif); font-size: 22px; font-weight: 500; letter-spacing: -.02em; }
 .adv-input { border-radius: var(--r-sm); border-color: var(--border-strong); background: var(--panel); }
 .grid-footer { color: var(--text-dim); }
+/* 🔴 CSS CHANGED (2026-11-06): Incentive page and Company Earnings, readable and more premium (the owner found the small notes hard to read) | from: the grey notes beside the labels ("15% of Net Incentives", "fixed since the first payment", "university commission £2,362.50, branch keeps 70%", the exchange rate note) were 10.5px and 11px; the table footer and "synced" text 11px; summary rows 13px with 14px 22px padding; totals 22px | to: notes 13px (never smaller) with a little more room around them; the footer, the legend, "synced" and "Remove" 12.5px to 13px; summary rows 15px labels and 16px figures with 17px 26px padding and a hairline between rows; the key totals (Net Payable, Total received, Total Company Earnings, My Share) have a thin orange mark at the left edge and larger serif figures (26px, My Share 30px); same colours, same fonts, same Mist palette */
+.summary-card .summary-row { padding: 17px 26px; font-size: 15px; }
+.summary-card .summary-row .label { line-height: 1.4; }
+.summary-card .summary-row .value { font-size: 16px; }
+.summary-card .summary-row .hint { font-size: 13px; line-height: 1.4; margin-left: 10px; letter-spacing: .005em; }
+.summary-card .summary-row:not(.final):not(.pay-form):hover { background: var(--row-hover); }
+.summary-card .summary-row.final { box-shadow: inset 3px 0 0 var(--accent); padding-top: 20px; padding-bottom: 20px; }
+.summary-card .summary-row.final .label { font-size: 15.5px; letter-spacing: .005em; }
+.summary-card .summary-row.final .value { font-size: 26px; }
+#earnShare { font-size: 30px; }
+.summary-card .info { font-size: 14px; }
+.pay-rate-note { font-size: 13.5px; line-height: 1.55; padding: 16px 26px; }
+.pay-remove { font-size: 13px; }
+.grid-footer { font-size: 13px; padding: 9px 16px; }
+.grid-footer .grid-key { gap: 16px; }
+.live, #liveText { font-size: 13px; }
+.adv-input { font-size: 14px; }
 @media (prefers-color-scheme: dark) { .summary-row.final { background: #1d222b; } }
 @media (max-width: 760px) { .wrap { padding: 6px 14px 40px; } .top { margin: 0 -14px 10px !important; padding: 18px 14px 4px !important; } .top .brand h1 { font-size: 28px !important; } input.search { width: 100%; } }
 .page-head h1 .pill, h1 .pill { font-family: var(--font); font-weight: 600; letter-spacing: 0; }

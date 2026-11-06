@@ -9,6 +9,17 @@ Format: **date · file · what · from → to · why**
 
 ---
 
+## 2026-11-06 · `shared/theme.css`, `shared/header.css` · Incentive page and Company Earnings: readable and more premium
+
+- **What:** the grey notes beside the labels on the Incentive page (for example "15% of Net Incentives", "fixed since the first payment", "university commission £2,362.50, branch keeps 70%", the exchange rate note), the table footer, the "synced" text, the "Remove" links, and the key totals. Also the two smallest texts in the top bar on every page.
+- **From:** notes 10.5px and 11px; footer and "synced" 11px; "Remove" 12px; summary rows 15px labels at 13px, padding 10px 16px (14px 22px in the theme), totals 22px; top bar company name and account role 11px.
+- **To:** every note and footer 13px (never smaller); summary rows with 15px labels, 16px figures and 17px 26px padding; a soft row highlight on hover; the key totals (Net Payable, Total received, Total Company Earnings, My Share) have a thin orange mark at the left edge and larger serif figures (26px, My Share 30px); top bar company name and role 12px.
+- **Not changed:** colours (still the Mist palette), fonts (same sans-serif and serif), the table columns and their widths, the layout order of the cards.
+- **Why:** the owner found the small text hard to read and wants a calm, premium, luxurious feel.
+- **In the code:** marked with `🔴 CSS CHANGED (2026-11-06)` in `shared/theme.css` (below `.grid-footer`) and in `shared/header.css` (above `.niec-brand-sub`).
+
+---
+
 ## 2026-11-05 · `student-details/style.css` · "Clear all filters" bar in Student Details
 
 - **What:** a new slim bar under the status cards. It appears only while a search or a column filter is on, says what is filtering and how many students are shown ("Filtered by Application Status. Showing 7 of 12 students."), and has a **Clear all filters** button.
