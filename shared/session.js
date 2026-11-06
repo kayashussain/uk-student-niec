@@ -40,6 +40,10 @@
       excel = new Promise((resolve, reject) => {
         const s = document.createElement('script');
         s.src = 'https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js';
+        // The browser refuses the file unless it is exactly this one (a changed copy on the CDN can't run here).
+        s.integrity = 'sha512-dlPw+ytv/6JyepmelABrgeYgHI0O+frEwgfnPdXDTOIZz+eDgfW07QXG02/O8COfivBdGNINy+Vex+lYmJ5rxw==';
+        s.crossOrigin = 'anonymous';
+        s.referrerPolicy = 'no-referrer';
         s.onload = () => resolve(root.ExcelJS);
         s.onerror = () => { excel = null; reject(new Error('Excel library failed to load')); };
         document.head.appendChild(s);
