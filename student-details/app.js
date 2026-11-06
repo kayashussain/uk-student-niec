@@ -2126,6 +2126,10 @@
     }
     const indicesToDelete = Array.from(selectedRows).sort((a, b) => b - a); // descending, so splice indices stay valid
     const picked = indicesToDelete.map((i) => rows[i]);
+    if (picked.some((r) => r && !Teams.canDelete(me, r))) {
+      NiecUI.toast("Your team can only delete students at your own stage.");
+      return;
+    }
     const label = indicesToDelete.length === 1
       ? describeRow(rows[indicesToDelete[0]])
       : `${indicesToDelete.length} students`;

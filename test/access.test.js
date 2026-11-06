@@ -587,3 +587,19 @@ test('application and mock staff delete one student at a time and can send Mock 
   });
   assert.ok(Teams.statusChoices(both, 'Mock Stage', ['x']).includes('Payment Stage'));
 });
+
+test('a Manager who works in a team deletes only that team\'s students, not ones at other stages', () => {
+  const wb = { revision: 1, sheets: [{ id: 'sheet-mjzzzzzzaaaaa', name: 'Jan', columns: ['FIRST NAME', S], rows: [
+    { _id: 'm', [S]: 'Mock Stage', 'FIRST NAME': 'M' }, { _id: 'v', [S]: 'Visa Issued', 'FIRST NAME': 'V' }] }] };
+  const mgr = { role: 'manager', departments: ['mock'] };
+  const base = Teams.viewFor(mgr, wb);
+  assert.strictEqual(base.sheets[0].rows.length, 2, 'the Manager sees every student');
+  const noVisa = JSON.parse(JSON.stringify(base)); noVisa.sheets[0].rows = noVisa.sheets[0].rows.filter((r) => r._id !== 'v');
+  const out = Teams.teamChanges(mgr, base, noVisa);
+  assert.deepStrictEqual(out.deletes, []);
+  assert.ok(out.errors.some((e) => /can't delete a student at Visa Issued/.test(e)));
+  const noMock = JSON.parse(JSON.stringify(base)); noMock.sheets[0].rows = noMock.sheets[0].rows.filter((r) => r._id !== 'm');
+  assert.deepStrictEqual(Teams.teamChanges(mgr, base, noMock), { changes: [], adds: [], deletes: [{ sheetId: 'sheet-mjzzzzzzaaaaa', rowId: 'm' }], errors: [] });
+  assert.ok(!Teams.canDelete({ role: 'staff', departments: ['mock'] }, { [S]: 'Payment Stage' }));
+  assert.ok(Teams.canDelete({ role: 'admin' }, { [S]: 'Visa Issued' }));
+});
