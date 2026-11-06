@@ -23,6 +23,23 @@ you must do **all three** of these, every time, even for a one-line change:
 
 Text cannot be coloured in a terminal or in a code comment, so the red circle `🔴` is the "red" marker. Use it as above.
 
+## Rule 2: there is one version of the code, on `master`, and no other branch (the owner asked for this)
+
+The owner does not want old versions, copies or rewrites lying around, because a later reviewer could pick one up by mistake.
+
+- **Work on `master` only.** Start every session and every review from the latest `master` (`git fetch origin`, then
+  `git checkout master`, `git reset --hard origin/master`). Commit and push to `master`.
+- **Never create another branch, tag, copy or "backup".** No `backup`, `old`, `v2`, `new` or dated branch, folder or file in
+  git. Change a file in place; do not write a second version beside it.
+- **If the tool you run in forces a branch on you** (some cloud sessions start on an automatic `claude/...` branch), merge it
+  into `master` before you finish, say so at the top of the reply, and name the branch so the owner can delete it. Never
+  leave work only on a branch. Finish with `git ls-remote --heads origin`: only `master` should be listed.
+- **Backups are not code.** The owner's server takes a backup every day at 6 PM, and the server keeps its own rolling copies
+  next to the data (`data.backup.json`, the `backups/` folder). They are never in git. Anything that is a backup must say so in
+  its name, and nobody edits a backup: only the main code is changed.
+- **Everything is updated together.** When a rule, a formula, a figure or a sentence changes, change it everywhere it
+  appears (code, comments, pages, emails, documents, tests), so nothing says the old thing.
+
 ## Other standing decisions (the owner's wishes)
 
 - **No em dashes and no en dashes anywhere** (pages, emails, documents, code comments, this file). Use a comma, a colon, a

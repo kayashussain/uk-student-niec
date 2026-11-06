@@ -143,7 +143,7 @@ function createAdvisorMcp({ getWorkbook, getDashboard, facts, incentive, token, 
       const limit = Math.min(Math.max(Number.isInteger(a.limit) ? a.limit : DEFAULT_LIMIT, 1), MAX_LIMIT);
       const offset = Math.max(Number.isInteger(a.offset) ? a.offset : 0, 0);
       const page = rows.slice(offset, offset + limit).map(({ sheet, row }) => {
-        if (!wanted.length) return { sheet, ...row };
+        if (!wanted.length) return { sheet, ...Object.fromEntries(Object.entries(row).filter(([k]) => k === '_id' || !k.startsWith('_'))) }; // the page's own markers stay out
         const out = { sheet, _id: row._id };
         wanted.forEach((c) => { out[c] = row[c] === undefined ? '' : row[c]; });
         return out;
