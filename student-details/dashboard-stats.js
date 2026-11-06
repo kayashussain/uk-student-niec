@@ -14,6 +14,7 @@
 
 const { parseNum, netTuitionFee } = require('./calc');
 const { newestSheet } = require('../shared/teams');
+const { localDate } = require('../shared/server-utils');
 
 // The stages in the order a student moves through them, then the ones that leave the pipeline.
 const PIPELINE = ['Inquiry', 'Application Stage', 'Mock Stage', 'Payment Stage', 'CAS Stage', 'CAS Issued', 'Visa Lodge', 'Visa Issued'];
@@ -57,8 +58,8 @@ const deposits = (row) => INSTALLMENTS.reduce((sum, c) => sum + parseNum(row[c])
 // The last `n` calendar months up to and including the month of `today`, as "YYYY-MM".
 function lastMonths(today, n) {
   const out = [];
-  let y = today.getFullYear();
-  let m = today.getMonth(); // 0-based
+  let y = today.year;
+  let m = today.month - 1; // 0-based
   for (let i = 0; i < n; i += 1) {
     out.unshift(`${y}-${String(m + 1).padStart(2, '0')}`);
     m -= 1;
@@ -158,10 +159,14 @@ const GAPS = [
 ];
 
 // One intake at a time: the one asked for, else the newest.
-function buildDashboard(workbook, { sheetId = '', includeHidden = false, today = new Date() } = {}) {
+function buildDashboard(workbook, { sheetId = '', includeHidden = false, today: now = new Date() } = {}) {
+  // Today in the office's time zone (Nepal), whatever the server's own clock is set to: between midnight and 05:45
+  // in Nepal a UTC server is still on the day before, which left the new month out and counted waits a day short.
+  const [year, month, day] = localDate(now).split('-').map(Number);
+  const today = { year, month, day };
   const shown = (workbook.sheets || []).filter((s) => includeHidden || !s.hidden);
   const selected = (shown.find((s) => s.id === sheetId) || newestSheet(shown) || { id: '' }).id;
-  const nowMs = Date.UTC(today.getFullYear(), today.getMonth(), today.getDate());
+  const nowMs = Date.UTC(year, month - 1, day);
 
   // Every student of every shown intake, read once.
   const everyone = [];

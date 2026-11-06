@@ -641,3 +641,9 @@ test('turning on the authenticator later asks existing people for one, and never
   assert.strictEqual((await fresh.call('POST', '/api/login/authenticator', { code: codeFor(secret, clock.t) })).json.stage, 'done');
   assert.deepStrictEqual((await fresh.call('GET', '/api/users')).json.map((u) => u.username).sort(), ['kayas', 'sita'], 'nobody was dropped');
 });
+
+test('the dashboard follows Nepal time: 01:15 on 1 December in Kathmandu is already December', () => {
+  const wb = { sheets: [{ id: 'a', name: 'Jan', columns: [], rows: [{ _id: 'x', 'FIRST NAME': 'A', 'APPLICATION STATUS': 'Visa Issued', 'VISA RECEIVED DATE': '2026-12-01' }] }] };
+  const d = buildDashboard(wb, { today: new Date('2026-11-30T19:30:00Z') });
+  assert.strictEqual(JSON.stringify(d).includes('2026-12'), true, 'the month of 1 December is shown');
+});
