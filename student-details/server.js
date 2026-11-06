@@ -8,7 +8,9 @@ const {
 } = require('../shared/server-utils');
 const { createAccounts } = require('../shared/accounts');
 const { makePatch, applyPatch } = require('../shared/patch');
-const { isAdmin, isManager, isReadOnly, teamOf, viewKey, viewFor, teamChanges } = require('../shared/teams');
+const {
+  isAdmin, isManager, isReadOnly, teamOf, viewKey, viewFor, teamChanges, canEdit, canDelete, checkMove, newestSheet, STATUS,
+} = require('../shared/teams');
 const { buildDashboard } = require('./dashboard-stats');
 const { createFacts } = require('./facts');
 const { createAdvisorMcp } = require('./advisor-mcp');
@@ -162,6 +164,19 @@ function servedDashboard(user, intake) {
 }
 
 const CALCULATED_COLUMNS = ['FEE AFTER SCHOLARSHIP', 'REMAINING TUITION FEE'];
+const MAX_CELL_CHARS = 5000;
+
+// A team's cells are plain text (or a number or yes/no), not too long, and in a column the sheet has.
+function cellValueError(cells, sheet) {
+  const columns = new Set((sheet && sheet.columns) || []);
+  for (const { col, value } of cells) {
+    if (col.startsWith('_')) continue;
+    if (!columns.has(col)) return `There is no column called ${col.slice(0, 60)} on this sheet.`;
+    if (value !== null && !['string', 'number', 'boolean'].includes(typeof value)) return 'A cell can only hold text.';
+    if (String(value ?? '').length > MAX_CELL_CHARS) return `A cell can hold up to ${MAX_CELL_CHARS} characters.`;
+  }
+  return null;
+}
 
 // A team's save: its copy only holds its own students, so instead of merging whole workbooks, each
 // cell it changed is checked against its rules and written onto the current workbook. Anything
@@ -184,28 +199,48 @@ function handleTeamSave(req, res, parsed) {
     return sendJSON(res, 403, { error: errors.join(' ') });
   }
   if (!changes.length && !adds.length && !deletes.length) return sendJSON(res, 200, { ok: true, revision: current.revision });
-  // Every changed student must still be one this team sees now (someone may have moved them meanwhile).
+  const conflict = () => sendJSON(res, 409, { error: 'conflict', revision: current.revision });
+  // Teams work in the current intake only, as it is now: a page still holding an earlier intake (a newer one was
+  // started meanwhile) is sent the fresh view instead of changing the earlier one.
+  const intake = newestSheet(current.sheets.filter((s) => !s.hidden));
+  const inIntake = (sheetId) => Boolean(intake) && sheetId === intake.id;
+  const cellError = cellValueError(changes.map((c) => ({ col: c.col, value: c.value }))
+    .concat(adds.flatMap((a) => Object.keys(a.row).map((col) => ({ col, value: a.row[col] })))), intake);
+  if (cellError) return sendJSON(res, 400, { error: cellError });
+  // The rules were checked against the revision the page had, which may be older. Each change is checked again
+  // against the student as the server has them now (someone may have moved them on, or changed their source,
+  // meanwhile), so an old page can never change what the rules no longer allow.
   const rowsNow = new Map();
   current.sheets.forEach((s) => s.rows.forEach((r) => rowsNow.set(`${s.id}\u0000${r._id}`, r)));
+  const seesNow = (row) => viewFor(req.user, { sheets: [{ rows: [row] }] }).sheets[0].rows.length > 0;
   const updates = new Map(); // "sheet\0row" -> { col: value }
   for (const c of changes) {
     const key = `${c.sheetId}\u0000${c.rowId}`;
     const row = rowsNow.get(key);
-    if (!row || !viewFor(req.user, { sheets: [{ rows: [row] }] }).sheets[0].rows.length) {
-      return sendJSON(res, 409, { error: 'conflict', revision: current.revision });
-    }
+    if (!row || !inIntake(c.sheetId) || !seesNow(row)) return conflict();
+    if (c.col !== STATUS && !canEdit(req.user, c.col, row)) return conflict();
     updates.set(key, { ...(updates.get(key) || {}), [c.col]: c.value });
   }
-  // A student deleted by the team must still exist and still be one this team sees.
+  for (const c of changes) {
+    if (c.col !== STATUS) continue;
+    const key = `${c.sheetId}\u0000${c.rowId}`;
+    const row = rowsNow.get(key);
+    // The move from the stage the student is at now, with their details as they will be saved.
+    const from = String(row[STATUS] ?? '').trim();
+    const to = String(c.value ?? '').trim();
+    if (from === to) continue; // someone already moved them there
+    const check = checkMove(req.user, { ...row, ...updates.get(key), 'STUDENT SOURCE': row['STUDENT SOURCE'] }, to, from);
+    if (!check.ok) return conflict();
+  }
+  // A student deleted by the team must still exist and still be one this team may delete.
   const removed = new Set();
   for (const d of deletes) {
     const key = `${d.sheetId}\u0000${d.rowId}`;
     const row = rowsNow.get(key);
-    if (!row || !viewFor(req.user, { sheets: [{ rows: [row] }] }).sheets[0].rows.length) {
-      return sendJSON(res, 409, { error: 'conflict', revision: current.revision });
-    }
+    if (!row || !inIntake(d.sheetId) || !seesNow(row) || !canDelete(req.user, row)) return conflict();
     removed.add(key);
   }
+  if (adds.some((a) => !inIntake(a.sheetId))) return conflict();
   // New students go at the end of their (visible) sheet, with an id no other student has.
   const allIds = new Set(current.sheets.flatMap((s) => s.rows.map((r) => r._id)));
   const added = new Map(); // sheet id -> [rows]
