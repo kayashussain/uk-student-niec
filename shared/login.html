@@ -185,7 +185,13 @@
   const error = $('error');
   // Only a path on this site, so the link can't send someone elsewhere after logging in.
   const next = new URLSearchParams(location.search).get('next') || '/';
-  const target = /^\/(?![\/\\])/.test(next) ? next : '/';
+  // Read the way the browser reads it (it drops tabs and line breaks, so "/\t/evil.com" would be another site).
+  const target = (() => {
+    try {
+      const u = new URL(next, location.origin);
+      return u.origin === location.origin && /^\/(?![\/\\])/.test(next.replace(/[\t\n\r]/g, '')) ? u.pathname + u.search + u.hash : '/';
+    } catch (e) { return '/'; }
+  })();
   const subtitles = {
     'first-admin': 'First-time setup',
     password: 'Log in to continue',
