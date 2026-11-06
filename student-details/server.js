@@ -363,32 +363,54 @@ async function handleSave(req, res) {
 // page makes up). Kept in memory only: a peer that stops reporting for PRESENCE_TTL_MS disappears.
 const PRESENCE_TTL_MS = 15000;
 const PEER_COLORS = ['#e8710a', '#188038', '#9334e6', '#d93025', '#0b8a8a', '#c2185b', '#7b5e00', '#1a73e8'];
-const peers = new Map(); // id -> { n, seen, sheetId, rowId, col, editing }
+const peers = new Map(); // "account:tab" -> { n, tab, seen, sheetId, rowId, col, editing, name }
 let nextPeerNumber = 1;
+const MAX_STREAMS_PER_ACCOUNT = 20;
+// Each tab is known by its account and the id the page made up, so nobody can take over (or close) someone else's.
+const tabKey = (user, tab) => `${user ? user.id : '-'}:${tab}`;
+const tabOf = (v) => (typeof v === 'string' ? v.slice(0, 40) : '');
 
 function recordPresence(body, user) {
-  const id = typeof body.id === 'string' ? body.id.slice(0, 40) : '';
-  if (!id) return;
+  const tab = tabOf(body.id);
+  if (!tab) return;
   const now = Date.now();
   peers.forEach((p, key) => { if (now - p.seen > PRESENCE_TTL_MS) peers.delete(key); });
-  const peer = peers.get(id) || { n: nextPeerNumber++ };
+  const key = tabKey(user, tab);
+  const peer = peers.get(key) || { n: nextPeerNumber++, tab };
   Object.assign(peer, {
     seen: now,
-    sheetId: typeof body.sheetId === 'string' ? body.sheetId : null,
-    rowId: typeof body.rowId === 'string' ? body.rowId : null,
-    col: typeof body.col === 'string' ? body.col : null,
+    sheetId: typeof body.sheetId === 'string' ? body.sheetId.slice(0, 80) : null,
+    rowId: typeof body.rowId === 'string' ? body.rowId.slice(0, 80) : null,
+    col: typeof body.col === 'string' ? body.col.slice(0, 80) : null,
     editing: Boolean(body.editing),
     name: user ? user.name : null,
   });
-  peers.set(id, peer);
+  peers.set(key, peer);
 }
 
-function othersThan(id) {
+// The students each view holds, for showing only the cursors that sit on them (made once per revision and view).
+const visibleCells = new Map(); // view -> { revision, set of "sheet\0row" }
+function visibleTo(user) {
+  const key = viewKey(user);
+  const hit = visibleCells.get(key);
+  if (hit && current && hit.revision === current.revision) return hit.set;
+  const set = new Set();
+  if (current) viewFor(user, current).sheets.forEach((sh) => sh.rows.forEach((r) => set.add(`${sh.id}\u0000${r._id}`)));
+  visibleCells.set(key, { revision: current ? current.revision : null, set });
+  return set;
+}
+
+// Everyone else's tabs. Someone who doesn't see a student isn't told who is looking at that student, or where.
+function othersThan(key, user) {
   const out = [];
-  peers.forEach((p, key) => {
-    if (key === id) return;
+  const seeAll = !user || isAdmin(user);
+  const seen = seeAll ? null : visibleTo(user);
+  peers.forEach((p, k) => {
+    if (k === key) return;
+    const shown = seeAll || (p.sheetId && p.rowId && seen.has(`${p.sheetId}\u0000${p.rowId}`));
+    if (!shown) return;
     out.push({
-      id: key, name: p.name || 'User ' + p.n, color: PEER_COLORS[(p.n - 1) % PEER_COLORS.length],
+      id: p.tab, name: p.name || 'User ' + p.n, color: PEER_COLORS[(p.n - 1) % PEER_COLORS.length],
       sheetId: p.sheetId, rowId: p.rowId, col: p.col, editing: p.editing,
     });
   });
@@ -397,39 +419,45 @@ function othersThan(id) {
 
 // Server-sent events: each open tab holds a connection and is pushed the state the moment anything
 // changes (someone moves their cursor, someone saves), instead of asking over and over.
-const streams = new Map(); // id -> res
+const streams = new Map(); // "account:tab" -> { res, user }
 
-function stateFor(id) {
-  return { revision: current ? current.revision : null, peers: othersThan(id) };
+function stateFor(key, user) {
+  return { revision: current ? current.revision : null, peers: othersThan(key, user) };
 }
 
 function broadcast() {
-  streams.forEach((res, id) => {
-    try { res.write('data: ' + JSON.stringify(stateFor(id)) + '\n\n'); } catch (e) { /* closed; cleaned up below */ }
+  streams.forEach(({ res, user }, key) => {
+    try { res.write('data: ' + JSON.stringify(stateFor(key, user)) + '\n\n'); } catch (e) { /* closed; cleaned up below */ }
   });
 }
 
 function handleEvents(req, res) {
-  const id = (new URL(req.url, 'http://x').searchParams.get('id') || '').slice(0, 40);
-  if (!id) return send(res, 400, 'id required');
+  const tab = tabOf(new URL(req.url, 'http://x').searchParams.get('id') || '');
+  if (!tab) return send(res, 400, 'id required');
+  const key = tabKey(req.user, tab);
+  const prefix = tabKey(req.user, '');
+  if (!streams.has(key) && [...streams.keys()].filter((k) => k.startsWith(prefix)).length >= MAX_STREAMS_PER_ACCOUNT) {
+    return send(res, 429, 'Too many open tabs.');
+  }
   res.writeHead(200, {
     ...SECURITY_HEADERS,
     'Content-Type': 'text/event-stream', 'Cache-Control': 'no-store, no-transform',
     Connection: 'keep-alive', 'X-Accel-Buffering': 'no',
   });
   res.write('retry: 1000\n\n');
-  const old = streams.get(id);
-  if (old) try { old.end(); } catch (e) { /* already gone */ }
-  streams.set(id, res);
-  res.write('data: ' + JSON.stringify(stateFor(id)) + '\n\n');
+  const old = streams.get(key);
+  if (old) try { old.res.end(); } catch (e) { /* already gone */ }
+  streams.set(key, { res, user: req.user });
+  res.write('data: ' + JSON.stringify(stateFor(key, req.user)) + '\n\n');
   req.on('close', () => {
-    if (streams.get(id) !== res) return;
-    streams.delete(id);
-    peers.delete(id); // closed tab: its box vanishes at once
+    const now = streams.get(key);
+    if (!now || now.res !== res) return;
+    streams.delete(key);
+    peers.delete(key); // closed tab: its box vanishes at once
     broadcast();
   });
 }
-setInterval(() => streams.forEach((res) => { try { res.write(': ping\n\n'); } catch (e) { /* ignore */ } }), 15000).unref();
+setInterval(() => streams.forEach(({ res }) => { try { res.write(': ping\n\n'); } catch (e) { /* ignore */ } }), 15000).unref();
 
 async function handlePresence(req, res) {
   let body;
@@ -440,7 +468,7 @@ async function handlePresence(req, res) {
   }
   recordPresence(body, req.user);
   broadcast();
-  return sendJSON(res, 200, stateFor(body.id));
+  return sendJSON(res, 200, stateFor(tabKey(req.user, tabOf(body.id)), req.user));
 }
 
 // The Fact File: everyone reads it, only Admin changes it.

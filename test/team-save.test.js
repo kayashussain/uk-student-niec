@@ -87,6 +87,19 @@ test('team saves from an old page are checked against the students as they are n
   assert.strictEqual((await staff('POST', '/api/data', { sheets: late.sheets, activeSheetId: late.activeSheetId, baseRevision: view.revision })).status, 409);
   now = (await admin('GET', '/api/data')).json.sheets[0].rows.find((x) => x._id === 'r2');
   assert.strictEqual(now['UNIVERSITY NAME'], '');
+
+  // Presence: staff aren't told who is looking at a student outside their view; Admin sees everyone.
+  wb = (await admin('GET', '/api/data')).json;
+  const next = wb.sheets.find((x) => x.name === 'Next intake');
+  next.rows = [{ ...blank, _id: 'n1', 'FIRST NAME': 'Visa', [S]: 'Visa Stage' }, { ...blank, _id: 'n2', 'FIRST NAME': 'App', [S]: 'Application Stage' }];
+  assert.strictEqual((await admin('POST', '/api/data', { sheets: wb.sheets, activeSheetId: wb.activeSheetId, baseRevision: wb.revision })).status, 200);
+  await admin('POST', '/api/presence', { id: 'admintab', sheetId: next.id, rowId: 'n1', col: 'FIRST NAME' });
+  let seen = (await staff('POST', '/api/presence', { id: 'stafftab', sheetId: next.id, rowId: 'n2', col: 'FIRST NAME' })).json.peers;
+  assert.deepStrictEqual(seen.filter((p) => p.id === 'admintab'), [], 'the Visa Stage student is not in the staff view');
+  await admin('POST', '/api/presence', { id: 'admintab', sheetId: next.id, rowId: 'n2', col: 'FIRST NAME' });
+  seen = (await staff('POST', '/api/presence', { id: 'stafftab', sheetId: next.id, rowId: 'n2', col: 'FIRST NAME' })).json.peers;
+  assert.strictEqual(seen.filter((p) => p.id === 'admintab').length, 1, 'a student both see');
+  assert.ok((await admin('POST', '/api/presence', { id: 'admintab' })).json.peers.some((p) => p.id === 'stafftab'));
 });
 
 test('a damaged data.json is set aside and the students come back from the backup', { timeout: 60000 }, async (t) => {
