@@ -56,6 +56,18 @@ function verifyPassword(password, stored) {
   return crypto.timingSafeEqual(given, Buffer.from(hashHex, 'hex'));
 }
 
+// The same check off the main thread (Node's worker pool), so a burst of login attempts doesn't hold up everyone
+// else's page while each scrypt runs (about 50 ms each).
+const scryptAsync = (password, salt) => new Promise((resolve, reject) => {
+  crypto.scrypt(password, salt, 32, (err, key) => (err ? reject(err) : resolve(key)));
+});
+async function verifyPasswordAsync(password, stored) {
+  const [kind, saltHex, hashHex] = String(stored || '').split('$');
+  if (kind !== 'scrypt' || !saltHex || !hashHex) return false;
+  const given = await scryptAsync(String(password), Buffer.from(saltHex, 'hex'));
+  return crypto.timingSafeEqual(given, Buffer.from(hashHex, 'hex'));
+}
+
 // Checked for a username that doesn't exist, so a wrong username takes as long as a wrong password.
 const DUMMY_HASH = hashPassword(crypto.randomBytes(8).toString('hex'));
 
@@ -385,6 +397,11 @@ function createAccounts({
     else map.set(key, { count: 1, since: now() });
     if (map.size > 10000) map.forEach((x, k) => { if (now() - x.since > windowMs) map.delete(k); });
   }
+  function unfail(map, key) {
+    const f = map.get(key);
+    if (f && f.count > 1) f.count -= 1;
+    else map.delete(key);
+  }
   const TOO_MANY = 'Too many wrong tries. Please wait 15 minutes and try again.';
 
   // ---- email (setup details for new people, test messages) ----
@@ -534,16 +551,20 @@ function createAccounts({
         return true;
       }
       const user = users().find((u) => u.username === username);
-      const passOk = verifyPassword(body.password || '', user ? user.passwordHash : DUMMY_HASH);
+      // Counted as a wrong try before the (slow) check, and taken back if it was right: tries sent all at once can't
+      // all slip past the limit while the first ones are still being checked.
+      fail(ipFailures, ip);
+      fail(userFailures, username);
+      const passOk = await verifyPasswordAsync(body.password || '', user ? user.passwordHash : DUMMY_HASH);
       if (!user || !passOk || user.disabled) {
-        fail(ipFailures, ip);
-        fail(userFailures, username);
         record(req, user && !user.disabled ? publicUser(user) : null, 'Failed login', {
           note: user && user.disabled ? `disabled account "${username}" tried to log in` : `wrong username or password (tried "${username.slice(0, 60)}")`,
         });
         bad(res, 401, 'Wrong username or password.');
         return true;
       }
+      unfail(ipFailures, ip);
+      unfail(userFailures, username);
       if (!requireAuthenticator && !user.mustChangePassword) {
         // Password only: the right password is the whole login.
         ipFailures.delete(ip);
@@ -590,7 +611,7 @@ function createAccounts({
       if (!found || found.session.stage !== 'setup') { bad(res, 401, 'Please start again with your username and password.'); return true; }
       const problem = passwordProblem(body.password);
       if (problem) { bad(res, 400, problem); return true; }
-      if (verifyPassword(body.password, found.user.passwordHash)) { bad(res, 400, 'Please choose a new password, not the temporary one.'); return true; }
+      if (await verifyPasswordAsync(body.password, found.user.passwordHash)) { bad(res, 400, 'Please choose a new password, not the temporary one.'); return true; }
       const updated = updateUser(found.user.id, { passwordHash: hashPassword(body.password), mustChangePassword: false });
       record(req, publicUser(updated), 'Set their own password');
       finishSetupIfDone(req, res, updated);

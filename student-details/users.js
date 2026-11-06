@@ -123,7 +123,7 @@
 
   function accessChips(u) {
     if (u.role === 'admin') return '<span class="chip chip-admin">Admin</span>';
-    const teams = (u.departments || []).map((d) => `<span class="chip chip-${d}">${esc(DEPARTMENTS[d].label)}</span>`).join('');
+    const teams = (u.departments || []).map((d) => `<span class="chip chip-${d}">${esc((DEPARTMENTS[d] || { label: d }).label)}</span>`).join('');
     return (u.role === 'manager' ? '<span class="chip chip-manager">Manager</span>' : '') + teams || '<span class="muted">No team</span>';
   }
 
@@ -140,7 +140,7 @@
     $('users').innerHTML = users.map((u) => {
       const self = me && u.id === me.id;
       const notSetUp = !u.disabled && (u.mustChangePassword || !u.authenticatorLinked);
-      const actions = self ? '<span class="muted">This is you</span>' : `
+      const actions = self ? `<div class="actions"><button class="btn btn-sm" data-act="edit" data-id="${u.id}">Edit name or email</button><span class="muted">This is you</span></div>` : `
         <div class="actions">
           <button class="btn btn-sm" data-act="edit" data-id="${u.id}">Edit</button>
           <button class="btn btn-sm" data-act="reset-password" data-id="${u.id}">${notSetUp ? 'Resend setup email' : 'Reset password'}</button>
@@ -231,6 +231,7 @@
     $('editName').value = person.name;
     $('editEmail').value = person.email || '';
     setAccess($('editAccess'), 'edit', person);
+    $('editAccess').hidden = person.role === 'admin'; // the Admin's access never changes
     $('editNote').textContent = 'Changing access logs the person out. They log in again to get their new access.';
     $('editDialog').showModal();
   }
@@ -240,7 +241,8 @@
     if (!editing) return;
     try {
       await api(`/api/users/${editing.id}`, {
-        action: 'update-person', name: $('editName').value, email: $('editEmail').value, ...readAccess($('editAccess'), 'edit'),
+        // The Admin's access never changes, so only their name and email are sent (the server refuses any access change).
+        action: 'update-person', name: $('editName').value, email: $('editEmail').value, ...(editing.role === 'admin' ? {} : readAccess($('editAccess'), 'edit')),
       });
       $('editDialog').close();
       message('usersMsg', `${editing.name} was updated.`);

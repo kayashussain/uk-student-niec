@@ -126,9 +126,13 @@ async function sendMail(cfg, { to, subject, text, html }, { timeoutMs = 20000, r
   const tlsOptions = { host, port, servername: host, rejectUnauthorized };
 
   let socket;
+  // Every connection made, kept from the moment it starts: when the time runs out while one is still connecting,
+  // it is closed too, so a message the person was told had failed can never go out afterwards.
+  const opened = [];
+  const track = (s) => { opened.push(s); return s; };
   const work = (async () => {
     socket = await new Promise((resolve, reject) => {
-      const s = cfg.security === 'ssl' ? tls.connect(tlsOptions) : net.connect({ host, port });
+      const s = track(cfg.security === 'ssl' ? tls.connect(tlsOptions) : net.connect({ host, port }));
       s.once(cfg.security === 'ssl' ? 'secureConnect' : 'connect', () => { s.removeListener('error', reject); resolve(s); });
       s.once('error', reject);
     });
@@ -141,7 +145,7 @@ async function sendMail(cfg, { to, subject, text, html }, { timeoutMs = 20000, r
       await conn.command('STARTTLS', [220]);
       socket.removeAllListeners('data');
       socket = await new Promise((resolve, reject) => {
-        const s = tls.connect({ ...tlsOptions, socket });
+        const s = track(tls.connect({ ...tlsOptions, socket }));
         s.once('secureConnect', () => resolve(s));
         s.once('error', reject);
       });
@@ -185,7 +189,7 @@ async function sendMail(cfg, { to, subject, text, html }, { timeoutMs = 20000, r
     throw new Error(friendlyError(e, host));
   } finally {
     clearTimeout(timer);
-    if (socket) socket.destroy();
+    opened.forEach((s) => { try { s.destroy(); } catch (e) { /* already closed */ } });
   }
 }
 

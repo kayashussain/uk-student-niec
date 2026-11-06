@@ -235,3 +235,13 @@ test('an unfinished first-Admin setup can be started again with the same code', 
   assert.ok(!fs.existsSync(path.join(dir, 'first-admin-code.txt')));
   assert.strictEqual((await browser(accounts).call('GET', '/api/login/state')).json.stage, 'password');
 });
+
+test('wrong passwords sent all at once still stop at the limit', async () => {
+  const clock = { t: Date.parse('2026-10-28T09:00:00Z') };
+  const dir = tmpDir();
+  const accounts = createAccounts({ dir, now: () => clock.t, maxUserFailures: 3, requireAuthenticator: true });
+  await setUpAdmin(accounts, clock, dir);
+  const all = await Promise.all(Array.from({ length: 10 }, (_, i) => browser(accounts, { ip: `198.51.100.${i}` }).call('POST', '/api/login', { username: 'kayas', password: 'guess' + i })));
+  assert.strictEqual(all.filter((r) => r.status === 401).length, 3);
+  assert.strictEqual(all.filter((r) => r.status === 429).length, 7);
+});
