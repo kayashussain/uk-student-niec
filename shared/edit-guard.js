@@ -79,7 +79,11 @@
     function onKey(e) {
       if (e.key === 'Escape') { e.preventDefault(); finish(false); }
       else if (e.key === 'Enter' && !e.target.matches('.eg-cancel')) { e.preventDefault(); finish(true); }
-      else if (e.key !== 'Tab' && e.key !== ' ') { e.preventDefault(); }
+      else if (e.key === 'Tab') { // Tab stays between the two buttons, never on the page behind
+        e.preventDefault();
+        const cancel = overlay.querySelector('.eg-cancel');
+        (document.activeElement === okBtn ? cancel : okBtn).focus();
+      } else if (e.key !== ' ') { e.preventDefault(); }
       e.stopPropagation();
     }
 

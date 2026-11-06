@@ -32,9 +32,15 @@ Rules used: nothing already on a page is overwritten; a fact that is already the
 - University of Roehampton Postgraduate IELTS is 6.5 overall (the sheet figure, replacing 6.0), and the Health Science University scholarship is £2,000 (the sheet figure, replacing £2,500), because the updated sheets are the truth unless the owner chose the page.
 - Ravensbourne postgraduate: the band minimum stays 5.5 in each band, as both the page and the sheet say.
 
+## Checked on the official websites (6 November 2026)
+
+- University of West London (uwl.ac.uk English language requirements and scholarships pages, gov.uk): undergraduate PTE is 51 (51 each) and Duolingo 105 (100 each subscore); TOEFL iBT is on the new 1 to 6 scale; Enhanced Extended Duolingo subscore is 100 and it has a £700 early settlement discount; February 2027 bursaries need £10,000 received before 1 December 2026; the undergraduate course is 3 years; the £2,000 non-refundable deposit rule; the Graduate Route is 18 months from 1 January 2027.
+- University of Salford: all full-time January 2027 courses are closed to new applications.
+- University of Sunderland: the January and February 2027 course start dates said 2026.
+
 ## Still open
 
-- University of West London (see the note on its page): UG GPA 2.5+ against 2.6 or 65%, UG PTE 59 against 51, UG Duolingo 120 against 105, PG gap 5 to 7 years against up to 10 years with work experience, Enhanced Extended 40%+ against any percentage, gap 8 against 10 years, and a £700 early payment discount on Enhanced Extended (the table says none).
+- University of West London (see the note on its page): UG GPA 2.5+ against 2.6 or 65%, PG gap 5 to 7 years against up to 10 years with work experience, Enhanced Extended 40%+ against any percentage, gap 8 against 10 years.
 
 ## Repeats removed so each fact is shown once
 

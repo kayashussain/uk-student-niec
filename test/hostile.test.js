@@ -42,7 +42,7 @@ test('hostile requests never cause a server error or stop the server', { timeout
     '{"name":{"toString":1}}', '{"username":["a"],"password":{"x":1},"departments":[{"a":1}]}', '{"id":{},"sheetId":[],"rowId":5,"col":{}}',
     '{"baseRevision":1e308,"sheets":[{"id":"s","columns":[],"rows":[{"_id":null}]}],"activeSheetId":"s"}'];
   const targets = [['POST', '/api/data'], ['POST', '/api/presence'], ['POST', '/api/facts'], ['POST', '/api/users'], ['POST', '/api/users/0123456789abcdef'],
-    ['POST', '/api/login'], ['POST', '/api/login/code'], ['POST', '/api/login/new-password'], ['POST', '/api/sessions/end-others']];
+    ['POST', '/api/login'], ['POST', '/api/login/new-password'], ['POST', '/api/sessions/end-others']];
   const problems = [];
   for (const [method, url] of targets) {
     for (const body of bodies) {

@@ -138,3 +138,26 @@ test('a correct address answers JSON-RPC; notifications get 202; GET gets 405', 
   await m.handle(fakeReq('GET'), get, `/advisor-mcp/${TOKEN}`);
   assert.strictEqual(get.status, 405);
 });
+
+test('notebook: built-in names are plain titles, and personal data in a title or passport number is refused', () => {
+  const m = make();
+  const save = (args) => m.rpc({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'save_memory', arguments: args } }).result;
+  const parse = (r) => JSON.parse(r.content[0].text);
+  assert.ok(parse(save({ section: 'constructor', text: 'hello' })).ok);
+  assert.ok(parse(save({ section: '__proto__', text: 'also kept' })).ok);
+  const read = call(m, 'read_memory', {});
+  assert.deepStrictEqual(read.sections.map((x) => [x.title, x.text]).sort(), [['__proto__', 'also kept'], ['constructor', 'hello']]);
+  assert.ok(m.rpc({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'forget_memory', arguments: { section: 'toString' } } }).result.isError, 'no such section');
+  assert.ok(save({ section: 'ram@x.com 9812345678', text: 'ok note' }).isError);
+  assert.ok(save({ section: 'Students', text: 'passport PA1234567' }).isError);
+  assert.ok(parse(save({ section: 'Targets', text: 'Intakes 2025 2026 2027 targets' })).ok, 'years are not a phone number');
+});
+
+test('JSON-RPC: an id of null is answered, an empty or huge batch is refused, client replies are accepted', () => {
+  const m = make();
+  assert.deepStrictEqual(m.rpc({ jsonrpc: '2.0', id: null, method: 'ping' }), { jsonrpc: '2.0', id: null, result: {} });
+  assert.strictEqual(m.rpc({ jsonrpc: '2.0', method: 'notifications/initialized' }), null);
+  assert.strictEqual(m.rpc({ jsonrpc: '2.0', id: 5, result: {} }), null);
+  assert.strictEqual(m.rpc({ jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2024-11-05' } }).result.protocolVersion, '2024-11-05');
+  assert.strictEqual(m.rpc({ jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '1999-01-01' } }).result.protocolVersion, '2025-03-26');
+});

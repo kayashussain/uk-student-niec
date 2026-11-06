@@ -6,7 +6,8 @@
   const REFRESH_MS = 30000;
   const SERIES_COLOR = { applications: 'var(--s1)', payments: 'var(--s2)', visas: 'var(--s3)' };
   let data = null;
-  let selected = decodeURIComponent(location.hash.slice(1)); // empty: the newest intake
+  let selected = (() => { try { return decodeURIComponent(location.hash.slice(1)); } catch (e) { return ''; } })(); // empty: the newest intake
+  let loadSeq = 0; // only the newest request's answer is drawn (an older one may arrive after it)
   const hiddenSeries = new Set(); // lines switched off in the legend (colours stay with their line)
   const asTable = new Set(); // charts shown as a table instead
 
@@ -366,9 +367,12 @@
     const page = $('page');
     page.classList.add('loading');
     try {
+      const seq = ++loadSeq;
       const res = await fetch('/api/dashboard?intake=' + encodeURIComponent(selected), { cache: 'no-store' });
       if (!res.ok) throw new Error('HTTP ' + res.status);
-      data = await res.json();
+      const fresh = await res.json();
+      if (seq !== loadSeq) return; // a newer request (another intake picked) is on its way
+      data = fresh;
       selected = data.selected;
       fillIntakes(data);
       render();

@@ -174,7 +174,9 @@ function createIncentive({ dataDir, studentDataFile, getWorkbook, activity }) {
 
   // A number from the page. Anything that is not a finite, sensible amount (letters, Infinity, 1e300) keeps the saved value.
   function num(v, fallback) {
-    const n = parseFloat(v);
+    // "1,500" is 1500 (a plain parseFloat read it as 1); text without any number keeps the saved value.
+    const m = typeof v === 'number' ? [String(v)] : String(v ?? '').replace(/(\d),(?=\d)/g, '$1').match(/-?(?:\d+(?:\.\d+)?|\.\d+)/);
+    const n = m ? parseFloat(m[0]) : NaN;
     return Number.isFinite(n) && Math.abs(n) < 1e12 ? n : (fallback || 0);
   }
 

@@ -163,13 +163,15 @@
     return true;
   }
 
-  // Application and Mock staff can delete a student they can see (a duplicate entry), one at a time.
-  // Admin can delete freely; a view-only Manager cannot.
+  // Application and Mock staff can delete a student at one of their own stages (a duplicate entry), one at a
+  // time. Admin can delete freely; a view-only Manager cannot. `row` (optional): the student, as the server has
+  // it. A Manager sees every student, so this is what keeps one who works in a team to that team's stages.
   const DELETE_DEPARTMENTS = ['application', 'mock'];
-  function canDelete(x) {
+  function canDelete(x, row = null) {
     const team = teamOf(x);
     if (!team) return true;
-    return !team.readOnly && team.departments.some((d) => DELETE_DEPARTMENTS.includes(d));
+    if (team.readOnly || !team.departments.some((d) => DELETE_DEPARTMENTS.includes(d))) return false;
+    return !row || team.statuses.has(String(row[STATUS] || '').trim());
   }
 
   // The departments a person can add a new student for (Admin adds without a department).
@@ -315,8 +317,8 @@
       });
       base.rows.forEach((r) => {
         if (mineRowIds.has(r._id)) return;
-        if (canDelete(x)) deletes.push({ sheetId: sheet.id, rowId: r._id });
-        else errors.push('Only Admin can delete students.');
+        if (canDelete(x, r)) deletes.push({ sheetId: sheet.id, rowId: r._id });
+        else errors.push(canDelete(x) ? `Your team can't delete a student at ${String(r[STATUS] || '').trim() || 'no status'}.` : 'Only Admin can delete students.');
       });
     });
     if (deletes.length > 1) errors.push('You can delete one student at a time.');

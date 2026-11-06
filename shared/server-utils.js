@@ -333,10 +333,27 @@ function readJSONBody(req, maxBytes) {
 
 // Writes to a temporary file and renames it into place, so a crash mid-write, or another process
 // reading the file at that moment, never sees half a file.
+// Writes to a temporary file of its own (two apps writing at once never share one), flushes it to the disk, then
+// swaps it in, so a crash or power cut leaves either the old file or the new one, never half of one.
 function writeFileAtomic(file, text) {
-  const tmp = file + '.tmp';
-  fs.writeFileSync(tmp, text);
-  fs.renameSync(tmp, file);
+  const tmp = `${file}.${process.pid}.${crypto.randomBytes(4).toString('hex')}.tmp`;
+  try {
+    const fd = fs.openSync(tmp, 'w');
+    try {
+      fs.writeFileSync(fd, text);
+      fs.fsyncSync(fd);
+    } finally {
+      fs.closeSync(fd);
+    }
+    fs.renameSync(tmp, file);
+  } catch (e) {
+    try { fs.unlinkSync(tmp); } catch (e2) { /* never made */ }
+    throw e;
+  }
+  try { // the rename itself, on disk
+    const dirFd = fs.openSync(path.dirname(file), 'r');
+    try { fs.fsyncSync(dirFd); } finally { fs.closeSync(dirFd); }
+  } catch (e) { /* not supported here (e.g. Windows): the rename has still happened */ }
 }
 
 // Once a day, before the first save of that day, copies the file into <dataDir>/backups/<prefix>-YYYY-MM-DD.json

@@ -203,3 +203,22 @@ test('amounts are kept to two decimals so the rows of the summary add up exactly
   assert.strictEqual(incentive.round2(1.005), 1.01);
   assert.strictEqual(incentive.round2(-1.005), -1.01);
 });
+
+test('money cells: first number only, commas and currency signs, % read from in front of the sign', () => {
+  assert.strictEqual(tracker.parseNum('£12,500'), 12500);
+  assert.strictEqual(tracker.parseNum('Rs. 1,250'), 1250);
+  assert.strictEqual(tracker.parseNum('approx. 500'), 500);
+  assert.strictEqual(tracker.parseNum('3000 (2 parts)'), 3000);
+  assert.strictEqual(tracker.resolveDiscount('50% (£5,000)', 10000), 5000);
+  assert.strictEqual(tracker.resolveDiscount('15% + 500', 10000), 1500);
+  assert.strictEqual(tracker.resolveDiscount('10%', 10000), 1000);
+  assert.strictEqual(tracker.netTuitionFee({ 'GROSS FEE': '10000', 'ADDITIONAL DISCOUNT': '5%' }), 9500);
+  assert.strictEqual(tracker.netTuitionFee({ 'GROSS FEE': '10000', SCHOLARSHIP: '12000' }), 0, 'never negative');
+  assert.strictEqual(incentive.num('1,500'), 1500);
+  assert.strictEqual(incentive.num('£12,500'), 12500);
+  assert.strictEqual(incentive.universityCommission('12,500', 15), 1875);
+  const s = incentive.computeSummary([{ enrollmentCommission: 1000.30 }], 0);
+  assert.strictEqual(s.tds, 150.05);
+  assert.strictEqual(s.netPayable, 850.25, 'the lines shown add up');
+  assert.strictEqual(incentive.displayDate('2026-9-3'), '9/3/2026');
+});

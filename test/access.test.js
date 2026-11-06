@@ -5,14 +5,13 @@ const fs = require('node:fs');
 const net = require('node:net');
 const path = require('node:path');
 const { PassThrough } = require('node:stream');
-const { createAccounts, totpAt, base32Decode } = require('../shared/accounts');
+const { createAccounts } = require('../shared/accounts');
 const { sendMail, setupEmail, buildMessage } = require('../shared/mailer');
 const { createActivityLog } = require('../shared/server-utils');
 const Teams = require('../shared/teams');
 const { buildDashboard } = require('../student-details/dashboard-stats');
 
 const tmpDir = () => fs.mkdtempSync(path.join(os.tmpdir(), 'niec-access-'));
-const codeFor = (secret, t) => totpAt(base32Decode(secret), Math.floor(t / 30000));
 
 // A browser that keeps its session cookie, talking straight to the accounts module.
 function browser(accounts, { host = 'niec.example.org' } = {}) {
@@ -46,12 +45,10 @@ function fakeMailer({ fail = null } = {}) {
 
 async function setUp({ mailer = fakeMailer(), clock = { t: Date.parse('2026-10-28T09:00:00Z') } } = {}) {
   const dir = tmpDir();
-  const accounts = createAccounts({ dir, now: () => clock.t, mailer, activity: createActivityLog(dir), requireAuthenticator: true });
+  const accounts = createAccounts({ dir, now: () => clock.t, mailer, activity: createActivityLog(dir) });
   const b = browser(accounts);
   await b.call('POST', '/api/login/first-admin', { setupCode: fs.readFileSync(path.join(dir, 'first-admin-code.txt'), 'utf8'), name: 'Kayas', username: 'KAYAS' });
   await b.call('POST', '/api/login/new-password', { password: 'a long admin password' });
-  const { secret } = (await b.call('POST', '/api/login/authenticator', {})).json;
-  await b.call('POST', '/api/login/authenticator', { code: codeFor(secret, clock.t) });
   return { dir, accounts, admin: b, mailer, clock };
 }
 
@@ -98,12 +95,11 @@ test('accounts saved with one team as their role become staff in that team', asy
 });
 
 test('usernames are not case sensitive, when adding and when logging in', async () => {
-  const { accounts, admin, clock } = await setUp();
+  const { accounts, admin } = await setUp();
   assert.strictEqual((await admin.call('POST', '/api/users', { name: 'Pema', username: 'PEMA.Lama', role: 'manager' })).json.user.username, 'pema.lama');
   assert.strictEqual((await admin.call('POST', '/api/users', { name: 'Dup', username: 'pema.LAMA', role: 'manager' })).status, 409);
   const again = browser(accounts);
-  assert.strictEqual((await again.call('POST', '/api/login', { username: ' KAYAS ', password: 'a long admin password' })).json.stage, 'code');
-  void clock;
+  assert.strictEqual((await again.call('POST', '/api/login', { username: ' KAYAS ', password: 'a long admin password' })).json.stage, 'done');
 });
 
 // ---- setup emails ----
@@ -306,7 +302,7 @@ test('the dashboard never shows a visa without the steps before it, and says how
   ] };
   const d = buildDashboard(wb, { includeHidden: true, sheetId: 'sep', today: new Date('2026-10-28T00:00:00') });
   const by = Object.fromEntries(d.milestones.map((m) => [m.key, m.count]));
-  assert.deepStrictEqual([by.students, by.applied, by.offer, by.mock, by.paid, by.cas, by.lodged, by.visa], [8, 7, 7, 7, 7, 6, 6, 5]);
+  assert.deepStrictEqual([by.students, by.applied, by.offer, by.mock, by.paid, by.cas, by.lodged, by.visa], [8, 7, 7, 7, 6, 6, 6, 5]); // the Payment Stage student is waiting to pay, so not counted as paid
   d.milestones.forEach((m, i) => { if (i) assert.ok(m.count <= d.milestones[i - 1].count, `${m.label} is no more than the step before`); });
   assert.strictEqual(d.quality.filledFromStage, 7);
   assert.strictEqual(d.kpis.visaSuccessRate, 83.3); // 5 issued, 1 rejected
@@ -326,7 +322,7 @@ test('the activity record filters by person, type, dates and words, and counts t
   const ram = { id: 'r', label: 'Ram (Follow-up Team)' };
   log.record(req, sita, 'Logged in');
   log.record(req, sita, 'Changed', { app: 'Student Details', changes: ['Jan Intake > Asha Rai > Remarks: "a" to "b"'] });
-  log.record(req, ram, 'Failed login', { note: 'right password, wrong authenticator code' });
+  log.record(req, ram, 'Failed login', { note: 'wrong username or password' });
   log.record(req, null, 'Failed login', { note: 'wrong username or password' });
   const all = log.query({});
   assert.strictEqual(all.total, 4);
@@ -344,14 +340,12 @@ test('the activity record filters by person, type, dates and words, and counts t
 // ---- removing a person, the older CEO role, clearing the activity ----
 
 test('removing a person deletes their login: they are logged out and cannot log in again', async () => {
-  const { admin, accounts, clock } = await setUp();
+  const { admin, accounts } = await setUp();
   const made = await admin.call('POST', '/api/users', { name: 'Leaver', username: 'leaver', role: 'staff', departments: ['mock'] });
   const temp = made.json.temporaryPassword;
   const her = browser(accounts);
   await her.call('POST', '/api/login', { username: 'leaver', password: temp });
   await her.call('POST', '/api/login/new-password', { password: 'my own long password' });
-  const { secret } = (await her.call('POST', '/api/login/authenticator', {})).json;
-  await her.call('POST', '/api/login/authenticator', { code: codeFor(secret, clock.t) });
   assert.strictEqual((await her.call('GET', '/api/me')).status, 200);
 
   const id = made.json.user.id;
@@ -373,7 +367,7 @@ test('an account saved with the older CEO role is a Manager now', async () => {
   const saved = JSON.parse(fs.readFileSync(file, 'utf8'));
   saved.users.find((u) => u.username === 'oldceo').role = 'ceo';
   fs.writeFileSync(file, JSON.stringify(saved));
-  const fresh = createAccounts({ dir, activity: createActivityLog(dir), requireAuthenticator: true });
+  const fresh = createAccounts({ dir, activity: createActivityLog(dir) });
   const b = browser(fresh);
   await b.call('POST', '/api/login', { username: 'kayas', password: 'a long admin password' }); // reads the file anew
   assert.strictEqual(made.json.user.roleLabel, 'Manager');
@@ -516,9 +510,9 @@ test('a branch person sees and changes everything about their own branch student
   assert.strictEqual(Teams.newStudentStatus(both, 'pokhara'), 'Inquiry');
 });
 
-// ---- password only (the default): no authenticator step ----
+// ---- password only: there is no second step ----
 
-test('by default a login is just username and password: no authenticator step for the Admin or anyone added', async () => {
+test('a login is just username and password: no second step for the Admin or anyone added', async () => {
   const dir = tmpDir();
   const accounts = createAccounts({ dir, activity: createActivityLog(dir), mailer: fakeMailer() });
   const admin = browser(accounts);
@@ -540,12 +534,13 @@ test('by default a login is just username and password: no authenticator step fo
   assert.strictEqual((await again.call('POST', '/api/login', { username: 'sita', password: 'wrong password here' })).status, 401);
   assert.strictEqual((await again.call('POST', '/api/login', { username: 'sita', password: 'my own long password' })).json.stage, 'done');
   assert.strictEqual((await again.call('GET', '/api/me')).status, 200);
-  // the Users page does not show anyone as waiting for an authenticator
+  // the Users page does not show anyone as waiting for anything once they have their own password
   const people = (await admin.call('GET', '/api/users')).json;
-  assert.ok(people.every((u) => u.authenticatorLinked && u.authenticatorRequired === false));
+  assert.ok(people.every((u) => !u.mustChangePassword));
+  assert.ok(people.every((u) => !('authenticatorLinked' in u) && !('authenticatorRequired' in u)));
 });
 
-test('too many wrong passwords still lock the account when no authenticator is used', async () => {
+test('too many wrong passwords lock the account', async () => {
   const dir = tmpDir();
   const accounts = createAccounts({ dir, activity: createActivityLog(dir), mailer: fakeMailer(), maxUserFailures: 3 });
   const admin = browser(accounts);
@@ -611,4 +606,74 @@ test('the dashboard counts active head office applicants: a head office source a
   const d = buildDashboard(wb, { today: new Date(2026, 10, 5) });
   assert.strictEqual(d.kpis.students, 8);
   assert.strictEqual(d.kpis.activeHeadOffice, 3, 'Visitor (Application), Language Classes (Visa Issued) and Social Media (CAS Stage)');
+});
+
+test('a Manager who works in a team deletes only that team\'s students, not ones at other stages', () => {
+  const wb = { revision: 1, sheets: [{ id: 'sheet-mjzzzzzzaaaaa', name: 'Jan', columns: ['FIRST NAME', S], rows: [
+    { _id: 'm', [S]: 'Mock Stage', 'FIRST NAME': 'M' }, { _id: 'v', [S]: 'Visa Issued', 'FIRST NAME': 'V' }] }] };
+  const mgr = { role: 'manager', departments: ['mock'] };
+  const base = Teams.viewFor(mgr, wb);
+  assert.strictEqual(base.sheets[0].rows.length, 2, 'the Manager sees every student');
+  const noVisa = JSON.parse(JSON.stringify(base)); noVisa.sheets[0].rows = noVisa.sheets[0].rows.filter((r) => r._id !== 'v');
+  const out = Teams.teamChanges(mgr, base, noVisa);
+  assert.deepStrictEqual(out.deletes, []);
+  assert.ok(out.errors.some((e) => /can't delete a student at Visa Issued/.test(e)));
+  const noMock = JSON.parse(JSON.stringify(base)); noMock.sheets[0].rows = noMock.sheets[0].rows.filter((r) => r._id !== 'm');
+  assert.deepStrictEqual(Teams.teamChanges(mgr, base, noMock), { changes: [], adds: [], deletes: [{ sheetId: 'sheet-mjzzzzzzaaaaa', rowId: 'm' }], errors: [] });
+  assert.ok(!Teams.canDelete({ role: 'staff', departments: ['mock'] }, { [S]: 'Payment Stage' }));
+  assert.ok(Teams.canDelete({ role: 'admin' }, { [S]: 'Visa Issued' }));
+});
+
+test('after a password reset the temporary password only leads to choosing a new one; accounts that once had an authenticator log in with the password alone', async () => {
+  const { admin, accounts, dir } = await setUp();
+  const made = (await admin.call('POST', '/api/users', { name: 'Ram', username: 'ram', role: 'staff', departments: ['mock'] })).json;
+  const ram = browser(accounts);
+  await ram.call('POST', '/api/login', { username: 'ram', password: made.temporaryPassword });
+  await ram.call('POST', '/api/login/new-password', { password: 'ram first password' });
+  // An account saved while the authenticator existed still carries its secret in users.json.
+  const file = path.join(dir, 'users.json');
+  const saved = JSON.parse(fs.readFileSync(file, 'utf8'));
+  Object.assign(saved.users.find((u) => u.username === 'ram'), { totpSecret: 'JBSWY3DPEHPK3PXP', totpLastStep: 5 });
+  fs.writeFileSync(file, JSON.stringify(saved));
+  const old = browser(accounts);
+  assert.strictEqual((await old.call('POST', '/api/login', { username: 'ram', password: 'ram first password' })).json.stage, 'done');
+  assert.strictEqual((await old.call('GET', '/api/me')).status, 200);
+  // Admin resets the password: the temporary one is not a login by itself.
+  const reset = (await admin.call('POST', `/api/users/${made.user.id}`, { action: 'reset-password' })).json;
+  const someone = browser(accounts);
+  assert.strictEqual((await someone.call('POST', '/api/login', { username: 'ram', password: reset.temporaryPassword })).json.stage, 'new-password');
+  assert.strictEqual((await someone.call('GET', '/api/me')).status, 401, 'not in until a new password is chosen');
+  assert.strictEqual((await someone.call('POST', '/api/login/new-password', { password: 'ram second password' })).json.stage, 'done');
+  assert.strictEqual((await someone.call('GET', '/api/me')).status, 200);
+});
+
+test('a site that ran with the authenticator keeps all its accounts and goes straight to the login page', async () => {
+  const { admin, accounts, dir } = await setUp();
+  await admin.call('POST', '/api/users', { name: 'Sita', username: 'sita', role: 'staff', departments: ['mock'] });
+  const file = path.join(dir, 'users.json');
+  const saved = JSON.parse(fs.readFileSync(file, 'utf8'));
+  saved.users.forEach((u) => { u.totpSecret = 'JBSWY3DPEHPK3PXP'; u.totpLastStep = 1; });
+  fs.writeFileSync(file, JSON.stringify(saved));
+  const fresh = browser(accounts);
+  assert.strictEqual((await fresh.call('GET', '/api/login/state')).json.stage, 'password');
+  assert.strictEqual((await fresh.call('POST', '/api/login', { username: 'kayas', password: 'a long admin password' })).json.stage, 'done');
+  assert.deepStrictEqual((await fresh.call('GET', '/api/users')).json.map((u) => u.username).sort(), ['kayas', 'sita']);
+});
+
+test('the dashboard follows Nepal time: 01:15 on 1 December in Kathmandu is already December', () => {
+  const wb = { sheets: [{ id: 'a', name: 'Jan', columns: [], rows: [{ _id: 'x', 'FIRST NAME': 'A', 'APPLICATION STATUS': 'Visa Issued', 'VISA RECEIVED DATE': '2026-12-01' }] }] };
+  const d = buildDashboard(wb, { today: new Date('2026-11-30T19:30:00Z') });
+  assert.strictEqual(JSON.stringify(d).includes('2026-12'), true, 'the month of 1 December is shown');
+});
+
+test('a student at Payment Stage is waiting to pay: counted as paid only with a payment date or a deposit, or from CAS Stage on', () => {
+  const row = (extra) => ({ _id: Math.random().toString(36), 'FIRST NAME': 'A', 'LAST NAME': 'B', ...extra });
+  const wb = { sheets: [{ id: 'a', name: 'Jan', rows: [
+    row({ [S]: 'Payment Stage' }),
+    row({ [S]: 'Payment Stage', 'PAYMENT DATE': '2026-10-20' }),
+    row({ [S]: 'Payment Stage', 'TUITION FEE DEPOSIT(1st Installment)': '2000' }),
+    row({ [S]: 'CAS Stage' }),
+  ] }] };
+  const by = Object.fromEntries(buildDashboard(wb, { today: new Date('2026-10-28T00:00:00') }).milestones.map((m) => [m.key, m.count]));
+  assert.strictEqual(by.paid, 3);
 });

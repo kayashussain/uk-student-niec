@@ -95,7 +95,9 @@ test('UWL takes the February 2027 flyer courses by level, and an older seeded pa
   assert.match(page.courses, /## Enhanced Extended Master's\n[^#]*MSc Civil and Environmental Engineering/);
   assert.match(page.courses, /## Placement Year\n[^#]*MSc Cyber Security/);
   assert.strictEqual(feb.requirements, '', 'the requirements are in the table once, not repeated under the intake');
-  assert.match(page.notes, /£700 early payment discount/, 'the figure that disagrees with the table is kept as a note to confirm, not lost');
+  assert.match(page.notes, /Checked on the university website on 6 November 2026/, 'what was confirmed on the official page is noted');
+  assert.match(page.notes, /To confirm with the university[\s\S]*Undergraduate: GPA 2\.6 or 65%/, 'a figure that still disagrees is kept as a note to confirm, not lost');
+  assert.match(page.programs.find((p) => p.name === 'Enhanced Extended PG').scholarship, /£700 early settlement discount/);
   assert.match(feb.notes, /karan\.mehra@uwl\.ac\.uk/);
 
   // an older seeded copy (grouped by subject, never edited) is replaced

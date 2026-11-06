@@ -316,6 +316,15 @@
     return dateFormat.format(new Date(Date.UTC(y, m - 1, d)));
   }
 
+  // The student `row` is now: the same object if it's still on the sheet, else the one with its id (someone else's
+  // save may have replaced the rows, or moved this student, while a date box or dropdown was open). null if gone.
+  // Edits that finish later (a typed date confirms after a pause) write to this, never to a remembered position.
+  function liveRow(row) {
+    if (!row) return null;
+    if (rows.includes(row)) return row;
+    return (row._id && rows.find((r) => r._id === row._id)) || null;
+  }
+
   // Swaps a date cell's text for a real date box and returns it (or the one already there).
   function openDateCell(td) {
     const existing = td.querySelector('input');
@@ -342,9 +351,12 @@
       e.stopPropagation();
       input.openPicker();
     });
+    const student = rows[rowIdx];
     confirmDateInput(input, original, (value) => {
+      const target = liveRow(student);
+      if (!target) { NiecUI.toast('That student is no longer on this sheet, so the date was not saved.'); return; }
       pushUndo();
-      rows[rowIdx][col] = value;
+      target[col] = value;
       markDirty();
       renderRow(rowIdx, col); // the cell shows the date at once (it used to stay blank until the page was refreshed)
     });
@@ -368,13 +380,34 @@
     return MONEY.format(n);
   }
 
-  function toISODate(v) {
+  // Whether this browser writes the day first (15/03/2026, as in Nepal and the UK) or the month first (03/15/2026).
+  const DAY_FIRST = (() => {
+    try {
+      const parts = new Intl.DateTimeFormat(undefined).formatToParts(new Date(Date.UTC(2026, 2, 15)));
+      return parts.findIndex((p) => p.type === 'day') < parts.findIndex((p) => p.type === 'month');
+    } catch (e) { return false; }
+  })();
+
+  // A real calendar date as YYYY-MM-DD, or '' (then the text is kept as it was typed, and shown as a note).
+  const realDate = (y, m, d) => {
+    const t = new Date(Date.UTC(y, m - 1, d));
+    return t.getUTCFullYear() === y && t.getUTCMonth() === m - 1 && t.getUTCDate() === d
+      ? `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}` : '';
+  };
+  // Dates stored as 9/23/2026 (imported) are month first. Pasted ones follow this browser's order (`dayFirst`);
+  // either way, one that only reads one way (13/05/2026) is read that way, and an impossible one is no date.
+  function toISODate(v, { dayFirst = false } = {}) {
     if (!v) return '';
     const s = String(v).trim();
-    if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
-    const m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-    if (m) return `${m[3]}-${m[1].padStart(2, '0')}-${m[2].padStart(2, '0')}`;
-    return '';
+    let m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (m) return realDate(Number(m[1]), Number(m[2]), Number(m[3]));
+    m = s.match(/^(\d{1,2})[/.-](\d{1,2})[/.-](\d{4})$/);
+    if (!m) return '';
+    const a = Number(m[1]);
+    const b = Number(m[2]);
+    const y = Number(m[3]);
+    const readDayFirst = a > 12 ? true : b > 12 ? false : dayFirst;
+    return readDayFirst ? realDate(y, b, a) : realDate(y, a, b);
   }
 
   // Calendar months elapsed from `fromISO` (YYYY-MM-DD) to today, mirroring how
@@ -452,10 +485,14 @@
       if (select.value === choice) return;
       confirmChange(() => applyLanguageChoice(select.value), () => { select.value = choice; });
     });
+    const student = rows[rowIdx];
     const applyLanguageChoice = (value) => {
+      const target = liveRow(student);
+      if (!target) { renderBody(); return; }
       pushUndo();
-      rows[rowIdx][col] = value; // switching away from a date drops it; Ctrl+Z brings it back
+      target[col] = value; // switching away from a date drops it; Ctrl+Z brings it back
       markDirty();
+      rowIdx = rows.indexOf(target);
       renderRow(rowIdx, col);
       if (value === 'Test Date') {
         const input = cellTd(rowIdx, col) && cellTd(rowIdx, col).querySelector('input');
@@ -480,8 +517,10 @@
       if (input.showPicker) { try { input.showPicker(); } catch (err) { /* unsupported */ } }
     });
     confirmDateInput(input, toISODate(val), (value) => {
+      const target = liveRow(student);
+      if (!target) { NiecUI.toast('That student is no longer on this sheet, so the date was not saved.'); return; }
       pushUndo();
-      rows[rowIdx][col] = value || 'Test Date';
+      target[col] = value || 'Test Date';
       markDirty();
       applyLanguageTestFlag(td, value);
     });
@@ -1443,16 +1482,19 @@
           const busy = peerOnCell(rowIdx, col, false);
           if (busy) { e.preventDefault(); warnPeerOnCell(busy); }
         });
+        const student = rows[rowIdx];
         select.addEventListener('change', async () => {
           const newVal = select.value;
           if (isStatus && isTeam()) {
-            const check = Teams.checkMove(me, rows[rowIdx], newVal);
+            const check = Teams.checkMove(me, student, newVal);
             if (!check.ok) { select.value = val; await NiecUI.alert(check.message, { title: "This student can't move yet" }); return; }
             if (check.confirm && !(await NiecUI.confirm(check.confirm, { title: 'Move this student on?', confirmText: 'Yes, move on' }))) { select.value = val; return; }
           }
           confirmChange(() => {
+            const target = liveRow(student);
+            if (!target) { renderBody(); return; }
             pushUndo();
-            rows[rowIdx][col] = newVal;
+            target[col] = newVal;
             select.className = 'status-select ' + badgeClass(newVal);
             markDirty();
             if (col === 'APPLICATION STATUS') renderBody(); // re-run the defer-move check, refresh the warning
@@ -1848,8 +1890,46 @@
   }
 
   // Pastes from the top-left of the selection. A single copied value fills the whole selection.
+  // Cells copied from Excel or Google Sheets: tab between cells, a new line between rows, and a cell holding a tab,
+  // a line break or a quote wrapped in quotes (a quote inside written twice), so a Remarks cell of several lines
+  // stays one cell instead of spilling into the students below.
+  function parseClipboardTable(text) {
+    const src = String(text).replace(/\r\n?/g, '\n');
+    const table = [[]];
+    let cell = '';
+    let i = 0;
+    let atCellStart = true;
+    while (i < src.length) {
+      const ch = src[i];
+      if (atCellStart && ch === '"') {
+        // A quoted cell, if a closing quote ends it right before a tab, a line break or the end.
+        let j = i + 1;
+        let value = '';
+        let closed = false;
+        while (j < src.length) {
+          if (src[j] === '"') {
+            if (src[j + 1] === '"') { value += '"'; j += 2; continue; }
+            closed = j + 1 === src.length || src[j + 1] === '\t' || src[j + 1] === '\n';
+            break;
+          }
+          value += src[j];
+          j += 1;
+        }
+        if (closed) { cell = value; i = j + 1; atCellStart = false; continue; }
+      }
+      atCellStart = false;
+      if (ch === '\t') { table[table.length - 1].push(cell); cell = ''; atCellStart = true; } else if (ch === '\n') {
+        table[table.length - 1].push(cell); cell = ''; table.push([]); atCellStart = true;
+      } else cell += ch;
+      i += 1;
+    }
+    table[table.length - 1].push(cell);
+    if (table.length > 1 && table[table.length - 1].length === 1 && table[table.length - 1][0] === '') table.pop(); // the last line break
+    return table;
+  }
+
   function pasteIntoSelection(text) {
-    const data = text.replace(/\r\n?/g, '\n').replace(/\n$/, '').split('\n').map((line) => line.split('\t'));
+    const data = parseClipboardTable(text);
     const indices = viewIndices;
     const rects = rangeRects(indices);
     const r = rects[rects.length - 1];
@@ -1865,8 +1945,8 @@
         const col = columns[r.left + dc];
         if (raw === undefined || CALC_COLS[col]) continue;
         let val = normaliseTyped(col, raw.trim());
-        if (DATE_COLS.has(col) && val) val = toISODate(val) || val;
-        if (col === LANGUAGE_TEST_COL && val && !toISODate(val)) val = languageTestChoice(val);
+        if (DATE_COLS.has(col) && val) val = toISODate(val, { dayFirst: DAY_FIRST }) || val;
+        if (col === LANGUAGE_TEST_COL && val) val = toISODate(val, { dayFirst: DAY_FIRST }) || languageTestChoice(val);
         if (SELECT_COLS[col] && val) {
           const match = SELECT_COLS[col].find((opt) => opt.toLowerCase() === val.toLowerCase());
           if (!match) continue; // not one of the dropdown's choices
@@ -2129,7 +2209,9 @@
 
   // Keeps an open tab current when someone else saves. Never runs over unsaved or in-progress work.
   function busyEditing() {
+    const active = document.activeElement;
     return Boolean(editing || dragMode || openFilterMenu || openSheetMenu
+      || (active && active.classList && active.classList.contains('date-input')) // a date still being typed
       || (window.EditGuard && window.EditGuard.isOpen()) || NiecUI.isOpen());
   }
 
@@ -2249,6 +2331,10 @@
     }
     const indicesToDelete = Array.from(selectedRows).sort((a, b) => b - a); // descending, so splice indices stay valid
     const picked = indicesToDelete.map((i) => rows[i]);
+    if (picked.some((r) => r && !Teams.canDelete(me, r))) {
+      NiecUI.toast("Your team can only delete students at your own stage.");
+      return;
+    }
     const label = indicesToDelete.length === 1
       ? describeRow(rows[indicesToDelete[0]])
       : `${indicesToDelete.length} students`;
@@ -2415,6 +2501,9 @@
     const active = document.activeElement;
     if (active === searchEl || (active && active.classList && active.classList.contains('sheet-tab-input'))) return;
     if (editing) return; // inside a cell being typed in, Ctrl+Z undoes the typing, like Sheets
+    // Not while a question is open ("Is this what you meant?", "Make this change?"): its answer would then land on
+    // a sheet that undo had already replaced, and the edit would be lost without a word.
+    if (NiecUI.isOpen() || (window.EditGuard && window.EditGuard.isOpen())) { e.preventDefault(); return; }
     e.preventDefault();
     if (key === 'y' || (key === 'z' && e.shiftKey)) redo();
     else undo();

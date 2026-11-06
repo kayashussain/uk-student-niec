@@ -9,13 +9,15 @@ const UWL_DETAILS = {
     '- Institution: University of West London (UWL), known as "The Career University".',
     '- Locations and campuses: Ealing, Brentford and Reading (London, UK).',
     '- UKVI living expenses requirement: minimum £1,529 per month (Inner London rate).',
+    '- Deposit refunds: £2,000 of the tuition payment is non-refundable, unless UWL does not issue a CAS or the visa is refused for a reason other than fraud or misrepresentation. Other refunds carry a £1,000 administration fee.',
+    '- Graduate Route after the course: 18 months for applications made on or after 1 January 2027 (2 years if applied on or before 31 December 2026). Source: gov.uk/graduate-visa.',
     '- Graduate placement partners: Accenture, Hitachi, Verizon, FTI Consulting, HelloFresh, Epson, WWF, CARE International, British Red Cross.',
   ].join('\n'),
   programs: [
     {
       name: 'UG', duration: '3 Years',
       academic: '- High School / Grade 12th (GPA 2.5+)\n- GAP: 2023 onwards',
-      english: '- IELTS: 6.0 (min 5.5 each band)\n- PTE: 59 overall\n- TOEFL iBT: 78+\n- Duolingo: 120',
+      english: '- IELTS: 6.0 (min 5.5 each band)\n- PTE: 51 overall (min 51 each)\n- TOEFL iBT: 4.0 overall (min 4.0 each skill, new 1 to 6 scale)\n- Duolingo: 105 (min 100 each subscore)',
       tuition: '£16,750',
       scholarship: '£2,000 per year\n\n£500 early payment discount available if paid in full by enrolment, reducing fee to £14,250.',
       deposit: 'Interview booking deposit: £250\nRemaining CAS deposit: £9,750\n\nTotal minimum deposit: £10,000',
@@ -23,7 +25,7 @@ const UWL_DETAILS = {
     {
       name: 'PG', duration: '1 Year',
       academic: '- 4-Year Bachelor: 55%\n- 3-Year Bachelor: 60%\n- MBA: First Class Bachelor (60%) needs no work experience; 55% needs at least 2 years of work experience certificates\n- GAP: up to 5 to 7 years accepted',
-      english: '- IELTS: 6.5 (min 5.5 each band)\n- PTE: 58 (min 51 in skills)\n- TOEFL iBT: 78+\n- Duolingo: 120',
+      english: '- IELTS: 6.5 (min 5.5 each band)\n- PTE: 58 (min 51 in skills)\n- TOEFL iBT: 4.5 overall (min 4.5 in writing, speaking and one other skill, min 4.0 in the last; new 1 to 6 scale)\n- Duolingo: 120 (min 100 each subscore)',
       tuition: '£17,250\n\nMBA: £19,000',
       scholarship: '£3,500\n\n£500 early payment discount available if paid in full by enrolment, reducing fee to £13,250.',
       deposit: 'Interview booking deposit: £250\nRemaining CAS deposit: £9,750\n\nTotal minimum deposit: £10,000',
@@ -31,9 +33,9 @@ const UWL_DETAILS = {
     {
       name: 'Enhanced Extended PG', duration: '18 to 22 Months',
       academic: '- Bachelor degree: 40%+ accepted\n- GAP: up to 8 years accepted with work evidence',
-      english: '- IELTS: 6.0 (min 5.5 each band)\n- PTE: 56 overall\n- Duolingo: 105 (min 95 subscore)',
+      english: '- IELTS: 6.0 (min 5.5 each band)\n- PTE: 56 overall (min 51 each)\n- TOEFL iBT: 4.0 overall (min 4.0 each skill, new 1 to 6 scale)\n- Duolingo: 105 (min 100 each subscore)',
       tuition: '£21,000\n\nEnhanced Extended MBA: £21,500',
-      scholarship: '£5,000\n\nEarly payment discount is not available on this track.',
+      scholarship: '£5,000\n\n£700 early settlement discount if the year\'s tuition is paid in full by enrolment.',
       deposit: 'Interview booking deposit: £250\nRemaining CAS deposit: £11,750\n\nTotal minimum deposit: £12,000',
     },
     {
@@ -56,10 +58,11 @@ const UWL_DETAILS = {
   entryRequirements: 'Academic requirements for each course level (UG, PG, Enhanced Extended PG, PG Placement Year and Extended Nursing Studies Top Up) are in the fees table above.',
   courses: 'The full course list is below. A course that runs in only one intake says so.',
   notes: [
+    '- Checked on the university website on 6 November 2026 (uwl.ac.uk English language requirements and scholarships pages): the PTE, TOEFL and Duolingo scores, the Duolingo subscore of 100 for Enhanced Extended, and the £700 early settlement discount for Enhanced Extended above are the university\'s published figures.',
     '- To confirm with the university: the January 2027 sheet shows other figures than this fact file for these points. This page keeps the fact file figures until they are confirmed.',
-    '- Undergraduate: GPA 2.6 or 65% (here 2.5+); PTE 51 (here 59); Duolingo 105 with 100 in each part (here 120).',
+    '- Undergraduate: GPA 2.6 or 65% (here 2.5+).',
     '- Postgraduate: gap up to 10 years with work experience (here 5 to 7 years).',
-    '- Enhanced Extended: any percentage in a 3 or 4 year Bachelor (here 40%+); gap up to 10 years with work experience (here 8 years); a £700 early payment discount if the full fees are paid (here not available); Duolingo 100 in each part (here 95).',
+    '- Enhanced Extended: any percentage in a 3 or 4 year Bachelor (here 40%+); gap up to 10 years with work experience (here 8 years).',
   ].join('\n'),
   languageTests: 'The accepted tests and scores for each course level are in the table above (IELTS, PTE, TOEFL iBT and Duolingo).',
   interview: [
@@ -95,7 +98,7 @@ const UWL_DETAILS = {
     ].join('\n') },
     { title: 'Visa lodging, E-Visa and enrolment', detail: [
       '- Submit the online UK Student Visa application through VFS Global.',
-      '- Attend the VFS biometrics appointment and wait for the decision (standard processing: 3 to 4 weeks).',
+      '- Attend the VFS biometrics appointment and wait for the decision (gov.uk: usually within 3 weeks).',
       '- After visa approval, register the UKVI digital E-Visa account and complete the online student enrolment on the official portal.',
     ].join('\n') },
   ],
@@ -103,10 +106,11 @@ const UWL_DETAILS = {
     {
       id: 'fe2027000001',
       name: 'February 2027',
-      deadline: '',
+      deadline: '1 December 2026 (£10,000 upfront payment received, for the bursary)',
       requirements: [
+        '- Bursaries need an upfront tuition payment of £10,000 received before 1 December 2026.',
         '## Undergraduate',
-        '- Duration: 12 months. Fees: £16,750. Scholarship: £2,000 per year.',
+        '- Duration: 3 years. Fees: £16,750. Scholarship: £2,000 per year.',
         '- A further £500 early payment discount is available, on the reduced rate, if the first-year tuition fees are paid in full by enrolment, reducing the first-year fee to £14,250.',
         '- Minimum deposit required to issue CAS: £10,000.',
         '## Postgraduate',

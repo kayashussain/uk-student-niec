@@ -12,6 +12,8 @@ const fs = require('fs');
 const path = require('path');
 
 const PROTOCOL = '2025-03-26';
+const SUPPORTED_PROTOCOLS = ['2025-03-26', '2024-11-05'];
+const MAX_BATCH = 20;
 const MAX_BODY = 256 * 1024;
 const MAX_REPLY_CHARS = 400000;
 const MEMORY_MAX_SECTIONS = 40;
@@ -20,6 +22,9 @@ const MEMORY_MAX_TOTAL_CHARS = 60000;
 const MEMORY_KEEP_BACKUPS = 30;
 const EMAIL_RE = /[^\s@]{1,64}@[^\s@]{1,200}\.[^\s@]{2,}/;
 const LONG_NUMBER_RE = /(?:\+?\d[\s-]?){9,}/;
+const PASSPORT_RE = /\b[A-Z]{1,2}\d{6,8}\b/i; // e.g. PA1234567, or an 8-digit Nepal passport after a letter
+const YEAR_RE = /\b(?:19|20)\d{2}\b/g; // "2025 2026 2027 targets" is years, not a phone number
+const looksPersonal = (t) => EMAIL_RE.test(t) || PASSPORT_RE.test(t) || LONG_NUMBER_RE.test(t.replace(YEAR_RE, ' '));
 
 const MEMORY_TOOLS = [
   {
@@ -72,12 +77,15 @@ function createMemory(dir, log) {
   const load = () => {
     try {
       const m = JSON.parse(fs.readFileSync(file, 'utf8'));
-      return m && typeof m.sections === 'object' && m.sections ? m : { sections: {} };
+      // Sections in an object with no built-in keys, so titles like "constructor" or "__proto__" are just titles.
+      const sections = Object.assign(Object.create(null), m && typeof m.sections === 'object' && m.sections ? m.sections : {});
+      return { ...(m && typeof m === 'object' ? m : {}), sections };
     } catch (e) {
       if (e.code !== 'ENOENT') log(`[advisor-mcp] could not read the notebook: ${e.message}`);
-      return { sections: {} };
+      return { sections: Object.create(null) };
     }
   };
+  const has = (m, title) => Object.prototype.hasOwnProperty.call(m.sections, title);
   const total = (m) => Object.values(m.sections).reduce((n, v) => n + v.text.length, 0);
   function save(m) {
     fs.mkdirSync(path.join(dir, 'backups'), { recursive: true });
@@ -104,9 +112,9 @@ function createMemory(dir, log) {
       const text = cleanText(textRaw);
       if (!title) return { error: 'A section title is needed.' };
       if (!text) return { error: 'The note is empty.' };
-      if (EMAIL_RE.test(text) || LONG_NUMBER_RE.test(text)) return { error: 'Refused: the note looks like it contains an email or a phone/ID number. The notebook must not hold personal data. Rewrite it without names, emails or numbers.' };
+      if (looksPersonal(text) || looksPersonal(title)) return { error: 'Refused: the note looks like it contains an email or a phone/ID number. The notebook must not hold personal data. Rewrite it without names, emails or numbers.' };
       const m = load();
-      const had = m.sections[title];
+      const had = has(m, title) ? m.sections[title] : null;
       const day = new Date().toISOString().slice(0, 10);
       const next = mode === 'replace' || !had ? text : `${had.text}\n- ${day}: ${text}`;
       if (next.length > MEMORY_MAX_SECTION_CHARS) return { error: `That section would be over ${MEMORY_MAX_SECTION_CHARS} characters. Summarise it with mode "replace".` };
@@ -119,7 +127,7 @@ function createMemory(dir, log) {
     forget(sectionRaw) {
       const title = cleanTitle(sectionRaw);
       const m = load();
-      if (!m.sections[title]) return { error: `No section "${title}". Sections: ${Object.keys(m.sections).join(', ') || '(none)'}.` };
+      if (!has(m, title)) return { error: `No section "${title}". Sections: ${Object.keys(m.sections).join(', ') || '(none)'}.` };
       delete m.sections[title];
       save(m);
       return { ok: true, removed: title };
@@ -151,16 +159,18 @@ function createMcpEndpoint({ prefix, token, tokenName, tools, callTool, serverNa
   }
 
   function rpc(msg) {
+    // The client's own answer to something (it has a result or an error and no method): accepted, nothing to say.
+    if (msg && typeof msg === 'object' && msg.jsonrpc === '2.0' && msg.method === undefined && msg.id !== undefined
+      && ('result' in msg || 'error' in msg)) return null;
     if (!msg || typeof msg !== 'object' || msg.jsonrpc !== '2.0' || typeof msg.method !== 'string') {
       return { jsonrpc: '2.0', id: msg && msg.id !== undefined ? msg.id : null, error: { code: -32600, message: 'Invalid request' } };
     }
-    const isNotification = msg.id === undefined || msg.id === null;
-    if (isNotification) return null;
+    if (msg.id === undefined) return null; // a notification: no reply (an id of null still gets one)
     const ok = (result) => ({ jsonrpc: '2.0', id: msg.id, result });
     const fail = (code, message) => ({ jsonrpc: '2.0', id: msg.id, error: { code, message } });
     switch (msg.method) {
       case 'initialize':
-        return ok({ protocolVersion: PROTOCOL, capabilities: { tools: { listChanged: false } }, serverInfo: { name: serverName, version: '1.0.0' }, instructions });
+        return ok({ protocolVersion: SUPPORTED_PROTOCOLS.includes(msg.params && msg.params.protocolVersion) ? msg.params.protocolVersion : PROTOCOL, capabilities: { tools: { listChanged: false } }, serverInfo: { name: serverName, version: '1.0.0' }, instructions });
       case 'ping':
         return ok({});
       case 'tools/list':
@@ -222,6 +232,10 @@ function createMcpEndpoint({ prefix, token, tokenName, tools, callTool, serverNa
       return true;
     }
     if (Array.isArray(payload)) {
+      if (!payload.length || payload.length > MAX_BATCH) {
+        reply(200, { jsonrpc: '2.0', id: null, error: { code: -32600, message: payload.length ? `At most ${MAX_BATCH} requests in one batch.` : 'Invalid request: empty batch' } });
+        return true;
+      }
       const out = payload.map(rpc).filter(Boolean);
       if (!out.length) { res.writeHead(202); res.end(); } else reply(200, out);
       return true;

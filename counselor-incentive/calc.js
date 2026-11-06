@@ -11,7 +11,12 @@
   const FLEX_FIELDS = ['enrollmentCommission', 'enrollmentCommissionUni', 'newPartnershipCommission'];
   const unitField = (field) => field + 'Unit';
 
-  function num(v) { const n = parseFloat(v); return Number.isFinite(n) ? n : 0; }
+  // A number, also from text such as "1,500", "£12,500" or "Rs. 1,250" (the first number in it; a plain parseFloat read "1,500" as 1).
+  function num(v) {
+    if (typeof v === 'number') return Number.isFinite(v) ? v : 0;
+    const m = String(v ?? '').replace(/(\d),(?=\d)/g, '$1').match(/-?(?:\d+(?:\.\d+)?|\.\d+)/);
+    return m ? parseFloat(m[0]) : 0;
+  }
   // To two decimals, the way a person rounds: half a paisa goes up (floats store 27910.695 as 27910.69499..., so the
   // number is first cleaned to 12 significant digits).
   function round2(n) {
@@ -160,7 +165,7 @@
   // both are shown as 9/23/2026 here so the column reads the same all the way down.
   function displayDate(v) {
     const s = String(v || '').trim();
-    const m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    const m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
     return m ? `${Number(m[2])}/${Number(m[3])}/${m[1]}` : s;
   }
 
