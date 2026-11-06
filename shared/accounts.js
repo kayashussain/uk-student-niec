@@ -268,7 +268,10 @@ function createAccounts({
   // The one-time code for creating the first Admin: made (and printed) only while no accounts exist.
   // Someone who can log in: their own password is set (and their authenticator, when that is required).
   const isSetUp = (u) => !u.disabled && !u.mustChangePassword && (!requireAuthenticator || Boolean(u.totpSecret));
-  const hasReadyAdmin = () => users().some((u) => u.role === 'admin' && isSetUp(u));
+  // First-time setup is only for a site with no working Admin yet. An Admin who has set their own password counts,
+  // even before they link an authenticator: turning REQUIRE_AUTHENTICATOR on later asks them for one at their next
+  // login, and never sends the site back to first-time setup (which used to drop every account not yet linked).
+  const hasReadyAdmin = () => users().some((u) => u.role === 'admin' && !u.disabled && !u.mustChangePassword);
 
   function setupCode() {
     if (hasReadyAdmin()) return null;
@@ -440,8 +443,14 @@ function createAccounts({
   }
 
   // Signs the person in fully once their password and authenticator are both set.
-  function finishSetupIfDone(req, res, user) {
+  // `codeChecked`: an authenticator code was checked in this step. A person who already has an authenticator (their
+  // password was reset) still gives a code after choosing the new password: the temporary one alone is not a login.
+  function finishSetupIfDone(req, res, user, { codeChecked = false } = {}) {
     if (user.mustChangePassword || (requireAuthenticator && !user.totpSecret)) return ok(res, loginState(req));
+    if (requireAuthenticator && !codeChecked) {
+      startSession(req, res, user, 'code');
+      return ok(res, { stage: 'code', name: user.name });
+    }
     if (user.role === 'admin') { try { fs.unlinkSync(setupCodeFile); } catch (e) { /* already gone */ } }
     user = updateUser(user.id, { lastLoginAt: new Date(now()).toISOString() });
     startSession(req, res, user, 'full');
@@ -507,9 +516,11 @@ function createAccounts({
         disabled: false, createdAt: new Date(now()).toISOString(),
       };
       // An earlier, unfinished setup is replaced (its account could never log in).
-      const unfinished = users().filter((u) => !isSetUp(u)).map((u) => u.id);
+      // Only an earlier first Admin that never set a password goes; nobody else's account is ever touched here.
+      const unfinished = users().filter((u) => u.role === 'admin' && u.mustChangePassword).map((u) => u.id);
+      if (users().some((u) => !unfinished.includes(u.id) && u.username === username)) { bad(res, 409, 'That username is taken.'); return true; }
       endSessions((sess) => unfinished.includes(sess.userId));
-      saveUsers([...users().filter((u) => isSetUp(u) && u.username !== username), user]);
+      saveUsers([...users().filter((u) => !unfinished.includes(u.id)), user]);
       record(req, publicUser(user), 'Added user', { changes: [`Created the first Admin account: ${name} (${username})`] });
       startSession(req, res, user, 'setup');
       ok(res, { stage: 'new-password', name });
@@ -612,7 +623,7 @@ function createAccounts({
       if (step < 0) { bad(res, 400, "That code didn't match. Check the app shows UK Student NIEC and try the newest code."); return true; }
       const updated = updateUser(user.id, { totpSecret: secret, totpLastStep: step, lastLoginAt: new Date(now()).toISOString() });
       record(req, publicUser(updated), 'Linked authenticator app');
-      finishSetupIfDone(req, res, updated);
+      finishSetupIfDone(req, res, updated, { codeChecked: true });
       return true;
     }
 

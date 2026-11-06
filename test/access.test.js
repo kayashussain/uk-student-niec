@@ -603,3 +603,41 @@ test('a Manager who works in a team deletes only that team\'s students, not ones
   assert.ok(!Teams.canDelete({ role: 'staff', departments: ['mock'] }, { [S]: 'Payment Stage' }));
   assert.ok(Teams.canDelete({ role: 'admin' }, { [S]: 'Visa Issued' }));
 });
+
+test('after a password reset, a person with an authenticator still gives a code; the temporary password alone is no login', async () => {
+  const { admin, accounts, clock } = await setUp();
+  const made = (await admin.call('POST', '/api/users', { name: 'Ram', username: 'ram', role: 'staff', departments: ['mock'] })).json;
+  const ram = browser(accounts);
+  await ram.call('POST', '/api/login', { username: 'ram', password: made.temporaryPassword });
+  await ram.call('POST', '/api/login/new-password', { password: 'ram first password' });
+  const { secret } = (await ram.call('POST', '/api/login/authenticator', {})).json;
+  assert.strictEqual((await ram.call('POST', '/api/login/authenticator', { code: codeFor(secret, clock.t) })).json.stage, 'done');
+  const reset = (await admin.call('POST', `/api/users/${made.user.id}`, { action: 'reset-password' })).json;
+  const someone = browser(accounts);
+  assert.strictEqual((await someone.call('POST', '/api/login', { username: 'ram', password: reset.temporaryPassword })).json.stage, 'new-password');
+  assert.strictEqual((await someone.call('POST', '/api/login/new-password', { password: 'ram second password' })).json.stage, 'code');
+  assert.strictEqual((await someone.call('GET', '/api/me')).status, 401, 'no code given yet');
+  clock.t += 60000;
+  assert.strictEqual((await someone.call('POST', '/api/login/code', { code: codeFor(secret, clock.t) })).json.stage, 'done');
+  assert.strictEqual((await someone.call('GET', '/api/me')).status, 200);
+});
+
+test('turning on the authenticator later asks existing people for one, and never goes back to first-time setup', async () => {
+  const dir = tmpDir();
+  const clock = { t: Date.parse('2026-10-28T09:00:00Z') };
+  const plain = createAccounts({ dir, now: () => clock.t, mailer: fakeMailer(), activity: createActivityLog(dir), requireAuthenticator: false });
+  const b = browser(plain);
+  await b.call('POST', '/api/login/first-admin', { setupCode: fs.readFileSync(path.join(dir, 'first-admin-code.txt'), 'utf8'), name: 'Kayas', username: 'kayas' });
+  await b.call('POST', '/api/login/new-password', { password: 'a long admin password' });
+  const made = (await b.call('POST', '/api/users', { name: 'Sita', username: 'sita', role: 'staff', departments: ['mock'] })).json;
+  assert.ok(made.temporaryPassword);
+  // Restarted with REQUIRE_AUTHENTICATOR=1.
+  const strict = createAccounts({ dir, now: () => clock.t, mailer: fakeMailer(), activity: createActivityLog(dir), requireAuthenticator: true });
+  const fresh = browser(strict);
+  assert.strictEqual((await fresh.call('GET', '/api/login/state')).json.stage, 'password');
+  assert.strictEqual((await fresh.call('POST', '/api/login/first-admin', { setupCode: 'anything', name: 'X', username: 'intruder' })).status, 409);
+  assert.strictEqual((await fresh.call('POST', '/api/login', { username: 'kayas', password: 'a long admin password' })).json.stage, 'authenticator');
+  const { secret } = (await fresh.call('POST', '/api/login/authenticator', {})).json;
+  assert.strictEqual((await fresh.call('POST', '/api/login/authenticator', { code: codeFor(secret, clock.t) })).json.stage, 'done');
+  assert.deepStrictEqual((await fresh.call('GET', '/api/users')).json.map((u) => u.username).sort(), ['kayas', 'sita'], 'nobody was dropped');
+});
