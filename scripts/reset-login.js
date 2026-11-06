@@ -1,6 +1,6 @@
-// Emergency only, run on the server: gives one person a new temporary password, unlinks their
-// authenticator app, re-enables them and logs them out everywhere. For when the only Admin has lost
-// their phone or password (otherwise another Admin does this on the Users page).
+// Emergency only, run on the server: gives one person a new temporary password, re-enables them and logs
+// them out everywhere. For when the only Admin has forgotten their password (otherwise another Admin does
+// this on the Users page).
 //
 //   STUDENT_DETAILS_DATA_DIR=/path/to/student-details-data node scripts/reset-login.js <username>
 //
@@ -35,7 +35,7 @@ if (!user) {
 
 const chars = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789';
 const temp = Array.from(crypto.randomBytes(14), (b) => chars[b % chars.length]).join('');
-Object.assign(user, { passwordHash: hashPassword(temp), mustChangePassword: true, totpSecret: null, totpLastStep: -1, disabled: false });
+Object.assign(user, { passwordHash: hashPassword(temp), mustChangePassword: true, disabled: false });
 writeFileAtomic(usersFile, JSON.stringify(data, null, 2));
 
 const sessionsFile = path.join(dir, 'sessions.json');
@@ -47,8 +47,8 @@ try {
 
 fs.appendFileSync(path.join(dir, 'activity.jsonl'), JSON.stringify({
   time: new Date().toISOString(), account: 'Server terminal', accountId: null, device: 'reset-login script', ip: '',
-  action: 'Reset password', changes: [`Reset ${user.name} (${user.username}): new temporary password, authenticator unlinked`],
+  action: 'Reset password', changes: [`Reset ${user.name} (${user.username}): new temporary password`],
 }) + '\n');
 
 console.log(`Done. Temporary password for ${user.name} (${user.username}): ${temp}`);
-console.log('At the next login they choose a new password and link their authenticator app again.');
+console.log('At the next login they choose a new password.');

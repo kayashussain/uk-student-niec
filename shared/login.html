@@ -139,14 +139,6 @@
     <button type="submit">Log in</button>
   </form>
 
-  <form id="step-code" hidden>
-    <p class="note">Open the authenticator app on your phone and type the 6-digit code shown for <b>UK Student NIEC</b>.</p>
-    <label for="code">Code</label>
-    <input id="code" class="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9 ]*" maxlength="7" required />
-    <button type="submit">Log in</button>
-    <button type="button" class="link" data-restart>Use a different account</button>
-  </form>
-
   <form id="step-new-password" hidden>
     <p class="note">Choose your own password. Only you should know it. Never share it, not even with your team.</p>
     <label for="new-password">New password</label>
@@ -158,27 +150,9 @@
     <button type="button" class="link" data-restart>Cancel</button>
   </form>
 
-  <form id="step-authenticator" hidden>
-    <div class="note">
-      Link an authenticator app on <b>your own phone</b>. You'll need a code from it every time you log in.
-      <ol>
-        <li>Install <b>Google Authenticator</b> or <b>Microsoft Authenticator</b> from your phone's app store.</li>
-        <li>In the app, tap <b>+</b> and scan this code (or choose "enter a setup key" and type the key below).</li>
-        <li>Type the 6-digit code the app shows.</li>
-      </ol>
-    </div>
-    <div class="qr" id="qr"></div>
-    <div class="secret" id="secret" title="Setup key"></div>
-    <label for="first-code">Code from the app</label>
-    <input id="first-code" class="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9 ]*" maxlength="7" required />
-    <button type="submit">Finish</button>
-    <button type="button" class="link" data-restart>Cancel</button>
-  </form>
-
   <p class="error" id="error" role="alert" hidden></p>
   <p class="footnote">🔒 Staff only. Log in with your own username and password.</p>
 </main>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" integrity="sha512-CNgIRecGo7nphbeZ04Sc13ka07paqdeTu0WR1IM4kNcpmBAUSHSQX0FslNhTDadL4O5SAGapGt4FodqL8My0mA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 <script>
 (function () {
   const $ = (id) => document.getElementById(id);
@@ -195,9 +169,7 @@
   const subtitles = {
     'first-admin': 'First-time setup',
     password: 'Log in to continue',
-    code: 'Step 2 of 2',
     'new-password': 'Set up your login',
-    authenticator: 'Set up your login',
   };
 
   function showError(text) {
@@ -225,21 +197,8 @@
     form.reset();
     form.querySelectorAll('.pw input').forEach((i) => { i.type = 'password'; }); // a new step starts hidden again
     form.querySelectorAll('.pw-toggle').forEach((b) => { b.textContent = 'Show'; b.setAttribute('aria-pressed', 'false'); b.setAttribute('aria-label', 'Show password'); });
-    if (state.stage === 'authenticator') startAuthenticator();
     const first = form.querySelector('input');
     if (first) first.focus();
-  }
-
-  async function startAuthenticator() {
-    $('qr').innerHTML = '';
-    $('secret').textContent = '…';
-    try {
-      const { secret, uri } = await post('/api/login/authenticator', {});
-      $('secret').textContent = secret.replace(/(.{4})/g, '$1 ').trim();
-      if (window.QRCode) new window.QRCode($('qr'), { text: uri, width: 180, height: 180 });
-    } catch (e) {
-      showError(e.message);
-    }
   }
 
   function bind(stage, handler) {
@@ -268,12 +227,10 @@
     name: $('fa-name').value, username: $('fa-username').value, setupCode: $('fa-setup').value,
   }));
   bind('password', () => post('/api/login', { username: $('username').value, password: $('password').value }));
-  bind('code', () => post('/api/login/code', { code: $('code').value }));
   bind('new-password', () => {
     if ($('new-password').value !== $('new-password-2').value) throw new Error("The two passwords don't match.");
     return post('/api/login/new-password', { password: $('new-password').value });
   });
-  bind('authenticator', () => post('/api/login/authenticator', { code: $('first-code').value }));
 
   // Show or hide what is typed in a password box (handy on a phone).
   document.querySelectorAll('.pw-toggle').forEach((b) => b.addEventListener('click', () => {

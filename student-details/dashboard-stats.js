@@ -30,7 +30,8 @@ const STEPS = [
   { key: 'applied', label: 'Application submitted', stage: 2 },
   { key: 'offer', label: 'Offer received', stage: 2 },
   { key: 'mock', label: 'Mock interview held', stage: 3 },
-  { key: 'paid', label: 'Payment made', stage: 3 },
+  // Payment Stage means waiting for the payment, so payment is only proven by CAS Stage onward (or a payment date or a deposit).
+  { key: 'paid', label: 'Payment made', stage: 4 },
   { key: 'cas', label: 'CAS received', stage: 5 },
   { key: 'lodged', label: 'Visa lodged', stage: 6 },
   { key: 'visa', label: 'Visa issued', stage: 7 },

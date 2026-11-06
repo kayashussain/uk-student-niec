@@ -320,7 +320,7 @@ const server = http.createServer(async (req, res) => {
       const sheets = readSheetList();
       const existing = advancesByName(stored, sheets)[intake] || stored[intake] || {};
       // Fields left out of the body keep their saved values. Salary settings are only stored once set.
-      const entry = { ...existing, previousAdvance: num(body.previousAdvance, existing.previousAdvance) };
+      const entry = { ...existing, previousAdvance: Math.max(0, num(body.previousAdvance, existing.previousAdvance)) };
       ['basicSalary', 'salaryMonths'].forEach((f) => {
         if (f in body) entry[f] = num(body[f], existing[f]);
       });

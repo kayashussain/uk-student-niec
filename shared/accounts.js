@@ -1,9 +1,9 @@
-// Personal accounts for both apps: one login per person, password + authenticator-app code, sessions
+// Personal accounts for both apps: one login per person (username + password), sessions
 // the server can end at any moment (disabling a person logs them out everywhere at once).
 //
 // Files, all in the Student Details data folder (`dir`), never served:
 //   users.json     people: username, name, email, role (admin, manager or staff), departments, scrypt password
-//                  hash, authenticator secret, disabled
+//                  hash, disabled
 //   sessions.json  logged-in devices, keyed by a SHA-256 of the cookie token (the token itself is never stored)
 //   mail.json      the mail server settings, written on the server by `node scripts/email.js setup` (the mail
 //                  password is never sent to a page)
@@ -13,9 +13,8 @@
 // Mock, Follow-up, any mix). See shared/teams.js for what each can see and change.
 //   first-admin-code.txt  only until the first Admin exists (see below)
 //
-// Logging in: username + password, then the 6-digit code from the person's authenticator app. A new
-// person (or one whose password/authenticator Admin reset) first sets their own password and links the
-// app. Until an Admin has finished setting up (own password + authenticator), the server keeps a random
+// Logging in: username + password, nothing else. A new person (or one whose password Admin reset) first sets
+// their own password. Until an Admin has finished setting up (own password), the server keeps a random
 // one-time setup code in first-admin-code.txt next to the data and prints it in its log; whoever has it
 // (so: has access to the server) creates the first Admin account. If that setup is left unfinished
 // (e.g. the browser was closed), the setup screen and the same code stay available to start again.
@@ -71,8 +70,8 @@ async function verifyPasswordAsync(password, stored) {
 // Checked for a username that doesn't exist, so a wrong username takes as long as a wrong password.
 const DUMMY_HASH = hashPassword(crypto.randomBytes(8).toString('hex'));
 
-// A password may include (or be) the username: that's each person's choice. The authenticator code
-// is what stops someone who only knows or guesses the password.
+// A password may include (or be) the username: that's each person's choice. Wrong guesses are limited per
+// address and per account (see the login handler), and a password is never sent or stored in the clear.
 function passwordProblem(password) {
   const pw = String(password || '');
   if (pw.length < MIN_PASSWORD_LENGTH) return `The password needs at least ${MIN_PASSWORD_LENGTH} characters.`;
@@ -85,66 +84,6 @@ function temporaryPassword() {
   const chars = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789';
   const bytes = crypto.randomBytes(14);
   return Array.from(bytes, (b) => chars[b % chars.length]).join('');
-}
-
-// ---------------------------------------------------------------------------------------------
-// Authenticator codes (TOTP, RFC 6238: HMAC-SHA1, 30-second steps, 6 digits), as used by Google
-// Authenticator, Microsoft Authenticator and others.
-// ---------------------------------------------------------------------------------------------
-
-const BASE32 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
-
-function base32Encode(buf) {
-  let bits = 0;
-  let value = 0;
-  let out = '';
-  for (const byte of buf) {
-    value = (value << 8) | byte;
-    bits += 8;
-    while (bits >= 5) {
-      out += BASE32[(value >>> (bits - 5)) & 31];
-      bits -= 5;
-    }
-  }
-  if (bits > 0) out += BASE32[(value << (5 - bits)) & 31];
-  return out;
-}
-
-function base32Decode(text) {
-  let bits = 0;
-  let value = 0;
-  const out = [];
-  for (const ch of String(text).toUpperCase().replace(/[^A-Z2-7]/g, '')) {
-    value = (value << 5) | BASE32.indexOf(ch);
-    bits += 5;
-    if (bits >= 8) {
-      out.push((value >>> (bits - 8)) & 255);
-      bits -= 8;
-    }
-  }
-  return Buffer.from(out);
-}
-
-function totpAt(secretBuf, step, digits = 6) {
-  const counter = Buffer.alloc(8);
-  counter.writeBigUInt64BE(BigInt(step));
-  const mac = crypto.createHmac('sha1', secretBuf).update(counter).digest();
-  const offset = mac[mac.length - 1] & 15;
-  const code = (mac.readUInt32BE(offset) & 0x7fffffff) % 10 ** digits;
-  return String(code).padStart(digits, '0');
-}
-
-// The time step the code belongs to (allowing one step either side for a phone clock that's a little
-// off), or -1. A step at or before `lastStep` is refused, so a code can't be used twice.
-function matchTotp(secretBase32, code, nowMs, lastStep = -1) {
-  const clean = String(code || '').replace(/\s/g, '');
-  if (!/^\d{6}$/.test(clean)) return -1;
-  const secret = base32Decode(secretBase32);
-  const current = Math.floor(nowMs / 30000);
-  for (const step of [current - 1, current, current + 1]) {
-    if (step > lastStep && safeEqual(totpAt(secret, step), clean)) return step;
-  }
-  return -1;
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -190,7 +129,9 @@ const sha256 = (s) => crypto.createHash('sha256').update(String(s)).digest('hex'
 
 // Accounts saved before departments existed had one team as their role (role: 'mock'): that becomes a
 // staff member in that one department.
-function normalizeUser(u) {
+function normalizeUser(raw) {
+  // Accounts made while the authenticator existed carry its secret: it is dropped, nothing uses it any more.
+  const { totpSecret, totpLastStep, ...u } = raw; // eslint-disable-line no-unused-vars
   if (u.role === 'ceo') return { ...u, role: 'manager', departments: [] }; // the Manager role was first called CEO
   if (u.role === 'manager') return { ...u, departments: (u.departments || []).filter((d) => DEPARTMENTS[d]) };
   if (DEPARTMENTS[u.role]) return { ...u, role: 'staff', departments: [u.role] };
@@ -262,8 +203,6 @@ function cleanEmail(s) {
 
 function createAccounts({
   dir, homePath = (req) => req.url, activity = null, writable = true, now = Date.now, mailer = defaultMailer,
-  // Password only by default. Set REQUIRE_AUTHENTICATOR=1 to also ask for the 6-digit code from an authenticator app.
-  requireAuthenticator = process.env.REQUIRE_AUTHENTICATOR === '1',
   maxFailures = 20, maxUserFailures = 8, windowMs = 15 * 60 * 1000,
 }) {
   fs.mkdirSync(dir, { recursive: true });
@@ -278,12 +217,10 @@ function createAccounts({
   const findUser = (id) => users().find((u) => u.id === id);
 
   // The one-time code for creating the first Admin: made (and printed) only while no accounts exist.
-  // Someone who can log in: their own password is set (and their authenticator, when that is required).
-  const isSetUp = (u) => !u.disabled && !u.mustChangePassword && (!requireAuthenticator || Boolean(u.totpSecret));
-  // First-time setup is only for a site with no working Admin yet. An Admin who has set their own password counts,
-  // even before they link an authenticator: turning REQUIRE_AUTHENTICATOR on later asks them for one at their next
-  // login, and never sends the site back to first-time setup (which used to drop every account not yet linked).
-  const hasReadyAdmin = () => users().some((u) => u.role === 'admin' && !u.disabled && !u.mustChangePassword);
+  // Someone who can log in: their own password is set.
+  const isSetUp = (u) => !u.disabled && !u.mustChangePassword;
+  // First-time setup is only for a site with no working Admin yet.
+  const hasReadyAdmin = () => users().some((u) => u.role === 'admin' && isSetUp(u));
 
   function setupCode() {
     if (hasReadyAdmin()) return null;
@@ -424,7 +361,7 @@ function createAccounts({
     const cfg = emailConfig();
     if (!cfg) return { status: 'not-configured', to: user.email };
     const message = mailer.setupEmail({
-      name: user.name, username: user.username, temporaryPassword: temp, access: accessLabel(user), siteUrl: siteUrlFor(req), kind, authenticator: requireAuthenticator,
+      name: user.name, username: user.username, temporaryPassword: temp, access: accessLabel(user), siteUrl: siteUrlFor(req), kind,
     });
     try {
       await mailer.sendMail(cfg, { to: user.email, ...message });
@@ -453,21 +390,13 @@ function createAccounts({
     if (!found) return { stage: 'password' };
     const { session, user } = found;
     if (session.stage === 'full') return { stage: 'done' };
-    if (session.stage === 'code') return { stage: 'code', name: user.name };
-    // stage 'setup'
-    if (user.mustChangePassword) return { stage: 'new-password', name: user.name };
-    return { stage: requireAuthenticator ? 'authenticator' : 'done', name: user.name };
+    if (session.stage === 'setup' && user.mustChangePassword) return { stage: 'new-password', name: user.name };
+    return { stage: 'password' };
   }
 
-  // Signs the person in fully once their password and authenticator are both set.
-  // `codeChecked`: an authenticator code was checked in this step. A person who already has an authenticator (their
-  // password was reset) still gives a code after choosing the new password: the temporary one alone is not a login.
-  function finishSetupIfDone(req, res, user, { codeChecked = false } = {}) {
-    if (user.mustChangePassword || (requireAuthenticator && !user.totpSecret)) return ok(res, loginState(req));
-    if (requireAuthenticator && !codeChecked) {
-      startSession(req, res, user, 'code');
-      return ok(res, { stage: 'code', name: user.name });
-    }
+  // Signs the person in fully once they have set their own password.
+  function finishSetupIfDone(req, res, user) {
+    if (user.mustChangePassword) return ok(res, loginState(req));
     if (user.role === 'admin') { try { fs.unlinkSync(setupCodeFile); } catch (e) { /* already gone */ } }
     user = updateUser(user.id, { lastLoginAt: new Date(now()).toISOString() });
     startSession(req, res, user, 'full');
@@ -490,8 +419,6 @@ function createAccounts({
       ...publicUser(u),
       accessLabel: accessLabel(u),
       disabled: Boolean(u.disabled),
-      authenticatorRequired: requireAuthenticator,
-      authenticatorLinked: !requireAuthenticator || Boolean(u.totpSecret),
       mustChangePassword: Boolean(u.mustChangePassword),
       createdAt: u.createdAt,
       lastLoginAt: u.lastLoginAt || null,
@@ -529,7 +456,7 @@ function createAccounts({
       if (!name) { bad(res, 400, 'Please enter your name.'); return true; }
       const user = {
         id: crypto.randomBytes(8).toString('hex'), username, name, role: 'admin', departments: [],
-        passwordHash: DUMMY_HASH, mustChangePassword: true, totpSecret: null, totpLastStep: -1,
+        passwordHash: DUMMY_HASH, mustChangePassword: true,
         disabled: false, createdAt: new Date(now()).toISOString(),
       };
       // An earlier, unfinished setup is replaced (its account could never log in).
@@ -565,44 +492,16 @@ function createAccounts({
       }
       unfail(ipFailures, ip);
       unfail(userFailures, username);
-      if (!requireAuthenticator && !user.mustChangePassword) {
-        // Password only: the right password is the whole login.
-        ipFailures.delete(ip);
-        userFailures.delete(user.username);
+      if (!user.mustChangePassword) {
         const updated = updateUser(user.id, { lastLoginAt: new Date(now()).toISOString() });
         startSession(req, res, updated, 'full');
         record(req, publicUser(updated), 'Logged in');
         sendJSON(res, 200, { ok: true, stage: 'done', name: user.name });
         return true;
       }
-      const needsSetup = user.mustChangePassword || !user.totpSecret;
-      startSession(req, res, user, needsSetup ? 'setup' : 'code');
-      sendJSON(res, 200, { ok: true, stage: needsSetup ? (user.mustChangePassword ? 'new-password' : 'authenticator') : 'code', name: user.name });
-      return true;
-    }
-
-    if (urlPath === '/api/login/code' && method === 'POST') {
-      const found = currentSession(req);
-      if (!found || found.session.stage !== 'code') { bad(res, 401, 'Please start again with your username and password.'); return true; }
-      const { user } = found;
-      if (blocked(ipFailures, ip, maxFailures) || blocked(userFailures, user.username, maxUserFailures)) {
-        bad(res, 429, TOO_MANY);
-        return true;
-      }
-      const step = matchTotp(user.totpSecret, body.code, now(), user.totpLastStep ?? -1);
-      if (step < 0) {
-        fail(ipFailures, ip);
-        fail(userFailures, user.username);
-        record(req, publicUser(user), 'Failed login', { note: 'right password, wrong authenticator code' });
-        bad(res, 401, 'Wrong code. Use the newest 6-digit code in your authenticator app.');
-        return true;
-      }
-      ipFailures.delete(ip);
-      userFailures.delete(user.username);
-      const updated = updateUser(user.id, { totpLastStep: step, lastLoginAt: new Date(now()).toISOString() });
-      startSession(req, res, updated, 'full');
-      record(req, publicUser(updated), 'Logged in');
-      ok(res, { stage: 'done' });
+      // A temporary password (new person, or Admin reset it): they choose their own next.
+      startSession(req, res, user, 'setup');
+      sendJSON(res, 200, { ok: true, stage: 'new-password', name: user.name });
       return true;
     }
 
@@ -615,36 +514,6 @@ function createAccounts({
       const updated = updateUser(found.user.id, { passwordHash: hashPassword(body.password), mustChangePassword: false });
       record(req, publicUser(updated), 'Set their own password');
       finishSetupIfDone(req, res, updated);
-      return true;
-    }
-
-    if (urlPath === '/api/login/authenticator' && method === 'POST') {
-      const found = currentSession(req);
-      if (!found || found.session.stage !== 'setup' || found.user.mustChangePassword) {
-        bad(res, 401, 'Please start again with your username and password.');
-        return true;
-      }
-      const { user } = found;
-      // Step 1 (no code yet): make a new secret and keep it on the session until it's confirmed.
-      if (!body.code) {
-        const secret = base32Encode(crypto.randomBytes(20));
-        const map = sessionsMap();
-        map[found.key] = { ...map[found.key], pendingSecret: secret };
-        saveSessions(map);
-        const label = encodeURIComponent(`UK Student NIEC:${user.username}`);
-        sendJSON(res, 200, {
-          secret,
-          uri: `otpauth://totp/${label}?secret=${secret}&issuer=${encodeURIComponent('UK Student NIEC')}&digits=6&period=30`,
-        });
-        return true;
-      }
-      // Step 2: the first code from the app proves it's linked.
-      const secret = found.session.pendingSecret;
-      const step = secret ? matchTotp(secret, body.code, now()) : -1;
-      if (step < 0) { bad(res, 400, "That code didn't match. Check the app shows UK Student NIEC and try the newest code."); return true; }
-      const updated = updateUser(user.id, { totpSecret: secret, totpLastStep: step, lastLoginAt: new Date(now()).toISOString() });
-      record(req, publicUser(updated), 'Linked authenticator app');
-      finishSetupIfDone(req, res, updated, { codeChecked: true });
       return true;
     }
 
@@ -682,7 +551,7 @@ function createAccounts({
       const temp = temporaryPassword();
       const user = {
         id: crypto.randomBytes(8).toString('hex'), username, name, email, role: access.role, departments: access.departments,
-        passwordHash: hashPassword(temp), mustChangePassword: true, totpSecret: null, totpLastStep: -1,
+        passwordHash: hashPassword(temp), mustChangePassword: true,
         disabled: false, createdAt: new Date(now()).toISOString(),
       };
       saveUsers([...users(), user]);
@@ -730,11 +599,6 @@ function createAccounts({
         record(req, req.user, 'Reset password', { changes: [`Gave ${who} a new temporary password and logged them out`, mailNote(mail)] });
         sendJSON(res, 200, { ok: true, email: mail, ...(mail.status === 'sent' ? {} : { temporaryPassword: temp }) });
         return true;
-      } else if (action === 'reset-authenticator') {
-        if (self) { bad(res, 400, 'Ask another Admin to reset your authenticator.'); return true; }
-        updateUser(target.id, { totpSecret: null, totpLastStep: -1 });
-        endAll();
-        record(req, req.user, 'Reset authenticator', { changes: [`Unlinked ${who}'s authenticator app; they link a new one at their next login`] });
       } else if (action === 'update-person') {
         // Name, email and access. The Admin account keeps its access (and is the only one with it).
         const change = {};
@@ -816,8 +680,4 @@ module.exports = {
   hashPassword,
   verifyPassword,
   passwordProblem,
-  base32Encode,
-  base32Decode,
-  totpAt,
-  matchTotp,
 };

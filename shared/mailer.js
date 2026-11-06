@@ -199,7 +199,7 @@ async function sendMail(cfg, { to, subject, text, html }, { timeoutMs = 20000, r
 
 // "Set up your account": the link, username and temporary password, and the steps to follow.
 // kind 'new' for a new person, 'reset' when Admin gave an existing person a new temporary password.
-function setupEmail({ name, username, temporaryPassword, access, siteUrl, kind = 'new', authenticator = false }) {
+function setupEmail({ name, username, temporaryPassword, access, siteUrl, kind = 'new' }) {
   const link = siteUrl.replace(/\/+$/, '') + '/login';
   const intro = kind === 'reset'
     ? 'Your password for the UK Student NIEC system has been reset. Use the temporary password below to log in and choose a new one.'
@@ -207,11 +207,10 @@ function setupEmail({ name, username, temporaryPassword, access, siteUrl, kind =
   const steps = [
     'Open the website and log in with the username and temporary password above.',
     'Choose your own password (at least 10 characters).',
-    ...(authenticator ? ['Install Google Authenticator or Microsoft Authenticator on your phone, scan the QR code shown on the screen, and type the 6 digit code the app shows.'] : []),
   ];
-  const safety = (authenticator ? 'From then on you need your password and the code from your phone every time you log in. ' : 'From then on you log in with your username and your own password. ')
+  const safety = 'From then on you log in with your username and your own password. '
     + 'The temporary password stops working once you have chosen your own, so please do this soon. '
-    + `Never share your password${authenticator ? ' or your codes' : ''} with anyone, including colleagues and managers.`;
+    + 'Never share your password with anyone, including colleagues and managers.';
   const ignore = 'If you were not expecting this email, please ignore it and tell your manager.';
 
   const text = [

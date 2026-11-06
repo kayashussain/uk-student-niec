@@ -85,9 +85,7 @@ in Application URL above).
 Save → **Run NPM Install** → **Restart**.
 
 Everyone has **their own account**; there are no shared logins. Logging in takes the person's
-password (at least 10 characters). There is no second step by default. To also ask for the 6-digit code from
-an authenticator app (Google or Microsoft Authenticator), set the environment variable `REQUIRE_AUTHENTICATOR=1`
-on both apps and restart; people then link their phone at their next login. A login lasts 12 hours, and
+password (at least 10 characters), with no second step (no authenticator app or codes). A login lasts 12 hours, and
 wrong passwords lock the account for 15 minutes.
 
 - **First start:** while there are no accounts, the server makes a one-time **setup code**, prints it
@@ -101,7 +99,7 @@ wrong passwords lock the account for 15 minutes.
   phone. Admin is the owner account: nobody else can ever be made Admin.
 - **When someone leaves:** Users → **Remove**. Their login is deleted and they're logged out of every device at once; they can't
   log in again. **Disable** pauses a login without deleting it.
-- **Lost phone / forgotten password:** Admin uses *Reset password* (and *Reset authenticator* when codes are required) (the new
+- **Forgotten password:** Admin uses *Reset password* (the new
   temporary password is emailed to the person).
   If no Admin can log in, run on the server
   `STUDENT_DETAILS_DATA_DIR=<the data folder> node scripts/reset-login.js <username>`.
