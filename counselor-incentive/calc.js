@@ -4,8 +4,14 @@
   // Flywire Incentive = 0.2% of the Flywire Fee Payment (in GBP), converted to NPR at today's rate.
   const FLYWIRE_INCENTIVE_RATE = 0.002;
 
-  function num(v) { const n = parseFloat(v); return isNaN(n) ? 0 : n; }
-  function round2(n) { return Math.round(n * 100) / 100; }
+  // A number, also from text such as "1,500", "£12,500" or "Rs. 1,250" (the first number in it).
+  function num(v) {
+    if (typeof v === 'number') return Number.isFinite(v) ? v : 0;
+    const m = String(v ?? '').replace(/(\d),(?=\d)/g, '$1').match(/-?(?:\d+(?:\.\d+)?|\.\d+)/);
+    return m ? parseFloat(m[0]) : 0;
+  }
+  // To the paisa. The toPrecision step drops binary noise first, so 150.045 (held as 150.04499...) rounds up.
+  function round2(n) { return Math.round(Number((n * 100).toPrecision(12))) / 100; }
 
   function flywireIncentive(feePaymentGbp, gbpToNpr) {
     return round2(feePaymentGbp * FLYWIRE_INCENTIVE_RATE * gbpToNpr);
@@ -18,10 +24,14 @@
       + sum('newPartnershipCommission') + sum('selfStudentCommission') + sum('flywireCommission');
     const loanPayable = sum('loanCommission');
     const netCommissions = totalCommissions - loanPayable;
-    const tds = Math.max(0, netCommissions) * TDS_RATE; // no TDS (and no negative TDS) when nothing is owed
-    const advance = num(previousAdvance);
-    const netPayable = netCommissions - tds - advance;
-    return { totalCommissions, loanPayable, netCommissions, tds, previousAdvance: advance, netPayable };
+    // Every line rounded to the paisa, so the lines shown (and exported) add up exactly.
+    const tds = round2(Math.max(0, netCommissions) * TDS_RATE); // no TDS (and no negative TDS) when nothing is owed
+    const advance = round2(num(previousAdvance));
+    const netPayable = round2(round2(netCommissions) - tds - advance);
+    return {
+      totalCommissions: round2(totalCommissions), loanPayable: round2(loanPayable), netCommissions: round2(netCommissions),
+      tds, previousAdvance: advance, netPayable,
+    };
   }
 
   // Commission the company gets from the university: the given % of the student's tuition fee (GBP).
@@ -59,7 +69,7 @@
   // both are shown as 9/23/2026 here so the column reads the same all the way down.
   function displayDate(v) {
     const s = String(v || '').trim();
-    const m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    const m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
     return m ? `${Number(m[2])}/${Number(m[3])}/${m[1]}` : s;
   }
 
