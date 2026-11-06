@@ -1,4 +1,4 @@
-// Personal accounts for both apps: one login per person (username + password), sessions
+// Personal accounts for the whole site: one login per person (username + password), sessions
 // the server can end at any moment (disabling a person logs them out everywhere at once).
 //
 // Files, all in the Student Details data folder (`dir`), never served:
@@ -19,8 +19,8 @@
 // (so: has access to the server) creates the first Admin account. If that setup is left unfinished
 // (e.g. the browser was closed), the setup screen and the same code stay available to start again.
 // The code is deleted once an Admin has finished. No password is built into the code.
-// The Student Details server answers all of this (handleApi); the Incentive server only checks
-// sessions (requireAuth), reading the same files.
+// The Student Details server answers all of this (handleApi) and checks every request's session (requireAuth);
+// the Incentive page runs inside the same server.
 
 const fs = require('fs');
 const path = require('path');

@@ -29,7 +29,7 @@
 
   // The tuition fee the student has to pay: Gross Fee − Scholarship − Early Bird Discount − Additional
   // Discount (before any installments). Worked out from the Gross Fee, so it never depends on a stale
-  // Fee After Scholarship cell. Used by the Incentive app.
+  // Fee After Scholarship cell. Used by the Incentive page.
   function netTuitionFee(row) {
     const base = feeAfterScholarship(row);
     // Never below nothing: a commission is never worked out on a negative fee.

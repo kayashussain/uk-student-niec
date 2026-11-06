@@ -65,7 +65,7 @@ test('the first Admin is created with the server\'s one-time setup code, only wh
   const accounts = createAccounts({ dir, now: () => clock.t });
   const code = setupCodeIn(dir);
   assert.match(code, /^[A-Z2-9]{4}-[A-Z2-9]{4}-[A-Z2-9]{4}$/);
-  // The Incentive app (read-only) never makes its own code.
+  // The Incentive page never makes its own code.
   assert.strictEqual(fs.readFileSync(path.join(dir, 'first-admin-code.txt'), 'utf8').trim(), code);
   const stranger = browser(accounts);
   assert.strictEqual((await stranger.call('GET', '/api/login/state')).json.stage, 'first-admin');
@@ -132,7 +132,7 @@ test('disabling someone logs them out everywhere and stops them logging in', asy
 
   assert.strictEqual((await admin.call('POST', `/api/users/${user.id}`, { action: 'disable' })).status, 200);
   assert.strictEqual((await ram.call('GET', '/api/data')).allowed, false);
-  // The Incentive app sees it too (it reads the same files).
+  // The Incentive page sees it too (it reads the same files).
   const req = { method: 'GET', url: '/api/sync', headers: { cookie: ram.cookie }, socket: { remoteAddress: '1.1.1.1' } };
   const res = { setHeader() {}, writeHead(s) { this.status = s; }, end() {} };
   assert.strictEqual(incentive.requireAuth(req, res), false);
