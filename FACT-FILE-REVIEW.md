@@ -42,7 +42,18 @@ Rules used: nothing already on a page is overwritten; a fact that is already the
 - York St John University (yorksj.ac.uk, Business MRes): the published entry is a 2:2 honours degree in a related subject (the page keeps its First Division line and notes this) and the personal statement is at most 500 words (the file said 1,000).
 - University of Sunderland: the January and February 2027 course start dates said 2026.
 
+## Second check of the other universities (6 November 2026)
+
+Read on the official pages and added as a dated note on each university's page (no figure the owner chose was replaced; the only value changed is the Birmingham City undergraduate fee, now £18,570): Birmingham City, Bath Spa, Aston, Arden, Harper Adams, University College Birmingham, Edinburgh Napier, Bradford (January 2027 deposit and CAS date), Brighton, University of Law, Hull, Surrey, Wales Trinity Saint David, Kent International College, Worcester, Wolverhampton ISC, West of Scotland, Greenwich UGIC. Several universities (Bath Spa, University College Birmingham, Harper Adams, Surrey, University of Law, Arden) show February 2027 rather than January 2027 on their official pages: confirm with them before advising students.
+
+Checked and matching the file: Bangor (BUIC) fees and intakes, Cardiff Metropolitan, Regent College London fees, Chester, Lancashire, Plymouth, Roehampton MBA, Staffordshire fees, Winchester fees, Bradford fees.
+
 ## Not confirmed, for a person to check by hand (6 November 2026)
+
+- Buckinghamshire New University: a search result quoting its international page says it is currently only accepting applicants who do not need a visa, and that the January 2027 deadline was 23 October 2026. If true, this blocks Nepali students. Confirm with the university first.
+- Essex (Nepal Global Talent Masters scholarship £5,000, deposit policy, fees), Hertfordshire (PG range up to £22,950, payment dates), Hull and Hull London PG fees, Wolverhampton PG fee (£18,465 or £18,645), UEL (5% early payment, MSc fees), Cumbria ISC fee, Northumbria (the page holds only the name), Ulster London, Birmingham and Manchester fees, UCA 2026/27 fees, Edinburgh Napier IELTS, London South Bank PG fee: the official pages could not be read or gave only search snippets.
+- English test scores for most universities were not checked at all.
+
 
 - Bedfordshire UG £16,800 and PG £17,900 for 2026/27, Hertfordshire PG top fee £22,950 and its January 2027 scholarship deposit condition, Winchester deposit (£5,000 or £7,000: the university does not publish it), Middlesex MSc fees (course by course, £17,100 to £19,500), Birmingham City UG £18,570 (one course page only), the UWL Masters length for February 2027 (12 or 16 months). The official pages were not readable or did not show the figure, so none of these was changed.
 - Several January 2027 deadlines have passed by the dates in the files (for example Regent College London, the University of Law application date, Sunderland London); the universities were not asked.
