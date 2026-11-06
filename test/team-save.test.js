@@ -88,3 +88,20 @@ test('team saves from an old page are checked against the students as they are n
   now = (await admin('GET', '/api/data')).json.sheets[0].rows.find((x) => x._id === 'r2');
   assert.strictEqual(now['UNIVERSITY NAME'], '');
 });
+
+test('a damaged data.json is set aside and the students come back from the backup', { timeout: 60000 }, async (t) => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'niec-corrupt-'));
+  const good = { revision: 7, activeSheetId: 's1', sheets: [{ id: 's1', name: 'Jan', columns: ['FIRST NAME', S], rows: [{ _id: 'a', 'FIRST NAME': 'Kept', [S]: 'Inquiry' }] }] };
+  fs.writeFileSync(path.join(dir, 'data.backup.json'), JSON.stringify(good));
+  fs.writeFileSync(path.join(dir, 'data.json'), '{"sheets":[{"id"');
+  const port = await freePort();
+  const server = spawn(process.execPath, ['server.js'], {
+    cwd: path.join(__dirname, '..', 'student-details'), env: { ...process.env, PORT: String(port), STUDENT_DETAILS_DATA_DIR: dir }, stdio: 'ignore',
+  });
+  t.after(() => server.kill());
+  for (let i = 0; i < 60; i += 1) { try { if ((await fetch(`http://127.0.0.1:${port}/login`)).ok) break; } catch (e) { /* not up yet */ } await wait(250); }
+  const now = JSON.parse(fs.readFileSync(path.join(dir, 'data.json'), 'utf8'));
+  assert.strictEqual(now.sheets[0].rows[0]['FIRST NAME'], 'Kept');
+  assert.ok(fs.readdirSync(dir).some((f) => /^data\.corrupt-\d+\.json$/.test(f)), 'the damaged file is kept to look at');
+  assert.strictEqual(JSON.parse(fs.readFileSync(path.join(dir, 'data.backup.json'), 'utf8')).revision, 7, 'the good backup is untouched');
+});

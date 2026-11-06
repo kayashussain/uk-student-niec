@@ -99,7 +99,20 @@ function loadWorkbook() {
     writeFileAtomic(DATA_FILE, JSON.stringify(fresh));
     return fresh;
   }
-  const workbook = migrateWorkbook(JSON.parse(text));
+  let workbook;
+  try {
+    workbook = migrateWorkbook(JSON.parse(text));
+    if (!isValidWorkbook(workbook)) throw new Error('not a workbook');
+  } catch (e) {
+    // A damaged data.json (a crash mid-write, a bad copy): set it aside and carry on from the newest copy that reads.
+    const recovered = recoverWorkbook();
+    if (!recovered) throw e;
+    const aside = path.join(DATA_DIR, `data.corrupt-${Date.now()}.json`);
+    try { fs.renameSync(DATA_FILE, aside); } catch (e2) { /* keep going */ }
+    console.error(`[startup] ${DATA_FILE} could not be read (${e.message}); set aside as ${aside}, carried on from ${recovered.from}`);
+    writeFileAtomic(DATA_FILE, JSON.stringify(recovered.workbook));
+    return recovered.workbook;
+  }
   const json = JSON.stringify(workbook);
   // Persist the migration once so future reads/writes are already in the new shape.
   if (json !== text) {
@@ -108,9 +121,30 @@ function loadWorkbook() {
   return workbook;
 }
 
+// The newest backup that reads as a workbook: the rolling one, then the daily copies, newest first.
+function recoverWorkbook() {
+  let daily = [];
+  try {
+    daily = fs.readdirSync(path.join(DATA_DIR, 'backups')).filter((f) => /^data-\d{4}-\d{2}-\d{2}\.json$/.test(f)).sort().reverse()
+      .map((f) => path.join(DATA_DIR, 'backups', f));
+  } catch (e) { /* none */ }
+  for (const file of [BACKUP_FILE, ...daily]) {
+    try {
+      const workbook = migrateWorkbook(JSON.parse(fs.readFileSync(file, 'utf8')));
+      if (isValidWorkbook(workbook)) return { workbook, from: file };
+    } catch (e) { /* try the next one */ }
+  }
+  return null;
+}
+
 function writeWorkbook(workbook) {
-  snapshotDaily(DATA_FILE, DATA_DIR, 'data');
-  if (fs.existsSync(DATA_FILE)) fs.copyFileSync(DATA_FILE, BACKUP_FILE); // rolling backup of the previous version
+  // Only a file that was read fine is copied into the backups, so a damaged one never replaces a good copy.
+  if (current && fs.existsSync(DATA_FILE)) {
+    snapshotDaily(DATA_FILE, DATA_DIR, 'data');
+    fs.copyFileSync(DATA_FILE, BACKUP_FILE); // rolling backup of the previous version
+  } else if (!current && fs.existsSync(DATA_FILE)) {
+    try { fs.renameSync(DATA_FILE, path.join(DATA_DIR, `data.corrupt-${Date.now()}.json`)); } catch (e) { /* replaced below */ }
+  }
   writeFileAtomic(DATA_FILE, JSON.stringify(workbook));
   current = workbook;
   served.clear();
