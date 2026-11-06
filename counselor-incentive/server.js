@@ -183,9 +183,11 @@ function readSync() {
   return { ok: true, intakes, byIntake };
 }
 
+// A number, also from text such as "1,500" or "£12,500" (not 1 or 0, as a plain parseFloat gives).
 function num(v, fallback) {
-  const n = parseFloat(v);
-  return isNaN(n) ? (fallback || 0) : n;
+  if (typeof v === 'number') return Number.isFinite(v) ? v : (fallback || 0);
+  const m = String(v ?? '').replace(/(\d),(?=\d)/g, '$1').match(/-?(?:\d+(?:\.\d+)?|\.\d+)/);
+  return m ? parseFloat(m[0]) : (fallback || 0);
 }
 
 // GBP -> NPR, refetched at most once per day (cached to disk) so entering a Flywire
@@ -318,7 +320,7 @@ const server = http.createServer(async (req, res) => {
       const sheets = readSheetList();
       const existing = advancesByName(stored, sheets)[intake] || stored[intake] || {};
       // Fields left out of the body keep their saved values. Salary settings are only stored once set.
-      const entry = { ...existing, previousAdvance: num(body.previousAdvance, existing.previousAdvance) };
+      const entry = { ...existing, previousAdvance: Math.max(0, num(body.previousAdvance, existing.previousAdvance)) };
       ['basicSalary', 'salaryMonths'].forEach((f) => {
         if (f in body) entry[f] = num(body[f], existing[f]);
       });

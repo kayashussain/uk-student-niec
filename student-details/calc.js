@@ -1,9 +1,12 @@
 // Fee calculations for the tracker. Loaded by the page before app.js (as window.NiecCalc) and by the tests.
 (function (root) {
+  // The first number in a cell: "£12,500" is 12500, "Rs. 1250" is 1250, "approx. 500" is 500 (a full stop
+  // that is not part of the number no longer turns it into a fraction).
   function parseNum(v) {
-    if (!v) return 0;
-    const n = parseFloat(String(v).replace(/[^0-9.\-]/g, ''));
-    return isNaN(n) ? 0 : n;
+    if (v === null || v === undefined || v === '') return 0;
+    if (typeof v === 'number') return Number.isFinite(v) ? v : 0;
+    const m = String(v).replace(/(\d),(?=\d)/g, '$1').match(/-?(?:\d+(?:\.\d+)?|\.\d+)/);
+    return m ? parseFloat(m[0]) : 0;
   }
 
   // Resolves a discount entered either as a percentage ("5%") or a flat amount ("500")
@@ -11,7 +14,10 @@
   function resolveDiscount(raw, base) {
     const s = String(raw || '').trim();
     if (!s) return 0;
-    if (s.includes('%')) return base * (parseNum(s) / 100);
+    // Only the number in front of the % sign counts, so "50% (£5,000)" is 50%, not 505000%.
+    const pct = s.replace(/(\d),(?=\d)/g, '$1').match(/(-?\d+(?:\.\d+)?)\s*%/);
+    if (pct) return base * (parseFloat(pct[1]) / 100);
+    if (s.includes('%')) return 0;
     return parseNum(s);
   }
 
@@ -26,13 +32,14 @@
   // Fee After Scholarship cell. Used by the Incentive app.
   function netTuitionFee(row) {
     const base = feeAfterScholarship(row);
-    return base - resolveDiscount(row['EARLY BIRD DISCOUNT'], base) - parseNum(row['ADDITIONAL DISCOUNT']);
+    // Never below nothing: a commission is never worked out on a negative fee.
+    return Math.max(0, base - resolveDiscount(row['EARLY BIRD DISCOUNT'], base) - resolveDiscount(row['ADDITIONAL DISCOUNT'], base));
   }
 
   function remainingTuitionFee(row) {
     const base = parseNum(row['FEE AFTER SCHOLARSHIP']);
     const earlyBird = resolveDiscount(row['EARLY BIRD DISCOUNT'], base);
-    const additional = parseNum(row['ADDITIONAL DISCOUNT']);
+    const additional = resolveDiscount(row['ADDITIONAL DISCOUNT'], base);
     const dep1 = parseNum(row['TUITION FEE DEPOSIT(1st Installment)']);
     const dep2 = parseNum(row['TUITION FEE DEPOSIT(2nd Installment)']);
     const dep3 = parseNum(row['TUITION FEE DEPOSIT(3rd Installment)']);

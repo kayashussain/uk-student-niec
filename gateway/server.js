@@ -19,7 +19,7 @@ const http = require('http');
 const net = require('net');
 const { spawn } = require('child_process');
 const path = require('path');
-const { send } = require('../shared/server-utils');
+const { send, clientIp } = require('../shared/server-utils');
 
 const PORT = process.env.PORT || 8080;
 const STUDENT_DETAILS_PORT = 4173;
@@ -111,7 +111,10 @@ const server = http.createServer((req, res) => {
       port: target.port,
       path: targetUrl,
       method: req.method,
-      headers: { ...req.headers, host: `127.0.0.1:${target.port}` },
+      // The apps behind this read the visitor's address from X-Forwarded-For (login limits, the Activity record). Only
+      // the address as this gateway worked it out goes on: a visitor's own X-Forwarded-For is trusted only from a
+      // proxy in front on a private address (Render's), never straight from the internet.
+      headers: { ...req.headers, host: `127.0.0.1:${target.port}`, 'x-forwarded-for': clientIp(req) || '' },
     },
     (proxyRes) => {
       res.writeHead(proxyRes.statusCode, proxyRes.headers);

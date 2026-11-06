@@ -8,7 +8,9 @@ const {
 } = require('../shared/server-utils');
 const { createAccounts } = require('../shared/accounts');
 const { makePatch, applyPatch } = require('../shared/patch');
-const { isAdmin, isManager, isReadOnly, teamOf, viewKey, viewFor, teamChanges } = require('../shared/teams');
+const {
+  isAdmin, isManager, isReadOnly, teamOf, viewKey, viewFor, teamChanges, canEdit, canDelete, checkMove, newestSheet, STATUS,
+} = require('../shared/teams');
 const { buildDashboard } = require('./dashboard-stats');
 const { createFacts } = require('./facts');
 const { createAdvisorMcp } = require('./advisor-mcp');
@@ -97,7 +99,20 @@ function loadWorkbook() {
     writeFileAtomic(DATA_FILE, JSON.stringify(fresh));
     return fresh;
   }
-  const workbook = migrateWorkbook(JSON.parse(text));
+  let workbook;
+  try {
+    workbook = migrateWorkbook(JSON.parse(text));
+    if (!isValidWorkbook(workbook)) throw new Error('not a workbook');
+  } catch (e) {
+    // A damaged data.json (a crash mid-write, a bad copy): set it aside and carry on from the newest copy that reads.
+    const recovered = recoverWorkbook();
+    if (!recovered) throw e;
+    const aside = path.join(DATA_DIR, `data.corrupt-${Date.now()}.json`);
+    try { fs.renameSync(DATA_FILE, aside); } catch (e2) { /* keep going */ }
+    console.error(`[startup] ${DATA_FILE} could not be read (${e.message}); set aside as ${aside}, carried on from ${recovered.from}`);
+    writeFileAtomic(DATA_FILE, JSON.stringify(recovered.workbook));
+    return recovered.workbook;
+  }
   const json = JSON.stringify(workbook);
   // Persist the migration once so future reads/writes are already in the new shape.
   if (json !== text) {
@@ -106,9 +121,30 @@ function loadWorkbook() {
   return workbook;
 }
 
+// The newest backup that reads as a workbook: the rolling one, then the daily copies, newest first.
+function recoverWorkbook() {
+  let daily = [];
+  try {
+    daily = fs.readdirSync(path.join(DATA_DIR, 'backups')).filter((f) => /^data-\d{4}-\d{2}-\d{2}\.json$/.test(f)).sort().reverse()
+      .map((f) => path.join(DATA_DIR, 'backups', f));
+  } catch (e) { /* none */ }
+  for (const file of [BACKUP_FILE, ...daily]) {
+    try {
+      const workbook = migrateWorkbook(JSON.parse(fs.readFileSync(file, 'utf8')));
+      if (isValidWorkbook(workbook)) return { workbook, from: file };
+    } catch (e) { /* try the next one */ }
+  }
+  return null;
+}
+
 function writeWorkbook(workbook) {
-  snapshotDaily(DATA_FILE, DATA_DIR, 'data');
-  if (fs.existsSync(DATA_FILE)) fs.copyFileSync(DATA_FILE, BACKUP_FILE); // rolling backup of the previous version
+  // Only a file that was read fine is copied into the backups, so a damaged one never replaces a good copy.
+  if (current && fs.existsSync(DATA_FILE)) {
+    snapshotDaily(DATA_FILE, DATA_DIR, 'data');
+    fs.copyFileSync(DATA_FILE, BACKUP_FILE); // rolling backup of the previous version
+  } else if (!current && fs.existsSync(DATA_FILE)) {
+    try { fs.renameSync(DATA_FILE, path.join(DATA_DIR, `data.corrupt-${Date.now()}.json`)); } catch (e) { /* replaced below */ }
+  }
   writeFileAtomic(DATA_FILE, JSON.stringify(workbook));
   current = workbook;
   served.clear();
@@ -162,6 +198,19 @@ function servedDashboard(user, intake) {
 }
 
 const CALCULATED_COLUMNS = ['FEE AFTER SCHOLARSHIP', 'REMAINING TUITION FEE'];
+const MAX_CELL_CHARS = 5000;
+
+// A team's cells are plain text (or a number or yes/no), not too long, and in a column the sheet has.
+function cellValueError(cells, sheet) {
+  const columns = new Set((sheet && sheet.columns) || []);
+  for (const { col, value } of cells) {
+    if (col.startsWith('_')) continue;
+    if (!columns.has(col)) return `There is no column called ${col.slice(0, 60)} on this sheet.`;
+    if (value !== null && !['string', 'number', 'boolean'].includes(typeof value)) return 'A cell can only hold text.';
+    if (String(value ?? '').length > MAX_CELL_CHARS) return `A cell can hold up to ${MAX_CELL_CHARS} characters.`;
+  }
+  return null;
+}
 
 // A team's save: its copy only holds its own students, so instead of merging whole workbooks, each
 // cell it changed is checked against its rules and written onto the current workbook. Anything
@@ -184,28 +233,48 @@ function handleTeamSave(req, res, parsed) {
     return sendJSON(res, 403, { error: errors.join(' ') });
   }
   if (!changes.length && !adds.length && !deletes.length) return sendJSON(res, 200, { ok: true, revision: current.revision });
-  // Every changed student must still be one this team sees now (someone may have moved them meanwhile).
+  const conflict = () => sendJSON(res, 409, { error: 'conflict', revision: current.revision });
+  // Teams work in the current intake only, as it is now: a page still holding an earlier intake (a newer one was
+  // started meanwhile) is sent the fresh view instead of changing the earlier one.
+  const intake = newestSheet(current.sheets.filter((s) => !s.hidden));
+  const inIntake = (sheetId) => Boolean(intake) && sheetId === intake.id;
+  const cellError = cellValueError(changes.map((c) => ({ col: c.col, value: c.value }))
+    .concat(adds.flatMap((a) => Object.keys(a.row).map((col) => ({ col, value: a.row[col] })))), intake);
+  if (cellError) return sendJSON(res, 400, { error: cellError });
+  // The rules were checked against the revision the page had, which may be older. Each change is checked again
+  // against the student as the server has them now (someone may have moved them on, or changed their source,
+  // meanwhile), so an old page can never change what the rules no longer allow.
   const rowsNow = new Map();
   current.sheets.forEach((s) => s.rows.forEach((r) => rowsNow.set(`${s.id}\u0000${r._id}`, r)));
+  const seesNow = (row) => viewFor(req.user, { sheets: [{ rows: [row] }] }).sheets[0].rows.length > 0;
   const updates = new Map(); // "sheet\0row" -> { col: value }
   for (const c of changes) {
     const key = `${c.sheetId}\u0000${c.rowId}`;
     const row = rowsNow.get(key);
-    if (!row || !viewFor(req.user, { sheets: [{ rows: [row] }] }).sheets[0].rows.length) {
-      return sendJSON(res, 409, { error: 'conflict', revision: current.revision });
-    }
+    if (!row || !inIntake(c.sheetId) || !seesNow(row)) return conflict();
+    if (c.col !== STATUS && !canEdit(req.user, c.col, row)) return conflict();
     updates.set(key, { ...(updates.get(key) || {}), [c.col]: c.value });
   }
-  // A student deleted by the team must still exist and still be one this team sees.
+  for (const c of changes) {
+    if (c.col !== STATUS) continue;
+    const key = `${c.sheetId}\u0000${c.rowId}`;
+    const row = rowsNow.get(key);
+    // The move from the stage the student is at now, with their details as they will be saved.
+    const from = String(row[STATUS] ?? '').trim();
+    const to = String(c.value ?? '').trim();
+    if (from === to) continue; // someone already moved them there
+    const check = checkMove(req.user, { ...row, ...updates.get(key), 'STUDENT SOURCE': row['STUDENT SOURCE'] }, to, from);
+    if (!check.ok) return conflict();
+  }
+  // A student deleted by the team must still exist and still be one this team may delete.
   const removed = new Set();
   for (const d of deletes) {
     const key = `${d.sheetId}\u0000${d.rowId}`;
     const row = rowsNow.get(key);
-    if (!row || !viewFor(req.user, { sheets: [{ rows: [row] }] }).sheets[0].rows.length) {
-      return sendJSON(res, 409, { error: 'conflict', revision: current.revision });
-    }
+    if (!row || !inIntake(d.sheetId) || !seesNow(row) || !canDelete(req.user, row)) return conflict();
     removed.add(key);
   }
+  if (adds.some((a) => !inIntake(a.sheetId))) return conflict();
   // New students go at the end of their (visible) sheet, with an id no other student has.
   const allIds = new Set(current.sheets.flatMap((s) => s.rows.map((r) => r._id)));
   const added = new Map(); // sheet id -> [rows]
@@ -294,32 +363,54 @@ async function handleSave(req, res) {
 // page makes up). Kept in memory only: a peer that stops reporting for PRESENCE_TTL_MS disappears.
 const PRESENCE_TTL_MS = 15000;
 const PEER_COLORS = ['#e8710a', '#188038', '#9334e6', '#d93025', '#0b8a8a', '#c2185b', '#7b5e00', '#1a73e8'];
-const peers = new Map(); // id -> { n, seen, sheetId, rowId, col, editing }
+const peers = new Map(); // "account:tab" -> { n, tab, seen, sheetId, rowId, col, editing, name }
 let nextPeerNumber = 1;
+const MAX_STREAMS_PER_ACCOUNT = 20;
+// Each tab is known by its account and the id the page made up, so nobody can take over (or close) someone else's.
+const tabKey = (user, tab) => `${user ? user.id : '-'}:${tab}`;
+const tabOf = (v) => (typeof v === 'string' ? v.slice(0, 40) : '');
 
 function recordPresence(body, user) {
-  const id = typeof body.id === 'string' ? body.id.slice(0, 40) : '';
-  if (!id) return;
+  const tab = tabOf(body.id);
+  if (!tab) return;
   const now = Date.now();
   peers.forEach((p, key) => { if (now - p.seen > PRESENCE_TTL_MS) peers.delete(key); });
-  const peer = peers.get(id) || { n: nextPeerNumber++ };
+  const key = tabKey(user, tab);
+  const peer = peers.get(key) || { n: nextPeerNumber++, tab };
   Object.assign(peer, {
     seen: now,
-    sheetId: typeof body.sheetId === 'string' ? body.sheetId : null,
-    rowId: typeof body.rowId === 'string' ? body.rowId : null,
-    col: typeof body.col === 'string' ? body.col : null,
+    sheetId: typeof body.sheetId === 'string' ? body.sheetId.slice(0, 80) : null,
+    rowId: typeof body.rowId === 'string' ? body.rowId.slice(0, 80) : null,
+    col: typeof body.col === 'string' ? body.col.slice(0, 80) : null,
     editing: Boolean(body.editing),
     name: user ? user.name : null,
   });
-  peers.set(id, peer);
+  peers.set(key, peer);
 }
 
-function othersThan(id) {
+// The students each view holds, for showing only the cursors that sit on them (made once per revision and view).
+const visibleCells = new Map(); // view -> { revision, set of "sheet\0row" }
+function visibleTo(user) {
+  const key = viewKey(user);
+  const hit = visibleCells.get(key);
+  if (hit && current && hit.revision === current.revision) return hit.set;
+  const set = new Set();
+  if (current) viewFor(user, current).sheets.forEach((sh) => sh.rows.forEach((r) => set.add(`${sh.id}\u0000${r._id}`)));
+  visibleCells.set(key, { revision: current ? current.revision : null, set });
+  return set;
+}
+
+// Everyone else's tabs. Someone who doesn't see a student isn't told who is looking at that student, or where.
+function othersThan(key, user) {
   const out = [];
-  peers.forEach((p, key) => {
-    if (key === id) return;
+  const seeAll = !user || isAdmin(user);
+  const seen = seeAll ? null : visibleTo(user);
+  peers.forEach((p, k) => {
+    if (k === key) return;
+    const shown = seeAll || (p.sheetId && p.rowId && seen.has(`${p.sheetId}\u0000${p.rowId}`));
+    if (!shown) return;
     out.push({
-      id: key, name: p.name || 'User ' + p.n, color: PEER_COLORS[(p.n - 1) % PEER_COLORS.length],
+      id: p.tab, name: p.name || 'User ' + p.n, color: PEER_COLORS[(p.n - 1) % PEER_COLORS.length],
       sheetId: p.sheetId, rowId: p.rowId, col: p.col, editing: p.editing,
     });
   });
@@ -328,39 +419,45 @@ function othersThan(id) {
 
 // Server-sent events: each open tab holds a connection and is pushed the state the moment anything
 // changes (someone moves their cursor, someone saves), instead of asking over and over.
-const streams = new Map(); // id -> res
+const streams = new Map(); // "account:tab" -> { res, user }
 
-function stateFor(id) {
-  return { revision: current ? current.revision : null, peers: othersThan(id) };
+function stateFor(key, user) {
+  return { revision: current ? current.revision : null, peers: othersThan(key, user) };
 }
 
 function broadcast() {
-  streams.forEach((res, id) => {
-    try { res.write('data: ' + JSON.stringify(stateFor(id)) + '\n\n'); } catch (e) { /* closed; cleaned up below */ }
+  streams.forEach(({ res, user }, key) => {
+    try { res.write('data: ' + JSON.stringify(stateFor(key, user)) + '\n\n'); } catch (e) { /* closed; cleaned up below */ }
   });
 }
 
 function handleEvents(req, res) {
-  const id = (new URL(req.url, 'http://x').searchParams.get('id') || '').slice(0, 40);
-  if (!id) return send(res, 400, 'id required');
+  const tab = tabOf(new URL(req.url, 'http://x').searchParams.get('id') || '');
+  if (!tab) return send(res, 400, 'id required');
+  const key = tabKey(req.user, tab);
+  const prefix = tabKey(req.user, '');
+  if (!streams.has(key) && [...streams.keys()].filter((k) => k.startsWith(prefix)).length >= MAX_STREAMS_PER_ACCOUNT) {
+    return send(res, 429, 'Too many open tabs.');
+  }
   res.writeHead(200, {
     ...SECURITY_HEADERS,
     'Content-Type': 'text/event-stream', 'Cache-Control': 'no-store, no-transform',
     Connection: 'keep-alive', 'X-Accel-Buffering': 'no',
   });
   res.write('retry: 1000\n\n');
-  const old = streams.get(id);
-  if (old) try { old.end(); } catch (e) { /* already gone */ }
-  streams.set(id, res);
-  res.write('data: ' + JSON.stringify(stateFor(id)) + '\n\n');
+  const old = streams.get(key);
+  if (old) try { old.res.end(); } catch (e) { /* already gone */ }
+  streams.set(key, { res, user: req.user });
+  res.write('data: ' + JSON.stringify(stateFor(key, req.user)) + '\n\n');
   req.on('close', () => {
-    if (streams.get(id) !== res) return;
-    streams.delete(id);
-    peers.delete(id); // closed tab: its box vanishes at once
+    const now = streams.get(key);
+    if (!now || now.res !== res) return;
+    streams.delete(key);
+    peers.delete(key); // closed tab: its box vanishes at once
     broadcast();
   });
 }
-setInterval(() => streams.forEach((res) => { try { res.write(': ping\n\n'); } catch (e) { /* ignore */ } }), 15000).unref();
+setInterval(() => streams.forEach(({ res }) => { try { res.write(': ping\n\n'); } catch (e) { /* ignore */ } }), 15000).unref();
 
 async function handlePresence(req, res) {
   let body;
@@ -371,7 +468,7 @@ async function handlePresence(req, res) {
   }
   recordPresence(body, req.user);
   broadcast();
-  return sendJSON(res, 200, stateFor(body.id));
+  return sendJSON(res, 200, stateFor(tabKey(req.user, tabOf(body.id)), req.user));
 }
 
 // The Fact File: everyone reads it, only Admin changes it.

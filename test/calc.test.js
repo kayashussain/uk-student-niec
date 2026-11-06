@@ -103,3 +103,24 @@ test('visa dates show in one format whichever way they were stored', () => {
   assert.strictEqual(incentive.displayDate('7/15/2026'), '7/15/2026');
   assert.strictEqual(incentive.displayDate(''), '');
 });
+
+test('money cells: first number only, commas and currency signs, % read from in front of the sign', () => {
+  const C = require('../student-details/calc');
+  assert.strictEqual(C.parseNum('£12,500'), 12500);
+  assert.strictEqual(C.parseNum('Rs. 1,250'), 1250);
+  assert.strictEqual(C.parseNum('approx. 500'), 500);
+  assert.strictEqual(C.parseNum('3000 (2 parts)'), 3000);
+  assert.strictEqual(C.resolveDiscount('50% (£5,000)', 10000), 5000);
+  assert.strictEqual(C.resolveDiscount('15% + 500', 10000), 1500);
+  assert.strictEqual(C.resolveDiscount('10%', 10000), 1000);
+  assert.strictEqual(C.netTuitionFee({ 'GROSS FEE': '10000', 'ADDITIONAL DISCOUNT': '5%' }), 9500);
+  assert.strictEqual(C.netTuitionFee({ 'GROSS FEE': '10000', SCHOLARSHIP: '12000' }), 0, 'never negative');
+  const I = require('../counselor-incentive/calc');
+  assert.strictEqual(I.num('1,500'), 1500);
+  assert.strictEqual(I.num('£12,500'), 12500);
+  assert.strictEqual(I.universityCommission('12,500', 15), 1875);
+  const s = I.computeSummary([{ enrollmentCommission: 1000.30 }], 0);
+  assert.strictEqual(s.tds, 150.05);
+  assert.strictEqual(s.netPayable, 850.25, 'the lines shown add up');
+  assert.strictEqual(I.displayDate('2026-9-3'), '9/3/2026');
+});

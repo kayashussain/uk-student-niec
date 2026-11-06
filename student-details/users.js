@@ -117,13 +117,13 @@
   // ---- People ----
   function status(u) {
     if (u.disabled) return '<span class="pill pill-off">Disabled</span>';
-    if (u.mustChangePassword || !u.authenticatorLinked) return '<span class="pill pill-wait">Not set up yet</span>';
+    if (u.mustChangePassword) return '<span class="pill pill-wait">Not set up yet</span>';
     return '<span class="pill pill-ok">Active</span>';
   }
 
   function accessChips(u) {
     if (u.role === 'admin') return '<span class="chip chip-admin">Admin</span>';
-    const teams = (u.departments || []).map((d) => `<span class="chip chip-${d}">${esc(DEPARTMENTS[d].label)}</span>`).join('');
+    const teams = (u.departments || []).map((d) => `<span class="chip chip-${d}">${esc((DEPARTMENTS[d] || { label: d }).label)}</span>`).join('');
     return (u.role === 'manager' ? '<span class="chip chip-manager">Manager</span>' : '') + teams || '<span class="muted">No team</span>';
   }
 
@@ -139,12 +139,11 @@
     $('peopleCount').textContent = users.filter((u) => !u.disabled).length;
     $('users').innerHTML = users.map((u) => {
       const self = me && u.id === me.id;
-      const notSetUp = !u.disabled && (u.mustChangePassword || !u.authenticatorLinked);
-      const actions = self ? '<span class="muted">This is you</span>' : `
+      const notSetUp = !u.disabled && u.mustChangePassword;
+      const actions = self ? `<div class="actions"><button class="btn btn-sm" data-act="edit" data-id="${u.id}">Edit name or email</button><span class="muted">This is you</span></div>` : `
         <div class="actions">
           <button class="btn btn-sm" data-act="edit" data-id="${u.id}">Edit</button>
           <button class="btn btn-sm" data-act="reset-password" data-id="${u.id}">${notSetUp ? 'Resend setup email' : 'Reset password'}</button>
-          ${u.authenticatorRequired ? `<button class="btn btn-sm" data-act="reset-authenticator" data-id="${u.id}">Reset authenticator</button>` : ''}
           <button class="btn btn-sm" data-act="logout-everywhere" data-id="${u.id}">Log out everywhere</button>
           ${u.disabled
     ? `<button class="btn btn-sm" data-act="enable" data-id="${u.id}">Enable</button>`
@@ -168,16 +167,15 @@
     'reset-password': (n, p) => (p.email
       ? `Email ${n} a new temporary password? Their current password stops working and they are logged out.`
       : `${n} has no email address, so the new temporary password will be shown here for you to give them. Their current password stops working and they are logged out. Continue?`),
-    'reset-authenticator': (n) => `Unlink ${n}'s authenticator app (for example, they lost their phone)? They are logged out and link a new one at their next login.`,
     'logout-everywhere': (n) => `Log ${n} out of every device?`,
   };
 
   const CONFIRM_TITLE = {
     remove: 'Remove this person?', disable: 'Disable this login?', 'reset-password': 'Give a new temporary password?',
-    'reset-authenticator': 'Unlink the authenticator app?', 'logout-everywhere': 'Log out of every device?',
+    'logout-everywhere': 'Log out of every device?',
   };
   const CONFIRM_BUTTON = {
-    remove: 'Remove', disable: 'Disable', 'reset-password': 'Reset password', 'reset-authenticator': 'Unlink', 'logout-everywhere': 'Log out',
+    remove: 'Remove', disable: 'Disable', 'reset-password': 'Reset password', 'logout-everywhere': 'Log out',
   };
 
   $('users').addEventListener('click', async (e) => {
@@ -231,6 +229,7 @@
     $('editName').value = person.name;
     $('editEmail').value = person.email || '';
     setAccess($('editAccess'), 'edit', person);
+    $('editAccess').hidden = person.role === 'admin'; // the Admin's access never changes
     $('editNote').textContent = 'Changing access logs the person out. They log in again to get their new access.';
     $('editDialog').showModal();
   }
@@ -240,7 +239,8 @@
     if (!editing) return;
     try {
       await api(`/api/users/${editing.id}`, {
-        action: 'update-person', name: $('editName').value, email: $('editEmail').value, ...readAccess($('editAccess'), 'edit'),
+        // The Admin's access never changes, so only their name and email are sent (the server refuses any access change).
+        action: 'update-person', name: $('editName').value, email: $('editEmail').value, ...(editing.role === 'admin' ? {} : readAccess($('editAccess'), 'edit')),
       });
       $('editDialog').close();
       message('usersMsg', `${editing.name} was updated.`);

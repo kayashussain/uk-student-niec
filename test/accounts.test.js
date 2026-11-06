@@ -4,9 +4,7 @@ const os = require('node:os');
 const fs = require('node:fs');
 const path = require('node:path');
 const { PassThrough } = require('node:stream');
-const {
-  createAccounts, hashPassword, verifyPassword, passwordProblem, base32Encode, base32Decode, totpAt, matchTotp,
-} = require('../shared/accounts');
+const { createAccounts, hashPassword, verifyPassword, passwordProblem } = require('../shared/accounts');
 
 const tmpDir = () => fs.mkdtempSync(path.join(os.tmpdir(), 'niec-accounts-'));
 
@@ -39,9 +37,6 @@ function browser(accounts, { ip = '203.0.113.5', ua = 'Mozilla/5.0 (Windows NT 1
   return { call, get cookie() { return cookie; } };
 }
 
-// The code an authenticator app would show right now for a secret.
-const codeFor = (secret, t) => totpAt(base32Decode(secret), Math.floor(t / 30000));
-
 // The one-time code the server saved next to the data.
 const setupCodeIn = (dir) => fs.readFileSync(path.join(dir, 'first-admin-code.txt'), 'utf8').trim();
 
@@ -50,32 +45,9 @@ async function setUpAdmin(accounts, clock, dir) {
   let r = await b.call('POST', '/api/login/first-admin', { setupCode: setupCodeIn(dir).toLowerCase(), name: 'Kayas', username: 'kayas' });
   assert.strictEqual(r.status, 200, r.body);
   r = await b.call('POST', '/api/login/new-password', { password: 'a long admin password' });
-  assert.strictEqual(r.json.stage, 'authenticator');
-  r = await b.call('POST', '/api/login/authenticator', {});
-  const { secret } = r.json;
-  r = await b.call('POST', '/api/login/authenticator', { code: codeFor(secret, clock.t) });
   assert.strictEqual(r.json.stage, 'done');
-  return { b, secret };
+  return { b };
 }
-
-test('authenticator codes match the RFC 6238 test vector and survive base32', () => {
-  const secret = Buffer.from('12345678901234567890');
-  assert.strictEqual(totpAt(secret, Math.floor(59 / 30), 8), '94287082');
-  assert.strictEqual(totpAt(secret, Math.floor(1111111109 / 30), 8), '07081804');
-  assert.deepStrictEqual(base32Decode(base32Encode(secret)), secret);
-});
-
-test('a code is accepted once, within a step either side, and never again', () => {
-  const secret = base32Encode(Buffer.from('12345678901234567890'));
-  const t = 1111111109 * 1000;
-  const code = codeFor(secret, t);
-  const step = matchTotp(secret, code, t);
-  assert.ok(step > 0);
-  assert.strictEqual(matchTotp(secret, code, t + 30000), step); // phone a little behind
-  assert.strictEqual(matchTotp(secret, code, t, step), -1); // used already
-  assert.strictEqual(matchTotp(secret, code, t + 120000), -1); // too old
-  assert.strictEqual(matchTotp(secret, 'abc', t), -1);
-});
 
 test('passwords are salted and checked; weak ones are refused', () => {
   const a = hashPassword('correct horse battery');
@@ -90,7 +62,7 @@ test('passwords are salted and checked; weak ones are refused', () => {
 test('the first Admin is created with the server\'s one-time setup code, only while no accounts exist', async () => {
   const clock = { t: Date.parse('2026-10-28T09:00:00Z') };
   const dir = tmpDir();
-  const accounts = createAccounts({ dir, now: () => clock.t , requireAuthenticator: true });
+  const accounts = createAccounts({ dir, now: () => clock.t });
   const code = setupCodeIn(dir);
   assert.match(code, /^[A-Z2-9]{4}-[A-Z2-9]{4}-[A-Z2-9]{4}$/);
   // The Incentive app (read-only) never makes its own code.
@@ -108,10 +80,10 @@ test('the first Admin is created with the server\'s one-time setup code, only wh
   assert.strictEqual(again.status, 409);
 });
 
-test('a new person sets their own password and authenticator, then logs in with password + code', async () => {
+test('a new person sets their own password, then logs in with just username and password', async () => {
   const clock = { t: Date.parse('2026-10-28T09:00:00Z') };
   const dir = tmpDir();
-  const accounts = createAccounts({ dir, now: () => clock.t , requireAuthenticator: true });
+  const accounts = createAccounts({ dir, now: () => clock.t });
   const { b: admin } = await setUpAdmin(accounts, clock, dir);
   const added = await admin.call('POST', '/api/users', { name: 'Sita', username: 'sita', role: 'mock' });
   const temp = added.json.temporaryPassword;
@@ -123,46 +95,37 @@ test('a new person sets their own password and authenticator, then logs in with 
   // Not logged in yet: the sheet refuses.
   assert.strictEqual((await phone.call('GET', '/api/data')).allowed, false);
   assert.strictEqual((await phone.call('POST', '/api/login/new-password', { password: temp })).status, 400);
-  await phone.call('POST', '/api/login/new-password', { password: 'my own long password' });
-  const { secret } = (await phone.call('POST', '/api/login/authenticator', {})).json;
-  assert.strictEqual((await phone.call('POST', '/api/login/authenticator', { code: '000000' })).status, 400);
-  r = await phone.call('POST', '/api/login/authenticator', { code: codeFor(secret, clock.t) });
-  assert.strictEqual(r.json.stage, 'done');
+  r = await phone.call('POST', '/api/login/new-password', { password: 'my own long password' });
+  assert.strictEqual(r.json.stage, 'done', 'no second step after choosing a password');
   r = await phone.call('GET', '/api/data');
   assert.strictEqual(r.allowed, true);
   assert.strictEqual(r.user.label, 'Sita (Mock Team)');
   // Not Admin: can't see people.
   assert.strictEqual((await phone.call('GET', '/api/users')).status, 403);
 
-  // Next day: password alone isn't enough.
+  // Next day: the 12-hour login ran out, and the password alone logs in again.
   clock.t += 13 * 60 * 60 * 1000;
-  assert.strictEqual((await phone.call('GET', '/api/data')).allowed, false); // the 12-hour login ran out
+  assert.strictEqual((await phone.call('GET', '/api/data')).allowed, false);
   const laptop = browser(accounts);
   r = await laptop.call('POST', '/api/login', { username: 'sita', password: 'my own long password' });
-  assert.strictEqual(r.json.stage, 'code');
-  assert.strictEqual((await laptop.call('GET', '/api/data')).allowed, false);
-  assert.strictEqual((await laptop.call('POST', '/api/login/code', { code: '123456' })).status, 401);
-  const code = codeFor(secret, clock.t);
-  assert.strictEqual((await laptop.call('POST', '/api/login/code', { code })).json.stage, 'done');
+  assert.strictEqual(r.json.stage, 'done');
   assert.strictEqual((await laptop.call('GET', '/api/data')).allowed, true);
-  // The same code can't be used again on another device.
-  const other = browser(accounts);
-  await other.call('POST', '/api/login', { username: 'sita', password: 'my own long password' });
-  assert.strictEqual((await other.call('POST', '/api/login/code', { code })).status, 401);
+  // The old second-step addresses answer nothing to a stranger.
+  const stranger = browser(accounts);
+  assert.strictEqual((await stranger.call('POST', '/api/login/code', { code: '123456' })).status, 401);
+  assert.strictEqual((await stranger.call('POST', '/api/login/authenticator', {})).status, 401);
 });
 
 test('disabling someone logs them out everywhere and stops them logging in', async () => {
   const clock = { t: Date.parse('2026-10-28T09:00:00Z') };
   const dir = tmpDir();
-  const accounts = createAccounts({ dir, now: () => clock.t , requireAuthenticator: true });
-  const incentive = createAccounts({ dir, now: () => clock.t, writable: false , requireAuthenticator: true }); // the other app
+  const accounts = createAccounts({ dir, now: () => clock.t });
+  const incentive = createAccounts({ dir, now: () => clock.t, writable: false }); // the other app
   const { b: admin } = await setUpAdmin(accounts, clock, dir);
   const { user, temporaryPassword } = (await admin.call('POST', '/api/users', { name: 'Ram', username: 'ram', role: 'followup' })).json;
   const ram = browser(accounts);
   await ram.call('POST', '/api/login', { username: 'ram', password: temporaryPassword });
   await ram.call('POST', '/api/login/new-password', { password: 'blue mango river' });
-  const { secret } = (await ram.call('POST', '/api/login/authenticator', {})).json;
-  await ram.call('POST', '/api/login/authenticator', { code: codeFor(secret, clock.t) });
   assert.strictEqual((await ram.call('GET', '/api/data')).allowed, true);
   const ramOnIncentive = browser(incentive);
   Object.defineProperty(ramOnIncentive, 'cookie', { value: ram.cookie });
@@ -183,7 +146,7 @@ test('disabling someone logs them out everywhere and stops them logging in', asy
 test('too many wrong passwords lock the account for a while, even with the right password', async () => {
   const clock = { t: Date.parse('2026-10-28T09:00:00Z') };
   const dir = tmpDir();
-  const accounts = createAccounts({ dir, now: () => clock.t, maxUserFailures: 3 , requireAuthenticator: true });
+  const accounts = createAccounts({ dir, now: () => clock.t, maxUserFailures: 3 });
   await setUpAdmin(accounts, clock, dir);
   for (let i = 0; i < 3; i += 1) {
     const r = await browser(accounts, { ip: `198.51.100.${i}` }).call('POST', '/api/login', { username: 'kayas', password: 'guess' + i });
@@ -193,13 +156,13 @@ test('too many wrong passwords lock the account for a while, even with the right
   assert.strictEqual(locked.status, 429);
   clock.t += 16 * 60 * 1000;
   const later = await browser(accounts).call('POST', '/api/login', { username: 'kayas', password: 'a long admin password' });
-  assert.strictEqual(later.json.stage, 'code');
+  assert.strictEqual(later.json.stage, 'done');
 });
 
 test('requests made from another website are refused', async () => {
   const clock = { t: Date.parse('2026-10-28T09:00:00Z') };
   const dir = tmpDir();
-  const accounts = createAccounts({ dir, now: () => clock.t , requireAuthenticator: true });
+  const accounts = createAccounts({ dir, now: () => clock.t });
   const { b } = await setUpAdmin(accounts, clock, dir);
   const req = { method: 'POST', url: '/api/data', headers: { cookie: b.cookie, 'sec-fetch-site': 'cross-site' }, socket: {} };
   const res = { setHeader() {}, writeHead(s) { this.status = s; }, end() {} };
@@ -210,7 +173,7 @@ test('requests made from another website are refused', async () => {
 test('the account files never hold a password or cookie in plain text', async () => {
   const clock = { t: Date.parse('2026-10-28T09:00:00Z') };
   const dir = tmpDir();
-  const accounts = createAccounts({ dir, now: () => clock.t , requireAuthenticator: true });
+  const accounts = createAccounts({ dir, now: () => clock.t });
   const { b } = await setUpAdmin(accounts, clock, dir);
   const files = ['users.json', 'sessions.json'].map((f) => fs.readFileSync(path.join(dir, f), 'utf8')).join('\n');
   assert.ok(!files.includes('a long admin password'));
@@ -220,7 +183,7 @@ test('the account files never hold a password or cookie in plain text', async ()
 test('an unfinished first-Admin setup can be started again with the same code', async () => {
   const clock = { t: Date.parse('2026-10-28T09:00:00Z') };
   const dir = tmpDir();
-  const accounts = createAccounts({ dir, now: () => clock.t , requireAuthenticator: true });
+  const accounts = createAccounts({ dir, now: () => clock.t });
   const code = setupCodeIn(dir);
   const first = browser(accounts);
   await first.call('POST', '/api/login/first-admin', { setupCode: code, name: 'Kayas', username: 'kayas' });
@@ -234,4 +197,14 @@ test('an unfinished first-Admin setup can be started again with the same code', 
   assert.strictEqual((await b.call('GET', '/api/me')).json.username, 'kayas');
   assert.ok(!fs.existsSync(path.join(dir, 'first-admin-code.txt')));
   assert.strictEqual((await browser(accounts).call('GET', '/api/login/state')).json.stage, 'password');
+});
+
+test('wrong passwords sent all at once still stop at the limit', async () => {
+  const clock = { t: Date.parse('2026-10-28T09:00:00Z') };
+  const dir = tmpDir();
+  const accounts = createAccounts({ dir, now: () => clock.t, maxUserFailures: 3 });
+  await setUpAdmin(accounts, clock, dir);
+  const all = await Promise.all(Array.from({ length: 10 }, (_, i) => browser(accounts, { ip: `198.51.100.${i}` }).call('POST', '/api/login', { username: 'kayas', password: 'guess' + i })));
+  assert.strictEqual(all.filter((r) => r.status === 401).length, 3);
+  assert.strictEqual(all.filter((r) => r.status === 429).length, 7);
 });

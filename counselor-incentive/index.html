@@ -275,7 +275,7 @@
     </div>
     <div class="summary-row subtract">
       <span class="label">Previous Advance <span class="info" title="Money already paid to you in advance for this intake. Type it in.">ⓘ</span></span>
-      <input class="adv-input" id="advanceInput" type="number" step="0.01" value="0" aria-label="Previous advance already paid (NPR)">
+      <input class="adv-input" id="advanceInput" type="number" step="0.01" min="0" value="0" aria-label="Previous advance already paid (NPR)">
     </div>
     <div class="summary-row final">
       <span class="label">Net Payable <span class="info" title="What is still to be paid to you: Net Incentives − TDS − Previous Advance.">ⓘ</span></span>
@@ -852,8 +852,9 @@ bindIntakeSetting(monthsInput, 'salaryMonths', DEFAULT_SALARY_MONTHS);
 advanceInput.addEventListener('change', () => {
   const intake = state.activeIntake;
   if (!intake) return;
-  const v = num(advanceInput.value);
   const prev = num((state.advances[intake] || {}).previousAdvance);
+  const v = num(advanceInput.value);
+  if (v < 0) { advanceInput.value = prev; showHint('The advance already paid cannot be below 0.'); return; }
   if (v === prev) return;
   confirmChange(() => {
     pushUndo({ kind: 'advance', intake, from: prev, to: v });
