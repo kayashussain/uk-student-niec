@@ -129,8 +129,8 @@ function createActivityLog(dir, { maxBytes = ACTIVITY_ROTATE_BYTES } = {}) {
       ...details,
     };
     try {
-      fs.mkdirSync(dir, { recursive: true });
-      fs.appendFileSync(file, JSON.stringify(entry) + '\n');
+      fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
+      fs.appendFileSync(file, JSON.stringify(entry) + '\n', { mode: 0o600 });
       if (fs.statSync(file).size > maxBytes) {
         let target = path.join(dir, `activity-${localDate()}.jsonl`);
         for (let n = 2; fs.existsSync(target); n += 1) target = path.join(dir, `activity-${localDate()}-${n}.jsonl`);
@@ -338,7 +338,7 @@ function readJSONBody(req, maxBytes) {
 function writeFileAtomic(file, text) {
   const tmp = `${file}.${process.pid}.${crypto.randomBytes(4).toString('hex')}.tmp`;
   try {
-    const fd = fs.openSync(tmp, 'w');
+    const fd = fs.openSync(tmp, 'w', 0o600); // private to the person running the server: other accounts on a shared host cannot read it
     try {
       fs.writeFileSync(fd, text);
       fs.fsyncSync(fd);

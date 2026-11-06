@@ -23,7 +23,7 @@ const YSJU_DETAILS = {
   programs: [
     {
       name: 'MRes', duration: '1 Year',
-      academic: 'First Division in Bachelor\'s or Master\'s degree',
+      academic: 'First Division in Bachelor\'s or Master\'s degree (the university\'s published minimum for the Business MRes is a 2:2 honours degree in a related subject, checked 6 November 2026)',
       english: 'IELTS 6.5 overall, PTE 64 overall, Duolingo 120 overall. The component scores differ by campus: see the language test section.',
       tuition: '£11,800',
       scholarship: '',
@@ -58,10 +58,10 @@ const YSJU_DETAILS = {
     },
   ],
   entryRequirements: [
-    '- Academic: First Division in Bachelor\'s or Master\'s degree.',
+    '- Academic: First Division in Bachelor\'s or Master\'s degree (the university\'s published minimum for the Business MRes is a 2:2 honours degree in a related subject, checked 6 November 2026).',
     '- Tuition fee: £11,800. Duration: 1 year.',
     '- Research proposal: mandatory (up to 1,500 words).',
-    '- SOP: up to 1,000 words, in the university format.',
+    '- Personal statement: up to 500 words for the Business MRes (checked 6 November 2026), in the university format.',
     '- MRes consent form: required.',
     '- General consent form: required.',
     '- Supervisors are allocated for each student.',
@@ -92,7 +92,7 @@ const YSJU_DETAILS = {
       '- Research proposal: up to 1,500 words.',
       '- 1 reference dated within the last 12 months (academic or professional).',
       '- Updated CV.',
-      '- SOP: up to 1,000 words, in the university format.',
+      '- Personal statement: up to 500 words for the Business MRes (checked 6 November 2026), in the university format.',
       '- Consent forms: the MRes consent form and the general consent form.',
     ].join('\n') },
     { title: 'Offer letter received' },

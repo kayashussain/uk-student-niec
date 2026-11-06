@@ -216,6 +216,12 @@ input.search:focus { outline: none; border-color: var(--niec-blue); box-shadow: 
 .grid-footer .grid-key { gap: 16px; }
 .live, #liveText { font-size: 13px; }
 .adv-input { font-size: 14px; }
+/* 🔴 CSS CHANGED (2026-11-06): the smallest texts on Student Details and the Dashboard, found by the independent design review | from: the status card labels 9.5px (they were cut off on a phone), card group titles 10.5px to 11px, the row count / "Saved" text 11px, the "Shortcuts" button 11px, the filter arrow 9px, the "Expired / Expiring" and Defer warning flags 10px, the bottom bar 11px, the sheet list heading 11px, the small note under Dashboard bars about 10.4px | to: the status card labels 11px (the text may wrap to two lines instead of being cut), everything else listed 12px (same colours; the status badges and dropdown text inside the sheet cells are left as they were so the column widths do not move) */
+.stat-group-title { font-size: 12px; }
+.save-status, .help-btn, .footbar, .all-sheets-heading, .filter-btn { font-size: 12px; }
+.lang-test-flag, .defer-warning-flag { font-size: 12px; }
+.bar-value small { font-size: 12px; }
+.stat-card .stat-label { overflow-wrap: anywhere; hyphens: auto; } /* a long word (APPLICATION) breaks with a hyphen on a phone instead of being cut off */
 @media (prefers-color-scheme: dark) { .summary-row.final { background: #1d222b; } }
 @media (max-width: 760px) { .wrap { padding: 6px 14px 40px; } .top { margin: 0 -14px 10px !important; padding: 18px 14px 4px !important; } .top .brand h1 { font-size: 28px !important; } input.search { width: 100%; } }
 .page-head h1 .pill, h1 .pill { font-family: var(--font); font-weight: 600; letter-spacing: 0; }
@@ -235,7 +241,8 @@ input.search:focus { outline: none; border-color: var(--niec-blue); box-shadow: 
   transition: box-shadow .2s ease, border-color .2s ease, background-color .2s ease;
 }
 .stat-card:hover { border-color: var(--niec-blue); box-shadow: var(--sh-2); }
-.stat-card .stat-label { display: block; width: 100%; min-height: 2.5em; white-space: normal; line-height: 1.25; text-align: center; font-size: 9.5px; letter-spacing: .02em; font-weight: 500; overflow: hidden; text-overflow: clip; }
+/* 🔴 CSS CHANGED (2026-11-06): the status card labels (Total Students, Inquiry, Application Stage ...) | from: 9.5px | to: 11px, wrapping to two lines where needed (see the block below the Incentive page rules); same colours */
+.stat-card .stat-label { display: block; width: 100%; min-height: 2.5em; white-space: normal; line-height: 1.25; text-align: center; font-size: 11px; letter-spacing: .02em; font-weight: 500; overflow: hidden; text-overflow: clip; }
 .stat-card .stat-value, .stat-card.stat-total .stat-value { font-size: 22px; }
 @media (max-width: 1100px) { .stat-group-cards { width: 100%; max-width: 100%; } }
 .stat-card.stat-total { background: var(--blue-bg); border-color: color-mix(in srgb, var(--niec-blue) 45%, var(--border)); box-shadow: inset 0 -3px 0 var(--niec-blue), var(--sh-1); }

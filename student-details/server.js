@@ -31,7 +31,7 @@ const DATA_DIR = process.env.STUDENT_DETAILS_DATA_DIR || ROOT;
 const DATA_FILE = path.join(DATA_DIR, 'data.json');
 const BACKUP_FILE = path.join(DATA_DIR, 'data.backup.json');
 const MAX_BODY_BYTES = 20 * 1024 * 1024;
-fs.mkdirSync(DATA_DIR, { recursive: true });
+fs.mkdirSync(DATA_DIR, { recursive: true, mode: 0o700 }); // the students' data is private to the account running the server
 
 // Only these files are served. data.json, its backups and this server's own code stay private.
 const serveStatic = createStaticServer(ROOT, {
@@ -308,6 +308,10 @@ function handleTeamSave(req, res, parsed) {
     return sendJSON(res, 403, { error: errors.join(' ') });
   }
   if (!changes.length && !adds.length && !deletes.length) return sendJSON(res, 200, { ok: true, revision: current.revision });
+  if (adds.length > 50) { // a person adds students one or a few at a time; thousands in one save is a mistake or an attack
+    activity.record(req, req.user, 'Change refused', { app: 'Student Details', changes: [`Tried to add ${adds.length} students in one save`] });
+    return sendJSON(res, 403, { error: 'You can add up to 50 students in one save.' });
+  }
   const conflict = () => sendJSON(res, 409, { error: 'conflict', revision: current.revision });
   // Teams work in the current intake only, as it is now: a page still holding an earlier intake (a newer one was
   // started meanwhile) is sent the fresh view instead of changing the earlier one.
@@ -329,7 +333,8 @@ function handleTeamSave(req, res, parsed) {
     if (!row || !inIntake(c.sheetId) || !seesNow(row)) return conflict();
     // The row colour has its own rule (canColor); every other cell except the stage follows the normal edit rule.
     if (c.col === '_color' ? !canColor(req.user, row) : c.col !== STATUS && !canEdit(req.user, c.col, row)) return conflict();
-    updates.set(key, { ...(updates.get(key) || {}), [c.col]: c.value });
+    // A stage is stored without stray spaces ("Application Stage " would not match the rules and the dashboard).
+    updates.set(key, { ...(updates.get(key) || {}), [c.col]: c.col === STATUS ? String(c.value ?? '').trim() : c.value });
   }
   for (const c of changes) {
     if (c.col !== STATUS) continue;

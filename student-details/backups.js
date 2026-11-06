@@ -16,10 +16,10 @@ const { writeFileAtomic, TIME_ZONE, localDate } = require('../shared/server-util
 
 const HOUR = 18; // 6 p.m.
 const KEEP_DAYS = 30;
-const ID = /^(daily|manual|before-restore)-\d{4}-\d{2}-\d{2}(-\d{4})?$/;
+const ID = /^(daily|manual|before-restore)-\d{4}-\d{2}-\d{2}(-\d{4}(\d{2})?)?$/;
 
 const localHour = (date) => Number(new Intl.DateTimeFormat('en-GB', { timeZone: TIME_ZONE, hour: '2-digit', hourCycle: 'h23' }).format(date));
-const localHHMM = (date) => new Intl.DateTimeFormat('en-GB', { timeZone: TIME_ZONE, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(date).replace(':', '');
+const localHHMMSS = (date) => new Intl.DateTimeFormat('en-GB', { timeZone: TIME_ZONE, hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23' }).format(date).replace(/:/g, '');
 const dayNumber = (ymd) => Math.floor(Date.parse(ymd + 'T00:00:00Z') / 86400000);
 
 function createBackups(dir, collect, { now = () => new Date() } = {}) {
@@ -48,10 +48,15 @@ function createBackups(dir, collect, { now = () => new Date() } = {}) {
   // Saves a copy now. kind: daily | manual | before-restore. Returns its id.
   function create(kind, date = now()) {
     const day = kind === 'daily' ? dueDay(date) : localDate(date);
-    const id = kind === 'daily' ? `daily-${day}` : `${kind}-${day}-${localHHMM(date)}`;
+    // A copy is never written over another one (two restores in the same minute used to destroy the first "before restore" copy):
+    // the name carries the second, and if that is taken it moves on to the next second.
+    let id = kind === 'daily' ? `daily-${day}` : `${kind}-${day}-${localHHMMSS(date)}`;
+    for (let n = 1; kind !== 'daily' && fs.existsSync(fileOf(id)) && n < 3600; n += 1) {
+      id = `${kind}-${day}-${localHHMMSS(new Date(date.getTime() + n * 1000))}`;
+    }
     const data = collect();
     const body = { app: 'UK Student NIEC', createdAt: date.toISOString(), kind, ...data };
-    fs.mkdirSync(folder, { recursive: true });
+    fs.mkdirSync(folder, { recursive: true, mode: 0o700 });
     writeFileAtomic(fileOf(id), zlib.gzipSync(JSON.stringify(body), { level: 9 }));
     prune(date);
     return id;

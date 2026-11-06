@@ -409,7 +409,8 @@ td.lang-test .date-input::-webkit-calendar-picker-indicator { opacity: .7; }
 .lang-test-flag.expiring { background: var(--amber-bg); color: var(--amber-fg); }
 .lang-test-flag.expired { background: var(--red-bg); color: var(--red-fg); }
 
-tr.defer-warning-row td { background: var(--red-bg) !important; }
+/* 🔴 CSS CHANGED (2026-11-06): the calendar icon was missing in date cells on red "Defer" warning rows | from: the red background replaced the cell's whole background, icon included (date cells looked uneditable) | to: only the background colour is red, so the calendar icon stays */
+tr.defer-warning-row td { background-color: var(--red-bg) !important; }
 .defer-warning-flag {
   display: inline-block;
   margin-left: 6px;

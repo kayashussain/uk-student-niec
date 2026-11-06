@@ -53,7 +53,8 @@
 .niec-account-text { display: flex; flex-direction: column; align-items: flex-start; line-height: 1.15; }
 .niec-account-name { font-weight: 600; white-space: nowrap; }
 .niec-account-role { font-size: 12px; color: var(--h-dim); white-space: nowrap; }
-.niec-caret { color: var(--h-dim); font-size: 10px; }
+/* 🔴 CSS CHANGED (2026-11-06): small text raised to 12px | from: header arrow 10px | to: 12px (same colours) */
+.niec-caret { color: var(--h-dim); font-size: 12px; }
 .niec-menu {
   position: absolute; right: 0; top: calc(100% + 6px); min-width: 220px; padding: 6px;
   background: var(--h-bg); border: 1px solid var(--h-border); border-radius: 10px;

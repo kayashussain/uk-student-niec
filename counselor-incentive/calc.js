@@ -14,7 +14,7 @@
   // A number, also from text such as "1,500", "£12,500" or "Rs. 1,250" (the first number in it; a plain parseFloat read "1,500" as 1).
   function num(v) {
     if (typeof v === 'number') return Number.isFinite(v) ? v : 0;
-    const m = String(v ?? '').replace(/(\d),(?=\d)/g, '$1').match(/-?(?:\d+(?:\.\d+)?|\.\d+)/);
+    const m = String(v ?? '').replace(/(\d),(?=\d{3}(?:\D|$)|\d{2},)/g, '$1').match(/-?(?:\d+(?:\.\d+)?|\.\d+)/);
     return m ? parseFloat(m[0]) : 0;
   }
   // To two decimals, the way a person rounds: half a paisa goes up (floats store 27910.695 as 27910.69499..., so the
@@ -49,10 +49,11 @@
     else if (/\s*(gbp|pounds?)$/i.test(s)) { unit = UNIT.GBP; s = s.replace(/\s*(gbp|pounds?)$/i, ''); }
     else if (/^(rs\.?|nrs\.?|npr|रु\.?)\s*/i.test(s)) { unit = UNIT.NPR; s = s.replace(/^(rs\.?|nrs\.?|npr|रु\.?)\s*/i, ''); }
     else if (/\s*(npr|rs\.?)$/i.test(s)) { unit = UNIT.NPR; s = s.replace(/\s*(npr|rs\.?)$/i, ''); }
-    s = s.replace(/,/g, '').trim();
+    // A comma only separates thousands (1,500 or 12,50,000 is not read, 1,5 is not 15): any other comma, or a letter, makes it text.
+    s = s.replace(/,(?=\d{3}(?:\D|$)|\d{2},)/g, '').trim();
     if (!s) return { value: 0, unit };
-    const n = Number(s);
-    return Number.isFinite(n) ? { value: n, unit } : null;
+    if (!/^-?(?:\d+\.?\d*|\.\d+)$/.test(s)) return null; // no 1e3 or 0x10
+    return { value: Number(s), unit };
   }
 
   const grouped = (n, max) => (Number(n) || 0).toLocaleString('en-US', { minimumFractionDigits: max === 0 ? 0 : 2, maximumFractionDigits: max === undefined ? 2 : max });
@@ -130,7 +131,7 @@
   // A student who came through a branch (the Student Source is "Chitwan Branch", "Pokhara Branch", "Butwal Branch" and so
   // on, anything ending in Branch): the branch keeps 70% of the university commission and the head office 30%.
   const BRANCH_SHARE_PERCENT = 70;
-  function isBranchSource(source) { return /\bbranch\b/i.test(String(source || '')); }
+  function isBranchSource(source) { return /\bbranch\s*$/i.test(String(source || '').trim()); }
 
   // What the company earned on an intake against what the counselor took home for it.
   // commissionGbp: total university commission; branchCommissionGbp: the part of it that came from branch students (the

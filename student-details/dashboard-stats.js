@@ -40,9 +40,17 @@ const has = (row, col) => text(row[col]) !== '';
 // "2026-03-05" or "3/5/2026" (month first, as the sheet shows it) -> "2026-03-05", else ''.
 function isoDate(v) {
   const s = text(v);
-  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
-  const m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-  return m ? `${m[3]}-${m[1].padStart(2, '0')}-${m[2].padStart(2, '0')}` : '';
+  // A real calendar day only: "2026-02-30" or "30/10/2026" read as month 30 are no date (they would count in a month chart
+  // while their waiting time came out as nothing).
+  const real = (y, m, d) => {
+    const t = new Date(Date.UTC(y, m - 1, d));
+    return t.getUTCFullYear() === y && t.getUTCMonth() === m - 1 && t.getUTCDate() === d
+      ? `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}` : '';
+  };
+  let m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (m) return real(Number(m[1]), Number(m[2]), Number(m[3]));
+  m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  return m ? real(Number(m[3]), Number(m[1]), Number(m[2])) : '';
 }
 const monthOf = (v) => isoDate(v).slice(0, 7);
 const dayNumber = (v) => {
@@ -225,9 +233,9 @@ function buildDashboard(workbook, { sheetId = '', includeHidden = false, today: 
     else k.noStatus += 1;
     STEPS.forEach((step) => { if (p.reached[step.key]) reachedCount[step.key] += 1; });
     if (p.filledIn) quality.filledFromStage += 1;
-    if (p.reached.paid && !has(row, 'PAYMENT DATE')) quality.paymentsWithoutDate += 1;
-    if (p.reached.visa && !has(row, 'VISA RECEIVED DATE')) quality.visasWithoutDate += 1;
-    if (p.reached.applied && !has(row, 'APPLICATION SUBMISSION DATE')) quality.applicationsWithoutDate += 1;
+    if (p.reached.paid && !isoDate(row['PAYMENT DATE'])) quality.paymentsWithoutDate += 1; // blank or not a real day
+    if (p.reached.visa && !isoDate(row['VISA RECEIVED DATE'])) quality.visasWithoutDate += 1; // blank or not a real day
+    if (p.reached.applied && !isoDate(row['APPLICATION SUBMISSION DATE'])) quality.applicationsWithoutDate += 1; // blank or not a real day
 
     for (let n = 1; n <= 4; n += 1) if (has(row, `MOCK SCHEDULE ${n}`)) k.mockInterviews += 1;
     if (status === 'Visa Rejected') k.rejected += 1;

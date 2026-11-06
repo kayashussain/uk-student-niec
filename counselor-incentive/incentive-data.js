@@ -25,16 +25,30 @@ function normalizeStudent(row, intake) {
 
 // { ok, intakes, byIntake }: byIntake[sheetName] only ever contains students whose APPLICATION STATUS is exactly
 // "Visa Issued" right now. Every sheet becomes an intake, even one with no visa-issued students.
-function syncFromWorkbook(workbook) {
-  const sheets = Array.isArray(workbook && workbook.sheets) ? workbook.sheets : [];
-  const byIntake = {};
-  sheets.forEach((sheet) => {
-    const rows = Array.isArray(sheet.rows) ? sheet.rows : [];
-    byIntake[sheet.name] = groupByUniversity(rows
-      .filter((r) => r['APPLICATION STATUS'] === 'Visa Issued' && r._id)
-      .map((r) => normalizeStudent(r, sheet.name)));
+// One name per intake: two sheets that share a name would otherwise be shown as the same intake (the second one's students
+// replacing the first one's). The second is called "Name (2)", the third "Name (3)", and so on, the same everywhere.
+function uniqueNames(sheets) {
+  const used = new Set();
+  return sheets.map((sheet) => {
+    const base = String(sheet && sheet.name !== undefined ? sheet.name : '');
+    let name = base;
+    for (let n = 2; used.has(name); n += 1) name = `${base} (${n})`;
+    used.add(name);
+    return name;
   });
-  return { ok: true, intakes: sheets.map((s) => s.name), byIntake };
 }
 
-module.exports = { normalizeStudent, syncFromWorkbook };
+function syncFromWorkbook(workbook) {
+  const sheets = Array.isArray(workbook && workbook.sheets) ? workbook.sheets : [];
+  const names = uniqueNames(sheets);
+  const byIntake = {};
+  sheets.forEach((sheet, i) => {
+    const rows = Array.isArray(sheet.rows) ? sheet.rows : [];
+    byIntake[names[i]] = groupByUniversity(rows
+      .filter((r) => r['APPLICATION STATUS'] === 'Visa Issued' && r._id)
+      .map((r) => normalizeStudent(r, names[i])));
+  });
+  return { ok: true, intakes: names, byIntake };
+}
+
+module.exports = { normalizeStudent, syncFromWorkbook, uniqueNames };

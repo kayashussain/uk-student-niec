@@ -9,6 +9,29 @@ Format: **date · file · what · from → to · why**
 
 ---
 
+## 2026-11-06 · `shared/theme.css`, `shared/header.css`, `student-details/dashboard.css`, `student-details/admin.css`, `student-details/style.css` · the smallest texts on Student Details, the Dashboard, Users and Activity, and two keyboard fixes
+
+- **What and from, to:**
+  - Status cards on Student Details (Total Students, Inquiry, Application Stage ...): label 9.5px to 11px, and a long word breaks onto the next line instead of being cut off ("APPLICATIO" on a phone).
+  - Card group title 10.5px to 12px; the "All changes saved" text, the "Shortcuts" button, the bottom bar, the sheet list heading and the filter arrow 11px or 9px to 12px; the "Expired / Expiring" and Defer warning flags 10px to 12px.
+  - Dashboard table headings and Users and Activity table headings 11px to 12px; the Activity action badge 11px to 12px; the small note under Dashboard bars about 10.4px to 12px; the top bar arrow 10px to 12px.
+  - Dashboard bar rows: keyboard focus was only a faint background change; now it also has a 2px blue outline (hover is unchanged).
+  - Defer warning rows (red): the red now only colours the background, so the calendar icon in date cells stays visible (it used to disappear, which made the cells look uneditable).
+- **Not changed:** colours, fonts, the status badges and dropdown text inside the sheet cells (so the column widths do not move), the layout.
+- **Why:** the owner wants no hard-to-read small text; the independent design review measured each of these in a real browser.
+- **In the code:** each is marked with `🔴 CSS CHANGED (2026-11-06)` in the file named above.
+
+---
+
+## 2026-11-06 · `counselor-incentive/index.html` · the smallest texts on the Incentive table
+
+- **What:** the green "SYNCED" badge in the Visa Issue Date cells, the Rs / £ / % dropdown in the three incentive columns, and the table column headings (Incentive page only; the Student Details sheet is not touched).
+- **From:** badge 9px, dropdown 12px, headings 12.5px. **To:** badge 11px, dropdown 13px, headings 13px. Same colours; the number columns keep their widths.
+- **Why:** the owner asked for no hard-to-read small text on the Incentive page (found by the independent review).
+- **In the code:** marked with `🔴 CSS CHANGED (2026-11-06)` above `.synced-badge` in the page's style block.
+
+---
+
 ## 2026-11-06 · `shared/theme.css`, `shared/header.css` · Incentive page and Company Earnings: readable and more premium
 
 - **What:** the grey notes beside the labels on the Incentive page (for example "15% of Net Incentives", "fixed since the first payment", "university commission £2,362.50, branch keeps 70%", the exchange rate note), the table footer, the "synced" text, the "Remove" links, and the key totals. Also the two smallest texts in the top bar on every page.

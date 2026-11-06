@@ -24,7 +24,10 @@ const EMAIL_RE = /[^\s@]{1,64}@[^\s@]{1,200}\.[^\s@]{2,}/;
 const LONG_NUMBER_RE = /(?:\+?\d[\s-]?){9,}/;
 const PASSPORT_RE = /\b[A-Z]{1,2}\d{6,8}\b/i; // e.g. PA1234567, or an 8-digit Nepal passport after a letter
 const YEAR_RE = /\b(?:19|20)\d{2}\b/g; // "2025 2026 2027 targets" is years, not a phone number
-const looksPersonal = (t) => EMAIL_RE.test(t) || PASSPORT_RE.test(t) || LONG_NUMBER_RE.test(t.replace(YEAR_RE, ' '));
+// Devanagari digits and full-width letters are read as the plain ones first, so "९८४१२३४५६७" or "ram＠gmail.com" are caught too.
+const plain = (t) => String(t).normalize('NFKC').replace(/[\u0966-\u096F]/g, (d) => String(d.charCodeAt(0) - 0x0966));
+const PASSPORT_DIGITS_RE = /\b\d{8}\b/; // an 8-digit passport number with no letter
+const looksPersonal = (raw) => { const t = plain(raw); return EMAIL_RE.test(t) || PASSPORT_RE.test(t) || PASSPORT_DIGITS_RE.test(t.replace(YEAR_RE, ' ')) || LONG_NUMBER_RE.test(t.replace(YEAR_RE, ' ')); };
 
 const MEMORY_TOOLS = [
   {
@@ -108,6 +111,7 @@ function createMemory(dir, log) {
       return { updatedAt: m.updatedAt || null, sections: Object.entries(m.sections).map(([title, v]) => ({ title, updatedAt: v.updatedAt, text: v.text })) };
     },
     write(sectionRaw, textRaw, mode) {
+      if (typeof sectionRaw !== 'string' || typeof textRaw !== 'string') return { error: 'The section title and the note must be text.' };
       const title = cleanTitle(sectionRaw);
       const text = cleanText(textRaw);
       if (!title) return { error: 'A section title is needed.' };

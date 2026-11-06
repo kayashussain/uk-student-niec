@@ -33,7 +33,7 @@ const DEPARTMENTS = Object.fromEntries(Object.entries(Teams.DEPARTMENTS).map(([i
 
 const SESSION_COOKIE = 'niec_session';
 const SESSION_MS = 12 * 60 * 60 * 1000; // a login lasts one working day
-const PENDING_MS = 10 * 60 * 1000; // between the password and the code / finishing setup
+const PENDING_MS = 10 * 60 * 1000; // between the temporary password and choosing the person's own password
 const LAST_SEEN_EVERY_MS = 5 * 60 * 1000;
 const MIN_PASSWORD_LENGTH = 10;
 
@@ -205,7 +205,7 @@ function createAccounts({
   dir, homePath = (req) => req.url, activity = null, writable = true, now = Date.now, mailer = defaultMailer,
   maxFailures = 20, maxUserFailures = 8, windowMs = 15 * 60 * 1000,
 }) {
-  fs.mkdirSync(dir, { recursive: true });
+  fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
   const usersStore = createStore(path.join(dir, 'users.json'), () => ({ users: [] }),
     (data) => ({ ...data, users: (data.users || []).map(normalizeUser) }));
   const sessionsStore = createStore(path.join(dir, 'sessions.json'), () => ({ sessions: {} }));
@@ -485,7 +485,8 @@ function createAccounts({
       const passOk = await verifyPasswordAsync(body.password || '', user ? user.passwordHash : DUMMY_HASH);
       if (!user || !passOk || user.disabled) {
         record(req, user && !user.disabled ? publicUser(user) : null, 'Failed login', {
-          note: user && user.disabled ? `disabled account "${username}" tried to log in` : `wrong username or password (tried "${username.slice(0, 60)}")`,
+          // The typed name is only written down when it is a real account: a password typed into the name box must never reach the record.
+          note: user && user.disabled ? `disabled account "${user.username}" tried to log in` : user ? 'wrong password' : 'wrong username or password',
         });
         bad(res, 401, 'Wrong username or password.');
         return true;
@@ -604,6 +605,7 @@ function createAccounts({
         const change = {};
         const notes = [];
         if (body.name !== undefined) {
+          if (typeof body.name !== 'string') { bad(res, 400, "Please enter the person's name."); return true; }
           const name = String(body.name || '').trim().slice(0, 60);
           if (!name) { bad(res, 400, "Please enter the person's name."); return true; }
           if (name !== target.name) { change.name = name; notes.push(`name to ${name}`); }

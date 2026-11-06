@@ -1186,8 +1186,10 @@
 
     document.body.appendChild(menu);
     const rect = th.getBoundingClientRect();
-    menu.style.left = Math.min(rect.left, window.innerWidth - menu.offsetWidth - 8) + 'px';
-    menu.style.top = rect.bottom + 'px';
+    menu.style.left = Math.max(8, Math.min(rect.left, window.innerWidth - menu.offsetWidth - 8)) + 'px';
+    // Never taller than the window (the list inside scrolls) and never below its bottom edge, so OK is always reachable on a phone.
+    menu.style.maxHeight = (window.innerHeight - 16) + 'px';
+    menu.style.top = Math.max(8, Math.min(rect.bottom, window.innerHeight - menu.offsetHeight - 8)) + 'px';
     openFilterMenu = menu;
     setTimeout(() => document.addEventListener('mousedown', onDocMouseDown, true), 0);
   }
@@ -1483,22 +1485,24 @@
           if (busy) { e.preventDefault(); warnPeerOnCell(busy); }
         });
         const student = rows[rowIdx];
+        let shown = val; // what the cell really holds now (not redrawn after every change, so `val` alone goes stale)
         select.addEventListener('change', async () => {
           const newVal = select.value;
           if (isStatus && isTeam()) {
             const check = Teams.checkMove(me, student, newVal);
-            if (!check.ok) { select.value = val; await NiecUI.alert(check.message, { title: "This student can't move yet" }); return; }
-            if (check.confirm && !(await NiecUI.confirm(check.confirm, { title: 'Move this student on?', confirmText: 'Yes, move on' }))) { select.value = val; return; }
+            if (!check.ok) { select.value = shown; await NiecUI.alert(check.message, { title: "This student can't move yet" }); return; }
+            if (check.confirm && !(await NiecUI.confirm(check.confirm, { title: 'Move this student on?', confirmText: 'Yes, move on' }))) { select.value = shown; return; }
           }
           confirmChange(() => {
             const target = liveRow(student);
             if (!target) { renderBody(); return; }
             pushUndo();
             target[col] = newVal;
+            shown = newVal;
             select.className = 'status-select ' + badgeClass(newVal);
             markDirty();
             if (col === 'APPLICATION STATUS') renderBody(); // re-run the defer-move check, refresh the warning
-          }, () => { select.value = val; });
+          }, () => { select.value = shown; });
         });
         td.appendChild(select);
         if (col === 'APPLICATION STATUS' && val === 'Defer' && !getDeferTargetSheet()) {
@@ -2293,7 +2297,8 @@
     // instead of vanishing from it. A search that would hide the new row is cleared.
     Object.entries(columnFilters).forEach(([col, allowed]) => {
       const first = [...allowed].find((v) => v !== '');
-      if (first !== undefined && columns.includes(col) && !CALC_COLS[col]) blank[col] = first;
+      // Only a dropdown column (stage, source...) is copied: a name or phone number from a real student must never be prefilled.
+      if (first !== undefined && columns.includes(col) && !CALC_COLS[col] && SELECT_COLS[col]) blank[col] = first;
     });
     searchEl.value = '';
     // A team's new student starts at that team's stage (so it stays in the person's list) and is marked
@@ -2681,7 +2686,8 @@
   function gridHasFocus() {
     if (editing || !activeCell || openFilterMenu || openSheetMenu) return false;
     const ae = document.activeElement;
-    return ae === document.body || (body.contains(ae) && !ae.matches('select, input'));
+    // A date box that was opened by clicking its cell still counts as the grid (so pasting dates works after a click).
+    return ae === document.body || (body.contains(ae) && (!ae.matches('select, input') || (ae.matches('input.date-input') && !ae.value)));
   }
 
   document.addEventListener('copy', (e) => {
@@ -2707,6 +2713,7 @@
     const text = e.clipboardData && e.clipboardData.getData('text/plain');
     if (!text) return;
     e.preventDefault();
+    if (document.activeElement && document.activeElement.matches('input.date-input')) document.activeElement.blur();
     pasteIntoSelection(text);
   });
 

@@ -23,7 +23,7 @@ const {
   localDate,
 } = require('../shared/server-utils');
 const { advancesByName, setAdvance } = require('./advances');
-const { syncFromWorkbook } = require('./incentive-data');
+const { syncFromWorkbook, uniqueNames } = require('./incentive-data');
 
 const EXCHANGE_RATE_URL = 'https://api.exchangerate-api.com/v4/latest/GBP';
 const MAX_BODY_BYTES = 1024 * 1024;
@@ -78,6 +78,9 @@ function createIncentive({ dataDir, studentDataFile, getWorkbook, activity }) {
       const date = String(p.date || '');
       if (!Number.isFinite(amount) || amount <= 0 || amount > 1e12) return null;
       if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || Number.isNaN(Date.parse(date))) return null;
+      const [dy, dm, dd] = date.split('-').map(Number); // 2026-02-31 is not a day: it must read back as the same date
+      const real = new Date(Date.UTC(dy, dm - 1, dd));
+      if (real.getUTCFullYear() !== dy || real.getUTCMonth() !== dm - 1 || real.getUTCDate() !== dd) return null;
       let id = String(p.id || '').replace(/[^\w-]/g, '').slice(0, 40);
       if (!id || seen.has(id)) id = 'p' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
       seen.add(id);
@@ -145,9 +148,10 @@ function createIncentive({ dataDir, studentDataFile, getWorkbook, activity }) {
   function readSheetList() {
     try {
       const workbook = readWorkbook();
-      return (Array.isArray(workbook.sheets) ? workbook.sheets : [])
-        .filter((s) => s && typeof s.id === 'string' && typeof s.name === 'string')
-        .map((s) => ({ id: s.id, name: s.name }));
+      const list = (Array.isArray(workbook.sheets) ? workbook.sheets : [])
+        .filter((s) => s && typeof s.id === 'string' && typeof s.name === 'string');
+      const names = uniqueNames(list); // the same names the students list uses
+      return list.map((s, i) => ({ id: s.id, name: names[i] }));
     } catch (e) {
       return [];
     }
@@ -175,7 +179,7 @@ function createIncentive({ dataDir, studentDataFile, getWorkbook, activity }) {
   // A number from the page. Anything that is not a finite, sensible amount (letters, Infinity, 1e300) keeps the saved value.
   function num(v, fallback) {
     // "1,500" is 1500 (a plain parseFloat read it as 1); text without any number keeps the saved value.
-    const m = typeof v === 'number' ? [String(v)] : String(v ?? '').replace(/(\d),(?=\d)/g, '$1').match(/-?(?:\d+(?:\.\d+)?|\.\d+)/);
+    const m = typeof v === 'number' ? [String(v)] : String(v ?? '').replace(/(\d),(?=\d{3}(?:\D|$)|\d{2},)/g, '$1').match(/-?(?:\d+(?:\.\d+)?|\.\d+)/);
     const n = m ? parseFloat(m[0]) : NaN;
     return Number.isFinite(n) && Math.abs(n) < 1e12 ? n : (fallback || 0);
   }
@@ -302,6 +306,21 @@ function createIncentive({ dataDir, studentDataFile, getWorkbook, activity }) {
         const intake = decodeURIComponent(advMatch[1]);
         if (RESERVED_KEYS.has(intake)) return sendJSON(res, 400, { error: 'invalid intake' });
         const body = await readJSONBody(req, MAX_BODY_BYTES);
+        // Amounts that make no sense are refused, not turned into 0 (a basic salary of 1e15, minus months, a negative advance).
+        const RANGES = { previousAdvance: [0, 1e12], basicSalary: [0, 1e9], salaryMonths: [0, 24] };
+        for (const [f, [lo, hi]] of Object.entries(RANGES)) {
+          if (!(f in body) || body[f] === null || body[f] === '') continue;
+          const v = typeof body[f] === 'number' ? body[f] : Number(String(body[f]).replace(/,/g, ''));
+          if (!Number.isFinite(v) || v < lo || v > hi) return sendJSON(res, 400, { error: `${f} must be a number from ${lo} to ${hi}` });
+        }
+        // The live pound rate, when a first payment may need it, is fetched BEFORE the saved file is read: waiting for the
+        // network between reading and writing let a save for another intake made in that moment be lost.
+        // Only when it is really needed: no rate fixed yet, none sent by the page, and no rate typed in from OANDA.
+        const peek = advancesByName(readJSON(ADVANCES_FILE, {}), readSheetList())[intake] || {};
+        const typedRate = 'manualRate' in body ? Number(body.manualRate) > 0 : Boolean(peek.manualRate && peek.manualRate.rate > 0);
+        const needsLive = 'payments' in body && Array.isArray(body.payments) && body.payments.length > 0
+          && !(body.lockedRate && Number(body.lockedRate.rate) > 0) && !(peek.lockedRate && peek.lockedRate.rate > 0) && !typedRate;
+        const liveForFirstPayment = needsLive ? await getGbpToNprRate() : null;
         const stored = readJSON(ADVANCES_FILE, {});
         const sheets = readSheetList();
         const existing = advancesByName(stored, sheets)[intake] || stored[intake] || {};
@@ -339,16 +358,21 @@ function createIncentive({ dataDir, studentDataFile, getWorkbook, activity }) {
             const sent = body.lockedRate;
             const prevLock = existing.lockedRate && existing.lockedRate.rate > 0 ? existing.lockedRate : null;
             let locked = null;
-            if (sent && Number.isFinite(Number(sent.rate)) && Number(sent.rate) > 0 && Number(sent.rate) < 100000) {
+            // Once a payment has fixed the rate it stays fixed, whatever an older page sends, for as long as any of the payments
+            // that fixed it is still in the list. When every one of them was removed (and maybe a new one added in the same
+            // save), the rate is set again from the first of the new payments.
+            const ids = new Set(list.map((p) => p.id));
+            const stillFixed = prevLock && (existing.payments || []).some((p) => ids.has(p.id));
+            if (stillFixed) {
+              locked = { ...prevLock };
+            } else if (sent && Number.isFinite(Number(sent.rate)) && Number(sent.rate) > 0 && Number(sent.rate) < 100000) {
               // The page says which rate it is showing; the same rate as already fixed keeps its original date.
               locked = prevLock && Number(sent.rate) === prevLock.rate ? { ...prevLock }
                 : { rate: Number(sent.rate), date: String(sent.date || '').slice(0, 10), fetchedAt: String(sent.fetchedAt || '').slice(0, 40) || null, source: sent.source === 'manual' ? 'manual' : 'live' };
-            } else if (prevLock) {
-              locked = { ...prevLock };
             } else if (entry.manualRate && entry.manualRate.rate > 0) {
               locked = { rate: entry.manualRate.rate, date: '', fetchedAt: null, source: 'manual' };
             } else {
-              const live = await getGbpToNprRate();
+              const live = liveForFirstPayment || { ok: false };
               if (live.ok) locked = { rate: live.rate, date: live.date, fetchedAt: live.fetchedAt || null, source: 'live' };
             }
             if (locked) {

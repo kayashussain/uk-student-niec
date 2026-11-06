@@ -179,8 +179,11 @@
     outline: 2px solid var(--focus); outline-offset: -2px; box-shadow: none;
   }
 
+  /* 🔴 CSS CHANGED (2026-11-06): the smallest texts on the Incentive table | from: the green SYNCED badge 9px, the Rs / £ / % dropdown 12px, the column headings 12.5px | to: the badge 11px, the dropdown 13px, the column headings 13px (same colours, same widths for the number columns) */
+  .table-card #sheet thead th { font-size: 13px; }
+  tbody td.num.flex-cell .unit-select { font-size: 13px; }
   .synced-badge {
-    display: inline-block; font-size: 9px; font-weight: 700; letter-spacing: .03em;
+    display: inline-block; font-size: 11px; font-weight: 700; letter-spacing: .03em;
     color: var(--green-fg); background: var(--green-bg); padding: 1px 6px; border-radius: 999px;
     margin-left: 6px; vertical-align: middle;
   }
@@ -479,7 +482,7 @@ const liveText = $('#liveText');
 const undoBtn = $('#undoBtn');
 const redoBtn = $('#redoBtn');
 
-function fmt(n) { return (Number(n) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+function fmt(n) { return (Math.round((Number(n) || 0) * 100) / 100 || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); } // never "-0.00"
 function esc(s) { return String(s ?? '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;'); }
 function clamp(n, lo, hi) { return Math.max(lo, Math.min(hi, n)); }
 function colIndex(key) { return COLUMNS.findIndex((c) => c.key === key); }
@@ -548,10 +551,10 @@ function cellText(key, v) {
 // Reads a typed or pasted amount: "1,250.50", "£1250" and "Rs. 1250" all work. Blank means 0.
 // Returns null when it isn't a number at all.
 function parseMoney(text) {
-  const s = String(text ?? '').trim().replace(/,/g, '').replace(/^(rs\.?|npr|gbp|£|\$|€)\s*/i, '').replace(/\s*%$/, '');
+  // A comma only separates thousands; letters (1e3, 0x10) and a % in a rupee cell are not an amount.
+  const s = String(text ?? '').trim().replace(/^(rs\.?|npr|gbp|£|\$|€)\s*/i, '').replace(/,(?=\d{3}(?:\D|$)|\d{2},)/g, '');
   if (!s) return 0;
-  const n = Number(s);
-  return Number.isFinite(n) ? n : null;
+  return /^-?(?:\d+\.?\d*|\.\d+)$/.test(s) ? Number(s) : null;
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -588,7 +591,8 @@ function createSaver(pending, request) {
       if (versions[key] === version) pending.delete(key);
     } catch (e) {
       liveDot.classList.add('stale');
-      liveText.textContent = 'save failed, retrying…';
+      // 403 means the page lock closed (another tab, or a visit to Student Details): say so, instead of a vague "save failed".
+      liveText.textContent = e && e.message === 'HTTP 403' ? 'locked: reload the page and type the password (your edit is kept until then)' : 'save failed, retrying…';
       clearTimeout(timers[key]);
       timers[key] = setTimeout(() => run(key), 3000);
     } finally {

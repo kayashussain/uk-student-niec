@@ -78,6 +78,9 @@
     { dept: 'mock', from: 'Mock Stage', to: 'Application Stage' },
   ];
 
+  // Every stage a student can be at (the same list as the Application Status dropdown on the page).
+  const ALL_STATUSES = ['Inquiry', 'Application Stage', 'Mock Stage', 'Payment Stage', 'CAS Stage', 'CAS Issued', 'Visa Lodge', 'Visa Issued', 'Visa Rejected', 'Defer', 'Hold', 'Withdrawn'];
+
   const isBlank = (v) => String(v ?? '').trim() === '';
   // A column's name as the sheet shows it, for the messages people read ("Student ID", "Pre-CAS Interview").
   const SHOWN_AS = {
@@ -143,6 +146,8 @@
     // Only Admin can change a student's source (Branch, Head Office, ...). Others may only set it once, while
     // it is still blank, on a student their own department added.
     if (col === SOURCE && row) {
+      // A Manager who works in a team still only changes that team's stages (they see every student, so this matters here).
+      if (team.manager && !team.statuses.has(String(row[STATUS] || '').trim())) return false;
       return isBlank(row[SOURCE]) && team.departments.includes(row._addedByTeam) && NEW_STUDENT_COLUMNS.includes(col);
     }
     // Their own branch's students: every column but the Student Source.
@@ -201,7 +206,9 @@
     const team = teamOf(x);
     if (!team) return { ok: true };
     if (team.readOnly) return { ok: false, message: 'Your account can only view students.' };
-    if (row && ownedByBranch(team, row)) return { ok: true };
+    if (row && ownedByBranch(team, row)) { // a branch moves its own students freely, but only to a real stage
+      return ALL_STATUSES.includes(String(to ?? '').trim()) ? { ok: true } : { ok: false, message: 'That is not one of the stages.' };
+    }
     const move = MOVES.find((m) => team.departments.includes(m.dept) && m.from === from && m.to === to);
     if (!move) {
       return { ok: false, message: `Your team can't move a student from ${from || 'no status'} to ${to || 'no status'}.` };
@@ -332,7 +339,7 @@
   }
 
   return {
-    DEPARTMENTS, MOVES, STATUS, NEW_STUDENT_COLUMNS, ROW_COLORS,
+    DEPARTMENTS, MOVES, STATUS, ALL_STATUSES, NEW_STUDENT_COLUMNS, ROW_COLORS,
     who, canDelete, canColor, isAdmin, isManager, isReadOnly, teamOf, viewKey, seesRow, canEdit, addableDepartments, newStudentStatus,
     statusChoices, checkMove, newestSheet, viewFor, teamChanges,
   };

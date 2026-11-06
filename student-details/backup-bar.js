@@ -35,7 +35,7 @@
   window.NiecBackup = { describe, loadCompare, NAMES };
 
   const id = new URLSearchParams(location.search).get('backup') || '';
-  if (!/^(daily|manual|before-restore)-\d{4}-\d{2}-\d{2}(-\d{4})?$/.test(id)) return;
+  if (!/^(daily|manual|before-restore)-\d{4}-\d{2}-\d{2}(-\d{4}(\d{2})?)?$/.test(id)) return;
   document.body.dataset.backup = '1';
 
   const style = el('style');

@@ -218,10 +218,12 @@
     const parts = [];
     if (q.filledFromStage) parts.push(`${num(q.filledFromStage)} student${q.filledFromStage === 1 ? ' is' : 's are'} counted at earlier steps because of their current stage (for example, a student at Visa Issued has applied, had an offer and paid), even where those dates were never typed in.`);
     const undated = [];
-    if (q.applicationsWithoutDate) undated.push(`${num(q.applicationsWithoutDate)} applications`);
-    if (q.paymentsWithoutDate) undated.push(`${num(q.paymentsWithoutDate)} payments`);
-    if (q.visasWithoutDate) undated.push(`${num(q.visasWithoutDate)} visas`);
-    if (undated.length) parts.push(`${undated.join(', ')} have no date entered, so they are in the totals but not on the month charts or the timing figures.`);
+    const noun = (n, one, many) => `${num(n)} ${n === 1 ? one : many}`;
+    if (q.applicationsWithoutDate) undated.push(noun(q.applicationsWithoutDate, 'application', 'applications'));
+    if (q.paymentsWithoutDate) undated.push(noun(q.paymentsWithoutDate, 'payment', 'payments'));
+    if (q.visasWithoutDate) undated.push(noun(q.visasWithoutDate, 'visa', 'visas'));
+    const oneOnly = q.applicationsWithoutDate + q.paymentsWithoutDate + q.visasWithoutDate === 1;
+    if (undated.length) parts.push(`${undated.join(', ')} ${oneOnly ? 'has' : 'have'} no valid date entered, so ${oneOnly ? 'it is' : 'they are'} in the totals but not on the month charts or the timing figures.`);
     $('notes').textContent = parts.length ? 'About these numbers: ' + parts.join(' ') : '';
   }
 

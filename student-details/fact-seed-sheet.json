@@ -224,9 +224,9 @@
    {
     "id": "d305c4f9e638",
     "name": "January 2027",
-    "deadline": "13 November 2026",
+    "deadline": "Closed",
     "requirements": "",
-    "notes": "## January 2027 Intake - Postgraduate Deadlines\n- Application Deadline: 13 November 2026. Submit applications by this date.\n- Offer Conditions Meeting Deadline: 27 November 2026. All offer conditions should be met by this date.\n- PCI Interview, Deposit Payment and CAS Request Deadline: 11 December 2026. Complete the PCI interview, deposit payment and CAS request by this date.",
+    "notes": "## January 2027 Intake - Postgraduate\n- Closed: the university says direct postgraduate applications are closed for January 2027 starts. Applicants from South Asia can still contact the regional officers (southasia@leedstrinity.ac.uk); applications sent without their support are not considered (leedstrinity.ac.uk, checked 6 November 2026).\n## Earlier dates, no longer open\n- Application Deadline: 13 November 2026. Submit applications by this date.\n- Offer Conditions Meeting Deadline: 27 November 2026. All offer conditions should be met by this date.\n- PCI Interview, Deposit Payment and CAS Request Deadline: 11 December 2026. Complete the PCI interview, deposit payment and CAS request by this date.",
     "courses": "## Undergraduate (Closed) - Leeds\nBSc (Hons) Nursing - Adult\n## Undergraduate - Leeds\nBSc (Hons) Nursing - Child\nBSc (Hons) Nursing - Learning Disabilities\nBSc (Hons) Nursing - Mental Health\n## Postgraduate - Leeds\nMBA Business Administration\nMSc Business Analytics\nMSc Computer Science\nMSc Construction Project Management\nMSc Data Science & Artificial Intelligence\nMSc Digital Marketing\nMSc Financial Technology\nMA International Business\nLLM Master Of Law\nMSc Project Management"
    }
   ]
@@ -752,7 +752,7 @@
     "duration": "",
     "academic": "4-Year Bachelor's Degree: 55% or above\n\nGap: Considered",
     "english": "IELTS: 6.0/overall / 5.5 in each band\n\nPTE: 61/overall / 59 in each band\n\nOxford: 6/5\n\nDuolingo 105/100",
-    "tuition": "19250.0",
+    "tuition": "£19,250",
     "scholarship": "Up to £4500\n\n£3500 for 70% or above\n\n£1000 for all",
     "deposit": "50% for CAS & Installments available"
    }
@@ -1347,7 +1347,7 @@
     "duration": "",
     "academic": "12th Grade: 2.8 GPA or above",
     "english": "IELTS: 6.0 overall / 5.5 in each band\n\nPTE: 62 overall / 59 in each band\n\nDUOLINGO:105 overall /95 in each band\n\nEnglish waiver: UK Affiliated Degrees - 2020 Onwards",
-    "tuition": "RANGES FROM £16,200 to 19,200",
+    "tuition": "RANGES FROM £17,900 to £20,000 (2026/27, one range for undergraduate and postgraduate taught, checked 6 November 2026 on port.ac.uk)",
     "scholarship": "CGAM Merit Scholarship: £5,000\n\nVice Chancellor’s Global Dev. Scholarship (Guaranteed): £2,500\n\nFaculty of Science & Health (PGT Merit): £2,000",
     "deposit": ""
    },
@@ -1356,7 +1356,7 @@
     "duration": "",
     "academic": "3-Year Bachelor’s Degree: 65% or above\n\n4-Year Bachelor’s Degree: 60% or above",
     "english": "IELTS: 6.5 overall / 6.0 in each band\n\nPTE: 65 overall / 62 in each band\n\nDUOLINGO:120 overall /105 in each band\n\nEnglish waiver: UK Affiliated Degrees - 2020 Onwards",
-    "tuition": "RANGES FROM £16200 to 19,200",
+    "tuition": "RANGES FROM £17,900 to £20,000 (2026/27, one range for undergraduate and postgraduate taught, checked 6 November 2026 on port.ac.uk)",
     "scholarship": "CGAM Merit Scholarship: £5,000\n\nVice Chancellor’s Global Dev. Scholarship (Guaranteed): £2,500\n\nFaculty of Science & Health (PGT Merit): £2,000",
     "deposit": ""
    }
@@ -1475,7 +1475,7 @@
     "duration": "",
     "academic": "4 years Bachelor's Degree: 60% or above\n\nGap: Considered with experience",
     "english": "IELTS: 6.0 overall / 5.5 in each band\n\nPTE: 59 overall / 59 in each band\n\nEnglish waiver: 12th Grade English: GPA 2.8 or B",
-    "tuition": "MA/MSc: £19,800\n\nMBA: £22,500",
+    "tuition": "MA/MSc: £19,800\n\nMBA: £21,000 (full time, 2026/27, checked 6 November 2026 on mdx.ac.uk)",
     "scholarship": "Upto £2,500",
     "deposit": "50% for CAS of the gross tuition fee"
    }

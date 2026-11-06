@@ -5,7 +5,7 @@
   function parseNum(v) {
     if (v === null || v === undefined || v === '') return 0;
     if (typeof v === 'number') return Number.isFinite(v) ? v : 0;
-    const m = String(v).replace(/(\d),(?=\d)/g, '$1').match(/-?(?:\d+(?:\.\d+)?|\.\d+)/);
+    const m = String(v).replace(/(\d),(?=\d{3}(?:\D|$)|\d{2},)/g, '$1').match(/-?(?:\d+(?:\.\d+)?|\.\d+)/);
     return m ? parseFloat(m[0]) : 0;
   }
 
@@ -15,7 +15,7 @@
     const s = String(raw || '').trim();
     if (!s) return 0;
     // Only the number in front of the % sign counts, so "50% (£5,000)" is 50%, not 505000%.
-    const pct = s.replace(/(\d),(?=\d)/g, '$1').match(/(-?\d+(?:\.\d+)?)\s*%/);
+    const pct = s.replace(/(\d),(?=\d{3}(?:\D|$)|\d{2},)/g, '$1').match(/(-?\d+(?:\.\d+)?)\s*%/);
     if (pct) return base * (parseFloat(pct[1]) / 100);
     if (s.includes('%')) return 0;
     return parseNum(s);

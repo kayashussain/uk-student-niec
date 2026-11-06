@@ -36,7 +36,16 @@ Rules used: nothing already on a page is overwritten; a fact that is already the
 
 - University of West London (uwl.ac.uk English language requirements and scholarships pages, gov.uk): undergraduate PTE is 51 (51 each) and Duolingo 105 (100 each subscore); TOEFL iBT is on the new 1 to 6 scale; Enhanced Extended Duolingo subscore is 100 and it has a £700 early settlement discount; February 2027 bursaries need £10,000 received before 1 December 2026; the undergraduate course is 3 years; the £2,000 non-refundable deposit rule; the Graduate Route is 18 months from 1 January 2027.
 - University of Salford: all full-time January 2027 courses are closed to new applications.
+- University of Leeds Trinity (leedstrinity.ac.uk): direct postgraduate applications are closed for January 2027 starts; applicants from South Asia contact southasia@leedstrinity.ac.uk.
+- Middlesex University (mdx.ac.uk): the full-time MBA is £21,000 for 2026/27 (the file said £22,500).
+- University of Portsmouth (port.ac.uk): international tuition 2026/27 is one range, £17,900 to £20,000 (the file said £16,200 to £19,200). The Lancashire postgraduate fee is written as £19,250.
+- York St John University (yorksj.ac.uk, Business MRes): the published entry is a 2:2 honours degree in a related subject (the page keeps its First Division line and notes this) and the personal statement is at most 500 words (the file said 1,000).
 - University of Sunderland: the January and February 2027 course start dates said 2026.
+
+## Not confirmed, for a person to check by hand (6 November 2026)
+
+- Bedfordshire UG £16,800 and PG £17,900 for 2026/27, Hertfordshire PG top fee £22,950 and its January 2027 scholarship deposit condition, Winchester deposit (£5,000 or £7,000: the university does not publish it), Middlesex MSc fees (course by course, £17,100 to £19,500), Birmingham City UG £18,570 (one course page only), the UWL Masters length for February 2027 (12 or 16 months). The official pages were not readable or did not show the figure, so none of these was changed.
+- Several January 2027 deadlines have passed by the dates in the files (for example Regent College London, the University of Law application date, Sunderland London); the universities were not asked.
 
 ## Still open
 
