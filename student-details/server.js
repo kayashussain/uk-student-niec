@@ -65,11 +65,11 @@ const serveStatic = createStaticServer(ROOT, {
 const serveShared = createStaticServer(path.join(__dirname, '..', 'shared'), SHARED_FILES);
 
 // Every login, logout and change, for Activity page (Admin only). Kept next to the data, where
-// the Incentive app adds its changes too.
+// the Incentive page adds its changes too.
 const activity = createActivityLog(DATA_DIR);
 
 // One account per person (see shared/accounts.js). Everything except the login page needs a login.
-// The account files live next to the data, where the Incentive app reads them too.
+// The account files live next to the data.
 const accounts = createAccounts({ dir: DATA_DIR, activity });
 const { requireAuth } = accounts;
 const facts = createFacts(DATA_DIR);
@@ -80,7 +80,7 @@ const backups = createBackups(DATA_DIR, () => ({ students: current, facts: facts
 setInterval(() => backups.tick(), 5 * 60 * 1000).unref();
 
 // The Incentive page's saved figures (commissions, advances, exchange rate), read-only, so the same Claude connector can also answer
-// questions about incentives. They live in the Incentive app's data folder: COUNSELOR_DATA_DIR, or (as on cPanel and with
+// questions about incentives. They live in the Incentive page's data folder: COUNSELOR_DATA_DIR, or (as on cPanel and with
 // deploy.sh) the folder next to this app's data. If it cannot be found, the incentive tools say so instead of showing zeros.
 const INCENTIVE_DIR = process.env.COUNSELOR_DATA_DIR || path.join(DATA_DIR, '..', 'counselor-incentive');
 function readIncentiveFile(name, fallback) {
@@ -159,7 +159,7 @@ function recordChanges(req, before, after) {
 const history = createHistory();
 
 // The workbook lives in memory: read from data.json once at start, and every save writes it back
-// (the file is what survives a restart, and what the Incentive app reads). Nothing re-reads the file
+// (the file is what survives a restart, and what the Incentive page reads). Nothing re-reads the file
 // per request. null if data.json exists but can't be read; the next save then replaces it.
 let current = null;
 

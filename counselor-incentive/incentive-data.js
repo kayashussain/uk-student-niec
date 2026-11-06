@@ -1,5 +1,5 @@
 // The Incentive page's student list, built from a Student Details workbook: every sheet is an intake, and only the
-// students whose Application Status is exactly "Visa Issued" are listed. Used by the Incentive app and by the Claude
+// students whose Application Status is exactly "Visa Issued" are listed. Used by the Incentive page and by the Claude
 // connector (student-details/advisor-mcp.js), so both always show the same students.
 
 const { round2, groupByUniversity, displayDate } = require('./calc');

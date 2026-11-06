@@ -95,7 +95,7 @@ function unknownColumns(sheets, cols) {
 }
 
 // `incentive` (optional) adds the Incentive tools to this same connector: { getCommissions, getAdvances, getRate }, which read the
-// Incentive app's saved figures; the students come from the same workbook as the rest.
+// Incentive page's saved figures; the students come from the same workbook as the rest.
 function createAdvisorMcp({ getWorkbook, getDashboard, facts, incentive, token, memoryDir, log = console.log }) {
   const incentiveTools = incentive ? createIncentiveTools({
     getSync: () => { const w = getWorkbook(); return w ? syncFromWorkbook(w) : { ok: false, error: 'The sheet data could not be read right now.' }; },

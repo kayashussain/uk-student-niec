@@ -1,4 +1,4 @@
-// Helpers shared by the gateway and both apps' servers, so a fix in one place reaches all three.
+// Helpers shared by the server, the gateway and the scripts, so a fix in one place reaches all of them.
 
 const fs = require('fs');
 const path = require('path');
@@ -97,7 +97,7 @@ function describeDevice(userAgent) {
 }
 
 // The activity record (Activity page): one JSON line per login, logout or change, only ever added to.
-// Both apps write to the same file in the Student Details data folder.
+// The sheet and the Incentive page write to the same file in the Student Details data folder.
 //
 // Each entry has a category, used by the page's filter: logins (logged in or out), security (failed
 // logins, refused changes, wrong hidden-sheet password, hidden sheets opened), changes (cell and sheet
@@ -231,7 +231,7 @@ function createActivityLog(dir, { maxBytes = ACTIVITY_ROTATE_BYTES } = {}) {
 
 // Serves only the files listed in publicFiles ({ '/name': contentType }), so data files and server
 // code sitting next to them are never reachable.
-// The files in shared/ that pages load, and their types. One list for both apps, so a new shared file
+// The files in shared/ that pages load, and their types. One list for every page, so a new shared file
 // is added in one place. Public (no login needed): only the login page and the logo.
 const SHARED_FILES = {
   '/edit-guard.js': 'text/javascript; charset=utf-8',
@@ -333,7 +333,7 @@ function readJSONBody(req, maxBytes) {
 
 // Writes to a temporary file and renames it into place, so a crash mid-write, or another process
 // reading the file at that moment, never sees half a file.
-// Writes to a temporary file of its own (two apps writing at once never share one), flushes it to the disk, then
+// Writes to a temporary file of its own (two writers at once never share one), flushes it to the disk, then
 // swaps it in, so a crash or power cut leaves either the old file or the new one, never half of one.
 function writeFileAtomic(file, text) {
   const tmp = `${file}.${process.pid}.${crypto.randomBytes(4).toString('hex')}.tmp`;

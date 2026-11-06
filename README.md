@@ -61,10 +61,10 @@ student with their **University Partner** (the agent), tuition fee, university c
 `get_payment_summary` (Payment Summary and Company Earnings of an intake) and `summarize_incentives_by` (totals by University
 Partner, university or intake). They cannot change anything. Claude may need the connector refreshed in claude.ai to list them.
 
-The Student Details app reads the Incentive app's saved figures (`commissions.json`, `advances.json`, `exchange-rate-cache.json`)
+The Student Details server reads the Incentive page's saved figures (`commissions.json`, `advances.json`, `exchange-rate-cache.json`)
 straight from the Incentive data folder. It finds that folder next to its own data folder (`.../niec_data/counselor-incentive`, the
 layout in `CPANEL_DEPLOY.md` and `deploy.sh`), or set `COUNSELOR_DATA_DIR` on the Student Details app to the same value the
-Incentive app uses. If the folder cannot be found, the incentive tools say so instead of showing zeros. Because it is one connector,
+Incentive page uses. If the folder cannot be found, the incentive tools say so instead of showing zeros. Because it is one connector,
 **the one secret opens both the students and the commissions**: keep the address private. Both connectors' shared code is in
 `shared/mcp-core.js`.
 
