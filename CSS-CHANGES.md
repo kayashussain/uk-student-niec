@@ -9,6 +9,16 @@ Format: **date · file · what · from → to · why**
 
 ---
 
+## 2026-11-07 · `shared/theme.css` · a coloured row shows its colour straight away, and no box on the first cell
+
+- **What:** Student Details rows coloured with **Colour rows**, while they are still selected.
+- **From:** after picking a row from its S.N and choosing a colour, only the S.N cell turned the colour; the rest of the row stayed light blue (the selection) until you clicked another row. Picking a row from its S.N also drew a blue box round its first cell.
+- **To:** the whole row shows its colour at once. A picked coloured row keeps a thin blue line along its top and bottom and a blue S.N cell, so you can still see it is picked. No box is drawn on the first cell while whole rows are picked (the box still shows when you click a single cell, as before). Rows without a colour look exactly as before.
+- **Why:** bug reported by the owner. The selection colour was painted over the row colour on every cell; only the S.N cell had a stronger rule.
+- **In the code:** marked with `🔴 CSS CHANGED (2026-11-07)` below the `.rc-grey td.col-idx` rule in `shared/theme.css`.
+
+---
+
 ## 2026-11-06 · `shared/theme.css`, `shared/header.css`, `student-details/dashboard.css`, `student-details/admin.css`, `student-details/style.css` · the smallest texts on Student Details, the Dashboard, Users and Activity, and two keyboard fixes
 
 - **What and from, to:**

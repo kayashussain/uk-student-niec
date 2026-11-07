@@ -556,8 +556,16 @@ test('screens: log in, edit, delete, search, team rules, Fact File', { timeout: 
     await page.click('#colorRow');
     await page.click('.color-menu .sheet-menu-item:has-text("Green")');
     assert.match(await page.locator('#body tr:not(.pad-row)').first().getAttribute('class'), /rc-green/);
-    const bg = await page.locator('#body tr:not(.pad-row)').first().locator('td').nth(2).evaluate((el) => getComputedStyle(el).backgroundColor);
-    assert.notStrictEqual(bg, 'rgba(0, 0, 0, 0)');
+    // The row is still picked, and it must already show the colour on every cell, not only on S.N (the
+    // selection used to cover it until another row was clicked), with no box round the first cell.
+    const first = page.locator('#body tr:not(.pad-row)').first();
+    assert.match(await first.getAttribute('class'), /row-picked/);
+    const green = await page.evaluate(() => { const d = document.createElement('div'); d.style.background = 'var(--rc-green)'; document.body.appendChild(d); const c = getComputedStyle(d).backgroundColor; d.remove(); return c; });
+    for (const n of [1, 2, 4]) {
+      const bg = await first.locator('td').nth(n).evaluate((el) => getComputedStyle(el).backgroundColor);
+      assert.strictEqual(bg, green, `cell ${n} of a picked row shows the row colour straight away`);
+    }
+    assert.strictEqual(await first.locator('td.active-cell').evaluate((el) => getComputedStyle(el).outlineStyle), 'none', 'no box on the first cell while whole rows are picked');
     await wait(1500);
     const saved = (await (await admin.request.get('/api/data')).json()).sheets[0].rows.filter((r) => r._color === 'green');
     assert.strictEqual(saved.length, 1, 'saved on the server');
