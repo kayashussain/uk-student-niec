@@ -88,7 +88,7 @@
   // The working is kept in plain sight so it can be checked by hand:
   //   nprEntered   incentives typed in rupees (plus Flywire incentives, which are rupees)
   //   gbpEntered   incentives typed in pounds, plus the percentage ones (a percentage is of a pound amount)
-  //   gbpConverted gbpEntered x the rate, in rupees
+  //   gbpConverted each pound or percent incentive changed to rupees at the rate (each rounded to the paisa), added up
   //   totalCommissions = nprEntered + gbpConverted
   function computeSummary(records, previousAdvance, context) {
     const ctx = context || {};
@@ -97,22 +97,24 @@
     const sum = (key) => records.reduce((a, r) => a + num((r || {})[key]), 0);
     let nprEntered = sum('flywireCommission'); // every figure below is kept to 2 decimals, so the rows add up exactly as shown
     let gbpEntered = 0;
+    let gbpConverted = 0;
     records.forEach((r, i) => {
       const commissionGbp = ctx.commissionsGbp ? ctx.commissionsGbp[i] : 0;
       FLEX_FIELDS.forEach((field) => {
         const value = num((r || {})[field]);
         if (!value) return;
         const unit = num((r || {})[unitField(field)]);
-        if (unit === UNIT.GBP) gbpEntered += value;
-        else if (unit === UNIT.PCT) gbpEntered += num(commissionGbp) * value / 100;
-        else nprEntered += value;
+        if (unit === UNIT.NPR) { nprEntered += value; return; }
+        gbpEntered += unit === UNIT.GBP ? value : num(commissionGbp) * value / 100;
+        // Each cell's own rupee value (rounded to the paisa, as the cell and the advisor show it) is what is added up,
+        // so the rows, this summary and the advisor's totals agree to the paisa.
+        const npr = flexNpr(r, field, commissionGbp, rate);
+        if (npr === null) needsRate = true; else gbpConverted += npr;
       });
     });
     nprEntered = round2(nprEntered);
-    const gbpRaw = gbpEntered; // converted unrounded, so the total matches the sum of the rows' own rupee values
     gbpEntered = round2(gbpEntered);
-    if (gbpRaw && !rate) needsRate = true;
-    const gbpConverted = rate ? round2(gbpRaw * rate) : 0;
+    gbpConverted = round2(gbpConverted);
     const totalCommissions = round2(nprEntered + gbpConverted);
     const loanPayable = round2(sum('loanCommission'));
     const netCommissions = round2(totalCommissions - loanPayable);

@@ -200,6 +200,12 @@ test('amounts are kept to two decimals so the rows of the summary add up exactly
   // Nonsense numbers count as nothing, never as Infinity.
   assert.strictEqual(incentive.num('Infinity'), 0);
   assert.strictEqual(incentive.computeSummary([{ enrollmentCommission: Infinity }], 0, {}).totalCommissions, 0);
+  // Pound incentives: the summary adds each cell's own rupee value, so it equals the rows added up (two £1.01 at 172.35 are
+  // Rs 174.07 each, 348.14 together; converting the £2.02 total would give 348.15).
+  const two = incentive.computeSummary([{ enrollmentCommission: 1.01, enrollmentCommissionUnit: 1 }, { enrollmentCommission: 1.01, enrollmentCommissionUnit: 1 }], 0, { gbpToNpr: 172.35 });
+  assert.strictEqual(incentive.flexNpr({ enrollmentCommission: 1.01, enrollmentCommissionUnit: 1 }, 'enrollmentCommission', 0, 172.35), 174.07);
+  assert.strictEqual(two.gbpConverted, 348.14);
+  assert.strictEqual(two.totalCommissions, 348.14);
   assert.strictEqual(incentive.round2(1.005), 1.01);
   assert.strictEqual(incentive.round2(-1.005), -1.01);
 });
@@ -226,7 +232,7 @@ test('money cells: first number only, commas and currency signs, % read from in 
 test('pound incentives are converted to rupees before rounding, so the total matches the rows', () => {
   const row = { enrollmentCommission: 1.001, enrollmentCommissionUnit: 1 };
   const s = incentive.computeSummary([row, { ...row }], 0, { gbpToNpr: 133.5 });
-  assert.strictEqual(s.totalCommissions, 267.27); // 2.002 x 133.5, not 2.00 x 133.5 = 267.00
+  assert.strictEqual(s.totalCommissions, 267.26); // each row is 1.001 x 133.5 = Rs 133.63, and the two rows add to 267.26 (not 2.00 x 133.5 = 267.00)
 });
 
 test('the branch share equals the sum of its rounded rows', () => {

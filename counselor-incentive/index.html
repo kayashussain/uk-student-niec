@@ -452,7 +452,7 @@ const COLUMNS = [
   { key: 'enrollmentCommission', label: 'Enrollment Incentive', width: 22, money: true, flex: true, title: FLEX_HINT },
   { key: 'enrollmentCommissionUni', label: 'Enrollment Incentive from University', width: 22, money: true, flex: true, title: FLEX_HINT },
   { key: 'newPartnershipCommission', label: 'New Partnership Incentive', width: 22, money: true, flex: true, title: FLEX_HINT },
-  { key: 'flywireFeePayment', label: 'Flywire Fee Payment (£)', width: 18, money: true,
+  { key: 'flywireFeePayment', label: 'Flywire Fee Payment (£)', width: 18, money: true, gbp: true,
     title: 'The tuition fee the student paid through Flywire, in pounds. Fills in Flywire Incentive for you.' },
   { key: 'flywireCommission', label: 'Flywire Incentive (NPR)', width: 18, money: true,
     title: "Auto-filled: 0.2% of Flywire Fee Payment (GBP), converted to NPR at today's rate. You can still edit it." },
@@ -548,11 +548,17 @@ function cellText(key, v) {
   return isPercent(key) ? (Number(v) || 0).toLocaleString('en-US', { maximumFractionDigits: 2 }) + '%' : fmt(v);
 }
 
-// Reads a typed or pasted amount: "1,250.50", "£1250" and "Rs. 1250" all work. Blank means 0.
-// Returns null when it isn't a number at all.
-function parseMoney(text) {
-  // A comma only separates thousands; letters (1e3, 0x10) and a % in a rupee cell are not an amount.
-  const s = String(text ?? '').trim().replace(/^(rs\.?|npr|gbp|£|\$|€)\s*/i, '').replace(/,(?=\d{3}(?:\D|$)|\d{2},)/g, '');
+// Reads a typed or pasted amount: "1,250.50" everywhere, "Rs. 1250" in a rupee cell, "£1250" in the pound cell and
+// "15%" in Commission %. Blank means 0. Returns null when it isn't a number, or carries the wrong sign for the cell:
+// "£500" pasted into a rupee cell is refused rather than quietly saved as Rs 500.
+function parseMoney(text, key) {
+  const col = COLUMNS[colIndex(key)] || {};
+  let s = String(text ?? '').trim();
+  if (col.percent) s = s.replace(/\s*%$/, '');
+  else if (col.gbp) s = s.replace(/^(gbp|£)\s*/i, '');
+  else s = s.replace(/^(rs\.?|npr)\s*/i, '');
+  // A comma only separates thousands; letters (1e3, 0x10) and any other sign are not an amount.
+  s = s.replace(/,(?=\d{3}(?:\D|$)|\d{2},)/g, '');
   if (!s) return 0;
   return /^-?(?:\d+\.?\d*|\.\d+)$/.test(s) ? Number(s) : null;
 }
@@ -571,7 +577,12 @@ const unsavedFields = {};
 let editNumber = 0;
 function noteEdit(id, field) {
   if (!unsavedFields[id]) unsavedFields[id] = {};
-  unsavedFields[id][field] = ++editNumber;
+  const n = ++editNumber;
+  unsavedFields[id][field] = n;
+  // A flexible incentive's amount and its unit (Rs, £ or %) are always saved together, so two people changing one each at
+  // the same moment can never leave "500" from one with "%" from the other (500% of the commission).
+  const base = field.endsWith('Unit') ? field.slice(0, -4) : field;
+  if (isFlex(base)) { unsavedFields[id][base] = n; unsavedFields[id][unitField(base)] = n; }
 }
 
 function createSaver(pending, request) {
@@ -631,12 +642,28 @@ const scheduleSaveCommission = createSaver(pendingCommissions, async (id, leavin
   return res;
 });
 
-const scheduleSaveAdvance = createSaver(pendingAdvances, (intake, leaving) => fetch(BASE + '/api/advances/' + encodeURIComponent(intake), {
-  method: 'PUT',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify(advanceBody(state.advances[intake] || {}, intake)),
-  keepalive: Boolean(leaving),
-}));
+// Intake settings edited here but not yet confirmed saved: intake -> { field: edit number }. Only these are sent, so a page
+// that was left open does not put back its old rate, salary or earlier advance over what someone else saved meanwhile.
+const unsavedAdvanceFields = {};
+function noteAdvanceEdit(intake, field) {
+  if (!unsavedAdvanceFields[intake]) unsavedAdvanceFields[intake] = {};
+  unsavedAdvanceFields[intake][field] = ++editNumber;
+}
+const scheduleSaveAdvance = createSaver(pendingAdvances, async (intake, leaving) => {
+  const sent = { ...(unsavedAdvanceFields[intake] || {}) };
+  const res = await fetch(BASE + '/api/advances/' + encodeURIComponent(intake), {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(advanceBody(state.advances[intake] || {}, intake, Object.keys(sent))),
+    keepalive: Boolean(leaving),
+  });
+  const left = unsavedAdvanceFields[intake];
+  if (res.ok && left) {
+    Object.keys(sent).forEach((f) => { if (left[f] === sent[f]) delete left[f]; });
+    if (!Object.keys(left).length) delete unsavedAdvanceFields[intake];
+  }
+  return res;
+});
 // Anything typed but not saved yet is sent the moment the page is hidden or closed (the page lock follows it).
 window.__flushSaves = () => { scheduleSaveCommission.flush(); scheduleSaveAdvance.flush(); };
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') window.__flushSaves(); });
@@ -644,12 +671,18 @@ document.addEventListener('visibilitychange', () => { if (document.visibilitySta
 // The payments this page removed (by id) since it was opened. The server keeps every payment that someone else added meanwhile,
 // except these: two people adding payments at the same moment no longer delete each other's.
 const removedPaymentIds = {}; // intake -> [ids]
-function advanceBody(entry, intake) {
-  const body = { previousAdvance: num(entry.previousAdvance) };
-  if (intake) body.removedPaymentIds = removedPaymentIds[intake] || [];
-  body.manualRate = entry.manualRate && entry.manualRate.rate > 0 ? entry.manualRate.rate : null;
-  if (Array.isArray(entry.payments)) { body.payments = entry.payments; body.lockedRate = entry.lockedRate || null; }
-  ['basicSalary', 'salaryMonths'].forEach((f) => { if (entry[f] !== undefined) body[f] = num(entry[f]); });
+// `fields`: the settings edited on this page (see unsavedAdvanceFields); the server keeps its own value for the rest.
+function advanceBody(entry, intake, fields) {
+  const want = new Set(fields);
+  const body = {};
+  if (want.has('previousAdvance')) body.previousAdvance = num(entry.previousAdvance);
+  if (want.has('manualRate')) body.manualRate = entry.manualRate && entry.manualRate.rate > 0 ? entry.manualRate.rate : null;
+  if (want.has('payments') && Array.isArray(entry.payments)) {
+    body.payments = entry.payments;
+    body.lockedRate = entry.lockedRate || null;
+    body.removedPaymentIds = removedPaymentIds[intake] || [];
+  }
+  ['basicSalary', 'salaryMonths'].forEach((f) => { if (want.has(f) && entry[f] !== undefined) body[f] = num(entry[f]); });
   return body;
 }
 
@@ -683,11 +716,25 @@ function applyAction(action, dir) {
     [...new Set(action.changes.map((ch) => ch.id))].forEach(scheduleSaveCommission);
   } else if (action.kind === 'advance') {
     if (!state.advances[action.intake]) state.advances[action.intake] = {};
-    state.advances[action.intake][action.field || 'previousAdvance'] = action[dir];
+    const entry = state.advances[action.intake];
     if (action.field === 'payments') {
+      // The server keeps any payment it is not told was removed, so the ones this undo (or redo) takes away are named,
+      // and one it brings back is no longer counted as removed.
+      const target = action[dir] || [];
+      const ids = new Set(target.map((p) => p.id));
+      const gone = (entry.payments || []).filter((p) => !ids.has(p.id)).map((p) => p.id);
+      removedPaymentIds[action.intake] = (removedPaymentIds[action.intake] || []).filter((id) => !ids.has(id)).concat(gone);
       const lock = dir === 'from' ? action.lockFrom : action.lockTo;
-      if (lock) state.advances[action.intake].lockedRate = lock; else delete state.advances[action.intake].lockedRate;
+      if (lock) entry.lockedRate = lock; else delete entry.lockedRate;
+      // Adding the first payment with a typed rate also set the intake's typed rate: undo puts that back too.
+      if ('manualFrom' in action) {
+        const m = dir === 'from' ? action.manualFrom : action.manualTo;
+        if (m) entry.manualRate = m; else delete entry.manualRate;
+        noteAdvanceEdit(action.intake, 'manualRate');
+      }
     }
+    entry[action.field || 'previousAdvance'] = action[dir];
+    noteAdvanceEdit(action.intake, action.field || 'previousAdvance');
     scheduleSaveAdvance(action.intake);
   }
   render();
@@ -811,7 +858,17 @@ async function loadAll() {
       Object.keys(unsavedFields[id]).forEach((f) => { commissions[id][f] = commissionValue(id, f); });
     });
     const advances = advRes || {};
-    pendingAdvances.forEach((intake) => { if (state.advances[intake]) advances[intake] = state.advances[intake]; });
+    // Only the settings edited here and not saved yet are kept from this page; everything else is what the server has now.
+    Object.keys(unsavedAdvanceFields).forEach((intake) => {
+      const mine = state.advances[intake];
+      if (!mine) return;
+      const merged = { ...(advances[intake] || {}) };
+      Object.keys(unsavedAdvanceFields[intake]).forEach((f) => {
+        const keep = f === 'payments' ? ['payments', 'lockedRate'] : [f];
+        keep.forEach((k) => { if (mine[k] === undefined) delete merged[k]; else merged[k] = mine[k]; });
+      });
+      advances[intake] = merged;
+    });
 
     state.intakes = syncRes.intakes || [];
     state.byIntake = syncRes.byIntake || {};
@@ -1014,7 +1071,7 @@ function recalc(students) {
   $('#sumNprEntered').textContent = fmt(s.nprEntered);
   $('#sumGbpEntered').textContent = '£' + fmt(s.gbpEntered);
   $('#sumGbpConverted').textContent = fmt(s.gbpConverted);
-  $('#sumGbpWorking').textContent = s.gbpToNpr ? `£${fmt(s.gbpEntered)} × ${s.gbpToNpr}` : 'needs the exchange rate';
+  $('#sumGbpWorking').textContent = s.gbpToNpr ? `£${fmt(s.gbpEntered)} at £1 = Rs ${s.gbpToNpr}` : 'needs the exchange rate';
   const paidCount = paymentsOf().length + (s.previousAdvance ? 1 : 0);
   $('#sumPayments').textContent = fmt(s.paymentsReceived + s.previousAdvance);
   $('#sumPaymentsCount').textContent = paidCount ? `${paidCount} payment${paidCount === 1 ? '' : 's'}, listed below` : 'none yet';
@@ -1156,6 +1213,7 @@ function bindIntakeSetting(input, field, fallback) {
       pushUndo({ kind: 'advance', intake, field, from: prev, to: v });
       if (!state.advances[intake]) state.advances[intake] = {};
       state.advances[intake][field] = v;
+      noteAdvanceEdit(intake, field);
       recalc(intakeStudents());
       scheduleSaveAdvance(intake);
     }, () => { input.value = prev; });
@@ -1177,6 +1235,7 @@ function changeManualRate(value) {
     pushUndo({ kind: 'advance', intake, field: 'manualRate', from: prev, to: next });
     if (!state.advances[intake]) state.advances[intake] = {};
     state.advances[intake].manualRate = next;
+    noteAdvanceEdit(intake, 'manualRate');
     render();
     scheduleSaveAdvance(intake);
   }, () => { manualRateBox.value = prev ? prev.rate : ''; });
@@ -1201,12 +1260,19 @@ function changePayments(next, typedRate) {
   const typed = Math.round(num(typedRate) * 10000) / 10000;
   const lockTo = !next.length ? null : lockFrom || (typed > 0 ? { rate: typed, date: '', fetchedAt: null, source: 'manual', lockedAt: new Date().toISOString() } : earningsRate ? { rate: earningsRate.rate, date: earningsRate.date || '', fetchedAt: earningsRate.fetchedAt || null, source: earningsRate.source === 'manual' ? 'manual' : 'live', lockedAt: new Date().toISOString() } : null);
   confirmChange(() => {
-    pushUndo({ kind: 'advance', intake, field: 'payments', from: prev, to: next, lockFrom, lockTo });
+    const action = { kind: 'advance', intake, field: 'payments', from: prev, to: next, lockFrom, lockTo };
     if (!state.advances[intake]) state.advances[intake] = {};
     state.advances[intake].payments = next;
+    noteAdvanceEdit(intake, 'payments');
     if (lockTo) state.advances[intake].lockedRate = lockTo; else delete state.advances[intake].lockedRate;
     // The rate typed with the payment is also the intake's typed rate, so it is still there if every payment is removed.
-    if (lockTo && lockTo.source === 'manual' && !lockFrom) state.advances[intake].manualRate = { rate: lockTo.rate, enteredAt: lockTo.lockedAt };
+    if (lockTo && lockTo.source === 'manual' && !lockFrom) {
+      action.manualFrom = manualRateOf(intake);
+      action.manualTo = { rate: lockTo.rate, enteredAt: lockTo.lockedAt };
+      state.advances[intake].manualRate = action.manualTo;
+      noteAdvanceEdit(intake, 'manualRate');
+    }
+    pushUndo(action);
     recalc(intakeStudents());
     scheduleSaveAdvance(intake);
   }, () => {});
@@ -1231,6 +1297,7 @@ $('#payList').addEventListener('click', (ev) => {
     confirmChange(() => {
       pushUndo({ kind: 'advance', intake, from: prev, to: 0 });
       state.advances[intake].previousAdvance = 0;
+      noteAdvanceEdit(intake, 'previousAdvance');
       recalc(intakeStudents());
       scheduleSaveAdvance(intake);
     }, () => {});
@@ -1436,7 +1503,7 @@ function commitEdit({ move = null, refocus = true } = {}) {
       else finishEditing();
     }
   } else {
-    const value = parseMoney(el.textContent);
+    const value = parseMoney(el.textContent, key);
     if (value === null) {
       el.textContent = cellText(key, original);
       showHint('Only numbers can go in incentive cells.');
@@ -1519,7 +1586,7 @@ function pasteIntoSelection(text) {
         if (typed.unit !== unitOf(rowId, key)) changes.push({ id: rowId, key: unitField(key), to: typed.unit });
         continue;
       }
-      const value = parseMoney(raw);
+      const value = parseMoney(raw, key);
       if (value === null) { skippedText = true; continue; }
       changes.push({ id: rowId, key, to: value });
     }

@@ -524,6 +524,31 @@ test('screens: log in, edit, delete, search, team rules, Fact File', { timeout: 
       if (!e.manualRate && !e.lockedRate && !(e.payments || []).length) break;
       await new Promise((r) => setTimeout(r, 250));
     }
+    // Undo of "Add payment" takes the payment (and the rate typed with it) off the server too, not only off the page.
+    await fixedPage.fill('#payDate', '2026-11-04');
+    await fixedPage.fill('#payAmount', '700');
+    await fixedPage.fill('#payRate', '320');
+    await fixedPage.click('#payAdd');
+    await fixedPage.waitForSelector('.eg-box');
+    await fixedPage.click('.eg-ok');
+    let withPay = {};
+    for (let i = 0; i < 40 && !(withPay.payments || []).length; i++) {
+      withPay = Object.values(await (await admin.request.get(incentiveBase + '/api/advances')).json())[0] || {};
+      await new Promise((r) => setTimeout(r, 250));
+    }
+    assert.strictEqual(withPay.payments.length, 1, 'the payment was saved');
+    await fixedPage.click('#undoBtn');
+    let undone = withPay;
+    for (let i = 0; i < 40 && ((undone.payments || []).length || undone.manualRate); i++) {
+      await new Promise((r) => setTimeout(r, 250));
+      undone = Object.values(await (await admin.request.get(incentiveBase + '/api/advances')).json())[0] || {};
+    }
+    assert.strictEqual((undone.payments || []).length, 0, 'undo removed the payment on the server');
+    assert.ok(!undone.manualRate && !undone.lockedRate, 'and the rate typed with it');
+    // Each money cell reads only its own sign: 15% in Commission %, £ in the pound column, Rs in the rupee columns.
+    const parsed = await fixedPage.evaluate(() => [parseMoney('15%', 'uniCommissionRate'), parseMoney('£500', 'loanCommission'),
+      parseMoney('Rs 40,000', 'flywireFeePayment'), parseMoney('£1,250.50', 'flywireFeePayment'), parseMoney('Rs. 1,250', 'loanCommission')]);
+    assert.deepStrictEqual(parsed, [15, null, null, 1250.5, 1250]);
     await fixedPage.close();
 
     // The yellow "rate has not arrived" warning must not flash while the rate is still on its way ...

@@ -53,7 +53,9 @@ test('one connector offers the student tools and the incentive tools, and nothin
 
 test('overview lists the intakes with their visa-issued students and the exchange rate', () => {
   const o = call(make(), 'get_incentive_overview', {});
-  assert.deepStrictEqual(o.intakes, [{ name: 'Sep Intake 2026', visaIssuedStudents: 3 }, { name: 'Jan Intake 2027', visaIssuedStudents: 0 }]);
+  // Each intake says the rate its own figures use (here none is fixed or typed in, so the live rate).
+  assert.deepStrictEqual(o.intakes, [{ name: 'Sep Intake 2026', visaIssuedStudents: 3, exchangeRateGbpToNpr: 180, rateSource: 'live rate' }, { name: 'Jan Intake 2027', visaIssuedStudents: 0, exchangeRateGbpToNpr: 180, rateSource: 'live rate' }]);
+  assert.match(o.exchangeRateNote, /live rate/);
   assert.strictEqual(o.exchangeRate.gbpToNpr, 180);
 });
 

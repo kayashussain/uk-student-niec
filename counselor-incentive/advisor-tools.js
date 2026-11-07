@@ -192,11 +192,14 @@ function createIncentiveTools({ getSync, getCommissions, getAdvances, getRate })
     if (data.error) return errorResult(data.error);
     const pulledAt = new Date().toISOString();
 
+    // The top-level exchangeRate is the live one; an intake may use another, and its own is the one its figures use.
+    const LIVE_RATE_NOTE = "exchangeRate is today's live rate. An intake whose rate was fixed by its first payment, or typed in from OANDA, is worked out at its own rate: use that intake's exchangeRateGbpToNpr (in working for the payment summary).";
     if (name === 'get_incentive_overview') {
       return textResult({
         pulledAt,
         exchangeRate: rate ? { gbpToNpr: rate.rate, date: rate.date || null, fetchedAt: rate.fetchedAt || null } : null,
-        intakes: data.intakes.map((i) => ({ name: i.name, visaIssuedStudents: i.students.length })),
+        exchangeRateNote: LIVE_RATE_NOTE,
+        intakes: data.intakes.map((i) => ({ name: i.name, visaIssuedStudents: i.students.length, exchangeRateGbpToNpr: i.rate ? i.rate.rate : null, rateSource: i.rateSource || null })),
         notes: [
           'Only students whose Application Status is exactly "Visa Issued" appear here, as on the Incentive page.',
           'University Partner is the agent: it comes from the University Partner column of Student Details.',
@@ -224,6 +227,7 @@ function createIncentiveTools({ getSync, getCommissions, getAdvances, getRate })
       return textResult({
         pulledAt,
         exchangeRate: rate ? { gbpToNpr: rate.rate, date: rate.date || null, fetchedAt: rate.fetchedAt || null } : null,
+        exchangeRateNote: LIVE_RATE_NOTE,
         intakes: picked.intakes.map((i) => summaryOf(i)),
       });
     }
