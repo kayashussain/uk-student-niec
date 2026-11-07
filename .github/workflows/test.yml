@@ -13,5 +13,7 @@ jobs:
         with:
           node-version: 20
       - name: Syntax check
-        run: for f in gateway/server.js shared/*.js student-details/*.js counselor-incentive/*.js; do node --check "$f"; done
+        run: for f in gateway/server.js scripts/*.js shared/*.js student-details/*.js student-details/seed-tools/*.js counselor-incentive/*.js; do node --check "$f"; done
+      - name: Browser tools (so the UI and accessibility tests run too)
+        run: npm i --no-save playwright axe-core && npx playwright install --with-deps chromium
       - run: npm test

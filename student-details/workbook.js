@@ -172,7 +172,7 @@ function isValidWorkbook(parsed) {
     && Array.isArray(parsed.sheets)
     && parsed.sheets.length > 0
     && typeof parsed.activeSheetId === 'string'
-    && parsed.sheets.every((s) => s && typeof s.id === 'string' && Array.isArray(s.columns) && Array.isArray(s.rows)));
+    && parsed.sheets.every((s) => s && typeof s.id === 'string' && Array.isArray(s.columns) && Array.isArray(s.rows) && s.rows.every((r) => r && typeof r === 'object')));
 }
 
 // ---------------------------------------------------------------------------------------------

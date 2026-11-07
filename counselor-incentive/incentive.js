@@ -147,8 +147,9 @@ function createIncentive({ dataDir, studentDataFile, getWorkbook, activity }) {
     snapshotDaily(file, DATA_DIR, path.basename(file, '.json'));
     if (fs.existsSync(file)) {
       try {
-        JSON.parse(fs.readFileSync(file, 'utf-8')); // only a copy that reads replaces the good rolling backup
-        fs.copyFileSync(file, path.join(DATA_DIR, backupName));
+        const text = fs.readFileSync(file, 'utf-8');
+        JSON.parse(text); // only a copy that reads replaces the good rolling backup
+        writeFileAtomic(path.join(DATA_DIR, backupName), text);
       } catch (e) { /* non-fatal */ }
     }
     writeJSONAtomic(file, data);

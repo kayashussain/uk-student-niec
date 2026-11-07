@@ -148,7 +148,7 @@ function createIncentiveTools({ getSync, getCommissions, getAdvances, getRate })
     const e = calc.computeEarnings({
       commissionGbp: intake.students.reduce((a, st) => a + st.uniCommissionAmountGbp, 0),
       // A student from a branch: the branch keeps 70% of the university commission, the head office 30%.
-      branchCommissionGbp: intake.students.filter((st) => st.isBranchStudent).reduce((a, st) => a + st.uniCommissionAmountGbp, 0),
+      branchCommissionsGbp: intake.students.filter((st) => st.isBranchStudent).map((st) => st.uniCommissionAmountGbp),
       gbpToNpr,
       basicSalary: salary,
       salaryMonths: months,

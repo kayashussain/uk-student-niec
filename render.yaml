@@ -6,6 +6,7 @@ services:
     buildCommand: npm install
     startCommand: npm start
     autoDeploy: true
+    healthCheckPath: /healthz
     disk:
       name: uk-student-niec-data
       mountPath: /data

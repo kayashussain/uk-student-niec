@@ -140,8 +140,11 @@
   // sharePercent is null when there's nothing earned yet to compare with.
   const DEFAULT_BASIC_SALARY = 70000;
   const DEFAULT_SALARY_MONTHS = 4; // three intakes a year (January, April/May, September)
-  function computeEarnings({ commissionGbp, branchCommissionGbp, gbpToNpr, basicSalary, salaryMonths, myIncentives }) {
-    const branchShareGbp = round2(num(branchCommissionGbp) * BRANCH_SHARE_PERCENT / 100);
+  function computeEarnings({ commissionGbp, branchCommissionGbp, branchCommissionsGbp, gbpToNpr, basicSalary, salaryMonths, myIncentives }) {
+    // With each branch student's commission given, the share is the sum of the rounded rows, so it equals the list shown beside it.
+    const branchShareGbp = Array.isArray(branchCommissionsGbp)
+      ? round2(branchCommissionsGbp.reduce((a, c) => a + round2(num(c) * BRANCH_SHARE_PERCENT / 100), 0))
+      : round2(num(branchCommissionGbp) * BRANCH_SHARE_PERCENT / 100);
     const headOfficeGbp = round2(num(commissionGbp) - branchShareGbp);
     const companyNpr = gbpToNpr ? round2(headOfficeGbp * gbpToNpr) : null;
     const salaryTotal = num(basicSalary) * num(salaryMonths);

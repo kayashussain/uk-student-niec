@@ -10,6 +10,7 @@
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
+const { writeFileAtomic } = require('./server-utils');
 
 const PROTOCOL = '2025-03-26';
 const SUPPORTED_PROTOCOLS = ['2025-03-26', '2024-11-05'];
@@ -100,9 +101,7 @@ function createMemory(dir, log) {
     const old = fs.readdirSync(path.join(dir, 'backups')).filter((f) => /^memory-.*\.json$/.test(f)).sort();
     old.slice(0, Math.max(0, old.length - MEMORY_KEEP_BACKUPS)).forEach((f) => { try { fs.unlinkSync(path.join(dir, 'backups', f)); } catch (e) { /* ignore */ } });
     m.updatedAt = new Date().toISOString();
-    const tmp = `${file}.tmp`;
-    fs.writeFileSync(tmp, JSON.stringify(m, null, 1));
-    fs.renameSync(tmp, file);
+    writeFileAtomic(file, JSON.stringify(m, null, 1));
   }
   return {
     available: Boolean(dir),

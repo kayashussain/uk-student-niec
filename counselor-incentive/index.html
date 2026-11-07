@@ -1078,7 +1078,7 @@ function computeEarnings(students, summary) {
   return window.IncentiveCalc.computeEarnings({
     commissionGbp: students.reduce((a, st) => a + infoValue(st, amountCol), 0),
     // A student from a branch (Student Source ends in Branch): the branch keeps 70% of the commission, the head office 30%.
-    branchCommissionGbp: students.filter((st) => isBranchSource(st.source)).reduce((a, st) => a + infoValue(st, amountCol), 0),
+    branchCommissionsGbp: students.filter((st) => isBranchSource(st.source)).map((st) => infoValue(st, amountCol)),
     gbpToNpr: earningsRate ? earningsRate.rate : null,
     basicSalary: intakeSetting('basicSalary', DEFAULT_BASIC_SALARY),
     salaryMonths: intakeSetting('salaryMonths', DEFAULT_SALARY_MONTHS),

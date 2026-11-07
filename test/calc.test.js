@@ -228,3 +228,8 @@ test('pound incentives are converted to rupees before rounding, so the total mat
   const s = incentive.computeSummary([row, { ...row }], 0, { gbpToNpr: 133.5 });
   assert.strictEqual(s.totalCommissions, 267.27); // 2.002 x 133.5, not 2.00 x 133.5 = 267.00
 });
+
+test('the branch share equals the sum of its rounded rows', () => {
+  const e = incentive.computeEarnings({ commissionGbp: 2.5, branchCommissionsGbp: [1.25, 1.25], gbpToNpr: 100, basicSalary: 0, salaryMonths: 0, myIncentives: 0 });
+  assert.strictEqual(e.branchShareGbp, 1.76); // 0.88 + 0.88, as listed
+});

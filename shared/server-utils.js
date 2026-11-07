@@ -289,8 +289,8 @@ function createStaticServer(root, publicFiles) {
       return send(res, 404, 'Not found');
     }
     const fingerprinted = /(^|&)v=/.test(query) && !/html/.test(type);
-    const headers = { 'Content-Type': type, 'Cache-Control': fingerprinted ? 'public, max-age=31536000, immutable' : 'no-cache', ETag: file.etag };
-    if (req.headers['if-none-match'] === file.etag) return send(res, 304, null, headers);
+    const headers = { 'Content-Type': type, 'Cache-Control': fingerprinted ? 'public, max-age=31536000, immutable' : 'no-cache', ETag: file.etag, Vary: 'Accept-Encoding' };
+    if (String(req.headers['if-none-match'] || '').replace(/^W\//, '') === file.etag) return send(res, 304, null, headers);
     send(res, 200, file.data, headers, file.gz);
   };
 }

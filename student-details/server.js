@@ -225,7 +225,7 @@ function writeWorkbook(workbook) {
   // Only a file that was read fine is copied into the backups, so a damaged one never replaces a good copy.
   if (current && fs.existsSync(DATA_FILE)) {
     snapshotDaily(DATA_FILE, DATA_DIR, 'data');
-    fs.copyFileSync(DATA_FILE, BACKUP_FILE); // rolling backup of the previous version
+    writeFileAtomic(BACKUP_FILE, fs.readFileSync(DATA_FILE)); // rolling backup of the previous version (whole or not at all)
   } else if (!current && fs.existsSync(DATA_FILE)) {
     try { fs.renameSync(DATA_FILE, path.join(DATA_DIR, `data.corrupt-${Date.now()}.json`)); } catch (e) { /* replaced below */ }
   }
@@ -880,3 +880,13 @@ process.on('uncaughtException', (err) => console.error('[uncaught]', err));
 server.listen(PORT, () => {
   console.log(`UK Student NIEC running at http://localhost:${PORT}`);
 });
+
+// A restart (pm2, cPanel) lets requests in progress finish, closes the live streams and then exits. Saves are written whole
+// before they are answered, so nothing is half written. A forced exit follows after 5 seconds if something hangs on.
+function shutDown() {
+  streams.forEach(({ res }) => { try { res.end(); } catch (e) { /* already closed */ } });
+  server.close(() => process.exit(0));
+  setTimeout(() => process.exit(0), 5000).unref();
+}
+process.on('SIGTERM', shutDown);
+process.on('SIGINT', shutDown);
