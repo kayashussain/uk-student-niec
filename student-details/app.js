@@ -2480,7 +2480,7 @@
     document.body.appendChild(a);
     a.click();
     a.remove();
-    URL.revokeObjectURL(url);
+    setTimeout(() => URL.revokeObjectURL(url), 10000); // not at once: some browsers have not started the download yet
   }
 
   $('#addRow').addEventListener('click', addRow);

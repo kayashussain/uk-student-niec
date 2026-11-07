@@ -222,3 +222,9 @@ test('money cells: first number only, commas and currency signs, % read from in 
   assert.strictEqual(s.netPayable, 850.25, 'the lines shown add up');
   assert.strictEqual(incentive.displayDate('2026-9-3'), '9/3/2026');
 });
+
+test('pound incentives are converted to rupees before rounding, so the total matches the rows', () => {
+  const row = { enrollmentCommission: 1.001, enrollmentCommissionUnit: 1 };
+  const s = incentive.computeSummary([row, { ...row }], 0, { gbpToNpr: 133.5 });
+  assert.strictEqual(s.totalCommissions, 267.27); // 2.002 x 133.5, not 2.00 x 133.5 = 267.00
+});

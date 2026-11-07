@@ -126,6 +126,17 @@ function createIncentive({ dataDir, studentDataFile, getWorkbook, activity }) {
     }
   }
 
+  // For reads that are followed by a write: only a missing file counts as empty. A damaged or unreadable file must stop the
+  // save (500), never be replaced by an empty one with the good rolling backup overwritten.
+  function readJSONStrict(file, fallback) {
+    try {
+      return JSON.parse(fs.readFileSync(file, 'utf-8'));
+    } catch (e) {
+      if (e.code === 'ENOENT') return fallback;
+      throw e;
+    }
+  }
+
   function writeJSONAtomic(file, data) {
     writeFileAtomic(file, JSON.stringify(data, null, 2));
   }
@@ -135,7 +146,10 @@ function createIncentive({ dataDir, studentDataFile, getWorkbook, activity }) {
     fs.mkdirSync(DATA_DIR, { recursive: true });
     snapshotDaily(file, DATA_DIR, path.basename(file, '.json'));
     if (fs.existsSync(file)) {
-      try { fs.copyFileSync(file, path.join(DATA_DIR, backupName)); } catch (e) { /* non-fatal */ }
+      try {
+        JSON.parse(fs.readFileSync(file, 'utf-8')); // only a copy that reads replaces the good rolling backup
+        fs.copyFileSync(file, path.join(DATA_DIR, backupName));
+      } catch (e) { /* non-fatal */ }
     }
     writeJSONAtomic(file, data);
   }
@@ -273,7 +287,7 @@ function createIncentive({ dataDir, studentDataFile, getWorkbook, activity }) {
         const id = decodeURIComponent(commMatch[1]);
         if (RESERVED_KEYS.has(id)) return sendJSON(res, 400, { error: 'invalid id' });
         const body = await readJSONBody(req, MAX_BODY_BYTES);
-        const all = readJSON(COMMISSIONS_FILE, {});
+        const all = readJSONStrict(COMMISSIONS_FILE, {});
         const existing = all[id] || {};
         // Only the fields in the body change; the rest keep their saved values, so two people editing
         // different fields of the same student don't undo each other.
@@ -321,7 +335,7 @@ function createIncentive({ dataDir, studentDataFile, getWorkbook, activity }) {
         const needsLive = 'payments' in body && Array.isArray(body.payments) && body.payments.length > 0
           && !(body.lockedRate && Number(body.lockedRate.rate) > 0) && !(peek.lockedRate && peek.lockedRate.rate > 0) && !typedRate;
         const liveForFirstPayment = needsLive ? await getGbpToNprRate() : null;
-        const stored = readJSON(ADVANCES_FILE, {});
+        const stored = readJSONStrict(ADVANCES_FILE, {});
         const sheets = readSheetList();
         const existing = advancesByName(stored, sheets)[intake] || stored[intake] || {};
         // Fields left out of the body keep their saved values. Salary settings are only stored once set.

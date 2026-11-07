@@ -249,6 +249,7 @@
     const c = $('chartMonthly');
     legend.replaceChildren();
     c.replaceChildren();
+    c.removeAttribute('tabindex'); c.onkeydown = null; c.onblur = null; hideTip(); // nothing left from the chart view when the table view is shown
     const m = d.monthly;
     m.series.forEach((s) => {
       const b = el('button');
@@ -368,22 +369,28 @@
   async function load() {
     const page = $('page');
     page.classList.add('loading');
+    const seq = ++loadSeq;
     try {
-      const seq = ++loadSeq;
       const res = await fetch('/api/dashboard?intake=' + encodeURIComponent(selected), { cache: 'no-store' });
       if (!res.ok) throw new Error('HTTP ' + res.status);
       const fresh = await res.json();
       if (seq !== loadSeq) return; // a newer request (another intake picked) is on its way
+      const stamp = 'Updated ' + new Date().toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+      const json = JSON.stringify(fresh);
+      // Same numbers as a moment ago: leave the charts alone, so keyboard focus and open tooltips are not thrown away every 30 seconds.
+      if (data && json === load.last) { $('updated').textContent = stamp; return; }
+      load.last = json;
+      hideTip();
       data = fresh;
       selected = data.selected;
       fillIntakes(data);
       render();
       page.classList.remove('first-load');
-      $('updated').textContent = 'Updated ' + new Date().toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+      $('updated').textContent = stamp;
     } catch (e) {
       $('updated').textContent = data ? 'Could not refresh. Showing the last numbers.' : 'Could not load the dashboard.';
     } finally {
-      page.classList.remove('loading');
+      if (seq === loadSeq) page.classList.remove('loading'); // a stale answer must not hide the spinner of the newer request
     }
   }
 

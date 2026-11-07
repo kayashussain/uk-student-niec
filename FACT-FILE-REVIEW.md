@@ -56,6 +56,7 @@ Checked and matching the file: Bangor (BUIC) fees and intakes, Cardiff Metropoli
 
 
 - Bedfordshire UG £16,800 and PG £17,900 for 2026/27, Hertfordshire PG top fee £22,950 and its January 2027 scholarship deposit condition, Winchester deposit (£5,000 or £7,000: the university does not publish it), Middlesex MSc fees (course by course, £17,100 to £19,500), Birmingham City UG £18,570 (one course page only), the UWL Masters length for February 2027 (12 or 16 months). The official pages were not readable or did not show the figure, so none of these was changed.
+- University of Sunderland postgraduate fee (7 November 2026): the file says £18,000 but the official page (sunderland.ac.uk/postgraduate-fees) lists £17,900 to £20,000 for 2026/27 courses. Added as a dated note; the figure was not changed. Confirm with the university.
 - Several January 2027 deadlines have passed by the dates in the files (for example Regent College London, the University of Law application date, Sunderland London); the universities were not asked.
 
 ## Still open

@@ -379,11 +379,11 @@
     </div>
     <div class="summary-row">
       <span class="label">Basic Salary (per month, NPR)</span>
-      <input class="adv-input" id="salaryInput" type="number" step="1" min="0" aria-label="Basic salary per month (NPR)">
+      <input class="adv-input" id="salaryInput" type="number" step="1" min="0" max="1000000000" aria-label="Basic salary per month (NPR)">
     </div>
     <div class="summary-row">
       <span class="label">Total Months for this Intake</span>
-      <input class="adv-input" id="monthsInput" type="number" step="0.5" min="0" aria-label="Total months for this intake">
+      <input class="adv-input" id="monthsInput" type="number" step="0.5" min="0" max="24" aria-label="Total months for this intake">
     </div>
     <div class="summary-row">
       <span class="label">Salary for this Intake</span>
@@ -1143,6 +1143,14 @@ function bindIntakeSetting(input, field, fallback) {
     if (!intake) return;
     const v = num(input.value);
     const prev = intakeSetting(field, fallback);
+    // The server refuses salary outside 0..1,000,000,000 and months outside 0..24 and would then reject every later save
+    // for this intake (payments included), so a value out of range is turned back here.
+    const LIM = { basicSalary: [0, 1e9], salaryMonths: [0, 24] }[field];
+    if (LIM && (v < LIM[0] || v > LIM[1])) {
+      input.value = prev;
+      NiecUI.toast(`Enter a number from ${LIM[0].toLocaleString('en-GB')} to ${LIM[1].toLocaleString('en-GB')}.`, { type: 'error' });
+      return;
+    }
     if (v === prev) return;
     confirmChange(() => {
       pushUndo({ kind: 'advance', intake, field, from: prev, to: v });

@@ -224,11 +224,16 @@
   }
 
   async function post(url, body) {
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body || {}),
-    });
+    let res;
+    try {
+      res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body || {}),
+      });
+    } catch (e) {
+      throw new Error('Could not reach the server. Check your connection and try again.');
+    }
     const json = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(json.error || `Something went wrong (server error ${res.status}).`);
     return json;

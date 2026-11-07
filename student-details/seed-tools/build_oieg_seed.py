@@ -24,7 +24,7 @@ def plain(v):
         return ''
     if isinstance(v, datetime):
         return fmt_date(v)
-    s = str(v).replace('—', '-').replace('–', '-').replace('’', "'").replace('‘', "'")
+    s = str(v).replace('\u2014', '-').replace('\u2013', '-').replace('’', "'").replace('‘', "'")
     s = s.replace('“', '"').replace('”', '"').replace('•', '-').replace('\xa0', ' ')
     s = re.sub(r'[ \t]+', ' ', s)
     s = re.sub(r'\s*\n\s*', '\n', s).strip()
@@ -528,7 +528,7 @@ def main(oxford, pathways, out):
         e['intakes'] = {n: v for n, v in e['intakes'].items() if v['keyDates'] or v['deadline']}
         result[k] = e
     text = json.dumps(result, indent=1, ensure_ascii=False)
-    assert '—' not in text and '–' not in text
+    assert '\u2014' not in text and '\u2013' not in text
     with open(out, 'w', encoding='utf-8') as f:
         f.write(text + '\n')
     for k, e in sorted(result.items()):

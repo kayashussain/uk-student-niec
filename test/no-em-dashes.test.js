@@ -8,7 +8,7 @@ const path = require('node:path');
 const DASHES = new RegExp('[' + String.fromCharCode(0x2014, 0x2013) + ']');
 const ROOT = path.join(__dirname, '..');
 const SKIP = new Set(['node_modules', '.git', '.claude']);
-const TEXT = /\.(js|html|css|md|json|yaml|yml|sh|txt)$|^\.gitignore$/;
+const TEXT = /\.(js|mjs|cjs|html|css|md|json|jsonl|yaml|yml|sh|txt|py|svg)$|^\.gitignore$/;
 
 function* files(dir) {
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {

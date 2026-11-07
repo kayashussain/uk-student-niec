@@ -253,8 +253,7 @@ function createFacts(dir, { now = () => new Date() } = {}) {
       if (!cleaned.name) return { error: 'Please enter the university name.' };
       if (data.universities.some((u) => u.name.toLowerCase() === cleaned.name.toLowerCase())) return { error: 'That university is already in the list.' };
       const uni = { ...cleaned, id: newId(), updatedAt: now().toISOString(), updatedBy: by };
-      data.universities.push(uni);
-      write(data);
+      write({ ...data, universities: [...data.universities, uni] }); // write a copy: a failed write must not leave the change in memory
       return { university: uni };
     },
     update(id, input, by) {
@@ -263,9 +262,10 @@ function createFacts(dir, { now = () => new Date() } = {}) {
       if (i === -1) return { error: 'No such university.' };
       const cleaned = clean(input, data.universities[i]);
       if (data.universities.some((u, k) => k !== i && u.name.toLowerCase() === cleaned.name.toLowerCase())) return { error: 'Another university already has that name.' };
-      data.universities[i] = { ...cleaned, id, updatedAt: now().toISOString(), updatedBy: by };
-      write(data);
-      return { university: data.universities[i] };
+      const universities = [...data.universities];
+      universities[i] = { ...cleaned, id, updatedAt: now().toISOString(), updatedBy: by };
+      write({ ...data, universities });
+      return { university: universities[i] };
     },
     remove(id) {
       const data = load();

@@ -17,6 +17,7 @@ const { createDirect, viewDirect, MAX_FILE_BYTES } = require('./direct');
 const { createBackups, ID: BACKUP_ID, HOUR: BACKUP_HOUR, KEEP_DAYS } = require('./backups');
 const { createAdvisorMcp } = require('./advisor-mcp');
 const { advancesByName } = require('../counselor-incentive/advances');
+const { uniqueNames } = require('../counselor-incentive/incentive-data');
 const { createIncentive } = require('../counselor-incentive/incentive');
 const { createIncentiveLock } = require('../shared/incentive-lock');
 const {
@@ -100,7 +101,8 @@ const advisor = createAdvisorMcp({
   facts,
   incentive: {
     getCommissions: () => readIncentiveFile('commissions.json', {}),
-    getAdvances: (sheets) => advancesByName(readIncentiveFile('advances.json', {}) || {}, sheets.map((x) => ({ id: x.id, name: x.name }))),
+    // Same intake names as the Incentive page (two sheets called "Sep" become "Sep" and "Sep (2)").
+    getAdvances: (sheets) => { const names = uniqueNames(sheets); return advancesByName(readIncentiveFile('advances.json', {}) || {}, sheets.map((x, i) => ({ id: x.id, name: names[i] }))); },
     getRate: () => { const c = readIncentiveFile('exchange-rate-cache.json', null); return c && typeof c.rate === 'number' ? { rate: c.rate, date: c.date, fetchedAt: c.fetchedAt || null } : null; },
   },
   memoryDir: path.join(DATA_DIR, 'advisor-memory'),
@@ -170,6 +172,13 @@ function loadWorkbook() {
     text = fs.readFileSync(DATA_FILE, 'utf8');
   } catch (e) {
     if (e.code !== 'ENOENT') throw e;
+    // A missing data.json with surviving backups (remounted disk, moved file) is recovered, never silently replaced by a blank workbook.
+    const rec = recoverWorkbook();
+    if (rec) {
+      console.error('[startup] data.json is missing; recovered from', rec.from);
+      writeFileAtomic(DATA_FILE, JSON.stringify(rec.workbook));
+      return rec.workbook;
+    }
     const fresh = blankWorkbook();
     writeFileAtomic(DATA_FILE, JSON.stringify(fresh));
     return fresh;
@@ -853,6 +862,9 @@ const server = http.createServer(async (req, res) => {
       return send(res, 405, 'Method not allowed');
     }
     if (SHARED_FILES[urlPath]) return serveShared(req, res);
+    // The page files of the Admin-only pages are Admin-only too (their data was already refused; now their shells are as well).
+    if (['/users.html', '/activity.html', '/direct.html', '/dashboard.html'].includes(urlPath) && !isAdmin(req.user)
+      && !(urlPath === '/dashboard.html' && isManager(req.user))) return send(res, 302, '', { Location: home });
     serveStatic(req, res);
   } catch (e) {
     console.error(e);

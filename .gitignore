@@ -28,3 +28,13 @@ student-details/activity.jsonl
 .env
 *.log
 mail.json
+
+# More private runtime files (full backups, partner contracts, setup code, advisor notes, copies of corrupt data).
+**/first-admin-code.txt
+**/direct-universities.json
+**/direct-files/
+**/daily-backups/
+**/advisor-memory/
+**/data.corrupt-*.json
+**/*.corrupt-*.json
+**/memory.json

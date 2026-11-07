@@ -109,9 +109,10 @@
       });
     });
     nprEntered = round2(nprEntered);
+    const gbpRaw = gbpEntered; // converted unrounded, so the total matches the sum of the rows' own rupee values
     gbpEntered = round2(gbpEntered);
-    if (gbpEntered && !rate) needsRate = true;
-    const gbpConverted = rate ? round2(gbpEntered * rate) : 0;
+    if (gbpRaw && !rate) needsRate = true;
+    const gbpConverted = rate ? round2(gbpRaw * rate) : 0;
     const totalCommissions = round2(nprEntered + gbpConverted);
     const loanPayable = round2(sum('loanCommission'));
     const netCommissions = round2(totalCommissions - loanPayable);

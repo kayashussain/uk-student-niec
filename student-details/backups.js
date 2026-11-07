@@ -63,13 +63,15 @@ function createBackups(dir, collect, { now = () => new Date() } = {}) {
   }
 
   // Makes the daily copy if the newest 6 p.m. has none yet. Cheap: one comparison unless a copy is due.
+  let retryAfter = 0;
   function tick(date = now()) {
     try {
       const day = dueDay(date);
-      if (ensuredFor === day) return;
+      if (ensuredFor === day || Date.now() < retryAfter) return;
       if (!fs.existsSync(fileOf(`daily-${day}`))) create('daily', date);
       ensuredFor = day;
     } catch (e) {
+      retryAfter = Date.now() + 10 * 60 * 1000; // a failing backup (disk full) is retried every 10 minutes, not on every request
       console.error('[daily backup]', e.message); // never block anything over a backup problem
     }
   }
