@@ -9,6 +9,18 @@ Format: **date · file · what · from → to · why**
 
 ---
 
+## 2026-11-07 · `shared/theme.css` · fee cells in coloured rows, hovering a selected row, four-digit row numbers
+
+- **What, from, to:**
+  - The two worked-out fee cells (Fee After Scholarship, Remaining Tuition Fee): **from** white in coloured, striped and red (Defer warning) rows, which left two white holes in the row, **to** the row's own colour, stripe or red, like every other cell.
+  - Hovering a selected row: **from** the hover grey replaced the blue, so a picked row looked unpicked under the mouse, **to** a selected row stays blue under the mouse. Other rows still turn grey on hover.
+  - S.N cell: **from** 13px side padding, so row numbers 1000 and up were cut off, **to** 4px side padding (what `student-details/style.css` always meant), so four-digit numbers fit. The column width is unchanged.
+- **Not changed:** colours, fonts, layout.
+- **Why:** bugs found by the independent review of the sheet, each measured in a real browser.
+- **In the code:** two `🔴 CSS CHANGED (2026-11-07)` comments in `shared/theme.css`, one above the hover rules and one below the coloured-row rules.
+
+---
+
 ## 2026-11-07 · `shared/theme.css` · a coloured row shows its colour straight away, and no box on the first cell
 
 - **What:** Student Details rows coloured with **Colour rows**, while they are still selected.

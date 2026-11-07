@@ -185,7 +185,7 @@ function loadWorkbook() {
   }
   let workbook;
   try {
-    workbook = migrateWorkbook(JSON.parse(text));
+    workbook = migrateWorkbook(looksLikeWorkbook(JSON.parse(text)));
     if (!isValidWorkbook(workbook)) throw new Error('not a workbook');
   } catch (e) {
     // A damaged data.json (a crash mid-write, a bad copy): set it aside and carry on from the newest copy that reads.
@@ -205,6 +205,15 @@ function loadWorkbook() {
   return workbook;
 }
 
+// The old upgrade step turns anything without sheets (null, {}, a wrong file) into an empty sheet, which would then be saved
+// over the students. Only a workbook, or the old single-sheet shape, counts as one; anything else is treated as damaged.
+function looksLikeWorkbook(raw) {
+  const ok = raw && typeof raw === 'object' && !Array.isArray(raw)
+    && (Array.isArray(raw.sheets) || (Array.isArray(raw.columns) && Array.isArray(raw.rows)));
+  if (!ok) throw new Error('not a workbook');
+  return raw;
+}
+
 // The newest backup that reads as a workbook: the rolling one, then the daily copies, newest first.
 function recoverWorkbook() {
   let daily = [];
@@ -214,7 +223,21 @@ function recoverWorkbook() {
   } catch (e) { /* none */ }
   for (const file of [BACKUP_FILE, ...daily]) {
     try {
-      const workbook = migrateWorkbook(JSON.parse(fs.readFileSync(file, 'utf8')));
+      const workbook = migrateWorkbook(looksLikeWorkbook(JSON.parse(fs.readFileSync(file, 'utf8'))));
+      if (isValidWorkbook(workbook)) return { workbook, from: file };
+    } catch (e) { /* try the next one */ }
+  }
+  // Last, the 6 p.m. (and manual) copies in daily-backups, newest first.
+  let gz = [];
+  try {
+    const dir = path.join(DATA_DIR, 'daily-backups');
+    gz = fs.readdirSync(dir).filter((f) => /^niec-.*\.json\.gz$/.test(f)).map((f) => path.join(dir, f))
+      .sort((a, b) => fs.statSync(b).mtimeMs - fs.statSync(a).mtimeMs);
+  } catch (e) { /* none */ }
+  for (const file of gz) {
+    try {
+      const snap = JSON.parse(zlib.gunzipSync(fs.readFileSync(file)).toString('utf8'));
+      const workbook = migrateWorkbook(looksLikeWorkbook(snap && snap.students));
       if (isValidWorkbook(workbook)) return { workbook, from: file };
     } catch (e) { /* try the next one */ }
   }
@@ -229,11 +252,12 @@ function writeWorkbook(workbook) {
   } else if (!current && fs.existsSync(DATA_FILE)) {
     try { fs.renameSync(DATA_FILE, path.join(DATA_DIR, `data.corrupt-${Date.now()}.json`)); } catch (e) { /* replaced below */ }
   }
-  writeFileAtomic(DATA_FILE, JSON.stringify(workbook));
+  const json = JSON.stringify(workbook);
+  writeFileAtomic(DATA_FILE, json);
   current = workbook;
   served.clear();
   patches.clear();
-  history.remember(workbook);
+  history.remember(workbook, json);
   broadcast();
 }
 
@@ -310,7 +334,9 @@ function handleTeamSave(req, res, parsed) {
   } catch (e) {
     return sendJSON(res, 409, { error: 'conflict', revision: current.revision });
   }
-  if (!mineView || !Array.isArray(mineView.sheets)) return sendJSON(res, 400, { error: 'invalid payload' });
+  if (!mineView || !Array.isArray(mineView.sheets)
+    || !mineView.sheets.every((s) => s && typeof s.id === 'string' && Array.isArray(s.rows)
+      && s.rows.every((r) => r && typeof r === 'object' && !Array.isArray(r)))) return sendJSON(res, 400, { error: 'invalid payload' });
   const { changes, adds, deletes, errors } = teamChanges(req.user, baseView, mineView, CALCULATED_COLUMNS);
   if (errors.length) {
     activity.record(req, req.user, 'Change refused', { app: 'Student Details', changes: errors });
@@ -509,15 +535,30 @@ function othersThan(key, user) {
 
 // Server-sent events: each open tab holds a connection and is pushed the state the moment anything
 // changes (someone moves their cursor, someone saves), instead of asking over and over.
-const streams = new Map(); // "account:tab" -> { res, user }
+const streams = new Map(); // "account:tab" -> { res, user, sessionKey }
+
+// A stream whose login has ended (logged out, removed, disabled) is closed; one whose role or teams changed sees what the
+// account sees now. Returns false when the stream was closed.
+function refreshStream(entry, key) {
+  const user = accounts.userForSessionKey(entry.sessionKey);
+  if (!user) {
+    streams.delete(key);
+    peers.delete(key);
+    try { entry.res.end(); } catch (e) { /* already gone */ }
+    return false;
+  }
+  entry.user = user;
+  return true;
+}
 
 function stateFor(key, user) {
   return { revision: current ? current.revision : null, peers: othersThan(key, user) };
 }
 
 function broadcast() {
-  streams.forEach(({ res, user }, key) => {
-    try { res.write('data: ' + JSON.stringify(stateFor(key, user)) + '\n\n'); } catch (e) { /* closed; cleaned up below */ }
+  streams.forEach((entry, key) => {
+    if (!refreshStream(entry, key)) return;
+    try { entry.res.write('data: ' + JSON.stringify(stateFor(key, entry.user)) + '\n\n'); } catch (e) { /* closed; cleaned up below */ }
   });
 }
 
@@ -537,7 +578,7 @@ function handleEvents(req, res) {
   res.write('retry: 1000\n\n');
   const old = streams.get(key);
   if (old) try { old.res.end(); } catch (e) { /* already gone */ }
-  streams.set(key, { res, user: req.user });
+  streams.set(key, { res, user: req.user, sessionKey: req.sessionKey });
   res.write('data: ' + JSON.stringify(stateFor(key, req.user)) + '\n\n');
   req.on('close', () => {
     const now = streams.get(key);
@@ -547,7 +588,10 @@ function handleEvents(req, res) {
     broadcast();
   });
 }
-setInterval(() => streams.forEach(({ res }) => { try { res.write(': ping\n\n'); } catch (e) { /* ignore */ } }), 15000).unref();
+setInterval(() => streams.forEach((entry, key) => {
+  if (!refreshStream(entry, key)) return;
+  try { entry.res.write(': ping\n\n'); } catch (e) { /* ignore */ }
+}), 15000).unref();
 
 async function handlePresence(req, res) {
   let body;
@@ -746,7 +790,6 @@ async function handleRestore(req, res, urlPath) {
   const parts = (Array.isArray(body.parts) ? body.parts : []).filter((p) => ['students', 'facts', 'partners'].includes(p));
   if (!BACKUP_ID.test(id)) return sendJSON(res, 400, { error: 'Choose a backup to restore.' });
   if (!parts.length) return sendJSON(res, 400, { error: 'Choose what to restore.' });
-  if (parts.includes('students') && !current) return sendJSON(res, 500, { error: 'Could not read the data file' });
   const snap = backups.read(id);
   if (!snap) return sendJSON(res, 404, { error: 'That backup could not be read.' });
   // Check everything before changing anything.
@@ -757,7 +800,10 @@ async function handleRestore(req, res, urlPath) {
   const done = [];
   if (parts.includes('students')) {
     const mine = migrateWorkbook({ sheets: snap.students.sheets, activeSheetId: snap.students.activeSheetId });
-    writeWorkbook(ensureRowIds({ revision: current.revision + 1, sheets: mine.sheets, activeSheetId: mine.activeSheetId }));
+    // Also when data.json could not be read: then this is exactly what the restore is for. The revision moves past both, so
+    // no open page mistakes the restored students for a version it already has.
+    const revision = Math.max(current ? current.revision : 0, Number(snap.students.revision) || 0) + 1;
+    writeWorkbook(ensureRowIds({ revision, sheets: mine.sheets, activeSheetId: mine.activeSheetId }));
     done.push('the students');
   }
   if (parts.includes('facts')) { facts.restoreAll(snap.facts); done.push('the Fact File'); }

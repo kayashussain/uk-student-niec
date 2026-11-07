@@ -256,6 +256,14 @@ function createAccounts({
     if (!user || user.disabled) return null;
     return { key, session: s, user };
   }
+  // The person behind a login that was checked earlier (a live update stream): their current account, or null once the
+  // login has ended, expired, or the account was removed or disabled. Their role and teams are read afresh each time.
+  function userForSessionKey(key) {
+    const s = key && sessionsStore.read().sessions[key];
+    if (!s || s.stage !== 'full' || s.expires <= now()) return null;
+    const user = findUser(s.userId);
+    return user && !user.disabled ? publicUser(user) : null;
+  }
   function startSession(req, res, user, stage) {
     const token = crypto.randomBytes(32).toString('hex');
     const t = now();
@@ -301,6 +309,7 @@ function createAccounts({
     if (found && found.session.stage === 'full') {
       req.user = publicUser(found.user);
       req.sessionId = found.session.id;
+      req.sessionKey = found.key;
       if (writable && now() - found.session.lastSeen > LAST_SEEN_EVERY_MS) {
         const map = sessionsMap();
         if (map[found.key]) {
@@ -671,7 +680,7 @@ function createAccounts({
     return true;
   }
 
-  return { requireAuth, handleApi, emailConfig };
+  return { requireAuth, handleApi, emailConfig, userForSessionKey };
 }
 
 module.exports = {

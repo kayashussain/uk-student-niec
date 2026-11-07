@@ -293,6 +293,7 @@ function describeChanges(before, after, limit = 300) {
         lines.push(`${sheet.name}: added ${studentName(row)}`);
         return;
       }
+      if (prev === row) return; // the same row object: nothing in it changed (most rows of a save are shared this way)
       const cols = new Set([...Object.keys(prev), ...Object.keys(row)]);
       cols.forEach((col) => {
         if (col.startsWith('_') && col !== '_color') return;
@@ -330,8 +331,8 @@ function createHistory(limit = 30, maxBytes = 48 * 1024 * 1024) {
     versions.delete(oldest);
   };
   return {
-    remember(workbook) {
-      const text = JSON.stringify(workbook);
+    // `text`: the workbook already written out as JSON, when the caller has it (saves it being worked out twice).
+    remember(workbook, text = JSON.stringify(workbook)) {
       if (versions.has(workbook.revision)) bytes -= versions.get(workbook.revision).length;
       versions.set(workbook.revision, text);
       bytes += text.length;

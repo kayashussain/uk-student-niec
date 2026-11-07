@@ -113,7 +113,7 @@
     tiles($('kpis'), [
       ['Applications submitted', num(k.applicationsSubmitted), `${pct(k.applicationsSubmitted, k.students)} of students`],
       ['Offers received', num(k.offersReceived), `${pct(k.offersReceived, k.students)} of students`],
-      ['Mock interviews held', num(k.mocksHeld), `${num(k.mockInterviews)} interviews in total`],
+      ['Mock interviews held', num(k.mocksHeld), `${num(k.mockInterviews)} interview dates entered`],
       ['Payments made', num(k.paymentsMade), d.paidInFull || d.partlyPaid ? `${num(d.paidInFull)} in full, ${num(d.partlyPaid)} part paid` : `${pct(k.paymentsMade, k.students)} of students paid`],
       ['Visas issued', num(k.visaIssued), `${k.conversionRate}% of students`],
       ['Active head office applicant', num(k.activeHeadOffice), `${pct(k.activeHeadOffice, k.students)} of students`],
@@ -141,7 +141,7 @@
     c.append(list);
     if (d.chase.length) {
       c.append(el('div', 'group-title', 'Longest waiting'));
-      table(c, ['Student', 'Waiting', 'Stage', 'What is missing'], d.chase.map((x) => [x.name, x.days ? `${x.days} days` : 'No date', x.stage, x.reason]), true);
+      table(c, ['Student', 'Waiting', 'Stage', 'What is missing'], d.chase.map((x) => [x.name, x.days == null ? 'No date' : `${Math.max(0, x.days)} days`, x.stage, x.reason]), true);
     }
   }
 
@@ -376,7 +376,8 @@
       const fresh = await res.json();
       if (seq !== loadSeq) return; // a newer request (another intake picked) is on its way
       const stamp = 'Updated ' + new Date().toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
-      const json = JSON.stringify(fresh);
+      const { asOf, ...numbers } = fresh; // the time it was worked out changes every time; only the numbers matter here
+      const json = JSON.stringify(numbers);
       // Same numbers as a moment ago: leave the charts alone, so keyboard focus and open tooltips are not thrown away every 30 seconds.
       if (data && json === load.last) { $('updated').textContent = stamp; return; }
       load.last = json;

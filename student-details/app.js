@@ -932,8 +932,10 @@
     }
   }
 
+  // A press on a menu's own button is left to that button, which closes the menu if it is the one open (a second
+  // click on Colour rows or a sheet's ⋮ used to close the menu here and then open it again).
   function onSheetMenuDocClick(e) {
-    if (openSheetMenu && !openSheetMenu.contains(e.target)) closeSheetMenu();
+    if (openSheetMenu && !openSheetMenu.contains(e.target) && !e.target.closest('#colorRow, .sheet-tab-menu-btn')) closeSheetMenu();
   }
 
   function openSheetMenuFor(sheet, btn, tab) {
@@ -1092,15 +1094,16 @@
   }
 
   function onDocMouseDown(e) {
-    if (openFilterMenu && !openFilterMenu.contains(e.target)) closeFilterMenu();
+    if (openFilterMenu && !openFilterMenu.contains(e.target) && !e.target.closest('.filter-btn')) closeFilterMenu();
   }
 
+  const FILTER_COLLATOR = new Intl.Collator();
   function openFilterMenuFor(col, th) {
     if (openFilterMenu && openFilterMenu.dataset.col === col) { closeFilterMenu(); return; }
     closeFilterMenu();
 
     const uniqueValues = Array.from(new Set(rows.map((r) => (r[col] || '').trim())))
-      .sort((a, b) => a.localeCompare(b));
+      .sort(FILTER_COLLATOR.compare);
     const currentAllowed = columnFilters[col] || new Set(uniqueValues);
 
     const menu = document.createElement('div');
@@ -1196,13 +1199,20 @@
 
   // The rows to show, after the search, filters and sort. Worked out when the table is drawn (renderBody) and
   // kept in `viewIndices`: moving around with the keyboard must not re-sort thousands of students on every key.
+  const SORT_COLLATOR = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
   function getFilteredSortedIndices() {
     const q = searchEl.value.trim().toLowerCase();
     let indices = rows.map((_, i) => i);
     // A team sees only its stage's students (a student it just moved on drops out of its list).
     if (isTeam()) indices = indices.filter((i) => Teams.seesRow(me, rows[i]));
     if (q) {
-      indices = indices.filter((i) => columns.some((c) => (rows[i][c] || '').toLowerCase().includes(q)));
+      // A date is found as it is stored and as it is shown in its cell ("9/23/2026" is shown as 09/23/2026).
+      const cellText = (r, c) => {
+        const v = r[c] || '';
+        const iso = v && DATE_COLS.has(c) && toISODate(v);
+        return (iso ? v + ' ' + displayDate(iso) + ' ' + iso : v).toLowerCase();
+      };
+      indices = indices.filter((i) => columns.some((c) => cellText(rows[i], c).includes(q)));
     }
     Object.keys(columnFilters).forEach((col) => {
       const allowed = columnFilters[col];
@@ -1212,12 +1222,17 @@
       const isNum = NUM_COLS.has(sortCol);
       const isDate = DATE_COLS.has(sortCol);
       // Dates compare as YYYY-MM-DD so "9/2/2026" sorts before "10/1/2026"; blanks go last either way.
-      const key = (v) => (isDate ? toISODate(v) || v : v);
+      // Each row's key is worked out once, not on every comparison (20 to 50 times quicker on a long sheet).
+      const keys = new Map(indices.map((i) => {
+        const v = rows[i][sortCol] || '';
+        return [i, isDate ? toISODate(v) || v : v];
+      }));
+      const nums = isNum ? new Map(indices.map((i) => [i, parseNum(keys.get(i))])) : null;
       indices.sort((a, b) => {
-        const va = key(rows[a][sortCol] || '');
-        const vb = key(rows[b][sortCol] || '');
+        const va = keys.get(a);
+        const vb = keys.get(b);
         if (!va !== !vb) return va ? -1 : 1;
-        const cmp = isNum ? parseNum(va) - parseNum(vb) : va.localeCompare(vb, undefined, { numeric: true, sensitivity: 'base' });
+        const cmp = isNum ? nums.get(a) - nums.get(b) : SORT_COLLATOR.compare(va, vb);
         return cmp * sortDir;
       });
     }
@@ -1399,7 +1414,9 @@
   function renderRow(rowIdx, col) {
     const old = rowEls.get(rowIdx);
     const affectsOtherRows = col === sortCol || columnFilters[col] || searchEl.value.trim()
-      || col === PARTNER_COL || col === 'APPLICATION STATUS' || col === WHATSAPP_COL;
+      || col === PARTNER_COL || col === 'APPLICATION STATUS' || col === WHATSAPP_COL
+      // a worked-out fee changes with the fee cells, so a sort or filter on one must be redone after any edit
+      || Boolean(CALC_COLS[sortCol]) || Object.keys(columnFilters).some((c) => CALC_COLS[c]);
     if (affectsOtherRows || (!old && !viewPos.has(rowIdx))) { renderBody(); return; }
     if (!old) return; // scrolled out of view: it's drawn from the data when it comes back
     const tr = buildRow(rowIdx, Number(old.dataset.displayIdx), viewDupPhones);
@@ -2533,9 +2550,23 @@
         selRanges[selRanges.length - 1].focus = { rowIdx, col: columns[columns.length - 1] };
         focusActiveCell({ scroll: false });
       } else if (additive && rowSelectMode) {
-        const before = selRanges.length;
-        selRanges = selRanges.filter((r) => !(r.anchor.rowIdx === rowIdx && r.focus.rowIdx === rowIdx));
-        if (selRanges.length === before) selRanges.push(fullRowRange(rowIdx));
+        // Ctrl+Click on a picked row unpicks it, also from the middle of a Shift or drag range (which is split around it).
+        const pos = (i) => viewPos.get(i);
+        const p = pos(rowIdx);
+        const span = (r) => [Math.min(pos(r.anchor.rowIdx), pos(r.focus.rowIdx)), Math.max(pos(r.anchor.rowIdx), pos(r.focus.rowIdx))];
+        const hits = selRanges.filter((r) => { const [top, bot] = span(r); return p >= top && p <= bot; });
+        if (!hits.length) {
+          selRanges.push(fullRowRange(rowIdx));
+        } else {
+          selRanges = selRanges.flatMap((r) => {
+            if (!hits.includes(r)) return [r];
+            const [top, bot] = span(r);
+            const parts = [];
+            if (p > top) parts.push(fullRowRange(viewIndices[top], viewIndices[p - 1]));
+            if (p < bot) parts.push(fullRowRange(viewIndices[p + 1], viewIndices[bot]));
+            return parts;
+          });
+        }
         setActiveCell(rowIdx, columns[0], { scroll: false });
       } else {
         rowSelectMode = true;

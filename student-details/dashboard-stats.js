@@ -146,7 +146,7 @@ function topGroups(map, n) {
 function chaseRules(row, status, p, today) {
   const out = [];
   const waited = (col) => { const d = dayNumber(row[col]); return Number.isNaN(d) ? null : Math.floor(today / DAY - d); };
-  const rule = (key, reason, days) => out.push({ key, reason, days: days ?? 0 });
+  const rule = (key, reason, days) => out.push({ key, reason, days: days ?? null }); // null: no date to count from
   if (status === 'Mock Stage' && !p.direct.mock) rule('mockUnscheduled', 'At Mock Stage, no mock interview scheduled', waited('OFFER RECEIVED DATE'));
   if (text(row['PRE CAS INTERVIEW']) === 'Fail' && !p.reached.paid) rule('preCasFailed', 'Failed the Pre-CAS interview', null);
   const payDays = waited('PAYMENT DATE');
@@ -282,7 +282,7 @@ function buildDashboard(workbook, { sheetId = '', includeHidden = false, today: 
   });
   const decided = reachedCount.visa + k.rejected;
   const sourceList = [...sources.entries()].map(([label, v]) => ({ label, ...v })).sort((a, b) => b.count - a.count || a.label.localeCompare(b.label));
-  chase.sort((a, b) => b.days - a.days);
+  chase.sort((a, b) => (b.days ?? -1) - (a.days ?? -1));
 
   return {
     asOf: new Date().toISOString(),
@@ -291,8 +291,9 @@ function buildDashboard(workbook, { sheetId = '', includeHidden = false, today: 
     kpis: {
       ...k,
       applicationsSubmitted: reachedCount.applied, offersReceived: reachedCount.offer, mocksHeld: reachedCount.mock,
-      paymentsMade: reachedCount.paid, casReceived: reachedCount.cas, visaLodged: reachedCount.lodged, visaIssued: reachedCount.visa,
-      conversionRate: pct(reachedCount.visa),
+      // Counted exactly as the sheet's Conversion Rate card counts them (Application Status is Visa Issued), so both agree.
+      paymentsMade: reachedCount.paid, casReceived: reachedCount.cas, visaLodged: reachedCount.lodged, visaIssued: stageCounts.get('Visa Issued'),
+      conversionRate: pct(stageCounts.get('Visa Issued')),
       paymentRate: pct(reachedCount.paid),
       visaSuccessRate: decided ? round1((reachedCount.visa / decided) * 100) : null,
       inquiries: stageCounts.get('Inquiry'),

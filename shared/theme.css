@@ -135,8 +135,9 @@ input:focus, select:focus, textarea:focus, #search:focus, .topbar #search:focus 
 /* the invisible spacer rows that stand in for students scrolled out of view must stay empty */
 #sheet tbody tr.pad-row td { padding: 0; border: 0; height: 0; }
 #sheet tbody tr { transition: background-color .15s; }
-#sheet tbody tr:not([class*="rc-"]):hover td { background-color: var(--row-hover); } /* colour only: the shorthand would wipe the calendar icon out of the date cells */
-#sheet tbody tr:not([class*="rc-"]):hover td.col-idx { background-color: var(--row-hover); }
+/* 🔴 CSS CHANGED (2026-11-07): hovering a selected row | from: the hover grey replaced the blue selection, so a picked row looked unpicked under the mouse | to: a selected row keeps its blue while the mouse is over it (other rows hover grey as before) */
+#sheet tbody tr:not([class*="rc-"]):not(.selected):hover td { background-color: var(--row-hover); } /* colour only: the shorthand would wipe the calendar icon out of the date cells */
+#sheet tbody tr:not([class*="rc-"]):not(.selected):hover td.col-idx { background-color: var(--row-hover); }
 #sheet td.calculated { background-color: transparent !important; color: var(--text-dim); font-style: normal; }
 #body td.active-cell { outline: 2px solid var(--niec-blue); outline-offset: -2px; border-radius: 3px; }
 .sheet-tabs { background: var(--bg); border-top: 1px solid var(--border); padding: 8px 20px; }
@@ -336,6 +337,12 @@ p.count:empty { display: none; }
 #sheet tbody tr[class*="rc-"].row-picked td:not(.col-idx):not(.calculated) { background-color: var(--rc-row); box-shadow: inset 0 2px 0 var(--focus), inset 0 -2px 0 var(--focus); }
 #sheet tbody tr.row-picked td.col-idx { background-color: var(--focus); color: #fff; font-weight: 600; }
 #body tr.row-picked td.active-cell:not(.editing) { outline: none; }
+
+/* 🔴 CSS CHANGED (2026-11-07): the worked-out fee cells (Fee After Scholarship, Remaining Tuition Fee) and the S.N cell | from: the fee cells stayed white in coloured, striped and red (Defer warning) rows, leaving holes in the row; row numbers 1000 and up were cut off in S.N | to: the fee cells take the row's colour, stripe or red like every other cell; S.N has 4px side padding so four-digit numbers fit (as style.css always intended) */
+#sheet tbody tr.alt td.calculated { background-color: var(--row-alt) !important; }
+#sheet tbody tr[class*="rc-"] td.calculated { background-color: var(--rc-row) !important; }
+#sheet tbody tr.defer-warning-row td.calculated { background-color: var(--red-bg) !important; }
+#sheet td.col-idx { padding-left: 4px; padding-right: 4px; }
 
 
 /* =====================================================================================================
