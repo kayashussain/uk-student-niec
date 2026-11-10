@@ -1,6 +1,6 @@
 // The header every page shares: the NIEC logo and name, navigation between the pages, and the account
 // menu with Log out. A page puts <header class="niec-header" data-page="..."></header> at the top (page
-// is dashboard, analysis, sheet, incentive, users, activity or direct), loads header.css and this file (after
+// is dashboard, sheet, incentive, users, activity or direct), loads header.css and this file (after
 // session.js), and the header fills itself in.
 //
 // Navigation depends on the account: Admin sees every page (Users and Activity in the account menu), the Manager the Dashboard, Student Details and
@@ -20,9 +20,9 @@
     <div class="niec-account"></div>`;
 
   const LINKS = {
-    admin: [['dashboard', '/dashboard', 'Dashboard'], ['analysis', '/analysis', 'Analysis'], ['sheet', '/students', 'Student Details'],
+    admin: [['dashboard', '/dashboard', 'Dashboard'], ['sheet', '/students', 'Student Details'],
       ['direct', '/partner-universities', 'Partner Universities'], ['factfile', '/fact-file', 'Fact File']],
-    manager: [['dashboard', '/dashboard', 'Dashboard'], ['analysis', '/analysis', 'Analysis'], ['sheet', '/students', 'Student Details'], ['factfile', '/fact-file', 'Fact File']],
+    manager: [['dashboard', '/dashboard', 'Dashboard'], ['sheet', '/students', 'Student Details'], ['factfile', '/fact-file', 'Fact File']],
     staff: [['sheet', '/students', 'Student Details'], ['factfile', '/fact-file', 'Fact File']],
   };
 

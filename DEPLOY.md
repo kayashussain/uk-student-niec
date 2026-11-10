@@ -54,7 +54,7 @@ students, columns and moves of every team they hold.
 | Account | Sees | Can change |
 |---|---|---|
 | Admin (the owner) | everything, all pages | everything |
-| Manager | the **Dashboard**, the **Analysis** page and every student on every sheet, earlier intakes too, view only | nothing; can use Export Excel; no Incentive page |
+| Manager | the **Dashboard** and every student on every sheet, earlier intakes too, view only | nothing; can use Export Excel; no Incentive page |
 | Application Team | students at *Application Stage*, in the newest intake only | columns up to NOC Number; can move a student to *Mock Stage* (warned about anything still blank) |
 | Mock Team | students at *Mock Stage* | Remarks and the mock columns up to Pre-CAS Interview; can move to *Payment Stage* only once those are all filled |
 | Follow-up Team | *Inquiry* and *Defer* students | Remarks only |
@@ -127,39 +127,6 @@ way. It can be filtered by intake and updates itself every 30 seconds.
 
 Daily backups and "today's" exchange rate follow Nepal time. To use a different time zone, set
 `APP_TIMEZONE` (e.g. `Europe/London`).
-
-## Analysis
-
-Admin and the Manager also have an **Analysis** page, made for business decisions rather than daily work. For one intake
-or all intakes together it shows: what stands out (risks, missing data and patterns, each with the step to take); every
-Student Source with its Source Details and what each cost; campaigns and events; the busy months of the year; every
-intake side by side; how much rests on each university and partner; courses; why students are lost; counselors; the kind
-of student; and how complete each column is, with the decision that column allows. Nothing is guessed: a rate from fewer
-than 10 students is starred, and a blank cell is shown as "(not filled in)".
-
-It reads nine columns of the sheet that the Application and Follow-up Teams fill in: Source Detail (a dropdown that
-follows the Student Source, right after Application Status) and, after the Contact Number, Inquiry Date, Lead Quality,
-Next Follow-up, Campaign or Event, Counselor, Study Level, Home District and Lost Reason. Sheets saved before these
-columns existed get them, empty, when the app starts.
-
-The **Follow-ups** card lists the students in progress whose Next Follow-up day has passed, longest overdue first, with
-the count for each counselor. The **Decision log** at the bottom (Admin writes it, in `decisions.json` in the data folder
-with `decisions.backup.json` beside it) keeps each decision with what was expected, the review day, what really happened
-and the lesson; a decision whose review day has passed is flagged. **Download management report** saves the headline
-numbers, targets, findings and top channels as one text file to send upward.
-
-Admin sets a **visa target** and a date for each intake in the Targets table at the top of the page (kept in `targets.json`
-in the data folder, with `targets.backup.json` beside it). The page then shows visas so far, what the students in progress
-are likely to add (each counted at the share of finished students at the same step, in every intake, who got a visa), the
-forecast, how many visas short it is, the new applications needed and the applications needed each week, and what was
-dated in the last 7 days against the 7 days before. With fewer than 10 finished students there is no forecast, and the
-page says so. The forecast comes with a cautious and a hopeful figure beside it. Every account sees the target
-of its intake as a **Visa Target** card on the student sheet (visas issued of the target); only Admin can set it.
-
-Admin enters the **Marketing spend** at the bottom of the page (month, intake, source, detail, campaign or event,
-amount in NPR, and optionally the leads the platform or event reported, which gives the cost of a lead); the Manager can read it. It is kept in `marketing-spend.json` in the data folder, with the version before
-each save beside it as `marketing-spend.backup.json`. The **Download for Excel or Power BI** button saves every table of
-the page as one CSV file.
 
 ## Updating the code later
 

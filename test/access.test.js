@@ -410,7 +410,7 @@ test('the 3rd installment is taken off the remaining tuition fee, and old sheets
   assert.strictEqual(remainingTuitionFee(row), 3500);
   const { migrateWorkbook } = require('../student-details/workbook');
   const wb = migrateWorkbook({ revision: 1, activeSheetId: 's', sheets: [{ id: 's', name: 'Old', columns: ['FIRST NAME', 'TUITION FEE DEPOSIT(2nd Installment)', 'REMAINING TUITION FEE'], rows: [] }] });
-  assert.deepStrictEqual(wb.sheets[0].columns.filter((c) => /TUITION/.test(c)), ['TUITION FEE DEPOSIT(2nd Installment)', 'TUITION FEE DEPOSIT(3rd Installment)', 'REMAINING TUITION FEE']);
+  assert.deepStrictEqual(wb.sheets[0].columns.slice(-3), ['TUITION FEE DEPOSIT(2nd Installment)', 'TUITION FEE DEPOSIT(3rd Installment)', 'REMAINING TUITION FEE']);
 });
 
 // ---- Manager together with teams ----

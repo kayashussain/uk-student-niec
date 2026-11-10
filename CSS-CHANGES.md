@@ -9,16 +9,6 @@ Format: **date · file · what · from → to · why**
 
 ---
 
-## 2026-11-10 · `student-details/dashboard.css` · styles for the new Analysis page
-
-- **What:** the new Analysis page (`/analysis`) uses the Dashboard's cards, number tiles and tables, and needed a few rules of
-  its own. No existing page looks different: every new rule only applies inside the Analysis page.
-- **From:** nothing (the page did not exist).
-- **To:** a 16px gap between its cards and number tiles; long sentences wrap inside its tables while numbers stay on one line;
-  Source Detail rows are indented under their Student Source; the Marketing spend table has bordered input boxes (same border,
-  radius and colours as the Dashboard's Intake picker) and a row for its Add a line and Save spend buttons.
-- **Why:** the owner asked for a business analysis page for the CEO, the analyst and the Advisor project.
-
 ## 2026-11-07 · `shared/theme.css` · fee cells in coloured rows, hovering a selected row, four-digit row numbers
 
 - **What, from, to:**

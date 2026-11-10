@@ -5,7 +5,7 @@ One login for everyone; each person sees only what their account allows.
 
 | Part | What it is |
 |---|---|
-| **Student Details** (`student-details/`) | The sheet of students by intake, with live co-editing, the Dashboard, the Analysis page (business figures and marketing spend, for Admin and the Manager), the Users and Activity pages (Admin), and the **Fact File** (one page per university: fees, entry requirements, English tests, courses, intakes and the application process, searchable by course). |
+| **Student Details** (`student-details/`) | The sheet of students by intake, with live co-editing, the Dashboard, the Users and Activity pages (Admin), and the **Fact File** (one page per university: fees, entry requirements, English tests, courses, intakes and the application process, searchable by course). |
 | **Partner Universities** (`student-details/direct.js`, `direct-page.js`) | Admin only: the universities NIEC works with directly, with campus locations, commission slabs, payment terms, agreement dates and contacts. Agreement files (PDF, Word, image, up to 10 MB) can be uploaded per university. Stored in `direct-universities.json` and `direct-files/` in the data folder (never in git, never served as pages); not in the Advisor connector, and the Backup tab does not include them. |
 | **Incentive** (`counselor-incentive/`) | Counsellor incentives and company earnings per intake. Runs inside the main app at `/incentive`: Admin only, behind its own password (`INCENTIVE_PASSWORD`). Reads the students from Student Details. |
 | **Shared** (`shared/`) | Accounts and login, the header, the team access rules, notices and confirmation boxes, the server helpers. |
@@ -41,8 +41,7 @@ never touches it. `/healthz` answers `{"ok":true}` for an uptime monitor.
 
 ## Claude Strategy Advisor connector (read-only)
 
-Lets a Claude Project read the live sheet (every tab, row and column), the Dashboard numbers, the Analysis figures
-(`get_business_analysis`), the Marketing spend table, the Decision log (`get_decision_log`) and the Fact File. It cannot
+Lets a Claude Project read the live sheet (every tab, row and column), the Dashboard numbers and the Fact File. It cannot
 change any student or the Fact File. The only thing it can write is the Advisor's own notebook (`advisor-memory/` in the data
 folder: preferences, how NIEC works, lessons; notes with emails or phone numbers are refused, and every save keeps a backup). It is off until you set `NIEC_ADVISOR_TOKEN` (a random secret of 32 or more characters) in the host
 settings and restart. Then add this address in claude.ai (Settings, Connectors, Add custom connector):
