@@ -156,3 +156,13 @@ details.rates summary { cursor: pointer; color: var(--brand-text); font-weight: 
 @media (prefers-color-scheme: dark) { .first-load :is(#attention, #speed, #notes, [id^="chart"]):empty { background: linear-gradient(90deg, #232a35 25%, #2b3340 37%, #232a35 63%); background-size: 400% 100%; } }
 @keyframes dash-shimmer { 0% { background-position: 100% 50%; } 100% { background-position: 0 50%; } }
 @media (prefers-reduced-motion: reduce) { .first-load :is(#attention, #speed, #notes, [id^="chart"]):empty { animation: none; } }
+
+/* 🔴 CSS CHANGED (2026-11-10): styles for the new Analysis page only (no existing page looks different) | from: nothing, the page did not exist | to: a 16px gap between its cards and number tiles, long sentences wrap inside its tables, Source Detail rows are indented under their source, and the boxes and buttons row of its Marketing spend table */
+.analysis > .card, .analysis > .kpis { margin-bottom: 16px; }
+.analysis table.data td { vertical-align: top; white-space: nowrap; }
+.analysis table.data td.wrap { white-space: normal; min-width: 150px; }
+.analysis table.data td.level { font-weight: 600; white-space: nowrap; min-width: 0; }
+.analysis table.data tr.sub td:first-child { padding-left: 26px; color: var(--ink-2); }
+.spend-table input, .spend-table select { font: inherit; font-size: 13px; width: 100%; min-width: 110px; padding: 6px 8px; border: 1px solid var(--axis); border-radius: 8px; background: var(--surface); color: var(--ink); }
+.spend-table input:focus-visible, .spend-table select:focus-visible { outline: 2px solid var(--brand); outline-offset: 1px; }
+.spend-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 12px; }

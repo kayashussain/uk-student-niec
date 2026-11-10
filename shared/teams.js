@@ -36,16 +36,21 @@
     'MOCK SCHEDULE 3', 'FEEDBACK 3', 'MOCK SCHEDULE 4', 'FEEDBACK 4', 'PRE CAS INTERVIEW',
   ];
 
+  // What the Analysis page reads: the channel inside the source, the campaign or event, the first inquiry, the counselor,
+  // the kind of student and why a student was lost. The Application and Follow-up Teams fill these in. They are not part
+  // of the "still blank" warning when a student moves on.
+  const ANALYSIS_COLUMNS = ['SOURCE DETAIL', 'CAMPAIGN OR EVENT', 'INQUIRY DATE', 'LEAD QUALITY', 'NEXT FOLLOW UP', 'COUNSELOR', 'STUDY LEVEL', 'HOME DISTRICT', 'LOST REASON'];
+
   // The basics of a new student. A person can fill these in on the students their department added
   // (the server marks those rows with `_addedByTeam`), on top of the department's usual columns.
-  const NEW_STUDENT_COLUMNS = ['FIRST NAME', 'LAST NAME', 'EMAIL', 'CONTACT NUMBER', 'STUDENT SOURCE', 'REMARKS'];
+  const NEW_STUDENT_COLUMNS = ['FIRST NAME', 'LAST NAME', 'EMAIL', 'CONTACT NUMBER', 'STUDENT SOURCE', 'REMARKS', ...ANALYSIS_COLUMNS];
 
   const DEPARTMENTS = {
     application: {
       label: 'Application Team',
       start: 'Application Stage', // the stage a student this department adds starts at
       statuses: ['Application Stage'],
-      editable: new Set(APPLICATION_COLUMNS),
+      editable: new Set([...APPLICATION_COLUMNS, ...ANALYSIS_COLUMNS]),
     },
     mock: {
       label: 'Mock Team',
@@ -57,7 +62,7 @@
       label: 'Follow-up Team',
       start: 'Inquiry',
       statuses: ['Inquiry', 'Defer'],
-      editable: new Set(['REMARKS']),
+      editable: new Set(['REMARKS', ...ANALYSIS_COLUMNS]),
     },
     // A branch works on its own students, whatever their stage: the ones whose Student Source is the branch.
     // They can fill in and change every column (except the Student Source itself, which is what makes the

@@ -1,6 +1,7 @@
 // A door for the Claude "Strategy Advisor" project (an MCP connector).
 //
-// It lets Claude READ the live UK Student NIEC sheet (every tab, row and column), the Dashboard numbers,
+// It lets Claude READ the live UK Student NIEC sheet (every tab, row and column), the Dashboard numbers, the Analysis
+// figures, the intake targets, the Marketing spend table and the Decision log,
 // the Fact File and the Incentive page (commissions, incentives, company earnings; see
 // counselor-incentive/advisor-tools.js). It can NOT change any student, the Fact File or any incentive.
 //
@@ -62,6 +63,21 @@ const TOOLS = [
     inputSchema: { type: 'object', properties: { intake: { type: 'string' } }, additionalProperties: false },
   },
   {
+    name: 'get_business_analysis',
+    description: 'The same figures the Analysis page shows, for decisions rather than daily work. For one intake (pass its tab id) or every intake together (omit "intake"): totals and rates; the visa target of each intake with the forecast from students in progress, the gap, and the new applications and weekly pace needed ("targets"), and what was dated in the last 7 days against the 7 before ("week"); overdue and coming follow-ups ("followUps"); lead quality; decisions due for review; every intake side by side; a scorecard (students, applied, offers, paid, visas, refused, lost, rates) by Student Source with its Source Details, by campaign or event, university, University Partner, course, counselor, study level and home district; marketing spend and the cost per student, application, paid student and visa of each channel (NPR); how much rests on the biggest university and partner; lost students by Lost Reason; the busy months of the year for inquiries, applications, payments and visas; how complete each column is and what decision each column allows; and "findings": the gaps and risks the numbers prove. Start here for any business question, and read "completeness" and "notes" before trusting a rate.',
+    inputSchema: { type: 'object', properties: { intake: { type: 'string', description: 'Tab id from get_overview. Omit for all intakes together.' } }, additionalProperties: false },
+  },
+  {
+    name: 'get_marketing_spend',
+    description: 'Every line of the Marketing spend table Admin keeps on the Analysis page: month, intake (tab id), source, source detail, campaign or event, amount in NPR and a note. Empty until Admin enters spend.',
+    inputSchema: { type: 'object', properties: {}, additionalProperties: false },
+  },
+  {
+    name: 'get_decision_log',
+    description: 'The Decision log Admin keeps on the Analysis page: each management decision with its date, the problem, the decision, the expected result, the review date, the actual result, the lesson and the outcome (Continue, Change or Stop). Read it before recommending something, so a past decision and its lesson are not repeated blindly.',
+    inputSchema: { type: 'object', properties: {}, additionalProperties: false },
+  },
+  {
     name: 'get_fact_file',
     description: 'The Fact File: one page per university (fees, entry requirements, English tests, courses, intakes, application process). Without arguments, lists the universities. With "id" returns one full page. With "q" searches by course or text.',
     inputSchema: { type: 'object', properties: { id: { type: 'string' }, q: { type: 'string' } }, additionalProperties: false },
@@ -96,7 +112,7 @@ function unknownColumns(sheets, cols) {
 
 // `incentive` (optional) adds the Incentive tools to this same connector: { getCommissions, getAdvances, getRate }, which read the
 // Incentive page's saved figures; the students come from the same workbook as the rest.
-function createAdvisorMcp({ getWorkbook, getDashboard, facts, incentive, token, memoryDir, log = console.log }) {
+function createAdvisorMcp({ getWorkbook, getDashboard, getAnalysis, getSpend, getDecisions, facts, incentive, token, memoryDir, log = console.log }) {
   const incentiveTools = incentive ? createIncentiveTools({
     getSync: () => { const w = getWorkbook(); return w ? syncFromWorkbook(w) : { ok: false, error: 'The sheet data could not be read right now.' }; },
     getCommissions: incentive.getCommissions,
@@ -159,6 +175,24 @@ function createAdvisorMcp({ getWorkbook, getDashboard, facts, incentive, token, 
       }
     }
 
+    if (name === 'get_business_analysis') {
+      try {
+        if (!getAnalysis) return errorResult('The analysis is not available on this server.');
+        if (typeof a.intake === 'string' && a.intake && !(workbook.sheets || []).some((s) => s.id === a.intake)) return errorResult(`No tab "${a.intake}". Call get_overview for the tab ids.`);
+        return textResult(getAnalysis(typeof a.intake === 'string' ? a.intake : ''));
+      } catch (e) {
+        return errorResult('The analysis could not be made right now.');
+      }
+    }
+
+    if (name === 'get_marketing_spend') {
+      return textResult({ pulledAt: new Date().toISOString(), currency: 'NPR', lines: getSpend ? getSpend() : [] });
+    }
+
+    if (name === 'get_decision_log') {
+      return textResult({ pulledAt: new Date().toISOString(), decisions: getDecisions ? getDecisions() : [] });
+    }
+
     if (name === 'get_fact_file') {
       if (typeof a.id === 'string' && a.id) {
         const uni = facts.get(a.id);
@@ -172,7 +206,7 @@ function createAdvisorMcp({ getWorkbook, getDashboard, facts, incentive, token, 
 
   return createMcpEndpoint({
     prefix: PREFIX, token, tokenName: 'NIEC_ADVISOR_TOKEN', tools: incentiveTools ? [...TOOLS, ...incentiveTools.TOOLS] : TOOLS, callTool, serverName: 'niec-advisor', memoryDir, log,
-    instructions: 'Read-only, live access to the UK Student NIEC sheet and Fact File' + (incentiveTools ? ', and to the Incentive page (commissions, incentives and company earnings)' : '') + ', plus a notebook you may write to. Call read_memory first in every conversation, then get_overview' + (incentiveTools ? ' (and get_incentive_overview for anything about incentives, commissions or earnings; University Partner is the agent; tuition and university commission are in GBP, incentives, TDS, advances and salary in NPR)' : '') + '. Save durable preferences and lessons with save_memory (never personal data). Prefer count_by for numbers and get_students with "columns" and "where" for rows' + (incentiveTools ? ', and summarize_incentives_by to compare agents and universities' : '') + '. Always say when the data was pulled (pulledAt).',
+    instructions: 'Read-only, live access to the UK Student NIEC sheet and Fact File' + (incentiveTools ? ', and to the Incentive page (commissions, incentives and company earnings)' : '') + ', plus a notebook you may write to. Call read_memory first in every conversation, then get_overview' + (incentiveTools ? ' (and get_incentive_overview for anything about incentives, commissions or earnings; University Partner is the agent; tuition and university commission are in GBP, incentives, TDS, advances and salary in NPR)' : '') + '. Save durable preferences and lessons with save_memory (never personal data). For a business question (where to invest, what to promote, which university or channel, what is missing) call get_business_analysis first. Prefer count_by for numbers and get_students with "columns" and "where" for rows' + (incentiveTools ? ', and summarize_incentives_by to compare agents and universities' : '') + '. Always say when the data was pulled (pulledAt).',
   });
 }
 
