@@ -32,7 +32,7 @@ test('off without a long enough secret', () => {
 
 test('lists the read tools and only the notebook tools write', () => {
   const tools = make().rpc({ jsonrpc: '2.0', id: 1, method: 'tools/list' }).result.tools.map((t) => t.name);
-  assert.deepStrictEqual([...tools].sort(), ['count_by', 'forget_memory', 'get_dashboard', 'get_fact_file', 'get_overview', 'get_students', 'read_memory', 'save_memory']);
+  assert.deepStrictEqual([...tools].sort(), ['count_by', 'forget_memory', 'get_business_analysis', 'get_dashboard', 'get_fact_file', 'get_marketing_spend', 'get_overview', 'get_students', 'read_memory', 'save_memory']);
 });
 
 test('the notebook saves, appends, replaces, forgets and keeps backups', () => {

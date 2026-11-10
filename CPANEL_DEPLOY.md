@@ -112,7 +112,7 @@ students, columns and moves of every team they hold.
 | Account | Sees | Can change |
 |---|---|---|
 | Admin (the owner) | everything, all pages | everything |
-| Manager | the **Dashboard** and every student on every sheet, earlier intakes too, view only | nothing; can use Export Excel; no Incentive page |
+| Manager | the **Dashboard**, the **Analysis** page and every student on every sheet, earlier intakes too, view only | nothing; can use Export Excel; no Incentive page |
 | Application Team | students at *Application Stage*, in the newest intake only | columns up to NOC Number; can move a student to *Mock Stage* (warned about anything still blank) |
 | Mock Team | students at *Mock Stage* | Remarks and the mock columns up to Pre-CAS Interview; can move to *Payment Stage* only once those are all filled |
 | Follow-up Team | *Inquiry* and *Defer* students | Remarks only |
@@ -174,6 +174,24 @@ rest of the 15 minutes. This relies on the host passing the visitor's address in
 (Replace `YOUR_CPANEL_USERNAME` with your actual cPanel username, visible at the top of
 the Node.js App screen or in "Application root" once created, cPanel shows the full
 absolute path there.)
+
+## Analysis
+
+Admin and the Manager also have an **Analysis** page, made for business decisions rather than daily work. For one intake
+or all intakes together it shows: what stands out (risks, missing data and patterns, each with the step to take); every
+Student Source with its Source Details and what each cost; campaigns and events; the busy months of the year; every
+intake side by side; how much rests on each university and partner; courses; why students are lost; counselors; the kind
+of student; and how complete each column is, with the decision that column allows. Nothing is guessed: a rate from fewer
+than 10 students is starred, and a blank cell is shown as "(not filled in)".
+
+It reads seven columns of the sheet that the Application and Follow-up Teams fill in: Source Detail (a dropdown that
+follows the Student Source), Campaign or Event, Inquiry Date, Counselor, Study Level, Home District and Lost Reason.
+Sheets saved before these columns existed get them, empty, when the app starts.
+
+Admin enters the **Marketing spend** at the bottom of the page (month, intake, source, detail, campaign or event,
+amount in NPR); the Manager can read it. It is kept in `marketing-spend.json` in the data folder, with the version before
+each save beside it as `marketing-spend.backup.json`. The **Download for Excel or Power BI** button saves every table of
+the page as one CSV file.
 
 ## 4. Seed your existing data
 

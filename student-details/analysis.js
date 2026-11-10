@@ -1,0 +1,349 @@
+// The Analysis page (analysis.html): fetches the business figures from /api/analysis and the Marketing spend table from
+// /api/marketing-spend, and draws them as tables. Names and labels come from student records and from what Admin typed,
+// so they are only ever put in with textContent.
+(function () {
+  const $ = (id) => document.getElementById(id);
+  const SOURCES = ['Visitor', 'Reference', 'Chitwan Branch', 'Pokhara Branch', 'Agent', 'Events', 'Social Media', 'Language Classes'];
+  let data = null;
+  let selected = (() => { try { return decodeURIComponent(location.hash.slice(1)) || 'all'; } catch (e) { return 'all'; } })();
+  let loadSeq = 0;
+  let spendRows = [];
+  let canEditSpend = false;
+  let spendDirty = false;
+
+  function el(tag, cls, text) {
+    const e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text !== undefined) e.textContent = text;
+    return e;
+  }
+  const num = (v) => Number(v).toLocaleString('en-US');
+  const rate = (v, small) => (v === null || v === undefined ? 'n/a' : `${v}%${small ? ' *' : ''}`);
+  const money = (v) => (v ? num(v) : '');
+  const empty = (c, text) => c.append(el('p', 'empty', text));
+  const SMALL_NOTE = '* fewer than 10 students: not yet a pattern.';
+
+  // rows: arrays of cells; a cell is text or { text, cls }. opts.sub marks indented rows by index.
+  function table(container, headers, rows, { textCols = 1, sub = new Set(), wrap = false } = {}) {
+    const box = el('div', 'scroll-x');
+    const t = el('table', 'data');
+    const head = el('tr');
+    headers.forEach((h, i) => head.append(el('th', i >= textCols ? 'num' : '', h)));
+    const thead = el('thead');
+    thead.append(head);
+    const body = el('tbody');
+    rows.forEach((r, n) => {
+      const tr = el('tr', sub.has(n) ? 'sub' : '');
+      r.forEach((cell, i) => {
+        const td = el('td', i >= textCols ? 'num' : '', typeof cell === 'object' ? cell.text : cell);
+        if (typeof cell === 'object' && cell.cls) td.classList.add(cell.cls);
+        if (wrap) td.classList.add('wrap');
+        tr.append(td);
+      });
+      body.append(tr);
+    });
+    t.append(thead, body);
+    box.append(t);
+    container.append(box);
+  }
+
+  const CARD_HEAD = ['Students', 'Share', 'Applied', 'Paid', 'Visas', 'Refused', 'Lost', 'Paid rate', 'Visa success'];
+  const cardCells = (c) => [num(c.students), rate(c.share), num(c.applied), num(c.paid), num(c.visas), num(c.rejected), num(c.lost), rate(c.paidRate, c.smallSample), rate(c.visaSuccess, c.smallSample)];
+  function scoreTable(id, first, cards, { limit = 12, nothing = 'Nothing recorded yet.', compact = true } = {}) {
+    const c = $(id);
+    c.replaceChildren();
+    if (!cards.length) { empty(c, nothing); return; }
+    // The half-width cards show the columns that fit; the download has every column.
+    if (compact) table(c, [first, 'Students', 'Share', 'Paid', 'Visas', 'Paid rate', 'Visa success'], cards.slice(0, limit).map((g) => [g.label, num(g.students), rate(g.share), num(g.paid), num(g.visas), rate(g.paidRate, g.smallSample), rate(g.visaSuccess, g.smallSample)]));
+    else table(c, [first, ...CARD_HEAD], cards.slice(0, limit).map((g) => [g.label, ...cardCells(g)]));
+    const notes = [];
+    if (cards.length > limit) notes.push(`Showing the biggest ${limit} of ${cards.length}. The download has all of them.`);
+    if (cards.slice(0, limit).some((g) => g.smallSample)) notes.push(SMALL_NOTE);
+    if (notes.length) c.append(el('p', 'method', notes.join(' ')));
+  }
+
+  function renderKpis(d) {
+    const t = d.totals;
+    const s = d.spend;
+    const tiles = [
+      ['Students', num(t.students), `${num(t.inquiries)} at Inquiry, ${num(t.active)} still moving`],
+      ['Applied', num(t.applied), `${rate(t.appliedRate)} of students`],
+      ['Paid', num(t.paid), `${rate(t.paidRate)} of students`],
+      ['Visas issued', num(t.visas), `${rate(t.visaRate)} of students`],
+      ['Visa success', rate(t.visaSuccess), `${num(t.rejected)} refused of ${num(t.visas + t.rejected)} decided`],
+      ['Lost', num(t.lost), 'Deferred, on hold, withdrawn or refused'],
+      ['Marketing spend', s.total ? `NPR ${num(s.total)}` : 'None entered', s.costPerVisa ? `NPR ${num(s.costPerVisa)} per visa, ${num(s.costPerStudent)} per student` : s.total ? 'No visa yet to divide by' : 'Enter it below to see costs'],
+    ];
+    $('kpis').replaceChildren(...tiles.map(([label, value, sub]) => {
+      const k = el('div', 'kpi');
+      k.append(el('span', 'kpi-label', label), el('span', 'kpi-value', value), el('span', 'kpi-sub', sub));
+      return k;
+    }));
+  }
+
+  const LEVELS = { risk: 'Risk', gap: 'Missing data', info: 'Pattern' };
+  function renderFindings(d) {
+    const c = $('chartFindings');
+    c.replaceChildren();
+    if (!d.totals.students) { empty(c, 'No students in this view yet.'); return; }
+    if (!d.findings.length) { empty(c, 'Nothing stands out: the key columns are filled in and no single risk shows in the numbers.'); return; }
+    table(c, ['Kind', 'What the numbers show', 'What it means', 'What to do'], d.findings.map((f) => [{ text: LEVELS[f.level] || f.level, cls: 'level' }, f.title, f.detail, f.action]), { textCols: 4, wrap: true });
+  }
+
+  function renderChannels(d) {
+    const c = $('chartChannels');
+    c.replaceChildren();
+    if (!d.sources.length) { empty(c, 'No student has a Student Source yet.'); return; }
+    const rows = [];
+    const sub = new Set();
+    const cells = (g) => [g.label, ...cardCells(g), money(g.spend), money(g.costPerStudent), money(g.costPerPaid), money(g.costPerVisa)];
+    d.sources.forEach((s) => {
+      rows.push(cells(s));
+      // The detail rows are shown when at least one student of the source has a detail.
+      if (s.details.some((x) => x.label !== '(not filled in)')) s.details.forEach((x) => { sub.add(rows.length); rows.push(cells(x)); });
+    });
+    table(c, ['Source and detail', ...CARD_HEAD, 'Spend', 'Per student', 'Per paid', 'Per visa'], rows, { sub });
+    c.append(el('p', 'method', `${SMALL_NOTE} A cost is the spend entered for the channel divided by its students; it does not prove the spend brought them.`));
+  }
+
+  function renderCampaigns(d) {
+    const c = $('chartCampaigns');
+    c.replaceChildren();
+    if (!d.campaigns.length) { empty(c, 'No student has a Campaign or Event yet. Type the name of the advert or event on the sheet (the same words every time) and it will be counted here.'); return; }
+    table(c, ['Campaign or event', ...CARD_HEAD, 'Spend', 'Per student', 'Per visa'], d.campaigns.slice(0, 20).map((g) => [g.label, ...cardCells(g), money(g.spend), money(g.costPerStudent), money(g.costPerVisa)]));
+  }
+
+  function renderSeason(d) {
+    const c = $('chartSeason');
+    c.replaceChildren();
+    const s = d.seasonality;
+    const total = (list) => list.reduce((a, b) => a + b, 0);
+    if (!total(s.inquiries) && !total(s.applications) && !total(s.payments) && !total(s.visas)) { empty(c, 'No dates are entered yet.'); return; }
+    const peak = (list) => { const max = Math.max(...list); return max > 0 ? max : -1; };
+    const mark = (list, i) => (list[i] === peak(list) ? { text: `${num(list[i])} (peak)` } : num(list[i]));
+    table(c, ['Month', 'Inquiries', 'Applications', 'Payments', 'Visas'], s.months.map((m, i) => [m, mark(s.inquiries, i), mark(s.applications, i), mark(s.payments, i), mark(s.visas, i)]));
+    const sp = d.speed;
+    const days = (g, words) => (g.samples ? `${words}: ${g.medianDays} days in the middle case (${g.samples} students).` : '');
+    const speed = [days(sp.inquiryToApplication, 'Inquiry to application'), days(sp.inquiryToPayment, 'Inquiry to payment'), days(sp.applicationToVisa, 'Application to visa')].filter(Boolean).join(' ');
+    c.append(el('p', 'method', (total(s.inquiries) ? '' : 'No Inquiry Date is entered yet, so the Inquiries column is empty. ') + speed));
+  }
+
+  function renderRisk(id, c, word) {
+    const one = c.top1Students;
+    const three = c.top3Students;
+    $(id).textContent = one.of ? `The biggest ${word} holds ${one.percent}% of students (${one.names[0]}); the biggest three hold ${three.percent}%. ${c.groups} in all.` : `How much rests on each ${word}`;
+  }
+
+  function renderLost(d) {
+    const c = $('chartLost');
+    c.replaceChildren();
+    if (!d.totals.lost) { empty(c, 'No student is deferred, on hold, withdrawn or refused in this view.'); return; }
+    table(c, ['Lost reason', 'Students', 'Of them refused a visa'], d.lostReasons.map((r) => [r.label, num(r.students), num(r.rejected)]));
+    c.append(el('p', 'method', d.lostByStatus.filter((x) => x.students).map((x) => `${x.label}: ${num(x.students)}`).join(', ') + '.'));
+  }
+
+  function renderProfile(d) {
+    const c = $('chartProfile');
+    c.replaceChildren();
+    const part = (title, first, cards) => {
+      c.append(el('div', 'group-title', title));
+      table(c, [first, 'Students', 'Paid', 'Visas', 'Paid rate'], cards.slice(0, 8).map((g) => [g.label, num(g.students), num(g.paid), num(g.visas), rate(g.paidRate, g.smallSample)]));
+    };
+    if (!d.totals.students) { empty(c, 'Nothing recorded yet.'); return; }
+    part('Study level', 'Level', d.studyLevels);
+    part('Home district', 'District', d.districts);
+  }
+
+  function renderComplete(d) {
+    const c = $('chartComplete');
+    c.replaceChildren();
+    table(c, ['Column', 'What it lets you decide', 'Filled in', 'Of', 'Complete'], d.completeness.map((x) => [x.label, x.decides, num(x.filled), num(x.expected), x.expected ? `${x.percent}%` : 'n/a']), { textCols: 2, wrap: true });
+    c.append(el('p', 'method', '"Of" is the number of students the column is expected on: every student, or only those who applied, paid, got a visa or were lost.'));
+  }
+
+  // ---- the Marketing spend table ----
+  function renderSpend() {
+    const c = $('spend');
+    c.replaceChildren();
+    const intakes = data ? data.intakes : [];
+    const intakeName = (id) => (intakes.find((i) => i.id === id) || { name: id ? 'An intake no longer on the sheet' : 'Not tied to an intake' }).name;
+    if (!canEditSpend) {
+      if (!spendRows.length) { empty(c, 'No spend is entered yet. Admin can enter it here.'); return; }
+      table(c, ['Month', 'Intake', 'Source', 'Detail', 'Campaign or event', 'Note', 'Amount (NPR)'], spendRows.map((r) => [r.month, intakeName(r.intake), r.source, r.detail, r.campaign, r.note, num(r.amount)]), { textCols: 6 });
+      return;
+    }
+    const box = el('div', 'scroll-x');
+    const t = el('table', 'data spend-table');
+    const head = el('tr');
+    ['Month', 'Intake', 'Source', 'Detail', 'Campaign or event', 'Amount (NPR)', 'Note', ''].forEach((h) => head.append(el('th', '', h)));
+    const thead = el('thead');
+    thead.append(head);
+    const body = el('tbody');
+    const field = (row, key, make) => {
+      const input = make();
+      input.value = row[key] === undefined || row[key] === null ? '' : row[key];
+      input.addEventListener('input', () => { row[key] = input.value; spendDirty = true; });
+      const td = el('td');
+      td.append(input);
+      return td;
+    };
+    const inputOf = (type, label, extra = {}) => () => { const i = el('input'); i.type = type; i.setAttribute('aria-label', label); Object.assign(i, extra); return i; };
+    const selectOf = (label, options) => () => { const s = el('select'); s.setAttribute('aria-label', label); options.forEach(([value, text]) => s.add(new Option(text, value))); return s; };
+    spendRows.forEach((row, n) => {
+      const tr = el('tr');
+      const sources = SOURCES.includes(row.source) || !row.source ? SOURCES : [...SOURCES, row.source];
+      const known = intakes.some((i) => i.id === row.intake) || !row.intake ? [] : [[row.intake, intakeName(row.intake)]];
+      tr.append(
+        field(row, 'month', inputOf('month', 'Month')),
+        field(row, 'intake', selectOf('Intake', [['', 'Not tied to an intake'], ...intakes.map((i) => [i.id, i.name]), ...known])),
+        field(row, 'source', selectOf('Source', [['', 'Select'], ...sources.map((s) => [s, s])])),
+        field(row, 'detail', inputOf('text', 'Source detail', { maxLength: 60, placeholder: 'e.g. TikTok' })),
+        field(row, 'campaign', inputOf('text', 'Campaign or event', { maxLength: 120 })),
+        field(row, 'amount', inputOf('number', 'Amount in NPR', { min: 1, step: 1 })),
+        field(row, 'note', inputOf('text', 'Note', { maxLength: 300 })),
+      );
+      const remove = el('button', 'btn btn-sm btn-danger', 'Remove');
+      remove.type = 'button';
+      remove.setAttribute('aria-label', `Remove line ${n + 1}`);
+      remove.addEventListener('click', () => { spendRows.splice(n, 1); spendDirty = true; renderSpend(); });
+      const td = el('td');
+      td.append(remove);
+      tr.append(td);
+      body.append(tr);
+    });
+    t.append(thead, body);
+    box.append(t);
+    if (spendRows.length) c.append(box); else empty(c, 'No spend is entered yet. Add a line for each payment: a month of adverts, an event, a fair.');
+    const actions = el('div', 'spend-actions');
+    const addLine = el('button', 'btn btn-sm', 'Add a line');
+    addLine.type = 'button';
+    addLine.addEventListener('click', () => { spendRows.push({ month: data ? data.today.slice(0, 7) : '', intake: selected === 'all' ? '' : selected, source: '', detail: '', campaign: '', amount: '', note: '' }); spendDirty = true; renderSpend(); });
+    const save = el('button', 'btn btn-sm', 'Save spend');
+    save.type = 'button';
+    save.addEventListener('click', saveSpend);
+    actions.append(addLine, save, el('span', 'updated', 'Detail and Campaign must be typed exactly as on the sheet to be matched. A line not tied to an intake counts only under All intakes.'));
+    c.append(actions);
+  }
+
+  async function saveSpend() {
+    try {
+      const res = await fetch('/api/marketing-spend', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ rows: spendRows.map((r) => ({ ...r, amount: Number(r.amount) })) }) });
+      const answer = await res.json().catch(() => ({}));
+      if (!res.ok) { window.NiecUI.alert(answer.error || 'The spend could not be saved.', { title: 'Not saved' }); return; }
+      spendRows = answer.rows;
+      spendDirty = false;
+      window.NiecUI.toast('Spend saved', { type: 'success' });
+      load.last = '';
+      load();
+    } catch (e) {
+      window.NiecUI.alert('The spend could not be saved. Check the connection and try again.', { title: 'Not saved' });
+    }
+  }
+
+  async function loadSpend() {
+    try {
+      const res = await fetch('/api/marketing-spend', { cache: 'no-store' });
+      if (!res.ok) return;
+      const answer = await res.json();
+      if (spendDirty) return; // lines being typed are not thrown away
+      spendRows = answer.rows;
+      canEditSpend = Boolean(answer.canEdit);
+      renderSpend();
+    } catch (e) { /* the figures above still show */ }
+  }
+
+  function render() {
+    const d = data;
+    renderKpis(d);
+    renderFindings(d);
+    renderChannels(d);
+    renderCampaigns(d);
+    renderSeason(d);
+    scoreTable('chartIntakes', 'Intake', d.intakeComparison, { limit: 30 });
+    scoreTable('chartUniversities', 'University', d.universities);
+    scoreTable('chartPartners', 'Partner', d.partners);
+    renderRisk('uniRisk', d.concentration.universities, 'university');
+    renderRisk('partnerRisk', d.concentration.partners, 'partner');
+    scoreTable('chartCourses', 'Course', d.courses);
+    scoreTable('chartCounselors', 'Counselor', d.counselors);
+    renderLost(d);
+    renderProfile(d);
+    renderComplete(d);
+    $('notes').textContent = 'About these numbers: ' + d.notes.join(' ');
+  }
+
+  function fillIntakes(d) {
+    const sel = $('intake');
+    sel.length = 0;
+    sel.add(new Option('All intakes', 'all'));
+    d.intakes.forEach((i) => sel.add(new Option(i.name, i.id)));
+    sel.value = d.selected;
+  }
+
+  async function load() {
+    const page = $('page');
+    page.classList.add('loading');
+    const seq = ++loadSeq;
+    try {
+      const res = await fetch('/api/analysis?intake=' + encodeURIComponent(selected), { cache: 'no-store' });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const fresh = await res.json();
+      if (seq !== loadSeq) return;
+      const stamp = 'Updated ' + new Date().toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+      const { asOf, ...numbers } = fresh;
+      const json = JSON.stringify(numbers);
+      if (data && json === load.last) { $('updated').textContent = stamp; return; }
+      load.last = json;
+      data = fresh;
+      selected = data.selected;
+      fillIntakes(data);
+      render();
+      if (!spendDirty) renderSpend();
+      page.classList.remove('first-load');
+      $('updated').textContent = stamp;
+    } catch (e) {
+      $('updated').textContent = data ? 'Could not refresh. Showing the last numbers.' : 'Could not load the analysis.';
+    } finally {
+      if (seq === loadSeq) page.classList.remove('loading');
+    }
+  }
+
+  // ---- the download: every table as one CSV file, one line per group, for Excel or Power BI ----
+  function download() {
+    if (!data) return;
+    const d = data;
+    const head = ['Table', 'Group', 'Inside', 'Students', 'Share %', 'Inquiries', 'Applied', 'Offers', 'Paid', 'Visas', 'Refused', 'Lost', 'Active', 'Applied rate %', 'Paid rate %', 'Visa rate %', 'Visa success %', 'Spend NPR', 'Cost per student NPR', 'Cost per paid NPR', 'Cost per visa NPR'];
+    const lines = [head];
+    const v = (x) => (x === null || x === undefined ? '' : x);
+    const card = (name, g, inside = '') => lines.push([name, inside || g.label, inside ? g.label : '', g.students, v(g.share), v(g.inquiries), g.applied, v(g.offers), g.paid, g.visas, g.rejected, g.lost, v(g.active), v(g.appliedRate), v(g.paidRate), v(g.visaRate), v(g.visaSuccess), v(g.spend), v(g.costPerStudent), v(g.costPerPaid), v(g.costPerVisa)]);
+    card('Total', { label: 'All students in this view', ...d.totals });
+    d.sources.forEach((s) => { card('Source', s); s.details.forEach((x) => card('Source detail', x, s.label)); });
+    [['Campaign or event', d.campaigns], ['Intake', d.intakeComparison], ['University', d.universities], ['Partner', d.partners], ['Course', d.courses], ['Counselor', d.counselors], ['Study level', d.studyLevels], ['Home district', d.districts]]
+      .forEach(([name, list]) => list.forEach((g) => card(name, g)));
+    d.lostReasons.forEach((r) => lines.push(['Lost reason', r.label, '', r.students, '', '', '', '', '', '', r.rejected, r.students]));
+    d.seasonality.months.forEach((m, i) => lines.push(['Month of year', m, '', '', '', d.seasonality.inquiries[i], d.seasonality.applications[i], '', d.seasonality.payments[i], d.seasonality.visas[i]]));
+    d.completeness.forEach((x) => lines.push(['Column completeness', x.label, `${x.filled} of ${x.expected} filled in`, x.expected, x.percent]));
+    // A cell that could be read as a formula by Excel is made plain text.
+    const cell = (x) => { let s = String(x); if (/^[=+\-@\t\r]/.test(s) && typeof x !== 'number') s = "'" + s; return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
+    const csv = '﻿' + lines.map((l) => l.map(cell).join(',')).join('\r\n');
+    const a = el('a');
+    a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+    const view = d.selected === 'all' ? 'all-intakes' : ((d.intakes.find((i) => i.id === d.selected) || {}).name || 'intake').replace(/[^a-z0-9]+/gi, '-').toLowerCase();
+    a.download = `niec-analysis-${view}-${d.today}.csv`;
+    document.body.append(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  }
+
+  $('intake').addEventListener('change', () => {
+    selected = $('intake').value;
+    try { history.replaceState(null, '', '#' + encodeURIComponent(selected)); } catch (e) { /* not important */ }
+    load();
+  });
+  $('download').addEventListener('click', download);
+  window.addEventListener('beforeunload', (e) => { if (spendDirty) { e.preventDefault(); e.returnValue = ''; } });
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) load(); });
+  setInterval(() => { if (!document.hidden) load(); }, 60000);
+  load().then(loadSpend);
+})();

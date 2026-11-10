@@ -12,6 +12,8 @@ const {
   isAdmin, isManager, isReadOnly, teamOf, viewKey, viewFor, teamChanges, canEdit, canColor, canDelete, checkMove, newestSheet, STATUS,
 } = require('../shared/teams');
 const { buildDashboard } = require('./dashboard-stats');
+const { buildAnalysis } = require('./analysis-stats');
+const { createSpend } = require('./marketing-spend');
 const { createFacts, viewFacts } = require('./facts');
 const { createDirect, viewDirect, MAX_FILE_BYTES } = require('./direct');
 const { createBackups, ID: BACKUP_ID, HOUR: BACKUP_HOUR, KEEP_DAYS } = require('./backups');
@@ -45,6 +47,8 @@ const serveStatic = createStaticServer(ROOT, {
   '/dashboard.html': 'text/html; charset=utf-8',
   '/dashboard.js': 'text/javascript; charset=utf-8',
   '/dashboard.css': 'text/css; charset=utf-8',
+  '/analysis.html': 'text/html; charset=utf-8',
+  '/analysis.js': 'text/javascript; charset=utf-8',
   '/admin.css': 'text/css; charset=utf-8',
   '/fact-file.html': 'text/html; charset=utf-8',
   '/fact-university.html': 'text/html; charset=utf-8',
@@ -76,6 +80,7 @@ const { requireAuth } = accounts;
 const facts = createFacts(DATA_DIR);
 // Partner Universities: Admin only, kept out of the Advisor connector and every other account's reach.
 const direct = createDirect(DATA_DIR);
+const spend = createSpend(DATA_DIR); // the Marketing spend table of the Analysis page
 // Daily backups (6 p.m., kept 30 days) and Admin's restore (see backups.js). `current` is the students, held in memory below.
 const backups = createBackups(DATA_DIR, () => ({ students: current, facts: facts.all(), partners: direct.all() }));
 setInterval(() => backups.tick(), 5 * 60 * 1000).unref();
@@ -98,6 +103,8 @@ const advisor = createAdvisorMcp({
   token: process.env.NIEC_ADVISOR_TOKEN,
   getWorkbook: () => current,
   getDashboard: (intake) => buildDashboard(current, { sheetId: intake, includeHidden: true }),
+  getAnalysis: (intake) => buildAnalysis(current, { sheetId: intake || 'all', spend: spend.list() }),
+  getSpend: () => spend.list(),
   facts,
   incentive: {
     getCommissions: () => readIncentiveFile('commissions.json', {}),
@@ -111,7 +118,7 @@ const advisor = createAdvisorMcp({
 // The Incentive page lives here, at /incentive: Admin only, and behind its own password (INCENTIVE_PASSWORD) on top of the
 // login. The Claude connector above does not go through any of this: it reads the same data folder with its own secret address.
 const incentiveLock = createIncentiveLock();
-const PAGE_PATHS = new Set(['/', '/students', '/dashboard', '/users', '/activity', '/partner-universities', '/fact-file', '/admin']);
+const PAGE_PATHS = new Set(['/', '/students', '/dashboard', '/analysis', '/users', '/activity', '/partner-universities', '/fact-file', '/admin']);
 const incentive = createIncentive({ dataDir: INCENTIVE_DIR, studentDataFile: DATA_FILE, getWorkbook: () => current, activity });
 
 async function handleIncentive(req, res, urlPath) {
@@ -838,7 +845,7 @@ const server = http.createServer(async (req, res) => {
     // The pages. The Manager lands on the dashboard; Admin-only pages send anyone else back home.
     const home = req.user.role === 'manager' ? '/dashboard' : '/students';
     if (req.method === 'GET') {
-      const page = { '/students': 'index.html', '/dashboard': 'dashboard.html', '/users': 'users.html', '/activity': 'activity.html', '/partner-universities': 'direct.html' }[urlPath];
+      const page = { '/students': 'index.html', '/dashboard': 'dashboard.html', '/analysis': 'analysis.html', '/users': 'users.html', '/activity': 'activity.html', '/partner-universities': 'direct.html' }[urlPath];
       if (urlPath === '/') return req.user.role === 'manager' ? send(res, 302, '', { Location: '/dashboard' }) : serveStatic(req, res);
       if (urlPath === '/fact-file') { // the list, or one university's page (?u=...); every account may read
         req.url = new URL(req.url, 'http://x').searchParams.get('u') ? '/fact-university.html' : '/fact-file.html';
@@ -846,7 +853,7 @@ const server = http.createServer(async (req, res) => {
       }
       if (urlPath === '/admin') return send(res, 302, '', { Location: isAdmin(req.user) ? '/users' : home }); // the old address
       if (page) {
-        const allowed = urlPath === '/students' || (urlPath === '/dashboard' ? (isAdmin(req.user) || isManager(req.user)) : isAdmin(req.user));
+        const allowed = urlPath === '/students' || (['/dashboard', '/analysis'].includes(urlPath) ? (isAdmin(req.user) || isManager(req.user)) : isAdmin(req.user));
         if (!allowed) return send(res, 302, '', { Location: home });
         req.url = '/' + page;
         return serveStatic(req, res);
@@ -857,6 +864,29 @@ const server = http.createServer(async (req, res) => {
       if (!current) return sendJSON(res, 500, { error: 'Could not read the data file' });
       const intake = new URL(req.url, 'http://x').searchParams.get('intake') || '';
       return send(res, 200, servedDashboard(req.user, intake), JSON_HEADERS);
+    }
+    // The Analysis page: the business figures (Admin and the Manager) and the Marketing spend table (only Admin changes it).
+    if (urlPath === '/api/analysis' && req.method === 'GET') {
+      if (!isAdmin(req.user) && !isManager(req.user)) return sendJSON(res, 403, { error: 'The analysis is for Admin and the Manager.' });
+      if (!current) return sendJSON(res, 500, { error: 'Could not read the data file' });
+      const intake = new URL(req.url, 'http://x').searchParams.get('intake') || 'all';
+      return send(res, 200, JSON.stringify(buildAnalysis(current, { sheetId: intake, spend: spend.list() })), JSON_HEADERS);
+    }
+    if (urlPath === '/api/marketing-spend') {
+      if (!isAdmin(req.user) && !isManager(req.user)) return sendJSON(res, 403, { error: 'The marketing spend is for Admin and the Manager.' });
+      if (req.method === 'GET') return send(res, 200, JSON.stringify({ rows: spend.list(), canEdit: isAdmin(req.user) }), JSON_HEADERS);
+      if (req.method !== 'POST') return send(res, 405, 'Method not allowed');
+      if (!isAdmin(req.user)) return sendJSON(res, 403, { error: 'Only Admin can change the marketing spend.' });
+      let body;
+      try {
+        body = await readJSONBody(req, 1024 * 1024);
+      } catch (e) {
+        return sendJSON(res, e.statusCode || 400, { error: e.message });
+      }
+      const saved = spend.replaceAll(body && body.rows, req.user.label);
+      if (saved.error) return sendJSON(res, 400, { error: saved.error });
+      activity.record(req, req.user, 'Edited marketing spend', { app: 'Student Details', changes: [`Saved the Marketing spend table (${saved.rows.length} line${saved.rows.length === 1 ? '' : 's'})`] });
+      return sendJSON(res, 200, saved);
     }
     if (urlPath === '/api/activity' && req.method === 'GET') {
       if (!isAdmin(req.user)) return sendJSON(res, 403, { error: 'Only Admin can see the activity.' });
@@ -909,8 +939,8 @@ const server = http.createServer(async (req, res) => {
     }
     if (SHARED_FILES[urlPath]) return serveShared(req, res);
     // The page files of the Admin-only pages are Admin-only too (their data was already refused; now their shells are as well).
-    if (['/users.html', '/activity.html', '/direct.html', '/dashboard.html'].includes(urlPath) && !isAdmin(req.user)
-      && !(urlPath === '/dashboard.html' && isManager(req.user))) return send(res, 302, '', { Location: home });
+    if (['/users.html', '/activity.html', '/direct.html', '/dashboard.html', '/analysis.html'].includes(urlPath) && !isAdmin(req.user)
+      && !(['/dashboard.html', '/analysis.html'].includes(urlPath) && isManager(req.user))) return send(res, 302, '', { Location: home });
     serveStatic(req, res);
   } catch (e) {
     console.error(e);

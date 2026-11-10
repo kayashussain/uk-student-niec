@@ -323,4 +323,4 @@ function buildDashboard(workbook, { sheetId = '', includeHidden = false, today: 
   };
 }
 
-module.exports = { buildDashboard, isoDate, isHeadOfficeSource, isActiveHeadOfficeApplicant, ACTIVE_STATUSES, PIPELINE, LEFT };
+module.exports = { buildDashboard, progressOf, isStudent, median, isoDate, isHeadOfficeSource, isActiveHeadOfficeApplicant, ACTIVE_STATUSES, PIPELINE, LEFT };

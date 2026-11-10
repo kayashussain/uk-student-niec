@@ -5,7 +5,7 @@
     'TUITION FEE DEPOSIT(2nd Installment)', 'TUITION FEE DEPOSIT(3rd Installment)', 'REMAINING TUITION FEE',
   ]);
   const DATE_COLS = new Set([
-    'APPLICATION SUBMISSION DATE', 'OFFER RECEIVED DATE', 'LANGUAGE TEST DATE', 'PAYMENT DATE', 'CAS REQUESTED DATE', 'CAS RECEIVED DATE',
+    'INQUIRY DATE', 'APPLICATION SUBMISSION DATE', 'OFFER RECEIVED DATE', 'LANGUAGE TEST DATE', 'PAYMENT DATE', 'CAS REQUESTED DATE', 'CAS RECEIVED DATE',
     'VISA LODGE DATE', 'VFS ATTENDED DATE', 'VISA RECEIVED DATE',
     'MOCK SCHEDULE 1', 'MOCK SCHEDULE 2', 'MOCK SCHEDULE 3', 'MOCK SCHEDULE 4',
   ]);
@@ -24,7 +24,28 @@
   const isBottomRow = (row) => BOTTOM_STATUSES.has(row['APPLICATION STATUS']);
   const SOURCE_COL = 'STUDENT SOURCE';
   const SOURCE_OPTIONS = ['Visitor', 'Reference', 'Chitwan Branch', 'Pokhara Branch', 'Agent', 'Events', 'Social Media', 'Language Classes'];
+  // The channel inside each Student Source, so "Social Media" says which one. The Source Detail dropdown offers the list
+  // of the student's own source; a source without a list (the branches) offers every choice.
+  const SOURCE_DETAIL_COL = 'SOURCE DETAIL';
+  const SOURCE_DETAIL_OPTIONS = {
+    'Visitor': ['Walk-in', 'Phone Call', 'Website', 'Google Search', 'Signboard or Office'],
+    'Reference': ['Current or Past Student', 'Friend or Family', 'Staff', 'Teacher or College'],
+    'Agent': ['Sub-agent'],
+    'Events': ['Education Fair', 'University Visit', 'Seminar or Info Session', 'College or School Visit', 'Spot Assessment Day'],
+    'Social Media': ['Facebook Page', 'Facebook or Instagram Ads', 'Messenger', 'Instagram', 'TikTok', 'WhatsApp', 'YouTube', 'Viber', 'LinkedIn'],
+    'Language Classes': ['IELTS Class', 'PTE Class', 'Other Class'],
+  };
+  const ALL_SOURCE_DETAILS = [...new Set(Object.values(SOURCE_DETAIL_OPTIONS).flat())];
+  const sourceDetailChoices = (row) => SOURCE_DETAIL_OPTIONS[String((row && row[SOURCE_COL]) || '').trim()] || ALL_SOURCE_DETAILS;
+  const PLAIN_SELECT_COLS = new Set([SOURCE_DETAIL_COL, 'STUDY LEVEL', 'LOST REASON']);
   const SELECT_COLS = {
+    [SOURCE_DETAIL_COL]: ALL_SOURCE_DETAILS,
+    'STUDY LEVEL': ['Foundation', 'Undergraduate', 'Top-up', 'Pre-Masters', 'Postgraduate', 'PhD'],
+    'LOST REASON': [
+      'Chose Another Consultancy', 'Chose Another Country', 'Applied Directly', 'Fees or Funds Not Ready', 'Not Eligible (Academic)',
+      'English Test Not Met', 'Offer Not Received', 'Failed Interview', 'Family or Personal Reason', 'Deferred To Later Intake',
+      'No Response', 'Visa Refused: Financial', 'Visa Refused: Credibility', 'Visa Refused: Other', 'Other',
+    ],
     'APPLICATION STATUS': [
       'Inquiry', 'Application Stage', 'Mock Stage', 'Payment Stage',
       'CAS Stage', 'CAS Issued', 'Visa Lodge', 'Visa Issued', 'Visa Rejected', 'Defer', 'Hold', 'Withdrawn',
@@ -66,6 +87,7 @@
   // Column names are stored in capitals (they match the imported spreadsheet). On screen they're shown
   // in normal case, with the currency on money columns, so they're quicker to read.
   const COLUMN_LABELS = {
+    'CAMPAIGN OR EVENT': 'Campaign or Event',
     'APPLICATION SUBMISSION DATE': 'Application Submitted',
     'OFFER RECEIVED DATE': 'Offer Received',
     'CONTACT NUMBER': 'Contact Number (WhatsApp)',
@@ -1461,7 +1483,9 @@
       } else if (SELECT_COLS[col]) {
         const select = document.createElement('select');
         select.setAttribute('aria-label', `${columnLabel(col)} for ${describeRow(rows[rowIdx])}`);
-        select.className = 'status-select ' + badgeClass(val);
+        // The analysis dropdowns stay plain: their words ("Offer Not Received") are not a status to colour.
+        const badgeOf = (v) => (PLAIN_SELECT_COLS.has(col) ? 'badge-gray' : badgeClass(v));
+        select.className = 'status-select ' + badgeOf(val);
         // Only the current value is put in at first; the full list of choices is added the moment the
         // dropdown is clicked or focused. Thousands of rows × every choice was most of the page's weight.
         // A value that isn't one of the choices (e.g. imported from a spreadsheet) is still shown, not hidden.
@@ -1479,7 +1503,9 @@
         // A team picks only from its own moves (e.g. Application Stage → Mock Stage), and can't touch
         // the other dropdowns outside its columns.
         const isStatus = col === 'APPLICATION STATUS';
-        const choices = isStatus ? Teams.statusChoices(me, val, SELECT_COLS[col], rows[rowIdx]) : SELECT_COLS[col];
+        // Source Detail offers the channels of this student's own Student Source (read when the dropdown opens).
+        const choices = isStatus ? Teams.statusChoices(me, val, SELECT_COLS[col], rows[rowIdx])
+          : col === SOURCE_DETAIL_COL ? sourceDetailChoices(rows[rowIdx]) : SELECT_COLS[col];
         if (isStatus ? choices.length < 2 && isTeam() : !canEditCol(col, rows[rowIdx])) {
           select.disabled = true;
           select.title = 'Your team can\'t change this';
@@ -1489,7 +1515,8 @@
           if (filled) return;
           filled = true;
           const current = select.value;
-          addOptions(val && !choices.includes(val) ? [...choices, val] : choices);
+          const list = col === SOURCE_DETAIL_COL ? sourceDetailChoices(liveRow(student) || student) : choices; // the source may have changed since the row was drawn
+          addOptions(val && !list.includes(val) ? [...list, val] : list);
           select.value = current;
         };
         select.addEventListener('focus', fill);
@@ -1516,7 +1543,7 @@
             pushUndo();
             target[col] = newVal;
             shown = newVal;
-            select.className = 'status-select ' + badgeClass(newVal);
+            select.className = 'status-select ' + badgeOf(newVal);
             markDirty();
             if (col === 'APPLICATION STATUS') renderBody(); // re-run the defer-move check, refresh the warning
           }, () => { select.value = shown; });

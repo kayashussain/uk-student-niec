@@ -44,7 +44,7 @@ const raw = (m, name, args) => m.rpc({ jsonrpc: '2.0', id: 1, method: 'tools/cal
 
 test('one connector offers the student tools and the incentive tools, and nothing can write but the notebook', () => {
   const tools = make().rpc({ jsonrpc: '2.0', id: 1, method: 'tools/list' }).result.tools.map((t) => t.name);
-  assert.deepStrictEqual([...tools].sort(), ['count_by', 'forget_memory', 'get_dashboard', 'get_fact_file', 'get_incentive_overview', 'get_incentives', 'get_overview',
+  assert.deepStrictEqual([...tools].sort(), ['count_by', 'forget_memory', 'get_business_analysis', 'get_dashboard', 'get_fact_file', 'get_incentive_overview', 'get_incentives', 'get_marketing_spend', 'get_overview',
     'get_payment_summary', 'get_students', 'read_memory', 'save_memory', 'summarize_incentives_by']);
   const without = make({ incentive: undefined }).rpc({ jsonrpc: '2.0', id: 1, method: 'tools/list' }).result.tools.map((t) => t.name);
   assert.ok(!without.includes('get_incentives'), 'without the incentive data the incentive tools are not offered');

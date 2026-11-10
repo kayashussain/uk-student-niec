@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex, nofollow" />
+<title>Analysis · UK Student NIEC</title>
+<link rel="icon" type="image/png" href="favicon.png" />
+<link rel="stylesheet" href="header.css" />
+<link rel="stylesheet" href="ui.css" />
+<link rel="stylesheet" href="dashboard.css" />
+<link rel="stylesheet" href="theme.css" />
+</head>
+<body>
+  <header class="niec-header" data-page="analysis"></header>
+
+  <main class="page first-load analysis" id="page">
+    <div class="page-head">
+      <div>
+        <h1>Analysis</h1>
+        <p>For decisions: which channels, universities and courses work, what they cost, when students come, and what the sheet does not record yet.</p>
+      </div>
+      <div class="filters" role="group" aria-label="Filter">
+        <label>Intake <select id="intake"></select></label>
+        <button class="btn btn-sm" type="button" id="download">Download for Excel or Power BI</button>
+        <span class="updated" id="updated"></span>
+      </div>
+    </div>
+
+    <section class="kpis" id="kpis" aria-label="Headline numbers"></section>
+
+    <figure class="card">
+      <figcaption><div><h2>What stands out</h2><p>Risks, missing data and patterns that the numbers prove, with the step to take</p></div></figcaption>
+      <div class="body" id="chartFindings"></div>
+    </figure>
+
+    <figure class="card">
+      <figcaption><div><h2>Channels: where students come from and what they cost</h2><p>Each Student Source with its Source Details inside it. Spend and costs are in NPR, from the Marketing spend table below</p></div></figcaption>
+      <div class="body" id="chartChannels"></div>
+    </figure>
+
+    <figure class="card">
+      <figcaption><div><h2>Campaigns and events</h2><p>Students by the Campaign or Event typed on the sheet</p></div></figcaption>
+      <div class="body" id="chartCampaigns"></div>
+    </figure>
+
+    <section class="grid-2">
+      <figure class="card">
+        <figcaption><div><h2>Busy months of the year</h2><p>How many students have each date in each month, every year added together. Use it to time adverts and events</p></div></figcaption>
+        <div class="body" id="chartSeason"></div>
+      </figure>
+      <figure class="card">
+        <figcaption><div><h2>Intakes side by side</h2><p>Every intake, whichever one is picked above</p></div></figcaption>
+        <div class="body" id="chartIntakes"></div>
+      </figure>
+    </section>
+
+    <section class="grid-2">
+      <figure class="card">
+        <figcaption><div><h2>Universities</h2><p id="uniRisk">How much rests on each university</p></div></figcaption>
+        <div class="body" id="chartUniversities"></div>
+      </figure>
+      <figure class="card">
+        <figcaption><div><h2>University partners</h2><p id="partnerRisk">How much rests on each partner</p></div></figcaption>
+        <div class="body" id="chartPartners"></div>
+      </figure>
+    </section>
+
+    <section class="grid-2">
+      <figure class="card">
+        <figcaption><div><h2>Courses</h2><p>Which courses bring students who pay and get a visa</p></div></figcaption>
+        <div class="body" id="chartCourses"></div>
+      </figure>
+      <figure class="card">
+        <figcaption><div><h2>Why students are lost</h2><p>Deferred, on hold, withdrawn and refused students by Lost Reason</p></div></figcaption>
+        <div class="body" id="chartLost"></div>
+      </figure>
+    </section>
+
+    <section class="grid-2">
+      <figure class="card">
+        <figcaption><div><h2>Counselors</h2><p>Workload and results. Not adjusted for how hard each counselor's students were</p></div></figcaption>
+        <div class="body" id="chartCounselors"></div>
+      </figure>
+      <figure class="card">
+        <figcaption><div><h2>Kind of student</h2><p>By study level and by home district</p></div></figcaption>
+        <div class="body" id="chartProfile"></div>
+      </figure>
+    </section>
+
+    <figure class="card">
+      <figcaption><div><h2>Is the sheet complete enough to decide?</h2><p>How many students have each column filled in, and the decision that column allows</p></div></figcaption>
+      <div class="body" id="chartComplete"></div>
+    </figure>
+
+    <figure class="card">
+      <figcaption><div><h2>Marketing spend</h2><p>What was paid for each channel, advert and event, in NPR. Admin enters it; it feeds the cost columns above</p></div></figcaption>
+      <div class="body" id="spend"></div>
+    </figure>
+
+    <p class="notes" id="notes"></p>
+  </main>
+
+<script src="session.js"></script>
+<script src="ui.js"></script>
+<script src="header.js"></script>
+<script src="analysis.js"></script>
+</body>
+</html>

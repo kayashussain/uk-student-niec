@@ -32,6 +32,8 @@ mail.json
 # More private runtime files (full backups, partner contracts, setup code, advisor notes, copies of corrupt data).
 **/first-admin-code.txt
 **/direct-universities.json
+**/marketing-spend.json
+**/marketing-spend.backup.json
 **/direct-files/
 **/daily-backups/
 **/advisor-memory/
