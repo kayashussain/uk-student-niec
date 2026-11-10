@@ -10,6 +10,7 @@ const { spawn } = require('node:child_process');
 const { buildAnalysis, BLANK } = require('../student-details/analysis-stats');
 const { createSpend } = require('../student-details/marketing-spend');
 const { createTargets } = require('../student-details/targets');
+const { createDecisions } = require('../student-details/decisions');
 const { migrateWorkbook, DEFAULT_COLUMNS, ANALYSIS_COLUMNS } = require('../student-details/workbook');
 const { createAdvisorMcp } = require('../student-details/advisor-mcp');
 const { createFacts } = require('../student-details/facts');
@@ -115,8 +116,12 @@ test('old sheets get the analysis columns in their places, and a sheet that has 
   const wb = migrateWorkbook({ sheets: [{ id: 's1', name: 'A', columns: old, rows: [{ _id: 'r1', 'FIRST NAME': 'Asha' }] }], activeSheetId: 's1' });
   assert.deepStrictEqual(wb.sheets[0].columns, DEFAULT_COLUMNS);
   const cols = wb.sheets[0].columns;
-  assert.deepStrictEqual(cols.slice(0, 6), ['REMARKS', 'STUDENT SOURCE', 'APPLICATION STATUS', 'SOURCE DETAIL', 'CAMPAIGN OR EVENT', 'INQUIRY DATE']);
-  assert.deepStrictEqual(cols.slice(cols.indexOf('CONTACT NUMBER') + 1, cols.indexOf('CONTACT NUMBER') + 5), ['COUNSELOR', 'STUDY LEVEL', 'HOME DISTRICT', 'LOST REASON']);
+  assert.deepStrictEqual(cols.slice(0, 5), ['REMARKS', 'STUDENT SOURCE', 'APPLICATION STATUS', 'SOURCE DETAIL', 'APPLICATION SUBMISSION DATE']);
+  assert.deepStrictEqual(cols.slice(cols.indexOf('CONTACT NUMBER') + 1, cols.indexOf('CONTACT NUMBER') + 9), ['INQUIRY DATE', 'LEAD QUALITY', 'NEXT FOLLOW UP', 'CAMPAIGN OR EVENT', 'COUNSELOR', 'STUDY LEVEL', 'HOME DISTRICT', 'LOST REASON']);
+  assert.ok(cols.indexOf('FIRST NAME') < 8, 'the name stays near the left');
+  const first = [...DEFAULT_COLUMNS.filter((c) => c !== 'INQUIRY DATE')];
+  first.splice(4, 0, 'INQUIRY DATE'); // a sheet opened by the first version of the layout (Inquiry Date in front of the name)
+  assert.deepStrictEqual(migrateWorkbook({ sheets: [{ id: 's2', name: 'B', columns: first, rows: [] }], activeSheetId: 's2' }).sheets[0].columns, DEFAULT_COLUMNS, 'is put in the new order once');
   assert.deepStrictEqual(wb.sheets[0].rows[0], { _id: 'r1', 'FIRST NAME': 'Asha' }, 'no student is changed');
   cols.reverse(); // a manual reorder afterwards is left alone
   const reordered = [...cols];
@@ -141,7 +146,10 @@ test('the spend table keeps only clean lines, refuses a wrong one whole, and kee
   assert.deepStrictEqual(spend.list(), []);
   const saved = spend.replaceAll([{ month: '2026-10', intake: 'jan', source: ' Social Media ', detail: 'TikTok', campaign: 'Dashain Reel', amount: 40000.4, note: 'boost', extra: 'dropped' }], 'Kayas');
   assert.strictEqual(saved.rows.length, 1);
-  assert.deepStrictEqual({ ...saved.rows[0], id: 'x' }, { id: 'x', month: '2026-10', intake: 'jan', source: 'Social Media', detail: 'TikTok', campaign: 'Dashain Reel', amount: 40000, note: 'boost' });
+  assert.deepStrictEqual({ ...saved.rows[0], id: 'x' }, { id: 'x', month: '2026-10', intake: 'jan', source: 'Social Media', detail: 'TikTok', campaign: 'Dashain Reel', amount: 40000, leads: null, note: 'boost' });
+  assert.strictEqual(spend.replaceAll([{ source: 'Events', amount: 5, leads: 120 }], 'Kayas').rows[0].leads, 120);
+  assert.ok(spend.replaceAll([{ source: 'Events', amount: 5, leads: -2 }], 'Kayas').error);
+  spend.replaceAll([{ source: 'Events', amount: 5 }], 'Kayas');
   for (const bad of [[{ source: '', amount: 5 }], [{ source: 'Events', amount: 0 }], [{ source: 'Events', amount: -5 }], [{ source: 'Events', amount: 'lots' }], [{ source: 'Events', amount: 5, month: '2026-13' }], 'nope', [{ source: 'Events', amount: 5 }, null]]) {
     assert.ok(spend.replaceAll(bad, 'Kayas').error, JSON.stringify(bad));
   }
@@ -159,10 +167,11 @@ test('the spend table keeps only clean lines, refuses a wrong one whole, and kee
 
 test('the Advisor reads the analysis and the spend, and cannot change them', () => {
   const workbook = sample();
-  const lines = [{ id: 'a'.repeat(12), month: '2026-10', intake: 'jan', source: 'Social Media', detail: 'TikTok', campaign: '', amount: 40000, note: '' }];
+  const lines = [{ id: 'a'.repeat(12), month: '2026-10', intake: 'jan', source: 'Social Media', detail: 'TikTok', campaign: '', amount: 40000, leads: null, note: '' }];
+  const log = [{ id: 'b'.repeat(12), date: '2026-10-01', problem: 'Few applications', decision: 'Run a TikTok campaign', expected: '15 applications by 1 December', reviewDate: '2026-12-01', actual: '', lesson: '', outcome: '' }];
   const mcp = createAdvisorMcp({
     token: 'x'.repeat(40), memoryDir: tmp(), getWorkbook: () => workbook, getDashboard: () => ({}), log: () => {}, facts: createFacts(tmp()),
-    getAnalysis: (intake) => buildAnalysis(workbook, { sheetId: intake || 'all', spend: lines }), getSpend: () => lines,
+    getAnalysis: (intake) => buildAnalysis(workbook, { sheetId: intake || 'all', spend: lines }), getSpend: () => lines, getDecisions: () => log,
   });
   const call = (name, args) => mcp.rpc({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name, arguments: args } }).result;
   const all = JSON.parse(call('get_business_analysis', {}).content[0].text);
@@ -172,8 +181,9 @@ test('the Advisor reads the analysis and the spend, and cannot change them', () 
   assert.strictEqual(jan.sources.find((s) => s.label === 'Social Media').costPerVisa, 20000);
   assert.ok(call('get_business_analysis', { intake: 'nope' }).isError, 'an unknown tab is an error, not silently every intake');
   assert.deepStrictEqual(JSON.parse(call('get_marketing_spend', {}).content[0].text).lines, lines);
+  assert.deepStrictEqual(JSON.parse(call('get_decision_log', {}).content[0].text).decisions, log);
   const tools = mcp.rpc({ jsonrpc: '2.0', id: 1, method: 'tools/list' }).result.tools.map((t) => t.name);
-  assert.ok(!tools.some((t) => /spend|analysis/.test(t) && /save|set|write|update|delete/.test(t)), 'no tool writes the spend');
+  assert.ok(!tools.some((t) => /spend|analysis|decision/.test(t) && /save|set|write|update|delete/.test(t)), 'no tool writes the spend');
 });
 
 test('a target is held against visas so far plus what the students in progress are likely to add at past rates', () => {
@@ -210,6 +220,40 @@ test('the targets file keeps whole numbers and real dates, drops a target of 0, 
   assert.deepStrictEqual(createTargets(dir).all(), { jan: { visas: 60, deadline: '2027-01-10' } }, 'a refused save changes nothing');
   fs.writeFileSync(path.join(dir, 'targets.json'), '{ nope');
   assert.ok(createTargets(dir).replaceAll({ jan: { visas: 5 } }, 'Kayas').error);
+});
+
+test('follow-ups, lead quality, reported leads and the forecast range are worked out from what is typed', () => {
+  const rows = [];
+  for (let i = 0; i < 40; i += 1) rows.push(student(i, { 'STUDENT SOURCE': 'Social Media', COUNSELOR: i % 2 ? 'Asha' : '', 'LEAD QUALITY': i >= 30 && i < 34 ? 'Qualified' : i >= 34 ? 'Just Exploring' : '',
+    'NEXT FOLLOW UP': i === 30 ? '2026-11-01' : i === 31 ? '2026-11-08' : i === 32 ? '2026-11-12' : '', 'APPLICATION STATUS': i < 12 ? 'Visa Issued' : i < 20 ? 'Withdrawn' : i < 30 ? 'Application Stage' : 'Inquiry' }));
+  rows[5]['NEXT FOLLOW UP'] = '2026-01-01'; // a student with a visa is not chased
+  const today = new Date('2026-11-10T06:00:00Z');
+  const a = buildAnalysis({ sheets: [{ id: 'jan', name: 'Jan Intake 2027', rows }] }, { today, targets: { jan: { visas: 30, deadline: '' } }, spend: [{ intake: 'jan', source: 'Social Media', amount: 90000, leads: 300 }, { intake: 'jan', source: 'Social Media', amount: 10000 }] });
+  assert.deepStrictEqual([a.followUps.overdue, a.followUps.dueInNext7Days, a.followUps.earlyStageWithNoDate], [2, 1, 17]);
+  assert.deepStrictEqual(a.followUps.longestOverdue.map((x) => [x.name, x.daysOverdue, x.counselor]), [['Student30', 9, ''], ['Student31', 2, 'Asha']]);
+  assert.deepStrictEqual(a.followUps.overdueByCounselor, [{ label: BLANK, count: 1 }, { label: 'Asha', count: 1 }]);
+  assert.ok(a.findings.some((f) => /2 follow-ups are overdue/.test(f.title)));
+  const social = a.sources[0];
+  assert.strictEqual(social.qualified, 16, 'the 12 who are known to have applied (a visa proves it) and the 4 marked Qualified');
+  assert.deepStrictEqual([social.spend, social.reportedLeads, social.costPerLead, social.leadsToStudents], [100000, 300, 333, 13.3]);
+  assert.strictEqual(social.costPerQualified, 6250);
+  assert.deepStrictEqual(a.leadQuality.map((q) => [q.label, q.students]), [['Just Exploring', 6], ['Qualified', 4], [BLANK, 30]]);
+  const t = a.targets.rows[0];
+  assert.ok(t.forecastLow < t.forecast && t.forecast < t.forecastHigh, `${t.forecastLow} < ${t.forecast} < ${t.forecastHigh}`);
+  assert.strictEqual(buildAnalysis({ sheets: [{ id: 'jan', name: 'Jan', rows }] }, { today }).sources[0].reportedLeads, null, 'no leads typed: none shown');
+  const due = buildAnalysis({ sheets: [] }, { today, decisions: [{ decision: 'A', reviewDate: '2026-11-01', actual: '' }, { decision: 'B', reviewDate: '2026-11-01', actual: 'done' }, { decision: 'C', reviewDate: '2026-12-01', actual: '' }] });
+  assert.deepStrictEqual(due.decisions.dueForReview.map((x) => x.decision), ['A']);
+});
+
+test('the decision log keeps clean lines, refuses personal data and wrong dates, and is never saved over when damaged', () => {
+  const dir = tmp();
+  const log = createDecisions(dir);
+  const saved = log.replaceAll([{ date: '2026-11-10', problem: 'Few applications', decision: 'Run a TikTok campaign', expected: '15 applications', reviewDate: '2026-12-10', outcome: 'Maybe', extra: 1 }], 'Kayas');
+  assert.deepStrictEqual({ ...saved.rows[0], id: 'x' }, { id: 'x', date: '2026-11-10', problem: 'Few applications', decision: 'Run a TikTok campaign', expected: '15 applications', reviewDate: '2026-12-10', actual: '', lesson: '', outcome: '' });
+  for (const bad of [[{ decision: '' }], [{ decision: 'x', date: '2026-02-30' }], [{ decision: 'Call asha@example.com' }], [{ decision: 'Call 9801234567' }], 'nope']) assert.ok(log.replaceAll(bad, 'Kayas').error, JSON.stringify(bad));
+  assert.strictEqual(createDecisions(dir).list().length, 1, 'a refused save changes nothing');
+  fs.writeFileSync(path.join(dir, 'decisions.json'), '{ nope');
+  assert.ok(createDecisions(dir).replaceAll([{ decision: 'x' }], 'Kayas').error);
 });
 
 const freePort = () => new Promise((resolve) => { const s = net.createServer().listen(0, () => { const p = s.address().port; s.close(() => resolve(p)); }); });
@@ -267,8 +311,12 @@ test('on the real server Admin and the Manager see the Analysis, only Admin chan
   assert.strictEqual((await admin('POST', '/api/targets', { targets: { [intakeId]: { visas: -3 } } })).status, 400);
   assert.deepStrictEqual((await admin('GET', '/api/analysis')).json.targets.rows.map((r) => [r.id, r.target, r.deadline]), [[intakeId, 60, '2027-01-10']]);
 
+  assert.strictEqual((await admin('POST', '/api/decisions', { rows: [{ date: '2026-11-10', decision: 'Run a TikTok campaign', expected: '15 applications', reviewDate: '2026-11-01' }] })).status, 200);
+  assert.strictEqual((await admin('POST', '/api/decisions', { rows: [{ decision: '' }] })).status, 400);
+  assert.strictEqual((await admin('GET', '/api/analysis')).json.decisions.dueForReview.length, 1);
+
   const nobody = person();
-  for (const url of ['/analysis', '/analysis.html', '/api/analysis', '/api/marketing-spend']) assert.notStrictEqual((await nobody('GET', url)).status, 200, `logged out: ${url}`);
+  for (const url of ['/analysis', '/analysis.html', '/api/analysis', '/api/marketing-spend', '/api/decisions', '/api/targets']) assert.notStrictEqual((await nobody('GET', url)).status, 200, `logged out: ${url}`);
   assert.notStrictEqual((await nobody('POST', '/api/marketing-spend', { rows: [] })).status, 200);
   assert.notStrictEqual((await nobody('POST', '/api/targets', { targets: {} })).status, 200);
 
@@ -286,6 +334,8 @@ test('on the real server Admin and the Manager see the Analysis, only Admin chan
   assert.strictEqual((await manager('GET', '/api/marketing-spend')).json.canEdit, false);
   assert.strictEqual((await manager('POST', '/api/marketing-spend', { rows: [] })).status, 403, 'the Manager reads the spend but cannot change it');
   assert.strictEqual((await manager('POST', '/api/targets', { targets: {} })).status, 403, 'the Manager cannot change the targets');
+  assert.strictEqual((await manager('GET', '/api/decisions')).json.canEdit, false);
+  assert.strictEqual((await manager('POST', '/api/decisions', { rows: [] })).status, 403, 'the Manager reads the decision log but cannot change it');
 
   const staff = await join('sita', 'staff', { departments: ['application'] });
   assert.strictEqual((await staff('GET', '/analysis')).status, 302);
@@ -294,6 +344,12 @@ test('on the real server Admin and the Manager see the Analysis, only Admin chan
   assert.strictEqual((await staff('GET', '/api/marketing-spend')).status, 403);
   assert.strictEqual((await staff('POST', '/api/marketing-spend', { rows: [] })).status, 403);
   assert.strictEqual((await staff('POST', '/api/targets', { targets: {} })).status, 403);
+  assert.strictEqual((await staff('GET', '/api/decisions')).status, 403);
+  assert.strictEqual((await staff('POST', '/api/decisions', { rows: [] })).status, 403);
+  const seen = await staff('GET', '/api/targets');
+  assert.strictEqual(seen.status, 200, 'the team reads the target of the intake it sees, for the card on the sheet');
+  assert.deepStrictEqual([seen.json.targets[intakeId].target, seen.json.targets[intakeId].deadline], [60, '2027-01-10']);
+  assert.ok(!('forecast' in seen.json.targets[intakeId]), 'only the target, the count and the pace');
   assert.strictEqual((await admin('GET', '/api/analysis')).json.targets.rows[0].target, 60, 'the target was not changed by the others');
   assert.strictEqual((await admin('GET', '/api/marketing-spend')).json.rows.length, 1, 'nothing was changed by the others');
 });

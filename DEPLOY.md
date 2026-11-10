@@ -137,19 +137,27 @@ intake side by side; how much rests on each university and partner; courses; why
 of student; and how complete each column is, with the decision that column allows. Nothing is guessed: a rate from fewer
 than 10 students is starred, and a blank cell is shown as "(not filled in)".
 
-It reads seven columns of the sheet that the Application and Follow-up Teams fill in: Source Detail (a dropdown that
-follows the Student Source), Campaign or Event, Inquiry Date, Counselor, Study Level, Home District and Lost Reason.
-Sheets saved before these columns existed get them, empty, when the app starts.
+It reads nine columns of the sheet that the Application and Follow-up Teams fill in: Source Detail (a dropdown that
+follows the Student Source, right after Application Status) and, after the Contact Number, Inquiry Date, Lead Quality,
+Next Follow-up, Campaign or Event, Counselor, Study Level, Home District and Lost Reason. Sheets saved before these
+columns existed get them, empty, when the app starts.
+
+The **Follow-ups** card lists the students in progress whose Next Follow-up day has passed, longest overdue first, with
+the count for each counselor. The **Decision log** at the bottom (Admin writes it, in `decisions.json` in the data folder
+with `decisions.backup.json` beside it) keeps each decision with what was expected, the review day, what really happened
+and the lesson; a decision whose review day has passed is flagged. **Download management report** saves the headline
+numbers, targets, findings and top channels as one text file to send upward.
 
 Admin sets a **visa target** and a date for each intake in the Targets table at the top of the page (kept in `targets.json`
 in the data folder, with `targets.backup.json` beside it). The page then shows visas so far, what the students in progress
 are likely to add (each counted at the share of finished students at the same step, in every intake, who got a visa), the
 forecast, how many visas short it is, the new applications needed and the applications needed each week, and what was
 dated in the last 7 days against the 7 days before. With fewer than 10 finished students there is no forecast, and the
-page says so.
+page says so. The forecast comes with a cautious and a hopeful figure beside it. Every account sees the target
+of its intake as a **Visa Target** card on the student sheet (visas issued of the target); only Admin can set it.
 
 Admin enters the **Marketing spend** at the bottom of the page (month, intake, source, detail, campaign or event,
-amount in NPR); the Manager can read it. It is kept in `marketing-spend.json` in the data folder, with the version before
+amount in NPR, and optionally the leads the platform or event reported, which gives the cost of a lead); the Manager can read it. It is kept in `marketing-spend.json` in the data folder, with the version before
 each save beside it as `marketing-spend.backup.json`. The **Download for Excel or Power BI** button saves every table of
 the page as one CSV file.
 

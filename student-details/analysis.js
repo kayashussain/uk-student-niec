@@ -10,6 +10,8 @@
   let spendRows = [];
   let canEditSpend = false;
   let spendDirty = false;
+  let decisionRows = [];
+  let decisionsDirty = false;
   let targetDraft = null; // what Admin is typing in the Targets table: { intake id: { visas, deadline } }
 
   function el(tag, cls, text) {
@@ -97,14 +99,14 @@
     if (!d.sources.length) { empty(c, 'No student has a Student Source yet.'); return; }
     const rows = [];
     const sub = new Set();
-    const cells = (g) => [g.label, ...cardCells(g), money(g.spend), money(g.costPerStudent), money(g.costPerPaid), money(g.costPerVisa)];
+    const cells = (g) => [g.label, ...cardCells(g), num(g.qualified), money(g.spend), g.reportedLeads === null || g.reportedLeads === undefined ? '' : num(g.reportedLeads), money(g.costPerLead), money(g.costPerQualified), money(g.costPerStudent), money(g.costPerPaid), money(g.costPerVisa)];
     d.sources.forEach((s) => {
       rows.push(cells(s));
       // The detail rows are shown when at least one student of the source has a detail.
       if (s.details.some((x) => x.label !== '(not filled in)')) s.details.forEach((x) => { sub.add(rows.length); rows.push(cells(x)); });
     });
-    table(c, ['Source and detail', ...CARD_HEAD, 'Spend', 'Per student', 'Per paid', 'Per visa'], rows, { sub });
-    c.append(el('p', 'method', `${SMALL_NOTE} A cost is the spend entered for the channel divided by its students; it does not prove the spend brought them.`));
+    table(c, ['Source and detail', ...CARD_HEAD, 'Qualified', 'Spend', 'Leads reported', 'Per lead', 'Per qualified', 'Per student', 'Per paid', 'Per visa'], rows, { sub });
+    c.append(el('p', 'method', `${SMALL_NOTE} A cost is the spend entered for the channel divided by its students; it does not prove the spend brought them. Qualified: marked Qualified on the sheet, or already applied. Leads reported: what the platform or event said, typed in the Marketing spend table.`));
   }
 
   function renderCampaigns(d) {
@@ -151,6 +153,7 @@
       table(c, [first, 'Students', 'Paid', 'Visas', 'Paid rate'], cards.slice(0, 8).map((g) => [g.label, num(g.students), num(g.paid), num(g.visas), rate(g.paidRate, g.smallSample)]));
     };
     if (!d.totals.students) { empty(c, 'Nothing recorded yet.'); return; }
+    part('Lead quality', 'Quality', d.leadQuality);
     part('Study level', 'Level', d.studyLevels);
     part('Home district', 'District', d.districts);
   }
@@ -170,7 +173,7 @@
     c.replaceChildren();
     const rows = d.targets.rows;
     const head = ['Intake', 'Target visas', 'Needed by', 'Visas so far', 'In progress', 'Likely from them', 'Forecast', 'Short by', 'New applications needed', 'Weeks left', 'Applications a week', 'Status'];
-    const cells = (r) => [num(r.visas), num(r.inProgress), orDash(r.expectedFromInProgress), orDash(r.forecast), orDash(r.gap), orDash(r.applicationsNeeded), orDash(r.weeksLeft), orDash(r.applicationsPerWeek), { text: r.status, cls: 'level' }];
+    const cells = (r) => [num(r.visas), num(r.inProgress), orDash(r.expectedFromInProgress), r.forecast === null ? 'n/a' : `${num(r.forecast)} (${num(r.forecastLow)} to ${num(r.forecastHigh)})`, orDash(r.gap), orDash(r.applicationsNeeded), orDash(r.weeksLeft), orDash(r.applicationsPerWeek), { text: r.status, cls: 'level' }];
     if (!canEditSpend) {
       if (!rows.length) empty(c, 'No intake has a target yet. Admin can set one here.');
       else table(c, head, rows.map((r) => [r.label, num(r.target), r.deadline || 'No date', ...cells(r)]));
@@ -215,7 +218,7 @@
     }
     const known = d.targets.visaRateByStep.filter((x) => x.visaRate !== null);
     c.append(el('p', 'method', known.length
-      ? 'The forecast uses NIEC\'s own past: of finished students who reached each step, the share who got a visa. ' + known.slice(1).map((x) => `${x.step}: ${x.visaRate}% (${x.finishedStudents} students)`).join(', ') + '. It is an estimate, not a promise.'
+      ? 'The forecast uses NIEC\'s own past: of finished students who reached each step, the share who got a visa. ' + known.slice(1).map((x) => `${x.step}: ${x.visaRate}% (${x.finishedStudents} students)`).join(', ') + '. The range beside the forecast is the cautious and the hopeful case. It is an estimate, not a promise.'
       : 'There is not yet enough history on the sheet to forecast: fewer than 10 students have finished their journey.'));
 
     c.append(el('div', 'group-title', 'The last 7 days against the 7 days before (by the dates typed on the sheet, in this view)'));
@@ -238,6 +241,140 @@
     }
   }
 
+  function renderFollow(d) {
+    const c = $('chartFollow');
+    const f = d.followUps;
+    c.replaceChildren();
+    const line = `${num(f.overdue)} overdue, ${num(f.dueInNext7Days)} due in the next 7 days, ${num(f.earlyStageWithNoDate)} at Inquiry or Application Stage with no follow-up day.`;
+    if (!f.overdue) { empty(c, `No follow-up is overdue. ${line}`); return; }
+    table(c, ['Student', 'Counselor', 'Stage', 'Intake', 'Days overdue'], f.longestOverdue.map((x) => [x.name || 'Unnamed student', x.counselor || '(not filled in)', x.stage, x.intake, num(x.daysOverdue)]), { textCols: 4 });
+    c.append(el('p', 'method', `${line} Overdue by counselor: ${f.overdueByCounselor.map((x) => `${x.label} ${num(x.count)}`).join(', ')}.`));
+  }
+
+  // ---- the Decision log ----
+  const DECISION_FIELDS = [['date', 'Date', 'date'], ['problem', 'Problem', 'text'], ['decision', 'Decision', 'text'], ['expected', 'Expected result', 'text'], ['reviewDate', 'Review on', 'date'], ['actual', 'Actual result', 'text'], ['lesson', 'Lesson', 'text']];
+  function renderDecisions() {
+    const c = $('decisions');
+    c.replaceChildren();
+    if (!canEditSpend) {
+      if (!decisionRows.length) { empty(c, 'No decision is written yet. Admin can write them here.'); return; }
+      table(c, [...DECISION_FIELDS.map((f) => f[1]), 'Outcome'], decisionRows.map((r) => [...DECISION_FIELDS.map((f) => r[f[0]]), r.outcome]), { textCols: 8, wrap: true });
+      return;
+    }
+    const box = el('div', 'scroll-x');
+    const t = el('table', 'data spend-table');
+    const hr = el('tr');
+    [...DECISION_FIELDS.map((f) => f[1]), 'Outcome', ''].forEach((h) => hr.append(el('th', '', h)));
+    const thead = el('thead');
+    thead.append(hr);
+    const body = el('tbody');
+    decisionRows.forEach((row, n) => {
+      const tr = el('tr');
+      DECISION_FIELDS.forEach(([key, label, type]) => {
+        const i = el('input');
+        i.type = type;
+        if (type === 'text') i.maxLength = 500;
+        i.value = row[key] || '';
+        i.title = row[key] || '';
+        i.setAttribute('aria-label', `${label}, line ${n + 1}`);
+        i.addEventListener('input', () => { row[key] = i.value; decisionsDirty = true; });
+        const td = el('td');
+        td.append(i);
+        tr.append(td);
+      });
+      const pick = el('select');
+      pick.setAttribute('aria-label', `Outcome, line ${n + 1}`);
+      [['', 'Not judged yet'], ['Continue', 'Continue'], ['Change', 'Change'], ['Stop', 'Stop']].forEach(([v, text]) => pick.add(new Option(text, v)));
+      pick.value = row.outcome || '';
+      pick.addEventListener('change', () => { row.outcome = pick.value; decisionsDirty = true; });
+      const remove = el('button', 'btn btn-sm btn-danger', 'Remove');
+      remove.type = 'button';
+      remove.setAttribute('aria-label', `Remove decision ${n + 1}`);
+      remove.addEventListener('click', () => { decisionRows.splice(n, 1); decisionsDirty = true; renderDecisions(); });
+      const a = el('td');
+      a.append(pick);
+      const b = el('td');
+      b.append(remove);
+      tr.append(a, b);
+      body.append(tr);
+    });
+    t.append(thead, body);
+    box.append(t);
+    if (decisionRows.length) c.append(box); else empty(c, 'No decision is written yet. Add one each time something is decided: a campaign, a budget, a new university, a change in the team.');
+    const actions = el('div', 'spend-actions');
+    const addLine = el('button', 'btn btn-sm', 'Add a decision');
+    addLine.type = 'button';
+    addLine.addEventListener('click', () => { decisionRows.unshift({ date: data ? data.today : '', problem: '', decision: '', expected: '', reviewDate: '', actual: '', lesson: '', outcome: '' }); decisionsDirty = true; renderDecisions(); });
+    const save = el('button', 'btn btn-sm', 'Save decisions');
+    save.type = 'button';
+    save.addEventListener('click', saveDecisions);
+    actions.append(addLine, save, el('span', 'updated', 'Write the expected result as a number and a day (for example "15 applications by 20 December"), so it can be checked. No student names, emails or phone numbers.'));
+    c.append(actions);
+  }
+  async function saveDecisions() {
+    try {
+      const res = await fetch('/api/decisions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ rows: decisionRows }) });
+      const answer = await res.json().catch(() => ({}));
+      if (!res.ok) { window.NiecUI.alert(answer.error || 'The decisions could not be saved.', { title: 'Not saved' }); return; }
+      decisionRows = answer.rows;
+      decisionsDirty = false;
+      renderDecisions();
+      window.NiecUI.toast('Decisions saved', { type: 'success' });
+      load.last = '';
+      load();
+    } catch (e) {
+      window.NiecUI.alert('The decisions could not be saved. Check the connection and try again.', { title: 'Not saved' });
+    }
+  }
+  async function loadDecisions() {
+    try {
+      const res = await fetch('/api/decisions', { cache: 'no-store' });
+      if (!res.ok || decisionsDirty) return;
+      decisionRows = (await res.json()).rows;
+      renderDecisions();
+    } catch (e) { /* the figures above still show */ }
+  }
+
+  // ---- the management report: one page of plain text to send upward or paste into a document ----
+  function report() {
+    if (!data) return;
+    const d = data;
+    const t = d.totals;
+    const view = d.selected === 'all' ? 'All intakes' : (d.intakes.find((i) => i.id === d.selected) || {}).name || 'One intake';
+    const L = [];
+    const title = (x) => { L.push('', x.toUpperCase(), '-'.repeat(x.length)); };
+    L.push('NIEC UK RECRUITMENT: MANAGEMENT REPORT', `${view} | prepared ${d.today} from the live student sheet`);
+    title('Headline');
+    L.push(`Students: ${num(t.students)} (${num(t.inquiries)} at Inquiry, ${num(t.active)} in progress, ${num(t.lost)} lost)`,
+      `Applied: ${num(t.applied)} (${rate(t.appliedRate)}) | Paid: ${num(t.paid)} (${rate(t.paidRate)}) | Visas issued: ${num(t.visas)} (${rate(t.visaRate)})`,
+      `Visa success: ${rate(t.visaSuccess)} (${num(t.rejected)} refused of ${num(t.visas + t.rejected)} decided)`,
+      d.spend.total ? `Marketing spend: NPR ${num(d.spend.total)}${d.spend.costPerStudent ? ` | per student NPR ${num(d.spend.costPerStudent)}` : ''}${d.spend.costPerVisa ? ` | per visa NPR ${num(d.spend.costPerVisa)}` : ''}` : 'Marketing spend: none entered');
+    title('Targets');
+    if (!d.targets.rows.length) L.push('No intake has a visa target yet.');
+    d.targets.rows.forEach((r) => L.push(`${r.label}: target ${num(r.target)}${r.deadline ? ' by ' + r.deadline : ''} | issued ${num(r.visas)} | forecast ${r.forecast === null ? 'not enough history' : `${num(r.forecast)} (${num(r.forecastLow)} to ${num(r.forecastHigh)})`} | ${r.status}${r.applicationsNeeded ? ` | ${num(r.applicationsNeeded)} more applications needed${r.applicationsPerWeek !== null && r.weeksLeft ? `, ${r.applicationsPerWeek} a week` : ''}` : ''}`));
+    title('Last 7 days against the 7 days before');
+    ['inquiries', 'applications', 'offers', 'payments', 'visas'].forEach((k) => L.push(`${k.charAt(0).toUpperCase() + k.slice(1)}: ${num(d.week.last7Days[k])} (before: ${num(d.week.the7DaysBefore[k])})`));
+    title('What stands out and what to do');
+    if (!d.findings.length) L.push('Nothing stands out.');
+    d.findings.forEach((f, i) => L.push(`${i + 1}. [${LEVELS[f.level] || f.level}] ${f.title}`, `   Meaning: ${f.detail}`, `   Action: ${f.action}`));
+    const top = (name, list, extra = () => '') => { title(name); const named = list.filter((g) => g.students); if (!named.length) L.push('Nothing recorded yet.'); named.slice(0, 6).forEach((g) => L.push(`${g.label}: ${num(g.students)} students (${rate(g.share)}), ${num(g.paid)} paid, ${num(g.visas)} visas, paid rate ${rate(g.paidRate, g.smallSample)}${extra(g)}`)); };
+    top('Channels', d.sources, (g) => (g.spend ? `, spend NPR ${num(g.spend)}${g.costPerVisa ? `, NPR ${num(g.costPerVisa)} per visa` : ''}` : ''));
+    top('Universities', d.universities);
+    top('Courses', d.courses);
+    title('Follow-ups');
+    L.push(`${num(d.followUps.overdue)} overdue, ${num(d.followUps.dueInNext7Days)} due in the next 7 days, ${num(d.followUps.earlyStageWithNoDate)} early-stage students with no follow-up day.`);
+    title('How far to trust these numbers');
+    d.completeness.filter((x) => x.expected && x.percent < 80).forEach((x) => L.push(`${x.label}: filled in for ${x.percent}% (${num(x.filled)} of ${num(x.expected)})`));
+    L.push('* a rate from fewer than 10 students: not yet a pattern.', ...d.notes);
+    const a = el('a');
+    a.href = URL.createObjectURL(new Blob(['\ufeff' + L.join('\r\n')], { type: 'text/plain;charset=utf-8' }));
+    a.download = `niec-management-report-${view.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}-${d.today}.txt`;
+    document.body.append(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  }
+
   // ---- the Marketing spend table ----
   function renderSpend() {
     const c = $('spend');
@@ -246,13 +383,13 @@
     const intakeName = (id) => (intakes.find((i) => i.id === id) || { name: id ? 'An intake no longer on the sheet' : 'Not tied to an intake' }).name;
     if (!canEditSpend) {
       if (!spendRows.length) { empty(c, 'No spend is entered yet. Admin can enter it here.'); return; }
-      table(c, ['Month', 'Intake', 'Source', 'Detail', 'Campaign or event', 'Note', 'Amount (NPR)'], spendRows.map((r) => [r.month, intakeName(r.intake), r.source, r.detail, r.campaign, r.note, num(r.amount)]), { textCols: 6 });
+      table(c, ['Month', 'Intake', 'Source', 'Detail', 'Campaign or event', 'Note', 'Amount (NPR)', 'Leads reported'], spendRows.map((r) => [r.month, intakeName(r.intake), r.source, r.detail, r.campaign, r.note, num(r.amount), r.leads === null || r.leads === undefined ? '' : num(r.leads)]), { textCols: 6 });
       return;
     }
     const box = el('div', 'scroll-x');
     const t = el('table', 'data spend-table');
     const head = el('tr');
-    ['Month', 'Intake', 'Source', 'Detail', 'Campaign or event', 'Amount (NPR)', 'Note', ''].forEach((h) => head.append(el('th', '', h)));
+    ['Month', 'Intake', 'Source', 'Detail', 'Campaign or event', 'Amount (NPR)', 'Leads reported', 'Note', ''].forEach((h) => head.append(el('th', '', h)));
     const thead = el('thead');
     thead.append(head);
     const body = el('tbody');
@@ -277,6 +414,7 @@
         field(row, 'detail', inputOf('text', 'Source detail', { maxLength: 60, placeholder: 'e.g. TikTok' })),
         field(row, 'campaign', inputOf('text', 'Campaign or event', { maxLength: 120 })),
         field(row, 'amount', inputOf('number', 'Amount in NPR', { min: 1, step: 1 })),
+        field(row, 'leads', inputOf('number', 'Leads reported by the platform or event', { min: 0, step: 1 })),
         field(row, 'note', inputOf('text', 'Note', { maxLength: 300 })),
       );
       const remove = el('button', 'btn btn-sm btn-danger', 'Remove');
@@ -294,17 +432,17 @@
     const actions = el('div', 'spend-actions');
     const addLine = el('button', 'btn btn-sm', 'Add a line');
     addLine.type = 'button';
-    addLine.addEventListener('click', () => { spendRows.push({ month: data ? data.today.slice(0, 7) : '', intake: selected === 'all' ? '' : selected, source: '', detail: '', campaign: '', amount: '', note: '' }); spendDirty = true; renderSpend(); });
+    addLine.addEventListener('click', () => { spendRows.push({ month: data ? data.today.slice(0, 7) : '', intake: selected === 'all' ? '' : selected, source: '', detail: '', campaign: '', amount: '', leads: '', note: '' }); spendDirty = true; renderSpend(); });
     const save = el('button', 'btn btn-sm', 'Save spend');
     save.type = 'button';
     save.addEventListener('click', saveSpend);
-    actions.append(addLine, save, el('span', 'updated', 'Detail and Campaign must be typed exactly as on the sheet to be matched. A line not tied to an intake counts only under All intakes.'));
+    actions.append(addLine, save, el('span', 'updated', 'Detail and Campaign must be typed exactly as on the sheet to be matched. A line not tied to an intake counts only under All intakes. Leads reported: the form fills, messages or registrations the platform or event counted (optional).'));
     c.append(actions);
   }
 
   async function saveSpend() {
     try {
-      const res = await fetch('/api/marketing-spend', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ rows: spendRows.map((r) => ({ ...r, amount: Number(r.amount) })) }) });
+      const res = await fetch('/api/marketing-spend', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ rows: spendRows.map((r) => ({ ...r, amount: Number(r.amount), leads: r.leads === '' || r.leads === null || r.leads === undefined ? null : Number(r.leads) })) }) });
       const answer = await res.json().catch(() => ({}));
       if (!res.ok) { window.NiecUI.alert(answer.error || 'The spend could not be saved.', { title: 'Not saved' }); return; }
       spendRows = answer.rows;
@@ -327,6 +465,7 @@
       canEditSpend = Boolean(answer.canEdit);
       renderSpend();
       if (data) renderTargets();
+      if (!decisionsDirty) renderDecisions();
     } catch (e) { /* the figures above still show */ }
   }
 
@@ -335,6 +474,7 @@
     renderKpis(d);
     if (!(targetDraft && targetDraft.dirty)) { targetDraft = null; renderTargets(); } // targets being typed are not thrown away by a refresh
     renderFindings(d);
+    renderFollow(d);
     renderChannels(d);
     renderCampaigns(d);
     renderSeason(d);
@@ -391,13 +531,13 @@
   function download() {
     if (!data) return;
     const d = data;
-    const head = ['Table', 'Group', 'Inside', 'Students', 'Share %', 'Inquiries', 'Applied', 'Offers', 'Paid', 'Visas', 'Refused', 'Lost', 'Active', 'Applied rate %', 'Paid rate %', 'Visa rate %', 'Visa success %', 'Spend NPR', 'Cost per student NPR', 'Cost per paid NPR', 'Cost per visa NPR'];
+    const head = ['Table', 'Group', 'Inside', 'Students', 'Share %', 'Inquiries', 'Applied', 'Offers', 'Paid', 'Visas', 'Refused', 'Lost', 'Active', 'Applied rate %', 'Paid rate %', 'Visa rate %', 'Visa success %', 'Spend NPR', 'Cost per student NPR', 'Cost per paid NPR', 'Cost per visa NPR', 'Qualified', 'Leads reported', 'Cost per lead NPR', 'Cost per qualified NPR'];
     const lines = [head];
     const v = (x) => (x === null || x === undefined ? '' : x);
-    const card = (name, g, inside = '') => lines.push([name, inside || g.label, inside ? g.label : '', g.students, v(g.share), v(g.inquiries), g.applied, v(g.offers), g.paid, g.visas, g.rejected, g.lost, v(g.active), v(g.appliedRate), v(g.paidRate), v(g.visaRate), v(g.visaSuccess), v(g.spend), v(g.costPerStudent), v(g.costPerPaid), v(g.costPerVisa)]);
+    const card = (name, g, inside = '') => lines.push([name, inside || g.label, inside ? g.label : '', g.students, v(g.share), v(g.inquiries), g.applied, v(g.offers), g.paid, g.visas, g.rejected, g.lost, v(g.active), v(g.appliedRate), v(g.paidRate), v(g.visaRate), v(g.visaSuccess), v(g.spend), v(g.costPerStudent), v(g.costPerPaid), v(g.costPerVisa), v(g.qualified), v(g.reportedLeads), v(g.costPerLead), v(g.costPerQualified)]);
     card('Total', { label: 'All students in this view', ...d.totals });
     d.sources.forEach((s) => { card('Source', s); s.details.forEach((x) => card('Source detail', x, s.label)); });
-    [['Campaign or event', d.campaigns], ['Intake', d.intakeComparison], ['University', d.universities], ['Partner', d.partners], ['Course', d.courses], ['Counselor', d.counselors], ['Study level', d.studyLevels], ['Home district', d.districts]]
+    [['Campaign or event', d.campaigns], ['Intake', d.intakeComparison], ['University', d.universities], ['Partner', d.partners], ['Course', d.courses], ['Counselor', d.counselors], ['Lead quality', d.leadQuality], ['Study level', d.studyLevels], ['Home district', d.districts]]
       .forEach(([name, list]) => list.forEach((g) => card(name, g)));
     d.lostReasons.forEach((r) => lines.push(['Lost reason', r.label, '', r.students, '', '', '', '', '', '', r.rejected, r.students]));
     d.seasonality.months.forEach((m, i) => lines.push(['Month of year', m, '', '', '', d.seasonality.inquiries[i], d.seasonality.applications[i], '', d.seasonality.payments[i], d.seasonality.visas[i]]));
@@ -422,8 +562,9 @@
     load();
   });
   $('download').addEventListener('click', download);
-  window.addEventListener('beforeunload', (e) => { if (spendDirty || (targetDraft && targetDraft.dirty)) { e.preventDefault(); e.returnValue = ''; } });
+  $('report').addEventListener('click', report);
+  window.addEventListener('beforeunload', (e) => { if (spendDirty || decisionsDirty || (targetDraft && targetDraft.dirty)) { e.preventDefault(); e.returnValue = ''; } });
   document.addEventListener('visibilitychange', () => { if (!document.hidden) load(); });
   setInterval(() => { if (!document.hidden) load(); }, 60000);
-  load().then(loadSpend);
+  load().then(loadSpend).then(loadDecisions);
 })();

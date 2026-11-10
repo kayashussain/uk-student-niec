@@ -19,10 +19,11 @@ const SMALL = 10; // fewer students than this in a group: a rate from it is not 
 const DAY = 86400000;
 const dayNumber = (v) => { const iso = isoDate(v); return iso ? Date.parse(iso + 'T00:00:00Z') / DAY : NaN; };
 
-const newGroup = () => ({ students: 0, inquiries: 0, applied: 0, offers: 0, paid: 0, visas: 0, rejected: 0, lost: 0, active: 0 });
+const newGroup = () => ({ students: 0, inquiries: 0, qualified: 0, applied: 0, offers: 0, paid: 0, visas: 0, rejected: 0, lost: 0, active: 0 });
 function add(g, s) {
   g.students += 1;
   if (s.status === 'Inquiry') g.inquiries += 1;
+  if (s.qualified) g.qualified += 1;
   if (s.p.reached.applied) g.applied += 1;
   if (s.p.reached.offer) g.offers += 1;
   if (s.p.reached.paid) g.paid += 1;
@@ -71,6 +72,8 @@ const COMPLETENESS = [
   { column: 'SOURCE DETAIL', label: 'Source Detail', on: 'all', decides: 'Which platform or kind of referral inside each source (TikTok or ads, a past student or a teacher)' },
   { column: 'CAMPAIGN OR EVENT', label: 'Campaign or Event', on: 'campaign', decides: 'Which advert or event to repeat and which to stop (expected on Events and Social Media students)' },
   { column: 'INQUIRY DATE', label: 'Inquiry Date', on: 'all', date: true, decides: 'Which months students first ask, so when to advertise and hold events, and how long an inquiry takes to apply' },
+  { column: 'LEAD QUALITY', label: 'Lead Quality', on: 'all', decides: 'Whether a channel brings students who can really apply, or only people who ask' },
+  { column: 'NEXT FOLLOW UP', label: 'Next Follow-up', on: 'early', date: true, decides: 'Who must be contacted today, and whether leads are being lost by silence (expected on students in progress at Inquiry or Application Stage)' },
   { column: 'COUNSELOR', label: 'Counselor', on: 'all', decides: 'Workload and results by counselor' },
   { column: 'STUDY LEVEL', label: 'Study Level', on: 'all', decides: 'Which level (undergraduate, postgraduate ...) to promote' },
   { column: 'HOME DISTRICT', label: 'Home District', on: 'all', decides: 'Where in Nepal to hold events and aim adverts' },
@@ -86,6 +89,7 @@ const CAMPAIGN_SOURCES = ['Events', 'Social Media'];
 const EXPECTED_ON = {
   all: () => true,
   campaign: (s) => CAMPAIGN_SOURCES.includes(s.source),
+  early: (s) => s.active && ['Inquiry', 'Application Stage'].includes(s.status),
   applied: (s) => s.p.reached.applied,
   paid: (s) => s.p.reached.paid,
   visa: (s) => s.visa,
@@ -105,8 +109,10 @@ function spendInScope(spend, selected) {
   return (Array.isArray(spend) ? spend : []).filter((r) => r && Number(r.amount) > 0 && (selected === 'all' || r.intake === selected));
 }
 const per = (money, n) => (money > 0 && n > 0 ? Math.round(money / n) : null);
-function withCost(card, money) {
-  return { ...card, spend: money, costPerStudent: per(money, card.students), costPerApplication: per(money, card.applied), costPerPaid: per(money, card.paid), costPerVisa: per(money, card.visas) };
+// `leads`: what the platform or event reported for the spend lines of this group (null when none of them says).
+function withCost(card, money, leads = null) {
+  return { ...card, spend: money, reportedLeads: leads, costPerLead: leads ? per(money, leads) : null, leadsToStudents: leads ? pct(card.students, leads) : null,
+    costPerQualified: per(money, card.qualified), costPerStudent: per(money, card.students), costPerApplication: per(money, card.applied), costPerPaid: per(money, card.paid), costPerVisa: per(money, card.visas) };
 }
 const sameText = (a, b) => text(a).toLowerCase() === text(b).toLowerCase();
 
@@ -117,7 +123,14 @@ function visaRates(everyone) {
   const finished = everyone.filter((s) => s.left || s.visa);
   return Array.from({ length: STEPS.length + 1 }, (_, reached) => {
     const pool = finished.filter((s) => s.p.furthest >= reached);
-    return { samples: pool.length, rate: pool.length >= SMALL ? pool.filter((s) => s.visa).length / pool.length : null };
+    if (pool.length < SMALL) return { samples: pool.length, rate: null, low: null, high: null };
+    // The range the true rate is likely to lie in (a Wilson interval at 80%): wide with few students, narrow with many.
+    const n = pool.length;
+    const rate = pool.filter((s) => s.visa).length / n;
+    const z = 1.2816;
+    const mid = (rate + (z * z) / (2 * n)) / (1 + (z * z) / n);
+    const half = (z * Math.sqrt((rate * (1 - rate)) / n + (z * z) / (4 * n * n))) / (1 + (z * z) / n);
+    return { samples: n, rate, low: Math.max(0, mid - half), high: Math.min(1, mid + half) };
   });
 }
 
@@ -127,8 +140,10 @@ function targetRow(sheet, students, target, rates, todayDay) {
   const visas = students.filter((s) => s.visa).length;
   const active = students.filter((s) => s.active);
   let expected = 0;
+  let low = 0;
+  let high = 0;
   let unknown = 0;
-  active.forEach((s) => { const r = rates[s.p.furthest].rate; if (r === null) unknown += 1; else expected += r; });
+  active.forEach((s) => { const r = rates[s.p.furthest]; if (r.rate === null) unknown += 1; else { expected += r.rate; low += r.low; high += r.high; } });
   const known = active.length - unknown;
   const forecast = known || !active.length ? Math.round(visas + expected) : null;
   const remaining = Math.max(0, target.visas - visas);
@@ -142,7 +157,7 @@ function targetRow(sheet, students, target, rates, todayDay) {
   return {
     id: sheet.id, label: sheet.name, target: target.visas, deadline: target.deadline, visas, remaining,
     inProgress: active.length, expectedFromInProgress: forecast === null ? null : round1(expected), notForecast: unknown,
-    forecast, gap, applicationsNeeded, weeksLeft, visasPerWeek: perWeek(remaining), applicationsPerWeek: perWeek(applicationsNeeded), status,
+    forecast, forecastLow: forecast === null ? null : Math.round(visas + low), forecastHigh: forecast === null ? null : Math.round(visas + high), gap, applicationsNeeded, weeksLeft, visasPerWeek: perWeek(remaining), applicationsPerWeek: perWeek(applicationsNeeded), status,
   };
 }
 
@@ -151,6 +166,25 @@ const WEEK_COLUMNS = { inquiries: 'INQUIRY DATE', applications: 'APPLICATION SUB
 function weekly(students, todayDay) {
   const count = (from, to) => Object.fromEntries(Object.entries(WEEK_COLUMNS).map(([key, column]) => [key, students.filter((s) => { const d = todayDay - dayNumber(s.row[column]); return d >= from && d <= to; }).length]));
   return { last7Days: count(0, 6), the7DaysBefore: count(7, 13) };
+}
+
+// Who is waiting to be contacted: students still in progress whose Next Follow-up day has passed, those due in the next
+// 7 days, and inquiries and new applicants with no follow-up day at all. The longest overdue are listed.
+function followUps(students, todayDay) {
+  const live = students.filter((s) => s.active).map((s) => ({ s, day: dayNumber(s.row['NEXT FOLLOW UP']) }));
+  const overdue = live.filter((x) => x.day < todayDay).sort((a, b) => a.day - b.day);
+  const byCounselor = new Map();
+  overdue.forEach((x) => { const who = text(x.s.row.COUNSELOR) || BLANK; byCounselor.set(who, (byCounselor.get(who) || 0) + 1); });
+  return {
+    overdue: overdue.length,
+    dueInNext7Days: live.filter((x) => x.day >= todayDay && x.day <= todayDay + 7).length,
+    earlyStageWithNoDate: live.filter((x) => Number.isNaN(x.day) && ['Inquiry', 'Application Stage'].includes(x.s.status)).length,
+    overdueByCounselor: [...byCounselor.entries()].map(([label, count]) => ({ label, count })).sort((a, b) => b.count - a.count),
+    longestOverdue: overdue.slice(0, 10).map((x) => ({
+      name: `${text(x.s.row['FIRST NAME'])} ${text(x.s.row['LAST NAME'])}`.trim(), counselor: text(x.s.row.COUNSELOR), stage: x.s.status || 'No status',
+      intake: x.s.sheet.name, daysOverdue: todayDay - x.day,
+    })),
+  };
 }
 
 // The plain-language findings: what stands out, what it means and what to do. Only rules that the numbers prove.
@@ -188,6 +222,11 @@ function findings(a) {
     if (r.status === 'Behind' || r.status === 'Missed') say('risk', `${r.label}: ${r.forecast} visas forecast against a target of ${r.target}`, `${r.visas} issued so far, and the ${r.inProgress} students in progress are likely to add about ${r.expectedFromInProgress} at NIEC's own past rates. That leaves ${r.gap} short.`, r.applicationsNeeded === null ? 'Add new applications now; the sheet has too little history to say how many.' : `About ${r.applicationsNeeded} more applications are needed${r.applicationsPerWeek !== null && r.weeksLeft ? `: ${r.applicationsPerWeek} a week for the ${r.weeksLeft} weeks left` : ''}. If that is not possible, lower the target or move marketing to the channels with the best paid rate.`);
     if (r.status === 'Not enough history to forecast') say('gap', `${r.label}: the target of ${r.target} cannot be forecast yet`, 'Fewer than 10 students have finished their journey (visa, refused, withdrawn, deferred, on hold) at the steps the current students are at, so there is no past rate to forecast from.', 'Keep statuses up to date, including students who withdraw; the forecast appears by itself when there is enough history.');
   });
+  if (a.followUps.overdue) say('risk', `${a.followUps.overdue} follow-up${a.followUps.overdue === 1 ? ' is' : 's are'} overdue`, 'These students were due a call or message on a day that has passed. In a market where students talk to several consultancies, the one that answers first usually keeps the student.', 'Open the Follow-ups card, contact the longest overdue first, and set each student\'s next follow-up day.');
+  if (a.followUps.earlyStageWithNoDate >= 5) say('gap', `${a.followUps.earlyStageWithNoDate} students at Inquiry or Application Stage have no Next Follow-up day`, 'Nobody is reminded to contact them, so they are the easiest students to lose without noticing.', 'Set a Next Follow-up day for every student at Inquiry and Application Stage.');
+  const leadsKnown = a.sources.filter((x) => x.reportedLeads);
+  leadsKnown.filter((x) => x.reportedLeads >= 30 && x.leadsToStudents < 5).forEach((x) => say('info', `${x.label}: ${x.reportedLeads} leads reported, ${x.students} on the sheet (${x.leadsToStudents}%)`, 'Most of the leads this channel reported never became a row on the sheet. Either they were not real prospects, or they were not followed up or not entered.', 'Check a sample of these leads: if they were unqualified, change the advert\'s audience or message; if they were never contacted, fix the hand-over from the advert to a counselor.'));
+  if (a.decisions.dueForReview.length) say('info', `${a.decisions.dueForReview.length} decision${a.decisions.dueForReview.length === 1 ? ' is' : 's are'} due for review`, 'A decision was taken with an expected result and a review day that has passed, and no actual result is written yet.', 'Open the Decision log, write what really happened and whether to continue, change or stop.');
   if (!a.targets.rows.length) say('gap', 'No intake has a visa target', 'Without a target there is nothing to hold the weekly numbers against, and no early warning when an intake falls behind.', 'Admin: set the visas wanted and the date for each open intake in the Targets table on the Analysis page.');
   if (!a.spend.total) say('gap', 'No marketing spend is entered', 'The cost of a student, an application and a visa from each channel cannot be worked out, so it is not known which channel is worth its money.', 'Admin: enter what was spent on each channel, advert and event in the Marketing spend table on the Analysis page.');
   else a.sources.filter((s) => s.spend > 0 && s.students === 0).forEach((s) => say('risk', `NPR ${s.spend.toLocaleString('en-US')} spent on ${s.label} with no student recorded from it`, 'Either the channel brought nobody, or its students were entered under another source.', 'Check the Student Source of recent students, then decide whether to keep paying for this channel.'));
@@ -202,14 +241,16 @@ function findings(a) {
 }
 
 // `sheetId`: one intake's id, or "all" (also the default) for every intake together.
-function buildAnalysis(workbook, { sheetId = 'all', spend = [], targets = {}, today: now = new Date() } = {}) {
+function buildAnalysis(workbook, { sheetId = 'all', spend = [], targets = {}, decisions = [], today: now = new Date() } = {}) {
   const sheets = (workbook && workbook.sheets) || [];
   const selected = sheets.some((s) => s.id === sheetId) ? sheetId : 'all';
   const read = (sheet) => (sheet.rows || []).filter(isStudent).map((row) => {
     const status = text(row['APPLICATION STATUS']);
     const p = progressOf(row, status);
     const left = LEFT.includes(status);
-    return { row, status, p, left, visa: p.reached.visa, active: !left && !p.reached.visa, source: text(row['STUDENT SOURCE']), sheet };
+    // A qualified lead: marked Qualified on the sheet, or already an applicant (nobody applies without being qualified).
+    const qualified = text(row['LEAD QUALITY']) === 'Qualified' || p.reached.applied;
+    return { row, status, p, left, qualified, visa: p.reached.visa, active: !left && !p.reached.visa, source: text(row['STUDENT SOURCE']), sheet };
   });
   const bySheet = sheets.map((sheet) => ({ sheet, students: read(sheet) }));
   const students = bySheet.filter((x) => selected === 'all' || x.sheet.id === selected).flatMap((x) => x.students);
@@ -221,6 +262,7 @@ function buildAnalysis(workbook, { sheetId = 'all', spend = [], targets = {}, to
 
   const money = spendInScope(spend, selected);
   const sumSpend = (test) => money.filter(test).reduce((sum, r) => sum + Number(r.amount), 0);
+  const sumLeads = (test) => { const told = money.filter((r) => test(r) && Number.isInteger(r.leads)); return told.length ? told.reduce((sum, r) => sum + r.leads, 0) : null; };
 
   // Channels: each source, with its details inside it, and what was spent on each.
   const sourceCards = scorecard(students, (s) => s.source);
@@ -229,11 +271,11 @@ function buildAnalysis(workbook, { sheetId = 'all', spend = [], targets = {}, to
   });
   const sources = sourceCards.map((card) => {
     const inside = students.filter((s) => (s.source || BLANK) === card.label);
-    const details = scorecard(inside, col('SOURCE DETAIL')).map((d) => withCost(d, d.label === BLANK ? 0 : sumSpend((r) => sameText(r.source, card.label) && sameText(r.detail, d.label))));
-    return { ...withCost(card, card.label === BLANK ? 0 : sumSpend((r) => sameText(r.source, card.label))), details };
+    const details = scorecard(inside, col('SOURCE DETAIL')).map((d) => withCost(d, d.label === BLANK ? 0 : sumSpend((r) => sameText(r.source, card.label) && sameText(r.detail, d.label)), d.label === BLANK ? null : sumLeads((r) => sameText(r.source, card.label) && sameText(r.detail, d.label))));
+    return { ...withCost(card, card.label === BLANK ? 0 : sumSpend((r) => sameText(r.source, card.label)), card.label === BLANK ? null : sumLeads((r) => sameText(r.source, card.label))), details };
   });
   const campaigns = scorecard(students.filter((s) => text(s.row['CAMPAIGN OR EVENT'])), col('CAMPAIGN OR EVENT'))
-    .map((c) => withCost(c, sumSpend((r) => sameText(r.campaign, c.label))));
+    .map((c) => withCost(c, sumSpend((r) => sameText(r.campaign, c.label)), sumLeads((r) => sameText(r.campaign, c.label))));
 
   const universities = scorecard(students, col('UNIVERSITY NAME'));
   const partners = scorecard(students, col('UNIVERSITY PARTNER'));
@@ -271,6 +313,12 @@ function buildAnalysis(workbook, { sheetId = 'all', spend = [], targets = {}, to
       visaRateByStep: [{ label: 'Any student' }, ...STEPS].map((step, i) => ({ step: step.label, finishedStudents: rates[i].samples, visaRate: rates[i].rate === null ? null : round1(rates[i].rate * 100) })),
     },
     week: weekly(students, todayDay),
+    followUps: followUps(students, todayDay),
+    leadQuality: scorecard(students, col('LEAD QUALITY')),
+    decisions: {
+      total: (Array.isArray(decisions) ? decisions : []).length,
+      dueForReview: (Array.isArray(decisions) ? decisions : []).filter((d) => d && !text(d.actual) && isoDate(d.reviewDate) && dayNumber(d.reviewDate) <= todayDay).map((d) => ({ date: d.date, decision: d.decision, expected: d.expected, reviewDate: d.reviewDate })),
+    },
     completeness,
     sources,
     campaigns,
@@ -295,7 +343,7 @@ function buildAnalysis(workbook, { sheetId = 'all', spend = [], targets = {}, to
       inquiryToPayment: gapDays('INQUIRY DATE', 'PAYMENT DATE'),
       applicationToVisa: gapDays('APPLICATION SUBMISSION DATE', 'VISA RECEIVED DATE'),
     },
-    spend: { currency: 'NPR', total: spent, rows: money.length, costPerStudent: per(spent, totals.students), costPerPaid: per(spent, totals.paid), costPerVisa: per(spent, totals.visas) },
+    spend: { currency: 'NPR', total: spent, rows: money.length, reportedLeads: sumLeads(() => true), costPerLead: sumLeads(() => true) ? per(spent, sumLeads(() => true)) : null, costPerQualified: per(spent, totals.qualified), costPerStudent: per(spent, totals.students), costPerPaid: per(spent, totals.paid), costPerVisa: per(spent, totals.visas) },
     notes: [
       'A student counts as applied, paid and so on from their stage or any later date, exactly as on the Dashboard.',
       'Rates marked with a star come from fewer than 10 students and are not yet a pattern.',

@@ -39,7 +39,7 @@
   // What the Analysis page reads: the channel inside the source, the campaign or event, the first inquiry, the counselor,
   // the kind of student and why a student was lost. The Application and Follow-up Teams fill these in. They are not part
   // of the "still blank" warning when a student moves on.
-  const ANALYSIS_COLUMNS = ['SOURCE DETAIL', 'CAMPAIGN OR EVENT', 'INQUIRY DATE', 'COUNSELOR', 'STUDY LEVEL', 'HOME DISTRICT', 'LOST REASON'];
+  const ANALYSIS_COLUMNS = ['SOURCE DETAIL', 'CAMPAIGN OR EVENT', 'INQUIRY DATE', 'LEAD QUALITY', 'NEXT FOLLOW UP', 'COUNSELOR', 'STUDY LEVEL', 'HOME DISTRICT', 'LOST REASON'];
 
   // The basics of a new student. A person can fill these in on the students their department added
   // (the server marks those rows with `_addedByTeam`), on top of the department's usual columns.

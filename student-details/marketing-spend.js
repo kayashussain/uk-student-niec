@@ -1,5 +1,6 @@
 // The Marketing spend table on the Analysis page: what NIEC paid for each channel, advert and event, so the Analysis can
-// say what a student, an application and a visa from each channel cost. Admin enters it; Admin and the Manager read it.
+// say what a student, an application and a visa from each channel cost. A line can also hold the leads the platform or the
+// event reported (form fills, messages, registrations), which gives the cost of a lead and how many leads became students. Admin enters it; Admin and the Manager read it.
 // Kept in marketing-spend.json in the data folder (never in git), written whole and atomically. The version before each
 // save is kept beside it as marketing-spend.backup.json. No student or personal data is stored here.
 
@@ -21,10 +22,13 @@ function cleanRow(input) {
   if (!Number.isFinite(amount) || amount <= 0 || amount > MAX_AMOUNT) return { error: `The amount for ${source} must be a number of rupees above 0.` };
   const month = str(r.month, 7);
   if (month && !/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) return { error: `The month for ${source} is not a month.` };
+  const blankLeads = r.leads === '' || r.leads === null || r.leads === undefined;
+  const leads = blankLeads ? null : Number(r.leads);
+  if (leads !== null && (!Number.isInteger(leads) || leads < 0 || leads > 1e7)) return { error: `The leads for ${source} must be a whole number, or left empty.` };
   return {
     row: {
       id: /^[a-f0-9]{12}$/.test(r.id) ? r.id : crypto.randomBytes(6).toString('hex'),
-      month, intake: str(r.intake, 80), source, detail: str(r.detail, 60), campaign: str(r.campaign, 120), amount, note: str(r.note, 300),
+      month, intake: str(r.intake, 80), source, detail: str(r.detail, 60), campaign: str(r.campaign, 120), amount, leads, note: str(r.note, 300),
     },
   };
 }

@@ -15,6 +15,7 @@ const { buildDashboard } = require('./dashboard-stats');
 const { buildAnalysis } = require('./analysis-stats');
 const { createSpend } = require('./marketing-spend');
 const { createTargets } = require('./targets');
+const { createDecisions } = require('./decisions');
 const { createFacts, viewFacts } = require('./facts');
 const { createDirect, viewDirect, MAX_FILE_BYTES } = require('./direct');
 const { createBackups, ID: BACKUP_ID, HOUR: BACKUP_HOUR, KEEP_DAYS } = require('./backups');
@@ -83,6 +84,7 @@ const facts = createFacts(DATA_DIR);
 const direct = createDirect(DATA_DIR);
 const spend = createSpend(DATA_DIR); // the Marketing spend table of the Analysis page
 const targets = createTargets(DATA_DIR); // the visa target of each intake, on the Analysis page
+const decisions = createDecisions(DATA_DIR); // the Decision log of the Analysis page
 // Daily backups (6 p.m., kept 30 days) and Admin's restore (see backups.js). `current` is the students, held in memory below.
 const backups = createBackups(DATA_DIR, () => ({ students: current, facts: facts.all(), partners: direct.all() }));
 setInterval(() => backups.tick(), 5 * 60 * 1000).unref();
@@ -105,8 +107,9 @@ const advisor = createAdvisorMcp({
   token: process.env.NIEC_ADVISOR_TOKEN,
   getWorkbook: () => current,
   getDashboard: (intake) => buildDashboard(current, { sheetId: intake, includeHidden: true }),
-  getAnalysis: (intake) => buildAnalysis(current, { sheetId: intake || 'all', spend: spend.list(), targets: targets.all() }),
+  getAnalysis: (intake) => buildAnalysis(current, { sheetId: intake || 'all', spend: spend.list(), targets: targets.all(), decisions: decisions.list() }),
   getSpend: () => spend.list(),
+  getDecisions: () => decisions.list(),
   facts,
   incentive: {
     getCommissions: () => readIncentiveFile('commissions.json', {}),
@@ -872,7 +875,30 @@ const server = http.createServer(async (req, res) => {
       if (!isAdmin(req.user) && !isManager(req.user)) return sendJSON(res, 403, { error: 'The analysis is for Admin and the Manager.' });
       if (!current) return sendJSON(res, 500, { error: 'Could not read the data file' });
       const intake = new URL(req.url, 'http://x').searchParams.get('intake') || 'all';
-      return send(res, 200, JSON.stringify(buildAnalysis(current, { sheetId: intake, spend: spend.list(), targets: targets.all() })), JSON_HEADERS);
+      return send(res, 200, JSON.stringify(buildAnalysis(current, { sheetId: intake, spend: spend.list(), targets: targets.all(), decisions: decisions.list() })), JSON_HEADERS);
+    }
+    // Every account may read the visa target of the intakes it sees (the sheet shows it as a card); only Admin sets it.
+    if (urlPath === '/api/targets' && req.method === 'GET') {
+      if (!current) return sendJSON(res, 500, { error: 'Could not read the data file' });
+      const seen = new Set(viewFor(req.user, current).sheets.map((sheet) => sheet.id));
+      const rows = buildAnalysis(current, { targets: targets.all() }).targets.rows.filter((r) => seen.has(r.id));
+      return sendJSON(res, 200, { targets: Object.fromEntries(rows.map((r) => [r.id, { target: r.target, visas: r.visas, deadline: r.deadline, weeksLeft: r.weeksLeft, applicationsPerWeek: r.applicationsPerWeek, status: r.status }])) });
+    }
+    if (urlPath === '/api/decisions') {
+      if (!isAdmin(req.user) && !isManager(req.user)) return sendJSON(res, 403, { error: 'The decision log is for Admin and the Manager.' });
+      if (req.method === 'GET') return sendJSON(res, 200, { rows: decisions.list(), canEdit: isAdmin(req.user) });
+      if (req.method !== 'POST') return send(res, 405, 'Method not allowed');
+      if (!isAdmin(req.user)) return sendJSON(res, 403, { error: 'Only Admin can change the decision log.' });
+      let body;
+      try {
+        body = await readJSONBody(req, 1024 * 1024);
+      } catch (e) {
+        return sendJSON(res, e.statusCode || 400, { error: e.message });
+      }
+      const saved = decisions.replaceAll(body && body.rows, req.user.label);
+      if (saved.error) return sendJSON(res, 400, { error: saved.error });
+      activity.record(req, req.user, 'Edited decision log', { app: 'Student Details', changes: [`Saved the Decision log (${saved.rows.length} line${saved.rows.length === 1 ? '' : 's'})`] });
+      return sendJSON(res, 200, saved);
     }
     if (urlPath === '/api/targets' && req.method === 'POST') {
       if (!isAdmin(req.user)) return sendJSON(res, 403, { error: 'Only Admin can set the targets.' });

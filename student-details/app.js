@@ -5,7 +5,7 @@
     'TUITION FEE DEPOSIT(2nd Installment)', 'TUITION FEE DEPOSIT(3rd Installment)', 'REMAINING TUITION FEE',
   ]);
   const DATE_COLS = new Set([
-    'INQUIRY DATE', 'APPLICATION SUBMISSION DATE', 'OFFER RECEIVED DATE', 'LANGUAGE TEST DATE', 'PAYMENT DATE', 'CAS REQUESTED DATE', 'CAS RECEIVED DATE',
+    'INQUIRY DATE', 'NEXT FOLLOW UP', 'APPLICATION SUBMISSION DATE', 'OFFER RECEIVED DATE', 'LANGUAGE TEST DATE', 'PAYMENT DATE', 'CAS REQUESTED DATE', 'CAS RECEIVED DATE',
     'VISA LODGE DATE', 'VFS ATTENDED DATE', 'VISA RECEIVED DATE',
     'MOCK SCHEDULE 1', 'MOCK SCHEDULE 2', 'MOCK SCHEDULE 3', 'MOCK SCHEDULE 4',
   ]);
@@ -37,9 +37,10 @@
   };
   const ALL_SOURCE_DETAILS = [...new Set(Object.values(SOURCE_DETAIL_OPTIONS).flat())];
   const sourceDetailChoices = (row) => SOURCE_DETAIL_OPTIONS[String((row && row[SOURCE_COL]) || '').trim()] || ALL_SOURCE_DETAILS;
-  const PLAIN_SELECT_COLS = new Set([SOURCE_DETAIL_COL, 'STUDY LEVEL', 'LOST REASON']);
+  const PLAIN_SELECT_COLS = new Set([SOURCE_DETAIL_COL, 'LEAD QUALITY', 'STUDY LEVEL', 'LOST REASON']);
   const SELECT_COLS = {
     [SOURCE_DETAIL_COL]: ALL_SOURCE_DETAILS,
+    'LEAD QUALITY': ['Qualified', 'Needs Documents', 'Not Yet Eligible', 'Future Intake', 'Just Exploring'],
     'STUDY LEVEL': ['Foundation', 'Undergraduate', 'Top-up', 'Pre-Masters', 'Postgraduate', 'PhD'],
     'LOST REASON': [
       'Chose Another Consultancy', 'Chose Another Country', 'Applied Directly', 'Fees or Funds Not Ready', 'Not Eligible (Academic)',
@@ -88,6 +89,7 @@
   // in normal case, with the currency on money columns, so they're quicker to read.
   const COLUMN_LABELS = {
     'CAMPAIGN OR EVENT': 'Campaign or Event',
+    'NEXT FOLLOW UP': 'Next Follow-up',
     'APPLICATION SUBMISSION DATE': 'Application Submitted',
     'OFFER RECEIVED DATE': 'Offer Received',
     'CONTACT NUMBER': 'Contact Number (WhatsApp)',
@@ -2042,6 +2044,20 @@
     setTimeout(restoreStatus, 2000);
   }
 
+  // The visa target of each intake, from the server (every account may read it; only Admin sets it). Read when the page
+  // opens and every five minutes; the sheet works the same without it.
+  let intakeTargets = {};
+  async function loadIntakeTargets() {
+    try {
+      const res = await fetch('/api/targets', { cache: 'no-store' });
+      if (!res.ok) return;
+      intakeTargets = (await res.json()).targets || {};
+      if (rows.length || columns.length) renderStatusSummary();
+    } catch (e) { /* the sheet does not depend on it */ }
+  }
+  loadIntakeTargets();
+  setInterval(() => { if (!document.hidden) loadIntakeTargets(); }, 300000);
+
   function renderStatusSummary() {
     const statusOptions = SELECT_COLS['APPLICATION STATUS'];
     if (!statusOptions || !columns.includes('APPLICATION STATUS')) {
@@ -2093,6 +2109,13 @@
       `${visaIssuedCount} Visa Issued out of ${indices.length} total students`);
     rateCard.classList.add('stat-rate');
     statusCards.appendChild(rateCard);
+    // The intake's visa target (set by Admin on the Analysis page), so the whole team sees what the intake is aiming for.
+    const goal = intakeTargets[activeSheetId];
+    if (goal) {
+      const pace = goal.applicationsPerWeek !== null && goal.weeksLeft ? ` About ${goal.applicationsPerWeek} new applications a week are needed for the ${goal.weeksLeft} weeks left.` : '';
+      statusCards.appendChild(card(`${goal.visas} / ${goal.target}`, 'Visa Target', '',
+        `${goal.visas} visas issued of the ${goal.target} this intake is aiming for${goal.deadline ? `, needed by ${goal.deadline}` : ''}. ${goal.status}.${pace}`));
+    }
   }
 
   function markDirty() {

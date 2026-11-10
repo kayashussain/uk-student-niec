@@ -23,6 +23,7 @@
       <div class="filters" role="group" aria-label="Filter">
         <label>Intake <select id="intake"></select></label>
         <button class="btn btn-sm" type="button" id="download">Download for Excel or Power BI</button>
+        <button class="btn btn-sm" type="button" id="report">Download management report</button>
         <span class="updated" id="updated"></span>
       </div>
     </div>
@@ -37,6 +38,11 @@
     <figure class="card">
       <figcaption><div><h2>What stands out</h2><p>Risks, missing data and patterns that the numbers prove, with the step to take</p></div></figcaption>
       <div class="body" id="chartFindings"></div>
+    </figure>
+
+    <figure class="card">
+      <figcaption><div><h2>Follow-ups</h2><p>Students in progress whose Next Follow-up day has passed, longest overdue first</p></div></figcaption>
+      <div class="body" id="chartFollow"></div>
     </figure>
 
     <figure class="card">
@@ -88,7 +94,7 @@
         <div class="body" id="chartCounselors"></div>
       </figure>
       <figure class="card">
-        <figcaption><div><h2>Kind of student</h2><p>By study level and by home district</p></div></figcaption>
+        <figcaption><div><h2>Kind of student</h2><p>By lead quality, study level and home district</p></div></figcaption>
         <div class="body" id="chartProfile"></div>
       </figure>
     </section>
@@ -101,6 +107,11 @@
     <figure class="card">
       <figcaption><div><h2>Marketing spend</h2><p>What was paid for each channel, advert and event, in NPR. Admin enters it; it feeds the cost columns above</p></div></figcaption>
       <div class="body" id="spend"></div>
+    </figure>
+
+    <figure class="card">
+      <figcaption><div><h2>Decision log</h2><p>Each decision with what was expected and what really happened, so it is judged later instead of forgotten. Admin writes it</p></div></figcaption>
+      <div class="body" id="decisions"></div>
     </figure>
 
     <p class="notes" id="notes"></p>

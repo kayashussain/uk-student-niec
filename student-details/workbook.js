@@ -8,9 +8,9 @@ const RENAMED_COLUMNS = {
 };
 
 const DEFAULT_COLUMNS = [
-  'REMARKS', 'STUDENT SOURCE', 'APPLICATION STATUS', 'SOURCE DETAIL', 'CAMPAIGN OR EVENT', 'INQUIRY DATE',
-  'APPLICATION SUBMISSION DATE', 'OFFER RECEIVED DATE',
-  'FIRST NAME', 'LAST NAME', 'EMAIL', 'CONTACT NUMBER', 'COUNSELOR', 'STUDY LEVEL', 'HOME DISTRICT', 'LOST REASON',
+  'REMARKS', 'STUDENT SOURCE', 'APPLICATION STATUS', 'SOURCE DETAIL', 'APPLICATION SUBMISSION DATE', 'OFFER RECEIVED DATE',
+  'FIRST NAME', 'LAST NAME', 'EMAIL', 'CONTACT NUMBER',
+  'INQUIRY DATE', 'LEAD QUALITY', 'NEXT FOLLOW UP', 'CAMPAIGN OR EVENT', 'COUNSELOR', 'STUDY LEVEL', 'HOME DISTRICT', 'LOST REASON',
   'UNIVERSITY NAME', 'COURSE NAME', 'RECEIVING PARTNER', 'UNIVERSITY PARTNER',
   'LANGUAGE TEST DATE', 'STUDENT ID', 'NOC', 'NOC NUMBER',
   'MOCK SCHEDULE 1', 'FEEDBACK 1', 'MOCK SCHEDULE 2', 'FEEDBACK 2',
@@ -99,10 +99,13 @@ const AFTER_LANGUAGE_TEST_COLUMNS = [
 ];
 const COLUMN_ORDER_VERSION = 2;
 // The columns the Analysis page needs to answer business questions (which channel, which campaign, when the student first
-// asked, who looks after them, what kind of student, and why a student was lost). Sheets saved before they existed get
-// them: the first three right after Application Status, the rest right after the Contact Number. Empty until filled in.
-const SOURCE_ANALYSIS_COLUMNS = ['SOURCE DETAIL', 'CAMPAIGN OR EVENT', 'INQUIRY DATE'];
-const PROFILE_ANALYSIS_COLUMNS = ['COUNSELOR', 'STUDY LEVEL', 'HOME DISTRICT', 'LOST REASON'];
+// asked, how ready the student is, when to contact them next, who looks after them, what kind of student, and why a student was lost). Sheets saved before they existed get
+// them: Source Detail right after Application Status, the rest right after the Contact Number, so the student's name stays
+// near the left of the sheet. Placed once per sheet (`analysisOrderVersion`), so a later manual reorder isn't undone. Empty
+// until filled in.
+const SOURCE_ANALYSIS_COLUMNS = ['SOURCE DETAIL'];
+const PROFILE_ANALYSIS_COLUMNS = ['INQUIRY DATE', 'LEAD QUALITY', 'NEXT FOLLOW UP', 'CAMPAIGN OR EVENT', 'COUNSELOR', 'STUDY LEVEL', 'HOME DISTRICT', 'LOST REASON'];
+const ANALYSIS_ORDER_VERSION = 1;
 const ANALYSIS_COLUMNS = [...SOURCE_ANALYSIS_COLUMNS, ...PROFILE_ANALYSIS_COLUMNS];
 const THIRD_INSTALLMENT = 'TUITION FEE DEPOSIT(3rd Installment)';
 
@@ -126,6 +129,11 @@ function addMissingColumns(workbook) {
         spot = (i === -1 ? spot : i) + 1;
       });
     };
+    if ((sheet.analysisOrderVersion || 0) < ANALYSIS_ORDER_VERSION) { // also moves the columns of a sheet opened by the first version of this layout
+      const rest = sheet.columns.filter((c) => !ANALYSIS_COLUMNS.includes(c));
+      sheet.columns.splice(0, sheet.columns.length, ...rest);
+      sheet.analysisOrderVersion = ANALYSIS_ORDER_VERSION;
+    }
     insertAfter('APPLICATION STATUS', SOURCE_ANALYSIS_COLUMNS);
     insertAfter('CONTACT NUMBER', PROFILE_ANALYSIS_COLUMNS);
     // Sheets saved before these dates were tracked get them right after Application Status (and the analysis columns beside it).

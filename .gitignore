@@ -36,6 +36,8 @@ mail.json
 **/marketing-spend.backup.json
 **/targets.json
 **/targets.backup.json
+**/decisions.json
+**/decisions.backup.json
 **/direct-files/
 **/daily-backups/
 **/advisor-memory/
