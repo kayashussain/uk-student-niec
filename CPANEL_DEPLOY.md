@@ -188,6 +188,13 @@ It reads seven columns of the sheet that the Application and Follow-up Teams fil
 follows the Student Source), Campaign or Event, Inquiry Date, Counselor, Study Level, Home District and Lost Reason.
 Sheets saved before these columns existed get them, empty, when the app starts.
 
+Admin sets a **visa target** and a date for each intake in the Targets table at the top of the page (kept in `targets.json`
+in the data folder, with `targets.backup.json` beside it). The page then shows visas so far, what the students in progress
+are likely to add (each counted at the share of finished students at the same step, in every intake, who got a visa), the
+forecast, how many visas short it is, the new applications needed and the applications needed each week, and what was
+dated in the last 7 days against the 7 days before. With fewer than 10 finished students there is no forecast, and the
+page says so.
+
 Admin enters the **Marketing spend** at the bottom of the page (month, intake, source, detail, campaign or event,
 amount in NPR); the Manager can read it. It is kept in `marketing-spend.json` in the data folder, with the version before
 each save beside it as `marketing-spend.backup.json`. The **Download for Excel or Power BI** button saves every table of

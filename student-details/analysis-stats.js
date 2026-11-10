@@ -8,7 +8,7 @@
 // Dashboard, see dashboard-stats.js) or a sum of the marketing spend Admin entered. Where the sheet is silent the
 // answer says so (the `completeness` and `findings` blocks) instead of showing a made-up number.
 
-const { progressOf, isStudent, median, isoDate, LEFT } = require('./dashboard-stats');
+const { STEPS, progressOf, isStudent, median, isoDate, LEFT } = require('./dashboard-stats');
 const { localDate } = require('../shared/server-utils');
 
 const text = (v) => String(v ?? '').trim();
@@ -110,6 +110,49 @@ function withCost(card, money) {
 }
 const sameText = (a, b) => text(a).toLowerCase() === text(b).toLowerCase();
 
+// How often a student who got this far went on to a visa, from the students whose journey is over (visa issued, refused,
+// withdrawn, deferred or on hold) in every intake. Index 0 is any student, 1 is "applied", up to the last step. A rate from
+// fewer than 10 finished students is not used (null): the sheet does not yet hold enough history to forecast from it.
+function visaRates(everyone) {
+  const finished = everyone.filter((s) => s.left || s.visa);
+  return Array.from({ length: STEPS.length + 1 }, (_, reached) => {
+    const pool = finished.filter((s) => s.p.furthest >= reached);
+    return { samples: pool.length, rate: pool.length >= SMALL ? pool.filter((s) => s.visa).length / pool.length : null };
+  });
+}
+
+// One intake against its target: visas so far, what the students still in progress are likely to add (each counted at the
+// visa rate of the step they have reached), the gap, and the new applications and weekly pace needed to close it.
+function targetRow(sheet, students, target, rates, todayDay) {
+  const visas = students.filter((s) => s.visa).length;
+  const active = students.filter((s) => s.active);
+  let expected = 0;
+  let unknown = 0;
+  active.forEach((s) => { const r = rates[s.p.furthest].rate; if (r === null) unknown += 1; else expected += r; });
+  const known = active.length - unknown;
+  const forecast = known || !active.length ? Math.round(visas + expected) : null;
+  const remaining = Math.max(0, target.visas - visas);
+  const gap = forecast === null ? null : Math.max(0, target.visas - forecast);
+  const applyRate = rates[1].rate;
+  const applicationsNeeded = gap === null || !applyRate ? null : Math.ceil(gap / applyRate);
+  const daysLeft = target.deadline ? dayNumber(target.deadline) - todayDay : null;
+  const weeksLeft = daysLeft === null ? null : Math.max(0, Math.ceil(daysLeft / 7));
+  const perWeek = (n) => (n === null || weeksLeft === null ? null : weeksLeft > 0 ? Math.ceil((n / weeksLeft) * 10) / 10 : n);
+  const status = visas >= target.visas ? 'Reached' : forecast === null ? 'Not enough history to forecast' : forecast >= target.visas ? 'On track' : weeksLeft === 0 ? 'Missed' : 'Behind';
+  return {
+    id: sheet.id, label: sheet.name, target: target.visas, deadline: target.deadline, visas, remaining,
+    inProgress: active.length, expectedFromInProgress: forecast === null ? null : round1(expected), notForecast: unknown,
+    forecast, gap, applicationsNeeded, weeksLeft, visasPerWeek: perWeek(remaining), applicationsPerWeek: perWeek(applicationsNeeded), status,
+  };
+}
+
+// What was dated in the last 7 days (today included) and in the 7 days before, to hold against the weekly pace.
+const WEEK_COLUMNS = { inquiries: 'INQUIRY DATE', applications: 'APPLICATION SUBMISSION DATE', offers: 'OFFER RECEIVED DATE', payments: 'PAYMENT DATE', visas: 'VISA RECEIVED DATE' };
+function weekly(students, todayDay) {
+  const count = (from, to) => Object.fromEntries(Object.entries(WEEK_COLUMNS).map(([key, column]) => [key, students.filter((s) => { const d = todayDay - dayNumber(s.row[column]); return d >= from && d <= to; }).length]));
+  return { last7Days: count(0, 6), the7DaysBefore: count(7, 13) };
+}
+
 // The plain-language findings: what stands out, what it means and what to do. Only rules that the numbers prove.
 function findings(a) {
   const out = [];
@@ -141,6 +184,11 @@ function findings(a) {
     const worst = [...sized].sort((x, y) => x.paidRate - y.paidRate)[0];
     if (best.paidRate - worst.paidRate >= 15) say('info', `${best.label} students pay far more often than ${worst.label} students`, `${best.paidRate}% of ${best.students} students from ${best.label} reached payment, against ${worst.paidRate}% of ${worst.students} from ${worst.label}.`, `Before spending more on ${worst.label}, find out why its students stop (see their Lost Reasons and stages).`);
   }
+  a.targets.rows.filter((r) => a.selected === 'all' || r.id === a.selected).forEach((r) => {
+    if (r.status === 'Behind' || r.status === 'Missed') say('risk', `${r.label}: ${r.forecast} visas forecast against a target of ${r.target}`, `${r.visas} issued so far, and the ${r.inProgress} students in progress are likely to add about ${r.expectedFromInProgress} at NIEC's own past rates. That leaves ${r.gap} short.`, r.applicationsNeeded === null ? 'Add new applications now; the sheet has too little history to say how many.' : `About ${r.applicationsNeeded} more applications are needed${r.applicationsPerWeek !== null && r.weeksLeft ? `: ${r.applicationsPerWeek} a week for the ${r.weeksLeft} weeks left` : ''}. If that is not possible, lower the target or move marketing to the channels with the best paid rate.`);
+    if (r.status === 'Not enough history to forecast') say('gap', `${r.label}: the target of ${r.target} cannot be forecast yet`, 'Fewer than 10 students have finished their journey (visa, refused, withdrawn, deferred, on hold) at the steps the current students are at, so there is no past rate to forecast from.', 'Keep statuses up to date, including students who withdraw; the forecast appears by itself when there is enough history.');
+  });
+  if (!a.targets.rows.length) say('gap', 'No intake has a visa target', 'Without a target there is nothing to hold the weekly numbers against, and no early warning when an intake falls behind.', 'Admin: set the visas wanted and the date for each open intake in the Targets table on the Analysis page.');
   if (!a.spend.total) say('gap', 'No marketing spend is entered', 'The cost of a student, an application and a visa from each channel cannot be worked out, so it is not known which channel is worth its money.', 'Admin: enter what was spent on each channel, advert and event in the Marketing spend table on the Analysis page.');
   else a.sources.filter((s) => s.spend > 0 && s.students === 0).forEach((s) => say('risk', `NPR ${s.spend.toLocaleString('en-US')} spent on ${s.label} with no student recorded from it`, 'Either the channel brought nobody, or its students were entered under another source.', 'Check the Student Source of recent students, then decide whether to keep paying for this channel.'));
 
@@ -154,7 +202,7 @@ function findings(a) {
 }
 
 // `sheetId`: one intake's id, or "all" (also the default) for every intake together.
-function buildAnalysis(workbook, { sheetId = 'all', spend = [], today: now = new Date() } = {}) {
+function buildAnalysis(workbook, { sheetId = 'all', spend = [], targets = {}, today: now = new Date() } = {}) {
   const sheets = (workbook && workbook.sheets) || [];
   const selected = sheets.some((s) => s.id === sheetId) ? sheetId : 'all';
   const read = (sheet) => (sheet.rows || []).filter(isStudent).map((row) => {
@@ -202,6 +250,8 @@ function buildAnalysis(workbook, { sheetId = 'all', spend = [], today: now = new
     return { samples: list.length, medianDays: median(list) };
   };
   const spent = sumSpend(() => true);
+  const todayDay = dayNumber(localDate(now));
+  const rates = visaRates(bySheet.flatMap((x) => x.students));
 
   const analysis = {
     asOf: now.toISOString(),
@@ -215,6 +265,12 @@ function buildAnalysis(workbook, { sheetId = 'all', spend = [], today: now = new
       list.forEach((s) => add(g, s));
       return { id: sheet.id, label: sheet.name, ...withRates(g, list.length) };
     }),
+    // Every intake that has a target, whatever is selected. The rates are NIEC's own, from every intake's finished students.
+    targets: {
+      rows: bySheet.filter((x) => targets && targets[x.sheet.id] && targets[x.sheet.id].visas > 0).map((x) => targetRow(x.sheet, x.students, targets[x.sheet.id], rates, todayDay)),
+      visaRateByStep: [{ label: 'Any student' }, ...STEPS].map((step, i) => ({ step: step.label, finishedStudents: rates[i].samples, visaRate: rates[i].rate === null ? null : round1(rates[i].rate * 100) })),
+    },
+    week: weekly(students, todayDay),
     completeness,
     sources,
     campaigns,
@@ -243,6 +299,7 @@ function buildAnalysis(workbook, { sheetId = 'all', spend = [], today: now = new
     notes: [
       'A student counts as applied, paid and so on from their stage or any later date, exactly as on the Dashboard.',
       'Rates marked with a star come from fewer than 10 students and are not yet a pattern.',
+      'A forecast counts each student in progress at the share of finished students at the same step, in every intake, who went on to a visa. It is an estimate from NIEC\'s own past, not a promise.',
       'Cost figures divide the marketing spend entered by Admin by the students of that channel; they do not prove the spend caused the student.',
       'Results by counselor are not adjusted for how hard their students were (source, course, stage), so they show workload first, not skill.',
     ],

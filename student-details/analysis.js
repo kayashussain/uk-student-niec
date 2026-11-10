@@ -10,6 +10,7 @@
   let spendRows = [];
   let canEditSpend = false;
   let spendDirty = false;
+  let targetDraft = null; // what Admin is typing in the Targets table: { intake id: { visas, deadline } }
 
   function el(tag, cls, text) {
     const e = document.createElement(tag);
@@ -161,6 +162,82 @@
     c.append(el('p', 'method', '"Of" is the number of students the column is expected on: every student, or only those who applied, paid, got a visa or were lost.'));
   }
 
+  // ---- targets and the week ----
+  const orDash = (v, suffix = '') => (v === null || v === undefined ? 'n/a' : `${num(v)}${suffix}`);
+  function renderTargets() {
+    const c = $('targets');
+    const d = data;
+    c.replaceChildren();
+    const rows = d.targets.rows;
+    const head = ['Intake', 'Target visas', 'Needed by', 'Visas so far', 'In progress', 'Likely from them', 'Forecast', 'Short by', 'New applications needed', 'Weeks left', 'Applications a week', 'Status'];
+    const cells = (r) => [num(r.visas), num(r.inProgress), orDash(r.expectedFromInProgress), orDash(r.forecast), orDash(r.gap), orDash(r.applicationsNeeded), orDash(r.weeksLeft), orDash(r.applicationsPerWeek), { text: r.status, cls: 'level' }];
+    if (!canEditSpend) {
+      if (!rows.length) empty(c, 'No intake has a target yet. Admin can set one here.');
+      else table(c, head, rows.map((r) => [r.label, num(r.target), r.deadline || 'No date', ...cells(r)]));
+    } else {
+      // Admin: every intake is listed, with a box for the target and the date.
+      if (!targetDraft) targetDraft = Object.fromEntries(d.intakes.map((i) => { const r = rows.find((x) => x.id === i.id); return [i.id, { visas: r ? r.target : '', deadline: r ? r.deadline : '' }]; }));
+      const box = el('div', 'scroll-x');
+      const t = el('table', 'data spend-table');
+      const hr = el('tr');
+      head.forEach((h, i) => hr.append(el('th', i > 2 ? 'num' : '', h)));
+      const thead = el('thead');
+      thead.append(hr);
+      const body = el('tbody');
+      d.intakes.forEach((intake) => {
+        const draft = targetDraft[intake.id] || (targetDraft[intake.id] = { visas: '', deadline: '' });
+        const r = rows.find((x) => x.id === intake.id);
+        const tr = el('tr');
+        const input = (type, key, label) => {
+          const i = el('input');
+          i.type = type;
+          if (type === 'number') { i.min = 0; i.step = 1; }
+          i.value = draft[key];
+          i.setAttribute('aria-label', `${label} for ${intake.name}`);
+          i.addEventListener('input', () => { draft[key] = i.value; targetDraft.dirty = true; });
+          const td = el('td');
+          td.append(i);
+          return td;
+        };
+        tr.append(el('td', '', intake.name), input('number', 'visas', 'Target visas'), input('date', 'deadline', 'Needed by'));
+        (r ? cells(r) : new Array(9).fill('')).forEach((cell) => { const td = el('td', 'num', typeof cell === 'object' ? cell.text : cell); if (typeof cell === 'object') td.classList.add(cell.cls); tr.append(td); });
+        body.append(tr);
+      });
+      t.append(thead, body);
+      box.append(t);
+      c.append(box);
+      const actions = el('div', 'spend-actions');
+      const save = el('button', 'btn btn-sm', 'Save targets');
+      save.type = 'button';
+      save.addEventListener('click', saveTargets);
+      actions.append(save, el('span', 'updated', 'Type the visas wanted and the date they are needed by (for example the last day a visa is useful for the intake). Leave the target empty for no target.'));
+      c.append(actions);
+    }
+    const known = d.targets.visaRateByStep.filter((x) => x.visaRate !== null);
+    c.append(el('p', 'method', known.length
+      ? 'The forecast uses NIEC\'s own past: of finished students who reached each step, the share who got a visa. ' + known.slice(1).map((x) => `${x.step}: ${x.visaRate}% (${x.finishedStudents} students)`).join(', ') + '. It is an estimate, not a promise.'
+      : 'There is not yet enough history on the sheet to forecast: fewer than 10 students have finished their journey.'));
+
+    c.append(el('div', 'group-title', 'The last 7 days against the 7 days before (by the dates typed on the sheet, in this view)'));
+    const w = d.week;
+    table(c, ['', 'Inquiries', 'Applications', 'Offers', 'Payments', 'Visas'], [['Last 7 days', w.last7Days], ['The 7 days before', w.the7DaysBefore]].map(([label, x]) => [label, num(x.inquiries), num(x.applications), num(x.offers), num(x.payments), num(x.visas)]));
+  }
+
+  async function saveTargets() {
+    try {
+      const { dirty, ...targets } = targetDraft || {};
+      const res = await fetch('/api/targets', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ targets: Object.fromEntries(Object.entries(targets).map(([id, v]) => [id, { visas: v.visas === '' ? 0 : Number(v.visas), deadline: v.deadline }])) }) });
+      const answer = await res.json().catch(() => ({}));
+      if (!res.ok) { window.NiecUI.alert(answer.error || 'The targets could not be saved.', { title: 'Not saved' }); return; }
+      targetDraft = null;
+      window.NiecUI.toast('Targets saved', { type: 'success' });
+      load.last = '';
+      load();
+    } catch (e) {
+      window.NiecUI.alert('The targets could not be saved. Check the connection and try again.', { title: 'Not saved' });
+    }
+  }
+
   // ---- the Marketing spend table ----
   function renderSpend() {
     const c = $('spend');
@@ -249,12 +326,14 @@
       spendRows = answer.rows;
       canEditSpend = Boolean(answer.canEdit);
       renderSpend();
+      if (data) renderTargets();
     } catch (e) { /* the figures above still show */ }
   }
 
   function render() {
     const d = data;
     renderKpis(d);
+    if (!(targetDraft && targetDraft.dirty)) { targetDraft = null; renderTargets(); } // targets being typed are not thrown away by a refresh
     renderFindings(d);
     renderChannels(d);
     renderCampaigns(d);
@@ -322,6 +401,7 @@
       .forEach(([name, list]) => list.forEach((g) => card(name, g)));
     d.lostReasons.forEach((r) => lines.push(['Lost reason', r.label, '', r.students, '', '', '', '', '', '', r.rejected, r.students]));
     d.seasonality.months.forEach((m, i) => lines.push(['Month of year', m, '', '', '', d.seasonality.inquiries[i], d.seasonality.applications[i], '', d.seasonality.payments[i], d.seasonality.visas[i]]));
+    d.targets.rows.forEach((r) => lines.push(['Target', r.label, `${r.status}: target ${r.target}${r.deadline ? ' by ' + r.deadline : ''}, forecast ${v(r.forecast)}, short by ${v(r.gap)}, new applications needed ${v(r.applicationsNeeded)}`, r.inProgress, '', '', '', '', '', r.visas]));
     d.completeness.forEach((x) => lines.push(['Column completeness', x.label, `${x.filled} of ${x.expected} filled in`, x.expected, x.percent]));
     // A cell that could be read as a formula by Excel is made plain text.
     const cell = (x) => { let s = String(x); if (/^[=+\-@\t\r]/.test(s) && typeof x !== 'number') s = "'" + s; return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
@@ -342,7 +422,7 @@
     load();
   });
   $('download').addEventListener('click', download);
-  window.addEventListener('beforeunload', (e) => { if (spendDirty) { e.preventDefault(); e.returnValue = ''; } });
+  window.addEventListener('beforeunload', (e) => { if (spendDirty || (targetDraft && targetDraft.dirty)) { e.preventDefault(); e.returnValue = ''; } });
   document.addEventListener('visibilitychange', () => { if (!document.hidden) load(); });
   setInterval(() => { if (!document.hidden) load(); }, 60000);
   load().then(loadSpend);

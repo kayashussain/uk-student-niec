@@ -9,6 +9,7 @@ const path = require('node:path');
 const { spawn } = require('node:child_process');
 const { buildAnalysis, BLANK } = require('../student-details/analysis-stats');
 const { createSpend } = require('../student-details/marketing-spend');
+const { createTargets } = require('../student-details/targets');
 const { migrateWorkbook, DEFAULT_COLUMNS, ANALYSIS_COLUMNS } = require('../student-details/workbook');
 const { createAdvisorMcp } = require('../student-details/advisor-mcp');
 const { createFacts } = require('../student-details/facts');
@@ -175,6 +176,42 @@ test('the Advisor reads the analysis and the spend, and cannot change them', () 
   assert.ok(!tools.some((t) => /spend|analysis/.test(t) && /save|set|write|update|delete/.test(t)), 'no tool writes the spend');
 });
 
+test('a target is held against visas so far plus what the students in progress are likely to add at past rates', () => {
+  const rows = [];
+  for (let i = 0; i < 40; i += 1) rows.push(student(i, { 'APPLICATION STATUS': i < 12 ? 'Visa Issued' : i < 20 ? 'Withdrawn' : 'Application Stage', 'APPLICATION SUBMISSION DATE': i < 3 ? '2026-11-09' : i < 5 ? '2026-11-01' : '2026-09-01' }));
+  const wb = { sheets: [{ id: 'jan', name: 'Jan Intake 2027', rows }, { id: 'new', name: 'May Intake 2027', rows: [student(99, { 'APPLICATION STATUS': 'Application Stage' })] }] };
+  const today = new Date('2026-11-10T06:00:00Z');
+  const a = buildAnalysis(wb, { targets: { jan: { visas: 30, deadline: '2026-12-22' }, gone: { visas: 9, deadline: '' } }, today });
+  assert.strictEqual(a.targets.rows.length, 1, 'only intakes on the sheet that have a target');
+  const r = a.targets.rows[0];
+  // 20 finished students applied, 12 got a visa: 60%. 20 in progress at "applied" are likely to add 12.
+  assert.deepStrictEqual([r.visas, r.inProgress, r.expectedFromInProgress, r.forecast, r.gap], [12, 20, 12, 24, 6]);
+  assert.strictEqual(r.applicationsNeeded, 10, '6 more visas at 60% need 10 applications');
+  assert.strictEqual(r.weeksLeft, 6);
+  assert.strictEqual(r.applicationsPerWeek, 1.7);
+  assert.strictEqual(r.status, 'Behind');
+  assert.ok(a.findings.some((f) => f.level === 'risk' && /24 visas forecast against a target of 30/.test(f.title) && /10 more applications/.test(f.action)));
+  assert.deepStrictEqual([a.week.last7Days.applications, a.week.the7DaysBefore.applications], [3, 2]);
+
+  assert.strictEqual(buildAnalysis(wb, { targets: { jan: { visas: 12, deadline: '' } }, today }).targets.rows[0].status, 'Reached');
+  assert.strictEqual(buildAnalysis(wb, { targets: { jan: { visas: 20, deadline: '' } }, today }).targets.rows[0].status, 'On track');
+  assert.strictEqual(buildAnalysis(wb, { targets: { jan: { visas: 30, deadline: '2026-11-01' } }, today }).targets.rows[0].status, 'Missed');
+  const thin = buildAnalysis({ sheets: [wb.sheets[1]] }, { targets: { new: { visas: 5, deadline: '' } }, today });
+  assert.deepStrictEqual([thin.targets.rows[0].forecast, thin.targets.rows[0].status], [null, 'Not enough history to forecast'], 'no number is made up without history');
+  assert.ok(buildAnalysis(wb, { today }).findings.some((f) => /No intake has a visa target/.test(f.title)));
+});
+
+test('the targets file keeps whole numbers and real dates, drops a target of 0, and is never saved over when damaged', () => {
+  const dir = tmp();
+  const targets = createTargets(dir);
+  assert.deepStrictEqual(targets.all(), {});
+  assert.deepStrictEqual(targets.replaceAll({ jan: { visas: 60, deadline: '2027-01-10', extra: 1 }, sep: { visas: 0, deadline: '' }, may: { visas: '', deadline: '' } }, 'Kayas').targets, { jan: { visas: 60, deadline: '2027-01-10' } });
+  for (const bad of [null, [], { jan: { visas: -1 } }, { jan: { visas: 2.5 } }, { jan: { visas: 'many' } }, { jan: { visas: 5, deadline: '2027-02-30' } }]) assert.ok(targets.replaceAll(bad, 'Kayas').error, JSON.stringify(bad));
+  assert.deepStrictEqual(createTargets(dir).all(), { jan: { visas: 60, deadline: '2027-01-10' } }, 'a refused save changes nothing');
+  fs.writeFileSync(path.join(dir, 'targets.json'), '{ nope');
+  assert.ok(createTargets(dir).replaceAll({ jan: { visas: 5 } }, 'Kayas').error);
+});
+
 const freePort = () => new Promise((resolve) => { const s = net.createServer().listen(0, () => { const p = s.address().port; s.close(() => resolve(p)); }); });
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -225,9 +262,15 @@ test('on the real server Admin and the Manager see the Analysis, only Admin chan
   assert.strictEqual(after.sources.find((s) => s.label === 'Events').spend, 150000);
   assert.ok(!fs.readdirSync(path.join(__dirname, '..', 'student-details')).includes('marketing-spend.json'), 'the spend is kept in the data folder, never beside the code');
 
+  const intakeId = after.intakes[0].id;
+  assert.strictEqual((await admin('POST', '/api/targets', { targets: { [intakeId]: { visas: 60, deadline: '2027-01-10' } } })).status, 200);
+  assert.strictEqual((await admin('POST', '/api/targets', { targets: { [intakeId]: { visas: -3 } } })).status, 400);
+  assert.deepStrictEqual((await admin('GET', '/api/analysis')).json.targets.rows.map((r) => [r.id, r.target, r.deadline]), [[intakeId, 60, '2027-01-10']]);
+
   const nobody = person();
   for (const url of ['/analysis', '/analysis.html', '/api/analysis', '/api/marketing-spend']) assert.notStrictEqual((await nobody('GET', url)).status, 200, `logged out: ${url}`);
   assert.notStrictEqual((await nobody('POST', '/api/marketing-spend', { rows: [] })).status, 200);
+  assert.notStrictEqual((await nobody('POST', '/api/targets', { targets: {} })).status, 200);
 
   const join = async (username, role, extra) => {
     const made = await admin('POST', '/api/users', { name: username, username, role, ...extra });
@@ -242,6 +285,7 @@ test('on the real server Admin and the Manager see the Analysis, only Admin chan
   assert.strictEqual((await manager('GET', '/api/analysis')).status, 200);
   assert.strictEqual((await manager('GET', '/api/marketing-spend')).json.canEdit, false);
   assert.strictEqual((await manager('POST', '/api/marketing-spend', { rows: [] })).status, 403, 'the Manager reads the spend but cannot change it');
+  assert.strictEqual((await manager('POST', '/api/targets', { targets: {} })).status, 403, 'the Manager cannot change the targets');
 
   const staff = await join('sita', 'staff', { departments: ['application'] });
   assert.strictEqual((await staff('GET', '/analysis')).status, 302);
@@ -249,5 +293,7 @@ test('on the real server Admin and the Manager see the Analysis, only Admin chan
   assert.strictEqual((await staff('GET', '/api/analysis')).status, 403);
   assert.strictEqual((await staff('GET', '/api/marketing-spend')).status, 403);
   assert.strictEqual((await staff('POST', '/api/marketing-spend', { rows: [] })).status, 403);
+  assert.strictEqual((await staff('POST', '/api/targets', { targets: {} })).status, 403);
+  assert.strictEqual((await admin('GET', '/api/analysis')).json.targets.rows[0].target, 60, 'the target was not changed by the others');
   assert.strictEqual((await admin('GET', '/api/marketing-spend')).json.rows.length, 1, 'nothing was changed by the others');
 });

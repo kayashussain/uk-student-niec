@@ -34,6 +34,8 @@ mail.json
 **/direct-universities.json
 **/marketing-spend.json
 **/marketing-spend.backup.json
+**/targets.json
+**/targets.backup.json
 **/direct-files/
 **/daily-backups/
 **/advisor-memory/

@@ -14,6 +14,7 @@ const {
 const { buildDashboard } = require('./dashboard-stats');
 const { buildAnalysis } = require('./analysis-stats');
 const { createSpend } = require('./marketing-spend');
+const { createTargets } = require('./targets');
 const { createFacts, viewFacts } = require('./facts');
 const { createDirect, viewDirect, MAX_FILE_BYTES } = require('./direct');
 const { createBackups, ID: BACKUP_ID, HOUR: BACKUP_HOUR, KEEP_DAYS } = require('./backups');
@@ -81,6 +82,7 @@ const facts = createFacts(DATA_DIR);
 // Partner Universities: Admin only, kept out of the Advisor connector and every other account's reach.
 const direct = createDirect(DATA_DIR);
 const spend = createSpend(DATA_DIR); // the Marketing spend table of the Analysis page
+const targets = createTargets(DATA_DIR); // the visa target of each intake, on the Analysis page
 // Daily backups (6 p.m., kept 30 days) and Admin's restore (see backups.js). `current` is the students, held in memory below.
 const backups = createBackups(DATA_DIR, () => ({ students: current, facts: facts.all(), partners: direct.all() }));
 setInterval(() => backups.tick(), 5 * 60 * 1000).unref();
@@ -103,7 +105,7 @@ const advisor = createAdvisorMcp({
   token: process.env.NIEC_ADVISOR_TOKEN,
   getWorkbook: () => current,
   getDashboard: (intake) => buildDashboard(current, { sheetId: intake, includeHidden: true }),
-  getAnalysis: (intake) => buildAnalysis(current, { sheetId: intake || 'all', spend: spend.list() }),
+  getAnalysis: (intake) => buildAnalysis(current, { sheetId: intake || 'all', spend: spend.list(), targets: targets.all() }),
   getSpend: () => spend.list(),
   facts,
   incentive: {
@@ -870,7 +872,20 @@ const server = http.createServer(async (req, res) => {
       if (!isAdmin(req.user) && !isManager(req.user)) return sendJSON(res, 403, { error: 'The analysis is for Admin and the Manager.' });
       if (!current) return sendJSON(res, 500, { error: 'Could not read the data file' });
       const intake = new URL(req.url, 'http://x').searchParams.get('intake') || 'all';
-      return send(res, 200, JSON.stringify(buildAnalysis(current, { sheetId: intake, spend: spend.list() })), JSON_HEADERS);
+      return send(res, 200, JSON.stringify(buildAnalysis(current, { sheetId: intake, spend: spend.list(), targets: targets.all() })), JSON_HEADERS);
+    }
+    if (urlPath === '/api/targets' && req.method === 'POST') {
+      if (!isAdmin(req.user)) return sendJSON(res, 403, { error: 'Only Admin can set the targets.' });
+      let body;
+      try {
+        body = await readJSONBody(req, 256 * 1024);
+      } catch (e) {
+        return sendJSON(res, e.statusCode || 400, { error: e.message });
+      }
+      const saved = targets.replaceAll(body && body.targets, req.user.label);
+      if (saved.error) return sendJSON(res, 400, { error: saved.error });
+      activity.record(req, req.user, 'Edited intake targets', { app: 'Student Details', changes: [`Saved the visa targets (${Object.keys(saved.targets).length} intake${Object.keys(saved.targets).length === 1 ? '' : 's'})`] });
+      return sendJSON(res, 200, saved);
     }
     if (urlPath === '/api/marketing-spend') {
       if (!isAdmin(req.user) && !isManager(req.user)) return sendJSON(res, 403, { error: 'The marketing spend is for Admin and the Manager.' });
