@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex, nofollow" />
+<title>Pipeline · UK Student NIEC</title>
+<link rel="icon" type="image/png" href="favicon.png" />
+<link rel="stylesheet" href="header.css" />
+<link rel="stylesheet" href="ui.css" />
+<link rel="stylesheet" href="dashboard.css" />
+<link rel="stylesheet" href="theme.css" />
+</head>
+<body>
+  <header class="niec-header" data-page="pipeline"></header>
+
+  <main class="page pipeline" id="page">
+    <div class="page-head">
+      <div>
+        <h1>Pipeline</h1>
+        <p>Every student as a card, in the stage they are at. Click a card to open the student's profile.</p>
+      </div>
+      <div class="filters" role="group" aria-label="Filter">
+        <label>Intake <select id="intake"></select></label>
+        <label>Counselor <select id="counselor"></select></label>
+        <label>Find <input id="find" type="search" placeholder="Name, university, course" /></label>
+        <span class="updated" id="updated"></span>
+      </div>
+    </div>
+    <section class="board" id="board" aria-label="Students by stage"></section>
+    <p class="notes" id="notes"></p>
+  </main>
+
+<script src="session.js"></script>
+<script src="ui.js"></script>
+<script src="header.js"></script>
+<script src="pipeline.js"></script>
+</body>
+</html>

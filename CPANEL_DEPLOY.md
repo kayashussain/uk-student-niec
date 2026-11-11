@@ -184,10 +184,17 @@ intake side by side; how much rests on each university and partner; courses; why
 of student; and how complete each column is, with the decision that column allows. Nothing is guessed: a rate from fewer
 than 10 students is starred, and a blank cell is shown as "(not filled in)".
 
-It reads nine columns of the sheet that the Application and Follow-up Teams fill in: Source Detail (a dropdown that
-follows the Student Source, right after Application Status) and, after the Contact Number, Inquiry Date, Lead Quality,
-Next Follow-up, Campaign or Event, Counselor, Study Level, Home District and Lost Reason. Sheets saved before these
-columns existed get them, empty, when the app starts.
+It reads nine details kept on every student that are not drawn on the sheet: which source exactly (a list that follows
+the Student Source), the event or campaign name, the first inquiry day, lead quality, the next follow-up day, counselor,
+study level, home district and, for a lost student, the reason. They are filled in on the **student profile**: a window
+with everything about one student in sections (Student, How the student found NIEC, Application, Interviews and
+documents, Fees and payment, CAS and visa). **+ Add student** opens it for a new student, who goes on the sheet when Add
+student is pressed; **Open profile**, or a double-click on a row number, opens it for an existing one. The same team rules
+apply as on the sheet. Export Excel includes these details after the sheet's own columns.
+
+The **Pipeline** page (top menu, every account) shows the students of an intake as cards, one column for each stage,
+with the counselor, the source and a mark when a follow-up is late. It shows only the students the account sees on the
+sheet, changes nothing, and a card opens that student's profile.
 
 The **Follow-ups** card lists the students in progress whose Next Follow-up day has passed, longest overdue first, with
 the count for each counselor. The **Decision log** at the bottom (Admin writes it, in `decisions.json` in the data folder
@@ -200,8 +207,8 @@ in the data folder, with `targets.backup.json` beside it). The page then shows v
 are likely to add (each counted at the share of finished students at the same step, in every intake, who got a visa), the
 forecast, how many visas short it is, the new applications needed and the applications needed each week, and what was
 dated in the last 7 days against the 7 days before. With fewer than 10 finished students there is no forecast, and the
-page says so. The forecast comes with a cautious and a hopeful figure beside it. Every account sees the target
-of its intake as a **Visa Target** card on the student sheet (visas issued of the target); only Admin can set it.
+page says so. The forecast comes with a cautious and a hopeful figure beside it. Only Admin and the Manager see the targets;
+they are not shown on the team's sheet.
 
 Admin enters the **Marketing spend** at the bottom of the page (month, intake, source, detail, campaign or event,
 amount in NPR, and optionally the leads the platform or event reported, which gives the cost of a lead); the Manager can read it. It is kept in `marketing-spend.json` in the data folder, with the version before

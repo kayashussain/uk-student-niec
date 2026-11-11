@@ -316,7 +316,7 @@ test('on the real server Admin and the Manager see the Analysis, only Admin chan
   assert.strictEqual((await admin('GET', '/api/analysis')).json.decisions.dueForReview.length, 1);
 
   const nobody = person();
-  for (const url of ['/analysis', '/analysis.html', '/api/analysis', '/api/marketing-spend', '/api/decisions', '/api/targets']) assert.notStrictEqual((await nobody('GET', url)).status, 200, `logged out: ${url}`);
+  for (const url of ['/pipeline', '/analysis', '/analysis.html', '/api/analysis', '/api/marketing-spend', '/api/decisions']) assert.notStrictEqual((await nobody('GET', url)).status, 200, `logged out: ${url}`);
   assert.notStrictEqual((await nobody('POST', '/api/marketing-spend', { rows: [] })).status, 200);
   assert.notStrictEqual((await nobody('POST', '/api/targets', { targets: {} })).status, 200);
 
@@ -338,6 +338,12 @@ test('on the real server Admin and the Manager see the Analysis, only Admin chan
   assert.strictEqual((await manager('POST', '/api/decisions', { rows: [] })).status, 403, 'the Manager reads the decision log but cannot change it');
 
   const staff = await join('sita', 'staff', { departments: ['application'] });
+  for (const who of [admin, manager, staff]) {
+    const board = await who('GET', '/pipeline');
+    assert.strictEqual(board.status, 200, 'every account opens the Pipeline (it shows only the students the account sees on the sheet)');
+    assert.match(board.text, /<h1>Pipeline<\/h1>/);
+  }
+  assert.strictEqual((await staff('GET', '/pipeline.js')).status, 200);
   assert.strictEqual((await staff('GET', '/analysis')).status, 302);
   assert.strictEqual((await staff('GET', '/analysis.html')).status, 302);
   assert.strictEqual((await staff('GET', '/api/analysis')).status, 403);
@@ -346,10 +352,7 @@ test('on the real server Admin and the Manager see the Analysis, only Admin chan
   assert.strictEqual((await staff('POST', '/api/targets', { targets: {} })).status, 403);
   assert.strictEqual((await staff('GET', '/api/decisions')).status, 403);
   assert.strictEqual((await staff('POST', '/api/decisions', { rows: [] })).status, 403);
-  const seen = await staff('GET', '/api/targets');
-  assert.strictEqual(seen.status, 200, 'the team reads the target of the intake it sees, for the card on the sheet');
-  assert.deepStrictEqual([seen.json.targets[intakeId].target, seen.json.targets[intakeId].deadline], [60, '2027-01-10']);
-  assert.ok(!('forecast' in seen.json.targets[intakeId]), 'only the target, the count and the pace');
+  assert.notStrictEqual((await staff('GET', '/api/targets')).status, 200, 'the team does not see the target');
   assert.strictEqual((await admin('GET', '/api/analysis')).json.targets.rows[0].target, 60, 'the target was not changed by the others');
   assert.strictEqual((await admin('GET', '/api/marketing-spend')).json.rows.length, 1, 'nothing was changed by the others');
 });

@@ -9,6 +9,28 @@ Format: **date · file · what · from → to · why**
 
 ---
 
+## 2026-11-10 · `student-details/dashboard.css` · the new Pipeline page
+
+- **What:** a new page, Pipeline (`/pipeline`, in the top menu for every account), that shows the students of an intake as
+  cards in one column for each stage. A card opens the student's profile.
+- **From:** nothing (the page did not exist).
+- **To:** a row of stage columns that scrolls sideways; each column is a soft panel with the stage name and a count; white
+  cards with the student's name, university and course, counselor and source, and an amber line when a follow-up is late;
+  the columns of students who left are dimmed. The page is wider than the Dashboard (up to 1600px) and has a bordered Find box.
+- **Why:** the owner asked for a portal, not only a sheet: the same students seen as a pipeline.
+
+## 2026-11-10 · `student-details/style.css` · the new student profile window
+
+- **What:** a window with everything about one student, in sections. It opens from "+ Add student" (for a new student), from
+  the new "Open profile" button, and from a double-click on a row number. The toolbar gains the "Open profile" button (same
+  look as its neighbours, no new rule).
+- **From:** nothing (the window did not exist; a new student was an empty row to type into).
+- **To:** a wide window (up to 860px, 92% of the screen height at most) with the student's name on top, sections with a small
+  orange heading, boxes in three columns (one column on a phone), a scrolling middle, and Cancel and Save fixed at the bottom.
+  Borders, radius and colours are the ones the site's other boxes use.
+- **Why:** the owner asked for a portal with a proper form, and a sheet that shows only what the team works with. The nine
+  analysis columns are no longer drawn on the sheet; they are on the profile.
+
 ## 2026-11-10 · `student-details/dashboard.css` · styles for the new Analysis page
 
 - **What:** the new Analysis page (`/analysis`) uses the Dashboard's cards, number tiles and tables, and needed a few rules of

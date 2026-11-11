@@ -50,6 +50,8 @@ const serveStatic = createStaticServer(ROOT, {
   '/dashboard.js': 'text/javascript; charset=utf-8',
   '/dashboard.css': 'text/css; charset=utf-8',
   '/analysis.html': 'text/html; charset=utf-8',
+  '/pipeline.html': 'text/html; charset=utf-8',
+  '/pipeline.js': 'text/javascript; charset=utf-8',
   '/analysis.js': 'text/javascript; charset=utf-8',
   '/admin.css': 'text/css; charset=utf-8',
   '/fact-file.html': 'text/html; charset=utf-8',
@@ -123,7 +125,7 @@ const advisor = createAdvisorMcp({
 // The Incentive page lives here, at /incentive: Admin only, and behind its own password (INCENTIVE_PASSWORD) on top of the
 // login. The Claude connector above does not go through any of this: it reads the same data folder with its own secret address.
 const incentiveLock = createIncentiveLock();
-const PAGE_PATHS = new Set(['/', '/students', '/dashboard', '/analysis', '/users', '/activity', '/partner-universities', '/fact-file', '/admin']);
+const PAGE_PATHS = new Set(['/', '/students', '/dashboard', '/analysis', '/pipeline', '/users', '/activity', '/partner-universities', '/fact-file', '/admin']);
 const incentive = createIncentive({ dataDir: INCENTIVE_DIR, studentDataFile: DATA_FILE, getWorkbook: () => current, activity });
 
 async function handleIncentive(req, res, urlPath) {
@@ -850,7 +852,7 @@ const server = http.createServer(async (req, res) => {
     // The pages. The Manager lands on the dashboard; Admin-only pages send anyone else back home.
     const home = req.user.role === 'manager' ? '/dashboard' : '/students';
     if (req.method === 'GET') {
-      const page = { '/students': 'index.html', '/dashboard': 'dashboard.html', '/analysis': 'analysis.html', '/users': 'users.html', '/activity': 'activity.html', '/partner-universities': 'direct.html' }[urlPath];
+      const page = { '/students': 'index.html', '/dashboard': 'dashboard.html', '/analysis': 'analysis.html', '/pipeline': 'pipeline.html', '/users': 'users.html', '/activity': 'activity.html', '/partner-universities': 'direct.html' }[urlPath];
       if (urlPath === '/') return req.user.role === 'manager' ? send(res, 302, '', { Location: '/dashboard' }) : serveStatic(req, res);
       if (urlPath === '/fact-file') { // the list, or one university's page (?u=...); every account may read
         req.url = new URL(req.url, 'http://x').searchParams.get('u') ? '/fact-university.html' : '/fact-file.html';
@@ -858,7 +860,7 @@ const server = http.createServer(async (req, res) => {
       }
       if (urlPath === '/admin') return send(res, 302, '', { Location: isAdmin(req.user) ? '/users' : home }); // the old address
       if (page) {
-        const allowed = urlPath === '/students' || (['/dashboard', '/analysis'].includes(urlPath) ? (isAdmin(req.user) || isManager(req.user)) : isAdmin(req.user));
+        const allowed = urlPath === '/students' || urlPath === '/pipeline' || (['/dashboard', '/analysis'].includes(urlPath) ? (isAdmin(req.user) || isManager(req.user)) : isAdmin(req.user));
         if (!allowed) return send(res, 302, '', { Location: home });
         req.url = '/' + page;
         return serveStatic(req, res);
@@ -876,13 +878,6 @@ const server = http.createServer(async (req, res) => {
       if (!current) return sendJSON(res, 500, { error: 'Could not read the data file' });
       const intake = new URL(req.url, 'http://x').searchParams.get('intake') || 'all';
       return send(res, 200, JSON.stringify(buildAnalysis(current, { sheetId: intake, spend: spend.list(), targets: targets.all(), decisions: decisions.list() })), JSON_HEADERS);
-    }
-    // Every account may read the visa target of the intakes it sees (the sheet shows it as a card); only Admin sets it.
-    if (urlPath === '/api/targets' && req.method === 'GET') {
-      if (!current) return sendJSON(res, 500, { error: 'Could not read the data file' });
-      const seen = new Set(viewFor(req.user, current).sheets.map((sheet) => sheet.id));
-      const rows = buildAnalysis(current, { targets: targets.all() }).targets.rows.filter((r) => seen.has(r.id));
-      return sendJSON(res, 200, { targets: Object.fromEntries(rows.map((r) => [r.id, { target: r.target, visas: r.visas, deadline: r.deadline, weeksLeft: r.weeksLeft, applicationsPerWeek: r.applicationsPerWeek, status: r.status }])) });
     }
     if (urlPath === '/api/decisions') {
       if (!isAdmin(req.user) && !isManager(req.user)) return sendJSON(res, 403, { error: 'The decision log is for Admin and the Manager.' });

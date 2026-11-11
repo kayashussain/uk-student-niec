@@ -166,3 +166,22 @@ details.rates summary { cursor: pointer; color: var(--brand-text); font-weight: 
 .spend-table input, .spend-table select { font: inherit; font-size: 13px; width: 100%; min-width: 110px; padding: 6px 8px; border: 1px solid var(--axis); border-radius: 8px; background: var(--surface); color: var(--ink); }
 .spend-table input:focus-visible, .spend-table select:focus-visible { outline: 2px solid var(--brand); outline-offset: 1px; }
 .spend-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
+
+/* 🔴 CSS CHANGED (2026-11-10): the new Pipeline page (students as cards, one column for each stage) | from: nothing, the page did not exist | to: a row of stage columns that scrolls sideways, each a soft panel with its name and a count, white student cards with the name, university and course, counselor and source, and an amber line when a follow-up is late; the columns of students who left are dimmed; a wider page (up to 1600px) and a bordered Find box like the Intake picker */
+.page.pipeline { max-width: 1600px; }
+.pipeline .filters input { font: inherit; padding: 7px 10px; border: 1px solid var(--axis); border-radius: 8px; background: var(--surface); color: var(--ink); width: 220px; }
+.pipeline .filters input:focus-visible { outline: 2px solid var(--brand); outline-offset: 1px; }
+.board { display: flex; gap: 12px; align-items: flex-start; overflow-x: auto; padding-bottom: 12px; }
+.lane { flex: 0 0 236px; display: flex; flex-direction: column; max-height: calc(100vh - 230px); min-height: 160px; background: color-mix(in srgb, var(--surface) 55%, var(--bg)); border: 1px solid var(--border); border-radius: 14px; }
+.lane.quiet { opacity: .78; }
+.lane header { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 12px 14px 8px; }
+.lane h2 { margin: 0; font-size: 13px; font-weight: 700; }
+.lane-count { min-width: 24px; padding: 1px 8px; border-radius: 999px; background: var(--surface); border: 1px solid var(--border); font-size: 12px; font-weight: 700; text-align: center; }
+.lane-cards { display: flex; flex-direction: column; gap: 8px; padding: 4px 10px 12px; overflow-y: auto; }
+.lane-cards .empty { margin: 6px 4px; font-size: 12px; }
+.student-card { display: flex; flex-direction: column; gap: 2px; padding: 10px 12px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; box-shadow: var(--shadow); color: var(--ink); text-decoration: none; font-size: 13px; }
+.student-card:hover { border-color: var(--brand); }
+.student-card:focus-visible { outline: 2px solid var(--brand); outline-offset: 1px; }
+.student-card span { color: var(--ink-2); overflow-wrap: anywhere; }
+.student-card small { color: var(--ink-3); font-size: 12px; }
+.student-card small.late { align-self: flex-start; margin-top: 4px; padding: 1px 8px; border-radius: 999px; background: var(--warn-bg); color: var(--warn); font-weight: 600; }

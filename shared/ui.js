@@ -5,6 +5,7 @@
 //   NiecUI.toast('Saved', { type: 'success' })           a short notice that fades by itself (type: info, success, error)
 //   await NiecUI.confirm('Delete this?', { danger: true })   true if they confirmed, false if they cancelled
 //   await NiecUI.alert('This cannot be done yet.')       a message with one OK button
+//   NiecUI.track(dialog)                                 counts a page's own <dialog> as open until it closes
 (function (root) {
   let toastBox = null;
   let openDialogs = 0;
@@ -102,5 +103,11 @@
     title: o.title || 'Please note', message, confirmText: o.confirmText || 'OK', cancelText: null, danger: false,
   }).then(() => undefined);
 
-  root.NiecUI = { toast, confirm: confirmBox, alert: alertBox, isOpen: () => openDialogs > 0 };
+  // A page's own window (for example the student profile) counts as open too, so undo and shortcuts wait for it.
+  function track(dialog) {
+    openDialogs += 1;
+    dialog.addEventListener('close', () => { openDialogs -= 1; }, { once: true });
+  }
+
+  root.NiecUI = { toast, confirm: confirmBox, alert: alertBox, track, isOpen: () => openDialogs > 0 };
 })(this);
