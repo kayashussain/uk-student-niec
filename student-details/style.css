@@ -730,27 +730,3 @@ body:not([data-role="admin"]) .sheet-tab-menu-btn { display: none; }
 /* 🔴 CSS CHANGED (2026-11-05): new bar under the status cards that says a search or filter is on, with a "Clear all filters" button | from: none (did not exist) | to: a slim pale blue bar, 13px text, rounded corners, the button on the right; it is hidden while nothing is filtered */
 .filter-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin: 0 24px 8px; padding: 8px 14px; border-radius: 12px; background: var(--focus-dim, #e6eff8); border: 1px solid var(--focus-strong, #cfe2f2); color: var(--text); font-size: 13px; }
 .filter-bar[hidden] { display: none; }
-
-/* 🔴 CSS CHANGED (2026-11-10): the new student profile window (opens from + Add student, Open profile, or a double-click on a row number) | from: nothing, the window did not exist | to: a wide window (up to 860px) with the student's name on top, sections with a small orange heading, boxes in three columns (one on a phone), a scrolling middle and the Cancel and Save buttons fixed at the bottom; same borders, radius and colours as the site's other boxes */
-dialog.ui-dialog.student-profile { width: min(96vw, 860px); max-height: 92vh; overflow: hidden; }
-.student-profile form { display: flex; flex-direction: column; max-height: 92vh; padding: 0; }
-.student-profile header { padding: 20px 24px 14px; border-bottom: 1px solid var(--ui-border); }
-.student-profile header h2 { margin: 0 0 2px; font-size: 20px; }
-.student-profile header p { margin: 0; font-size: 13px; color: var(--ui-dim); white-space: normal; }
-.student-profile .profile-body { overflow-y: auto; padding: 6px 24px 18px; }
-.student-profile fieldset { border: 0; margin: 14px 0 0; padding: 0; min-width: 0; }
-.student-profile legend { padding: 0; margin-bottom: 8px; font-size: 12px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--ui-orange-dark, #c2410c); }
-.profile-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px 14px; }
-.profile-field { display: flex; flex-direction: column; gap: 4px; min-width: 0; font-size: 12px; font-weight: 600; color: var(--ui-dim); }
-.profile-field[hidden] { display: none; }
-.profile-field.wide { grid-column: 1 / -1; }
-.profile-field input, .profile-field select, .profile-field textarea {
-  width: 100%; min-height: 36px; padding: 7px 10px; border: 1px solid var(--ui-border); border-radius: 8px;
-  background: var(--ui-panel); color: var(--ui-text); font: inherit; font-size: 14px; font-weight: 400;
-}
-.profile-field textarea { resize: vertical; }
-.profile-field :is(input, select, textarea):focus-visible { outline: 2px solid var(--focus, #0a84c6); outline-offset: 1px; }
-.profile-field :is(input, select, textarea):disabled { background: rgba(127, 127, 127, .1); color: var(--ui-dim); cursor: not-allowed; }
-.student-profile .ui-actions { align-items: center; padding: 14px 24px; border-top: 1px solid var(--ui-border); }
-.student-profile .profile-note { margin-right: auto; font-size: 13px; font-weight: 600; color: var(--ui-danger, #b91c1c); }
-@media (max-width: 720px) { .profile-grid { grid-template-columns: 1fr; } }

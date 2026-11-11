@@ -2,10 +2,6 @@ const test = require('node:test');
 const assert = require('node:assert');
 const { migrateWorkbook, mergeWorkbooks, mergeOrder, createHistory } = require('../student-details/workbook');
 
-// The older tests below are about the other columns: the analysis columns (tested on their own in analysis.test.js) are left out of what they compare.
-const { ANALYSIS_COLUMNS } = require('../student-details/workbook');
-const plain = (columns) => columns.filter((c) => !ANALYSIS_COLUMNS.includes(c));
-
 const clone = (x) => JSON.parse(JSON.stringify(x));
 
 function workbook(rows, extra = {}) {
@@ -20,17 +16,17 @@ test('migrateWorkbook renames the misspelled columns in columns and rows', () =>
     sheets: [{ id: 's1', name: 'A', columns: ['RECEVING PARTNER', 'REMANING TUITION FEE'], rows: [{ _id: 'r1', 'RECEVING PARTNER': 'X', 'REMANING TUITION FEE': '10' }] }],
     activeSheetId: 's1',
   });
-  assert.deepStrictEqual(plain(wb.sheets[0].columns), ['REMARKS', 'STUDENT SOURCE', 'APPLICATION STATUS', 'APPLICATION SUBMISSION DATE', 'OFFER RECEIVED DATE', 'RECEIVING PARTNER', 'REMAINING TUITION FEE']);
+  assert.deepStrictEqual(wb.sheets[0].columns, ['REMARKS', 'STUDENT SOURCE', 'APPLICATION STATUS', 'APPLICATION SUBMISSION DATE', 'OFFER RECEIVED DATE', 'RECEIVING PARTNER', 'REMAINING TUITION FEE']);
   assert.deepStrictEqual(wb.sheets[0].rows[0], { _id: 'r1', 'RECEIVING PARTNER': 'X', 'REMAINING TUITION FEE': '10' });
 });
 
 test('migrateWorkbook puts REMARKS, STUDENT SOURCE, APPLICATION STATUS first, once', () => {
   const input = { sheets: [{ id: 's1', name: 'A', columns: ['APPLICATION STATUS', 'EMAIL', 'COURSE NAME'], rows: [] }], activeSheetId: 's1' };
   const wb = migrateWorkbook(input);
-  assert.deepStrictEqual(plain(wb.sheets[0].columns), ['REMARKS', 'STUDENT SOURCE', 'APPLICATION STATUS', 'APPLICATION SUBMISSION DATE', 'OFFER RECEIVED DATE', 'EMAIL', 'COURSE NAME']);
+  assert.deepStrictEqual(wb.sheets[0].columns, ['REMARKS', 'STUDENT SOURCE', 'APPLICATION STATUS', 'APPLICATION SUBMISSION DATE', 'OFFER RECEIVED DATE', 'EMAIL', 'COURSE NAME']);
   wb.sheets[0].columns.reverse(); // a manual reorder afterwards is left alone
   const again = migrateWorkbook(wb);
-  assert.deepStrictEqual(plain(again.sheets[0].columns), ['COURSE NAME', 'EMAIL', 'OFFER RECEIVED DATE', 'APPLICATION SUBMISSION DATE', 'APPLICATION STATUS', 'STUDENT SOURCE', 'REMARKS']);
+  assert.deepStrictEqual(again.sheets[0].columns, ['COURSE NAME', 'EMAIL', 'OFFER RECEIVED DATE', 'APPLICATION SUBMISSION DATE', 'APPLICATION STATUS', 'STUDENT SOURCE', 'REMARKS']);
 });
 
 test('migrateWorkbook adds the application submission and offer received dates after APPLICATION STATUS', () => {
@@ -38,7 +34,7 @@ test('migrateWorkbook adds the application submission and offer received dates a
     sheets: [{ id: 's1', name: 'A', leadColumnsApplied: true, columns: ['REMARKS', 'STUDENT SOURCE', 'APPLICATION STATUS', 'FIRST NAME'], rows: [] }],
     activeSheetId: 's1',
   });
-  assert.deepStrictEqual(plain(wb.sheets[0].columns), ['REMARKS', 'STUDENT SOURCE', 'APPLICATION STATUS', 'APPLICATION SUBMISSION DATE', 'OFFER RECEIVED DATE', 'FIRST NAME']);
+  assert.deepStrictEqual(wb.sheets[0].columns, ['REMARKS', 'STUDENT SOURCE', 'APPLICATION STATUS', 'APPLICATION SUBMISSION DATE', 'OFFER RECEIVED DATE', 'FIRST NAME']);
 });
 
 test('migrateWorkbook puts Student ID, NOC, the mock interviews, Pre-CAS Interview and Medical Report after the language test, once', () => {
@@ -46,7 +42,7 @@ test('migrateWorkbook puts Student ID, NOC, the mock interviews, Pre-CAS Intervi
     'LANGUAGE TEST DATE', 'STUDENT ID', 'GROSS FEE', 'SCHOLARSHIP', 'FEE AFTER SCHOLARSHIP', 'REMAINING TUITION FEE',
     'PRE CAS INTERVIEW', 'NOC', 'NOC NUMBER', 'MEDICAL REPORT', 'PAYMENT DATE'];
   const wb = migrateWorkbook({ sheets: [{ id: 's1', name: 'A', leadColumnsApplied: true, columns, rows: [] }], activeSheetId: 's1' });
-  assert.deepStrictEqual(plain(wb.sheets[0].columns).slice(5), ['LANGUAGE TEST DATE', 'STUDENT ID', 'NOC', 'NOC NUMBER',
+  assert.deepStrictEqual(wb.sheets[0].columns.slice(5), ['LANGUAGE TEST DATE', 'STUDENT ID', 'NOC', 'NOC NUMBER',
     'MOCK SCHEDULE 1', 'FEEDBACK 1', 'MOCK SCHEDULE 2', 'FEEDBACK 2',
     'MOCK SCHEDULE 3', 'FEEDBACK 3', 'MOCK SCHEDULE 4', 'FEEDBACK 4', 'PRE CAS INTERVIEW',
     'MEDICAL REPORT', 'GROSS FEE', 'SCHOLARSHIP', 'FEE AFTER SCHOLARSHIP', 'REMAINING TUITION FEE', 'PAYMENT DATE']);
@@ -62,7 +58,7 @@ test('migrateWorkbook adds a Feedback column after each existing Mock Schedule c
         'PRE CAS INTERVIEW', 'MOCK SCHEDULE 1', 'MOCK SCHEDULE 2', 'MOCK SCHEDULE 3', 'MOCK SCHEDULE 4', 'NOC'] }],
     activeSheetId: 's1',
   });
-  assert.deepStrictEqual(plain(wb.sheets[0].columns).slice(5), ['PRE CAS INTERVIEW', 'MOCK SCHEDULE 1', 'FEEDBACK 1', 'MOCK SCHEDULE 2',
+  assert.deepStrictEqual(wb.sheets[0].columns.slice(5), ['PRE CAS INTERVIEW', 'MOCK SCHEDULE 1', 'FEEDBACK 1', 'MOCK SCHEDULE 2',
     'FEEDBACK 2', 'MOCK SCHEDULE 3', 'FEEDBACK 3', 'MOCK SCHEDULE 4', 'FEEDBACK 4', 'NOC']);
 });
 
@@ -74,7 +70,7 @@ test('migrateWorkbook moves a sheet saved in the previous order (Pre-CAS Intervi
   const wb = migrateWorkbook({
     sheets: [{ id: 's1', name: 'A', leadColumnsApplied: true, precasColumnsApplied: true, columns, rows }], activeSheetId: 's1',
   });
-  assert.deepStrictEqual(plain(wb.sheets[0].columns).slice(5), ['LANGUAGE TEST DATE', 'STUDENT ID', 'NOC', 'NOC NUMBER',
+  assert.deepStrictEqual(wb.sheets[0].columns.slice(5), ['LANGUAGE TEST DATE', 'STUDENT ID', 'NOC', 'NOC NUMBER',
     'MOCK SCHEDULE 1', 'FEEDBACK 1', 'MOCK SCHEDULE 2', 'FEEDBACK 2', 'MOCK SCHEDULE 3', 'FEEDBACK 3',
     'MOCK SCHEDULE 4', 'FEEDBACK 4', 'PRE CAS INTERVIEW', 'MEDICAL REPORT', 'GROSS FEE']);
   assert.deepStrictEqual(wb.sheets[0].rows, [{ _id: 'r1', NOC: 'Submitted', 'FEEDBACK 2': 'Good' }]); // data untouched
@@ -89,7 +85,7 @@ test('migrateWorkbook adds missing mock columns in front of Pre-CAS Interview', 
         'NOC NUMBER', 'PRE CAS INTERVIEW', 'MEDICAL REPORT'] }],
     activeSheetId: 's1',
   });
-  assert.deepStrictEqual(plain(wb.sheets[0].columns).slice(5), ['NOC NUMBER', 'MOCK SCHEDULE 1', 'FEEDBACK 1', 'MOCK SCHEDULE 2',
+  assert.deepStrictEqual(wb.sheets[0].columns.slice(5), ['NOC NUMBER', 'MOCK SCHEDULE 1', 'FEEDBACK 1', 'MOCK SCHEDULE 2',
     'FEEDBACK 2', 'MOCK SCHEDULE 3', 'FEEDBACK 3', 'MOCK SCHEDULE 4', 'FEEDBACK 4', 'PRE CAS INTERVIEW', 'MEDICAL REPORT']);
 });
 

@@ -5,7 +5,7 @@
     'TUITION FEE DEPOSIT(2nd Installment)', 'TUITION FEE DEPOSIT(3rd Installment)', 'REMAINING TUITION FEE',
   ]);
   const DATE_COLS = new Set([
-    'INQUIRY DATE', 'NEXT FOLLOW UP', 'APPLICATION SUBMISSION DATE', 'OFFER RECEIVED DATE', 'LANGUAGE TEST DATE', 'PAYMENT DATE', 'CAS REQUESTED DATE', 'CAS RECEIVED DATE',
+    'APPLICATION SUBMISSION DATE', 'OFFER RECEIVED DATE', 'LANGUAGE TEST DATE', 'PAYMENT DATE', 'CAS REQUESTED DATE', 'CAS RECEIVED DATE',
     'VISA LODGE DATE', 'VFS ATTENDED DATE', 'VISA RECEIVED DATE',
     'MOCK SCHEDULE 1', 'MOCK SCHEDULE 2', 'MOCK SCHEDULE 3', 'MOCK SCHEDULE 4',
   ]);
@@ -24,29 +24,7 @@
   const isBottomRow = (row) => BOTTOM_STATUSES.has(row['APPLICATION STATUS']);
   const SOURCE_COL = 'STUDENT SOURCE';
   const SOURCE_OPTIONS = ['Visitor', 'Reference', 'Chitwan Branch', 'Pokhara Branch', 'Agent', 'Events', 'Social Media', 'Language Classes'];
-  // The channel inside each Student Source, so "Social Media" says which one. The Source Detail dropdown offers the list
-  // of the student's own source; a source without a list (the branches) offers every choice.
-  const SOURCE_DETAIL_COL = 'SOURCE DETAIL';
-  const SOURCE_DETAIL_OPTIONS = {
-    'Visitor': ['Walk-in', 'Phone Call', 'Website', 'Google Search', 'Signboard or Office'],
-    'Reference': ['Current or Past Student', 'Friend or Family', 'Staff', 'Teacher or College'],
-    'Agent': ['Sub-agent'],
-    'Events': ['Education Fair', 'University Visit', 'Seminar or Info Session', 'College or School Visit', 'Spot Assessment Day'],
-    'Social Media': ['Facebook Page', 'Facebook or Instagram Ads', 'Messenger', 'Instagram', 'TikTok', 'WhatsApp', 'YouTube', 'Viber', 'LinkedIn'],
-    'Language Classes': ['IELTS Class', 'PTE Class', 'Other Class'],
-  };
-  const ALL_SOURCE_DETAILS = [...new Set(Object.values(SOURCE_DETAIL_OPTIONS).flat())];
-  const sourceDetailChoices = (row) => SOURCE_DETAIL_OPTIONS[String((row && row[SOURCE_COL]) || '').trim()] || ALL_SOURCE_DETAILS;
-  const PLAIN_SELECT_COLS = new Set([SOURCE_DETAIL_COL, 'LEAD QUALITY', 'STUDY LEVEL', 'LOST REASON']);
   const SELECT_COLS = {
-    [SOURCE_DETAIL_COL]: ALL_SOURCE_DETAILS,
-    'LEAD QUALITY': ['Qualified', 'Needs Documents', 'Not Yet Eligible', 'Future Intake', 'Just Exploring'],
-    'STUDY LEVEL': ['Foundation', 'Undergraduate', 'Top-up', 'Pre-Masters', 'Postgraduate', 'PhD'],
-    'LOST REASON': [
-      'Chose Another Consultancy', 'Chose Another Country', 'Applied Directly', 'Fees or Funds Not Ready', 'Not Eligible (Academic)',
-      'English Test Not Met', 'Offer Not Received', 'Failed Interview', 'Family or Personal Reason', 'Deferred To Later Intake',
-      'No Response', 'Visa Refused: Financial', 'Visa Refused: Credibility', 'Visa Refused: Other', 'Other',
-    ],
     'APPLICATION STATUS': [
       'Inquiry', 'Application Stage', 'Mock Stage', 'Payment Stage',
       'CAS Stage', 'CAS Issued', 'Visa Lodge', 'Visa Issued', 'Visa Rejected', 'Defer', 'Hold', 'Withdrawn',
@@ -88,8 +66,6 @@
   // Column names are stored in capitals (they match the imported spreadsheet). On screen they're shown
   // in normal case, with the currency on money columns, so they're quicker to read.
   const COLUMN_LABELS = {
-    'CAMPAIGN OR EVENT': 'Campaign or Event',
-    'NEXT FOLLOW UP': 'Next Follow-up',
     'APPLICATION SUBMISSION DATE': 'Application Submitted',
     'OFFER RECEIVED DATE': 'Offer Received',
     'CONTACT NUMBER': 'Contact Number (WhatsApp)',
@@ -109,13 +85,10 @@
   const KEEP_CAPS = new Set(['CAS', 'NOC', 'UK', 'VFS', 'ID']);
   const columnLabel = (col) => COLUMN_LABELS[col] || col.split(' ')
     .map((w) => (KEEP_CAPS.has(w) ? w : w.charAt(0) + w.slice(1).toLowerCase())).join(' ');
-  // The sheet is the list of students: only what the team works with day to day. These columns are kept on every student
-  // but are never drawn in the list; they are read and filled in on the student's profile (see openProfile).
-  const PROFILE_ONLY_COLUMNS = new Set(['SOURCE DETAIL', 'CAMPAIGN OR EVENT', 'INQUIRY DATE', 'LEAD QUALITY', 'NEXT FOLLOW UP', 'COUNSELOR', 'STUDY LEVEL', 'HOME DISTRICT', 'LOST REASON']);
   // A team always sees the columns it fills in, even where Admin's view hides them.
   const visibleColumns = (sheet) => {
     const hidden = new Set(HIDDEN_COLUMNS_BY_SHEET.filter((h) => h.matches(sheet.name || '')).flatMap((h) => h.columns));
-    return sheet.columns.filter((c) => !PROFILE_ONLY_COLUMNS.has(c) && (!hidden.has(c) || (isTeam() && canEditCol(c))));
+    return sheet.columns.filter((c) => !hidden.has(c) || (isTeam() && canEditCol(c)));
   };
   let columns = []; // the active sheet's shown columns (see visibleColumns)
   let rows = [];    // reference to the active sheet's rows array
@@ -1488,9 +1461,7 @@
       } else if (SELECT_COLS[col]) {
         const select = document.createElement('select');
         select.setAttribute('aria-label', `${columnLabel(col)} for ${describeRow(rows[rowIdx])}`);
-        // The analysis dropdowns stay plain: their words ("Offer Not Received") are not a status to colour.
-        const badgeOf = (v) => (PLAIN_SELECT_COLS.has(col) ? 'badge-gray' : badgeClass(v));
-        select.className = 'status-select ' + badgeOf(val);
+        select.className = 'status-select ' + badgeClass(val);
         // Only the current value is put in at first; the full list of choices is added the moment the
         // dropdown is clicked or focused. Thousands of rows × every choice was most of the page's weight.
         // A value that isn't one of the choices (e.g. imported from a spreadsheet) is still shown, not hidden.
@@ -1508,9 +1479,7 @@
         // A team picks only from its own moves (e.g. Application Stage → Mock Stage), and can't touch
         // the other dropdowns outside its columns.
         const isStatus = col === 'APPLICATION STATUS';
-        // Source Detail offers the channels of this student's own Student Source (read when the dropdown opens).
-        const choices = isStatus ? Teams.statusChoices(me, val, SELECT_COLS[col], rows[rowIdx])
-          : col === SOURCE_DETAIL_COL ? sourceDetailChoices(rows[rowIdx]) : SELECT_COLS[col];
+        const choices = isStatus ? Teams.statusChoices(me, val, SELECT_COLS[col], rows[rowIdx]) : SELECT_COLS[col];
         if (isStatus ? choices.length < 2 && isTeam() : !canEditCol(col, rows[rowIdx])) {
           select.disabled = true;
           select.title = 'Your team can\'t change this';
@@ -1520,8 +1489,7 @@
           if (filled) return;
           filled = true;
           const current = select.value;
-          const list = col === SOURCE_DETAIL_COL ? sourceDetailChoices(liveRow(student) || student) : choices; // the source may have changed since the row was drawn
-          addOptions(val && !list.includes(val) ? [...list, val] : list);
+          addOptions(val && !choices.includes(val) ? [...choices, val] : choices);
           select.value = current;
         };
         select.addEventListener('focus', fill);
@@ -1548,7 +1516,7 @@
             pushUndo();
             target[col] = newVal;
             shown = newVal;
-            select.className = 'status-select ' + badgeOf(newVal);
+            select.className = 'status-select ' + badgeClass(newVal);
             markDirty();
             if (col === 'APPLICATION STATUS') renderBody(); // re-run the defer-move check, refresh the warning
           }, () => { select.value = shown; });
@@ -1680,7 +1648,7 @@
       }
     }
     const sheet = getActiveSheet();
-    const hidden = sheet ? sheet.columns.filter((c) => !columns.includes(c) && !PROFILE_ONLY_COLUMNS.has(c)) : [];
+    const hidden = sheet ? sheet.columns.filter((c) => !columns.includes(c)) : [];
     if (hidden.length) text += ` · ${hidden.length} columns hidden on this sheet (${hidden.map(columnLabel).join(', ')})`;
     rowCountEl.textContent = text;
   }
@@ -2298,217 +2266,13 @@
     } catch (e) { /* offline for a moment: try again next time */ }
   }
 
-  // ---- the student profile: one window with everything about a student, in sections ----
-  // The sheet lists students; the profile is the student's record. It opens for a new student ("+ Add student") and for
-  // an existing one (the Open profile button, or a double-click on the row number). Each box follows the same rules as
-  // the sheet: a box the account may not change is greyed out, and a save goes through the same checks.
-  const PROFILE_SECTIONS = [
-    ['Student', ['FIRST NAME', 'LAST NAME', 'EMAIL', 'CONTACT NUMBER', 'UK CONTACT NUMBER', 'HOME DISTRICT', 'STUDY LEVEL']],
-    ['How the student found NIEC', ['STUDENT SOURCE', 'SOURCE DETAIL', 'CAMPAIGN OR EVENT', 'INQUIRY DATE', 'LEAD QUALITY', 'NEXT FOLLOW UP', 'COUNSELOR']],
-    ['Application', ['APPLICATION STATUS', 'LOST REASON', 'UNIVERSITY NAME', 'COURSE NAME', 'UNIVERSITY PARTNER', 'RECEIVING PARTNER', 'APPLICATION SUBMISSION DATE', 'OFFER RECEIVED DATE', 'LANGUAGE TEST DATE', 'STUDENT ID', 'REMARKS']],
-    ['Interviews and documents', ['NOC', 'NOC NUMBER', 'MOCK SCHEDULE 1', 'FEEDBACK 1', 'MOCK SCHEDULE 2', 'FEEDBACK 2', 'MOCK SCHEDULE 3', 'FEEDBACK 3', 'MOCK SCHEDULE 4', 'FEEDBACK 4', 'PRE CAS INTERVIEW', 'MEDICAL REPORT']],
-    ['Fees and payment', ['GROSS FEE', 'SCHOLARSHIP', 'FEE AFTER SCHOLARSHIP', 'EARLY BIRD DISCOUNT', 'ADDITIONAL DISCOUNT', 'TUITION FEE DEPOSIT(1st Installment)', 'TUITION FEE DEPOSIT(2nd Installment)', 'TUITION FEE DEPOSIT(3rd Installment)', 'REMAINING TUITION FEE', 'PAYMENT DATE']],
-    ['CAS and visa', ['CAS REQUESTED DATE', 'CAS RECEIVED DATE', 'VISA LODGE DATE', 'VFS ATTENDED DATE', 'VISA RECEIVED DATE', 'E-VISA']],
-  ];
-  // A new student is asked for the basics only; the rest is filled in as the student moves on.
-  const NEW_STUDENT_SECTIONS = ['Student', 'How the student found NIEC', 'Application'];
-  const NEW_STUDENT_SKIP = new Set(['UK CONTACT NUMBER', 'LOST REASON', 'APPLICATION SUBMISSION DATE', 'OFFER RECEIVED DATE', 'LANGUAGE TEST DATE', 'STUDENT ID', 'RECEIVING PARTNER']);
-  const PROFILE_LABELS = { 'CAMPAIGN OR EVENT': 'Event or campaign name (and its date)', 'SOURCE DETAIL': 'Which one exactly', 'INQUIRY DATE': 'First inquiry on', 'NEXT FOLLOW UP': 'Next follow-up on' };
-  const LOST_STATUSES = new Set(['Visa Rejected', 'Defer', 'Hold', 'Withdrawn']);
-
-  // Resolves with { column: new value } for what was changed (every filled box for a new student), or null when closed.
-  function openProfile(row, { isNew = false } = {}) {
-    return new Promise((resolve) => {
-      const sheet = getActiveSheet();
-      if (!sheet || !window.HTMLDialogElement) { resolve(null); return; }
-      const listed = new Set(PROFILE_SECTIONS.flatMap(([, cols]) => cols));
-      const sections = PROFILE_SECTIONS.map(([title, cols]) => [title, cols.filter((c) => sheet.columns.includes(c))]);
-      const other = sheet.columns.filter((c) => !listed.has(c));
-      if (other.length) sections.push(['Other', other]);
-      const shown = sections
-        .filter(([title]) => !isNew || NEW_STUDENT_SECTIONS.includes(title))
-        .map(([title, cols]) => [title, cols.filter((c) => !isNew || !(NEW_STUDENT_SKIP.has(c) || CALC_COLS[c]))])
-        .filter(([, cols]) => cols.length);
-
-      const dialog = document.createElement('dialog');
-      dialog.className = 'ui-dialog student-profile';
-      dialog.setAttribute('aria-labelledby', 'profile-title');
-      const form = document.createElement('form');
-      form.method = 'dialog';
-      form.noValidate = true;
-      const head = document.createElement('header');
-      const h = document.createElement('h2');
-      h.id = 'profile-title';
-      h.textContent = isNew ? 'New student' : describeRow(row) === 'this row' ? 'Student profile' : describeRow(row);
-      const sub = document.createElement('p');
-      const status = String(row['APPLICATION STATUS'] || '').trim();
-      sub.textContent = isNew ? `Added to ${sheet.name}. Fill in what is known now; the rest can be added later from the student's profile.`
-        : [sheet.name, status || 'No status yet', row['UNIVERSITY NAME'], row['COURSE NAME']].filter(Boolean).join(' · ');
-      head.append(h, sub);
-      const bodyEl = document.createElement('div');
-      bodyEl.className = 'profile-body';
-      const inputs = new Map(); // column -> { el, from }
-      const counselors = [...new Set(rows.map((r) => String(r.COUNSELOR || '').trim()).filter(Boolean))].sort();
-
-      const control = (col) => {
-        const raw = String(row[col] === undefined || row[col] === null ? '' : row[col]);
-        // The stage of a team's student moves on the sheet, where the move is checked; a worked-out fee is never typed.
-        const locked = isViewOnly() || !canEditCol(col, row) || Boolean(CALC_COLS[col]) || (col === 'APPLICATION STATUS' && isTeam());
-        let el;
-        let from = raw;
-        if (CALC_COLS[col]) {
-          el = document.createElement('input');
-          el.type = 'text';
-          let worked = raw;
-          try { const n = CALC_COLS[col](row); if (typeof n === 'number' && Number.isFinite(n)) worked = formatNum(n); } catch (e) { /* shown as saved */ }
-          el.value = worked;
-        } else if (SELECT_COLS[col]) {
-          el = document.createElement('select');
-          const fill = (list, value) => {
-            el.textContent = '';
-            ['', ...(value && !list.includes(value) ? [...list, value] : list)].forEach((opt) => el.add(new Option(opt || 'Select', opt)));
-            el.value = value;
-          };
-          fill(col === SOURCE_DETAIL_COL ? sourceDetailChoices(row) : SELECT_COLS[col], raw);
-          el.refill = fill;
-        } else if ((DATE_COLS.has(col) && col !== LANGUAGE_TEST_COL) && (!raw || toISODate(raw))) {
-          el = document.createElement('input');
-          el.type = 'date';
-          from = raw ? toISODate(raw) : '';
-          el.value = from;
-        } else if (LONG_TEXT_COLS.has(col)) {
-          el = document.createElement('textarea');
-          el.rows = 2;
-          el.maxLength = 5000;
-          el.value = raw;
-        } else {
-          el = document.createElement('input');
-          el.type = col === 'EMAIL' ? 'email' : 'text';
-          el.maxLength = 500;
-          el.value = raw;
-          if (col === 'COUNSELOR' && counselors.length) { el.setAttribute('list', 'profile-counselors'); }
-          if (NUM_COLS.has(col)) el.inputMode = 'decimal';
-        }
-        el.id = 'pf-' + col.replace(/[^A-Z0-9]+/gi, '-');
-        el.disabled = locked || col === LANGUAGE_TEST_COL;
-        if (col === LANGUAGE_TEST_COL) el.title = 'The language test is picked on the sheet (Waiver, University Internal Test or a test date)';
-        else if (CALC_COLS[col]) el.title = 'Worked out automatically';
-        else if (locked && !isViewOnly()) el.title = 'Your team can\'t change this';
-        if (!el.disabled) inputs.set(col, { el, from });
-        const wrap = document.createElement('label');
-        wrap.className = 'profile-field' + (LONG_TEXT_COLS.has(col) ? ' wide' : '');
-        const name = document.createElement('span');
-        name.textContent = PROFILE_LABELS[col] || columnLabel(col);
-        wrap.append(name, el);
-        return wrap;
-      };
-
-      shown.forEach(([title, cols]) => {
-        const section = document.createElement('fieldset');
-        const legend = document.createElement('legend');
-        legend.textContent = title;
-        const grid = document.createElement('div');
-        grid.className = 'profile-grid';
-        cols.forEach((col) => grid.append(control(col)));
-        section.append(legend, grid);
-        bodyEl.append(section);
-      });
-      if (counselors.length) {
-        const dl = document.createElement('datalist');
-        dl.id = 'profile-counselors';
-        counselors.forEach((c) => dl.append(new Option(c)));
-        bodyEl.append(dl);
-      }
-      // "Which one exactly" offers the choices of the source just picked; the reason for a loss is asked only of a lost student.
-      const sourceBox = inputs.get(SOURCE_COL) || null;
-      const detailBox = inputs.get(SOURCE_DETAIL_COL) || null;
-      if (sourceBox && detailBox) sourceBox.el.addEventListener('change', () => { const list = sourceDetailChoices({ [SOURCE_COL]: sourceBox.el.value }); detailBox.el.refill(list, list.includes(detailBox.el.value) ? detailBox.el.value : ''); });
-      const lostField = bodyEl.querySelector('#pf-LOST-REASON');
-      const statusField = bodyEl.querySelector('#pf-APPLICATION-STATUS');
-      const showLost = () => { if (lostField) lostField.closest('label').hidden = !LOST_STATUSES.has(statusField ? statusField.value : status) && !lostField.value; };
-      if (statusField) statusField.addEventListener('change', showLost);
-      showLost();
-
-      const actions = document.createElement('div');
-      actions.className = 'ui-actions';
-      const note = document.createElement('span');
-      note.className = 'profile-note';
-      note.setAttribute('role', 'alert');
-      const cancel = document.createElement('button');
-      cancel.type = 'button';
-      cancel.textContent = isViewOnly() ? 'Close' : 'Cancel';
-      cancel.addEventListener('click', () => dialog.close());
-      actions.append(note, cancel);
-      if (!isViewOnly()) {
-        const ok = document.createElement('button');
-        ok.type = 'submit';
-        ok.className = 'ui-ok';
-        ok.textContent = isNew ? 'Add student' : 'Save';
-        actions.append(ok);
-      }
-      form.append(head, bodyEl, actions);
-      dialog.append(form);
-
-      let answer = null;
-      form.addEventListener('submit', (e) => {
-        const changed = {};
-        inputs.forEach(({ el, from }, col) => { const v = el.value.trim(); if (v !== from.trim()) changed[col] = v; });
-        const value = (col) => (inputs.has(col) ? inputs.get(col).el.value.trim() : String(row[col] || '').trim());
-        if (!value('FIRST NAME') && !value('LAST NAME')) { e.preventDefault(); note.textContent = 'Type the student\'s name first.'; (inputs.get('FIRST NAME') || { el: cancel }).el.focus(); return; }
-        const email = inputs.get('EMAIL');
-        if (email && email.el.value.trim() && !email.el.checkValidity()) { e.preventDefault(); note.textContent = 'That email address is not complete.'; email.el.focus(); return; }
-        answer = changed;
-      });
-      dialog.addEventListener('close', () => { dialog.remove(); resolve(answer); });
-      document.body.append(dialog);
-      NiecUI.track(dialog); // undo and the sheet's shortcuts wait while it is open
-      dialog.showModal();
-      const first = [...inputs.values()][0];
-      (first ? first.el : cancel).focus();
-    });
-  }
-
-  // Opens the profile of the student the cursor is on (or the one whose row number was double-clicked) and saves what changed.
-  async function openProfileOf(rowIdx) {
-    const student = rows[rowIdx];
-    if (!student) { NiecUI.alert('Click a student on the sheet first, then Open profile.', { title: 'No student picked' }); return; }
-    const changed = await openProfile(student);
-    if (!changed || !Object.keys(changed).length) return;
-    confirmChange(() => {
-      const target = liveRow(student);
-      if (!target) { renderBody(); return; }
-      pushUndo();
-      Object.assign(target, changed);
-      markDirty();
-      renderBody();
-    });
-  }
-
   async function addRow() {
     if (isViewOnly()) return;
     const depts = isTeam() ? Teams.addableDepartments(me) : [];
     // Someone in several departments says which team the new student is for.
     const dept = depts.length > 1 ? await chooseDepartment(depts) : (depts[0] || null);
     if (isTeam() && !dept) return;
-    // The new student is filled in on a profile first, and goes on the sheet when Add student is pressed.
-    const draft = newStudentDraft(dept);
-    const filled = await openProfile(draft, { isNew: true });
-    if (!filled) return;
-    confirmChange(() => addRowNow(dept, filled));
-  }
-
-  // What a new student starts with before anything is typed: a team's student starts at that team's stage and is marked
-  // with the department, which lets the person fill in the student's basics (the server checks both).
-  function newStudentDraft(dept) {
-    const draft = {};
-    if (isTeam()) {
-      draft['APPLICATION STATUS'] = Teams.newStudentStatus(me, dept);
-      draft._addedByTeam = dept;
-      if (dept && Teams.DEPARTMENTS[dept].source) draft['STUDENT SOURCE'] = Teams.DEPARTMENTS[dept].source; // a branch's student is tagged with the branch
-    } else {
-      draft['INQUIRY DATE'] = '';
-    }
-    return draft;
+    confirmChange(() => addRowNow(dept));
   }
 
   // A small menu under "+ Add student": one entry per department the person works in.
@@ -2542,7 +2306,7 @@
     });
   }
 
-  function addRowNow(dept = null, filled = {}) {
+  function addRowNow(dept = null) {
     pushUndo();
     const blank = { _id: makeRowId() };
     columns.forEach((c) => (blank[c] = ''));
@@ -2561,7 +2325,6 @@
       blank._addedByTeam = dept;
       if (dept && Teams.DEPARTMENTS[dept].source) blank['STUDENT SOURCE'] = Teams.DEPARTMENTS[dept].source; // a branch's student is tagged with the branch
     }
-    Object.assign(blank, filled); // what was typed on the new student's profile
     rows.push(blank);
     const startCol = columns.find((c) => isTextCell(c) && canEditCol(c, blank)) || columns[0];
     selRanges = [singleRange(rows.length - 1, startCol)];
@@ -2570,6 +2333,7 @@
     renderBody();
     tableWrap.scrollTop = 1e9;
     if (renderWindow()) afterWindowChange();
+    // Ready to type straight into the new row.
     setActiveCell(rows.length - 1, startCol, { scroll: false });
   }
 
@@ -2687,10 +2451,7 @@
     wb.created = new Date();
 
     const ws = wb.addWorksheet(safeSheetName, { views: [{ state: 'frozen', ySplit: 1 }] });
-    // The file holds everything about each student: the sheet's columns, then the ones kept on the profile.
-    const sheetNow = getActiveSheet();
-    const exportColumns = [...columns, ...(sheetNow ? sheetNow.columns.filter((c) => PROFILE_ONLY_COLUMNS.has(c)) : [])];
-    ws.columns = exportColumns.map((c) => {
+    ws.columns = columns.map((c) => {
       const maxLen = rows.reduce((m, r) => Math.max(m, String(r[c] || '').length), c.length);
       return { header: c, width: Math.min(40, Math.max(10, maxLen + 2)) };
     });
@@ -2717,7 +2478,7 @@
       return v;
     };
     rows.forEach((r) => {
-      const cells = exportColumns.map((c) => excelValue(c, r[c]));
+      const cells = columns.map((c) => excelValue(c, r[c]));
       const row = ws.addRow(cells.map((x) => (x && typeof x === 'object' ? x.value : x)));
       row.height = 20;
       cells.forEach((x, i) => {
@@ -2740,7 +2501,6 @@
   }
 
   $('#addRow').addEventListener('click', addRow);
-  $('#openProfile').addEventListener('click', () => openProfileOf(activeCell ? activeCell.rowIdx : -1));
   $('#delRow').addEventListener('click', () => { if (Teams.canDelete(me)) deleteRow(); });
   $('#exportExcel').addEventListener('click', exportExcel);
   $('#colorRow').addEventListener('click', openColorMenu);
@@ -2989,8 +2749,6 @@
   });
 
   body.addEventListener('dblclick', (e) => {
-    const numberCell = e.target.closest('td.col-idx');
-    if (numberCell && body.contains(numberCell) && !numberCell.parentElement.classList.contains('pad-row')) { openProfileOf(Number(numberCell.parentElement.dataset.rowIdx)); return; }
     const td = e.target.closest('td');
     if (!td || !body.contains(td) || td.classList.contains('col-idx') || e.target.closest('select, input')
       || td.parentElement.classList.contains('pad-row')) return;
@@ -3170,14 +2928,5 @@
   setInterval(syncPresence, 5000);
   setInterval(() => { if (JSON.stringify(myPresence()) !== lastSent) syncPresence(); }, 50);
   document.addEventListener('visibilitychange', () => { if (!document.hidden) syncPresence(); });
-  // A link from the Pipeline page (#open=<student>&sheet=<intake>) opens that student's profile once the sheet is loaded.
-  loadData().then(() => {
-    const link = new URLSearchParams(location.hash.slice(1));
-    const id = link.get('open');
-    if (!id) return;
-    try { history.replaceState(null, '', location.pathname); } catch (e) { /* not important */ }
-    if (link.get('sheet') && link.get('sheet') !== activeSheetId && sheets.some((s) => s.id === link.get('sheet'))) switchSheet(link.get('sheet'));
-    const at = rows.findIndex((r) => r._id === id);
-    if (at !== -1) openProfileOf(at);
-  });
+  loadData();
 })();

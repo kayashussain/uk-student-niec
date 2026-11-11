@@ -673,7 +673,7 @@ test('screens: log in, edit, delete, search, team rules, Fact File', { timeout: 
     await cell.locator('input').evaluate((el) => { el.value = '2026-11-12'; el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('change', { bubbles: true })); });
     await page.waitForSelector('.eg-box');
     await page.click('.eg-ok');
-    await page.waitForFunction(() => /11\/12\/2026/.test([...document.querySelectorAll('#body tr:not(.pad-row)')][0].innerText), null, { timeout: 5000 });
+    await page.waitForFunction(() => /11\/12\/2026/.test(document.querySelector('#body tr:not(.pad-row) td.date').textContent === '' ? '' : [...document.querySelectorAll('#body tr:not(.pad-row)')][0].innerText), null, { timeout: 5000 });
 
     // The student source list offers Language Classes.
     const sourceIdx = await colIndex('STUDENT SOURCE');
@@ -695,36 +695,10 @@ test('screens: log in, edit, delete, search, team rules, Fact File', { timeout: 
     assert.ok(await page.locator('#headerRow th[data-col="APPLICATION STATUS"] .filter-btn.active').count(), 'the filter button shows it is on');
 
     // A new student added with the filter on gets that status and stays in the filtered list.
-    // "+ Add student" opens the new student's profile; the student goes on the sheet when Add student is pressed.
     await page.click('#addRow');
-    await page.waitForSelector('dialog.student-profile[open]');
-    assert.strictEqual(await page.textContent('#profile-title'), 'New student');
-    await page.click('dialog.student-profile .ui-ok');
-    assert.match(await page.textContent('.profile-note'), /name first/, 'a student without a name is not added');
-    await page.fill('#pf-FIRST-NAME', 'Profile');
-    await page.selectOption('#pf-STUDENT-SOURCE', 'Events');
-    assert.deepStrictEqual((await page.locator('#pf-SOURCE-DETAIL option').allTextContents()).slice(0, 2), ['Select', 'Education Fair'], 'the detail list follows the source');
-    await page.selectOption('#pf-SOURCE-DETAIL', 'Education Fair');
-    await page.fill('#pf-CAMPAIGN-OR-EVENT', 'UK Study Fair, November 2026');
-    await page.click('dialog.student-profile .ui-ok');
     await page.waitForSelector('.eg-box');
     await page.click('.eg-ok');
     await page.waitForFunction(() => document.querySelectorAll('#body tr:not(.pad-row)').length === 3);
-    assert.ok(!(await page.locator('#headerRow th[data-col="SOURCE DETAIL"], #headerRow th[data-col="CAMPAIGN OR EVENT"], #headerRow th[data-col="LEAD QUALITY"]').count()), 'the profile details are not columns on the sheet');
-    await page.waitForFunction(() => document.querySelector('#status').textContent === 'All changes saved', null, { timeout: 8000 });
-    const kept = (await (await admin.request.get('/api/data')).json()).sheets[0].rows.find((r) => r['FIRST NAME'] === 'Profile');
-    assert.deepStrictEqual([kept['STUDENT SOURCE'], kept['SOURCE DETAIL'], kept['CAMPAIGN OR EVENT']], ['Events', 'Education Fair', 'UK Study Fair, November 2026'], 'what was typed on the profile is kept on the student');
-    // The profile of an existing student opens from a double-click on the row number and saves what is changed.
-    await page.locator('#body tr:not(.pad-row)').last().locator('td.col-idx').dblclick();
-    await page.waitForSelector('dialog.student-profile[open]');
-    assert.strictEqual(await page.textContent('#profile-title'), 'Profile');
-    assert.strictEqual(await page.inputValue('#pf-CAMPAIGN-OR-EVENT'), 'UK Study Fair, November 2026');
-    await page.selectOption('#pf-LEAD-QUALITY', 'Qualified');
-    await page.click('dialog.student-profile .ui-ok');
-    await page.waitForSelector('.eg-box');
-    await page.click('.eg-ok');
-    await page.waitForFunction(() => document.querySelector('#status').textContent === 'All changes saved', null, { timeout: 8000 });
-    assert.strictEqual((await (await admin.request.get('/api/data')).json()).sheets[0].rows.find((r) => r['FIRST NAME'] === 'Profile')['LEAD QUALITY'], 'Qualified');
     const added = await page.locator('#body tr:not(.pad-row)').last().locator('td').nth(await colIndex('APPLICATION STATUS')).locator('select').inputValue();
     assert.strictEqual(added, 'Application Stage', 'the new student starts at the filtered status');
 
