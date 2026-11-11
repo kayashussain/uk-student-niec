@@ -680,7 +680,9 @@ function createAccounts({
     return true;
   }
 
-  return { requireAuth, handleApi, emailConfig, userForSessionKey };
+  // The people with a login that works, by name (for the Counselor box on a student card). Nothing private is in it.
+  const people = () => users().filter((u) => !u.disabled).map((u) => ({ name: u.name, access: accessLabel(u) }));
+  return { requireAuth, handleApi, emailConfig, userForSessionKey, people };
 }
 
 module.exports = {

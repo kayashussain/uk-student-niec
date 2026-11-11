@@ -103,10 +103,12 @@ function describeDevice(userAgent) {
 // logins, refused changes, wrong hidden-sheet password, hidden sheets opened), changes (cell and sheet
 // edits) and accounts (people added, access changed, passwords and settings).
 const SECURITY_ACTIONS = new Set(['Failed login', 'Change refused', 'Wrong hidden-sheet password', 'Opened hidden sheets', 'Test email failed', 'Opened Incentive', 'Wrong Incentive password']);
+// What people do on the student cards and the pages around them counts as changes too.
+const CHANGE_ACTIONS = new Set(['Edited student card', 'Sent message', 'Edited templates', 'Edited partners', 'Edited planning']);
 function activityCategory(action) {
   if (action === 'Logged in' || action === 'Logged out') return 'logins';
   if (SECURITY_ACTIONS.has(action)) return 'security';
-  if (action === 'Changed' || action === 'Edited fact file') return 'changes';
+  if (action === 'Changed' || action === 'Edited fact file' || CHANGE_ACTIONS.has(action)) return 'changes';
   return 'accounts';
 }
 

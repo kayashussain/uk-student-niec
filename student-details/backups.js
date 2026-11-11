@@ -92,6 +92,9 @@ function createBackups(dir, collect, { now = () => new Date() } = {}) {
       students: snap.students && Array.isArray(snap.students.sheets) ? snap.students.sheets.reduce((n, s) => n + s.rows.length, 0) : null,
       facts: snap.facts ? snap.facts.length : null,
       partners: snap.partners ? snap.partners.length : null,
+      // Copies made since the student cards exist also hold them (and the B2B partners and Dashboard records).
+      ...(snap.cards && typeof snap.cards === 'object' ? { cards: Object.keys(snap.cards).length } : {}),
+      ...(snap.planning || Array.isArray(snap.b2b) ? { records: true } : {}),
     } : null;
     counts.set(id, { mtimeMs: stat.mtimeMs, counts: c });
     return c;

@@ -19,7 +19,9 @@ const encodeHeader = (s) => (/^[\x20-\x7e]*$/.test(s) ? s : `=?UTF-8?B?${Buffer.
 const base64Lines = (text) => (Buffer.from(text, 'utf8').toString('base64').match(/.{1,76}/g) || ['']).join('\r\n');
 
 // The full message text (CRLF line endings): plain text and HTML versions of the same email.
-function buildMessage({ from, fromName, to, subject, text, html, now = new Date() }) {
+// `auto: false` leaves out the header that marks a message as written by a machine (used for the messages a counselor
+// sends to a student, which are personal letters and should be answered like one).
+function buildMessage({ from, fromName, to, subject, text, html, now = new Date(), auto = true }) {
   const boundary = '=_niec_' + crypto.randomBytes(12).toString('hex');
   const domain = from.split('@')[1];
   const sender = fromName ? `${encodeHeader(oneLine(fromName).replace(/"/g, ''))} <${from}>` : from;
@@ -31,7 +33,7 @@ function buildMessage({ from, fromName, to, subject, text, html, now = new Date(
     `Message-ID: <${crypto.randomBytes(12).toString('hex')}@${domain}>`,
     'MIME-Version: 1.0',
     `Content-Type: multipart/alternative; boundary="${boundary}"`,
-    'Auto-Submitted: auto-generated',
+    ...(auto ? ['Auto-Submitted: auto-generated'] : []),
     '',
     `--${boundary}`,
     'Content-Type: text/plain; charset=UTF-8',
@@ -116,12 +118,14 @@ function friendlyError(e, host) {
 
 // Sends one message. cfg: { host, port, security, user, pass, from, fromName }.
 // Resolves when the server accepts it; rejects with a readable Error.
-async function sendMail(cfg, { to, subject, text, html }, { timeoutMs = 20000, rejectUnauthorized = true } = {}) {
+// `bcc`: more addresses that get the same message without being named in it (the office's own copy). `auto`: see buildMessage.
+async function sendMail(cfg, { to, subject, text, html, bcc = [], auto = true }, { timeoutMs = 20000, rejectUnauthorized = true } = {}) {
   if (!cfg || !cfg.host || !cfg.port || !isAddress(cfg.from)) throw new Error('The mail server settings are incomplete.');
   if (!isAddress(to)) throw new Error('That is not a valid email address.');
   const host = String(cfg.host).trim();
   const port = Number(cfg.port);
-  const message = buildMessage({ from: cfg.from, fromName: cfg.fromName, to, subject, text, html });
+  const message = buildMessage({ from: cfg.from, fromName: cfg.fromName, to, subject, text, html, auto });
+  const copies = [...new Set((Array.isArray(bcc) ? bcc : [bcc]).filter((a) => isAddress(a) && a !== to))].slice(0, 5);
   const localName = cfg.from.split('@')[1];
   const tlsOptions = { host, port, servername: host, rejectUnauthorized };
 
@@ -166,6 +170,7 @@ async function sendMail(cfg, { to, subject, text, html }, { timeoutMs = 20000, r
 
     await conn.command(`MAIL FROM:<${cfg.from}>`, [250]);
     await conn.command(`RCPT TO:<${to}>`, [250, 251]);
+    for (const copy of copies) await conn.command(`RCPT TO:<${copy}>`, [250, 251]);
     await conn.command('DATA', [354]);
     // A line that starts with a dot gets a second one, so it can't end the message early.
     socket.write(message.replace(/^\./gm, '..') + '\r\n.\r\n');

@@ -12,6 +12,7 @@ const fileName = (v) => String(v || '').replace(/[\\/\u0000-\u001f]/g, '').repla
 
 const LIMITS = { name: 120, short: 300, text: 12000, campuses: 40, slabs: 60, contacts: 20, items: 300 };
 const STATUSES = ['Active', 'Pending', 'On hold', 'Ended'];
+const TYPES = ['Direct', 'Through a B2B partner'];
 // Agreement files: a few kinds of document, kept outside the code folder next to the list (see createDirect).
 const FILE_TYPES = {
   '.pdf': 'application/pdf', '.doc': 'application/msword',
@@ -58,6 +59,10 @@ function clean(input, old = {}) {
     id: old.id,
     name: str(input.name, LIMITS.name).trim() || old.name || '',
     status,
+    // How NIEC holds the partnership: its own agreement with the university, or through a B2B partner (named in `via`).
+    type: TYPES.includes(input.type) ? input.type : (TYPES.includes(old.type) ? old.type : 'Direct'),
+    via: str(input.via, LIMITS.name).trim(),
+    agreementStart: str(input.agreementStart, 40).trim(),
     campuses,
     slabs,
     paymentTerms: str(input.paymentTerms, LIMITS.text),
@@ -90,7 +95,7 @@ const agreementsOf = (u) => (Array.isArray(u.agreements) ? u.agreements : []).fi
 }));
 const full = (u) => ({ ...clean(u, u), agreements: agreementsOf(u), id: u.id, updatedAt: u.updatedAt, updatedBy: u.updatedBy || '' });
 const summary = (u) => ({
-  id: u.id, name: u.name, status: u.status,
+  id: u.id, name: u.name, status: u.status, type: u.type, via: u.via,
   campuses: u.campuses.map((c) => [...new Set([c.name, c.city].filter(Boolean))].join(', ')),
   slabCount: u.slabs.length,
   slabs: u.slabs.map((x) => [x.level, x.students, x.commission].filter(Boolean).join(' ')),
@@ -106,12 +111,18 @@ const viewDirect = (universities) => ({
   get: (id) => { const u = universities.find((x) => x.id === id); return u ? full(u) : null; },
 });
 
-function createDirect(dir, { now = () => new Date(), starters = STARTERS } = {}) {
-  const file = path.join(dir, 'direct-universities.json');
+// The same store also keeps the B2B partners (b2b.js): another file, another folder for its agreement files, and its
+// own list of details (`clean` and `summary`). Everything else (agreement files, the damaged file set aside) is shared.
+function createDirect(dir, {
+  now = () => new Date(), starters = STARTERS, file: storeFile = 'direct-universities.json', filesFolder = 'direct-files',
+  clean: cleanOne = clean, summary: summaryOf = summary, what = 'university',
+} = {}) {
+  const file = path.join(dir, storeFile);
+  const full = (u) => ({ ...cleanOne(u, u), agreements: agreementsOf(u), id: u.id, updatedAt: u.updatedAt, updatedBy: u.updatedBy || '' });
   let cache = null; // { mtimeMs, size, data }
 
   function start() {
-    const universities = starters.map((u) => ({ ...clean(u), id: newId(), updatedAt: now().toISOString(), updatedBy: '' }));
+    const universities = starters.map((u) => ({ ...cleanOne(u), id: newId(), updatedAt: now().toISOString(), updatedBy: '' }));
     const data = { universities };
     if (universities.length) write(data);
     return data;
@@ -126,7 +137,7 @@ function createDirect(dir, { now = () => new Date(), starters = STARTERS } = {})
       if (Array.isArray(data.universities)) { cache = { mtimeMs: stat.mtimeMs, size: stat.size, data }; return data; }
     } catch (e) { /* unreadable: set aside below */ }
     // A damaged file is kept next to the data (never overwritten), then the list starts again.
-    try { fs.renameSync(file, path.join(dir, `direct-universities.damaged-${now().toISOString().replace(/[:.]/g, '-')}.json`)); } catch (e) { /* ignore */ }
+    try { fs.renameSync(file, path.join(dir, `${storeFile.replace(/\.json$/, '')}.damaged-${now().toISOString().replace(/[:.]/g, '-')}.json`)); } catch (e) { /* ignore */ }
     return { universities: [] };
   }
   function write(data) {
@@ -136,17 +147,17 @@ function createDirect(dir, { now = () => new Date(), starters = STARTERS } = {})
     cache = { mtimeMs: stat.mtimeMs, size: stat.size, data };
   }
 
-  const filesDir = (id) => path.join(dir, 'direct-files', id);
+  const filesDir = (id) => path.join(dir, filesFolder, id);
 
   return {
-    list() { return load().universities.map(full).map(summary).sort((a, b) => a.name.localeCompare(b.name)); },
+    list() { return load().universities.map(full).map(summaryOf).sort((a, b) => a.name.localeCompare(b.name)); },
     all() { return load().universities.map(full); },
     get(id) { const u = load().universities.find((x) => x.id === id); return u ? full(u) : null; },
     create(name, by) {
       const data = load();
-      const cleaned = clean({ name });
-      if (!cleaned.name) return { error: 'Please enter the university name.' };
-      if (data.universities.some((u) => u.name.toLowerCase() === cleaned.name.toLowerCase())) return { error: 'That university is already in the list.' };
+      const cleaned = cleanOne({ name });
+      if (!cleaned.name) return { error: `Please enter the ${what} name.` };
+      if (data.universities.some((u) => u.name.toLowerCase() === cleaned.name.toLowerCase())) return { error: `That ${what} is already in the list.` };
       if (data.universities.length >= LIMITS.items) return { error: 'The list is full.' };
       const uni = { ...cleaned, id: newId(), updatedAt: now().toISOString(), updatedBy: by };
       write({ ...data, universities: [...data.universities, uni] });
@@ -155,9 +166,9 @@ function createDirect(dir, { now = () => new Date(), starters = STARTERS } = {})
     update(id, input, by) {
       const data = load();
       const i = data.universities.findIndex((u) => u.id === id);
-      if (i === -1) return { error: 'No such university.' };
-      const cleaned = clean(input, data.universities[i]);
-      if (data.universities.some((u, k) => k !== i && u.name.toLowerCase() === cleaned.name.toLowerCase())) return { error: 'Another university already has that name.' };
+      if (i === -1) return { error: `No such ${what}.` };
+      const cleaned = cleanOne(input, data.universities[i]);
+      if (data.universities.some((u, k) => k !== i && u.name.toLowerCase() === cleaned.name.toLowerCase())) return { error: `Another ${what} already has that name.` };
       const universities = [...data.universities];
       universities[i] = { ...cleaned, agreements: agreementsOf(data.universities[i]), id, updatedAt: now().toISOString(), updatedBy: by };
       write({ ...data, universities });
@@ -166,7 +177,7 @@ function createDirect(dir, { now = () => new Date(), starters = STARTERS } = {})
     remove(id) {
       const data = load();
       const uni = data.universities.find((u) => u.id === id);
-      if (!uni) return { error: 'No such university.' };
+      if (!uni) return { error: `No such ${what}.` };
       write({ ...data, universities: data.universities.filter((u) => u.id !== id) });
       try { fs.rmSync(filesDir(id), { recursive: true, force: true }); } catch (e) { /* nothing to remove */ }
       return { removed: uni };
@@ -185,7 +196,7 @@ function createDirect(dir, { now = () => new Date(), starters = STARTERS } = {})
     addAgreement(id, name, bytes, by) {
       const data = load();
       const i = data.universities.findIndex((u) => u.id === id);
-      if (i === -1) return { error: 'No such university.' };
+      if (i === -1) return { error: `No such ${what}.` };
       const shown = fileName(name);
       const ext = path.extname(shown).toLowerCase();
       if (!shown || !Object.prototype.hasOwnProperty.call(FILE_TYPES, ext)) return { error: 'Please upload a PDF, Word document (.doc, .docx) or an image (.png, .jpg).' };
@@ -193,7 +204,7 @@ function createDirect(dir, { now = () => new Date(), starters = STARTERS } = {})
       if (bytes.length > MAX_FILE_BYTES) return { error: 'That file is too large (the limit is 10 MB).' };
       if (!looksLike(ext, bytes)) return { error: 'That file is not really a ' + ext.slice(1).toUpperCase() + ' document. Please upload the original PDF, Word document or image.' };
       const current = agreementsOf(data.universities[i]);
-      if (current.length >= MAX_FILES) return { error: 'This university already has the most files allowed.' };
+      if (current.length >= MAX_FILES) return { error: `This ${what} already has the most files allowed.` };
       const fid = newId();
       fs.mkdirSync(filesDir(id), { recursive: true });
       writeFileAtomic(path.join(filesDir(id), fid + ext), bytes);
@@ -225,4 +236,4 @@ function createDirect(dir, { now = () => new Date(), starters = STARTERS } = {})
   };
 }
 
-module.exports = { createDirect, viewDirect, clean, STATUSES, STARTERS, FILE_TYPES, MAX_FILE_BYTES };
+module.exports = { createDirect, viewDirect, clean, STATUSES, TYPES, STARTERS, FILE_TYPES, MAX_FILE_BYTES, LIMITS };

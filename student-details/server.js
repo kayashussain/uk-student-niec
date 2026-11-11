@@ -23,6 +23,15 @@ const { createIncentiveLock } = require('../shared/incentive-lock');
 const {
   blankWorkbook, ensureRowIds, migrateWorkbook, isValidWorkbook, mergeWorkbooks, createHistory, describeChanges,
 } = require('./workbook');
+const { createCards } = require('./cards');
+const { createMessages } = require('./messages');
+const { createCourseLinks } = require('./course-index');
+const { createPlanning } = require('./planning');
+const { createB2b } = require('./b2b');
+const { createPortalApi } = require('./portal-api');
+const { buildInsights } = require('./insights-engine');
+const { createAi, createJobs } = require('./ai');
+const { createFinder } = require('./finder');
 
 const PORT = process.env.PORT || 4173;
 const ROOT = __dirname;
@@ -56,6 +65,22 @@ const serveStatic = createStaticServer(ROOT, {
   '/direct-page.js': 'text/javascript; charset=utf-8',
   '/calc.js': 'text/javascript; charset=utf-8',
   '/suggest.js': 'text/javascript; charset=utf-8',
+  // The portal pages around the sheet: the student card, follow-ups, message templates, B2B partners, the decision pages.
+  '/card-fields.js': 'text/javascript; charset=utf-8',
+  '/portal.css': 'text/css; charset=utf-8',
+  '/portal-ui.js': 'text/javascript; charset=utf-8',
+  '/student.html': 'text/html; charset=utf-8',
+  '/student-page.js': 'text/javascript; charset=utf-8',
+  '/card-drawer.js': 'text/javascript; charset=utf-8',
+  '/new-student.js': 'text/javascript; charset=utf-8',
+  '/follow-ups.html': 'text/html; charset=utf-8',
+  '/follow-ups-page.js': 'text/javascript; charset=utf-8',
+  '/templates.html': 'text/html; charset=utf-8',
+  '/templates-page.js': 'text/javascript; charset=utf-8',
+  '/b2b.html': 'text/html; charset=utf-8',
+  '/b2b-page.js': 'text/javascript; charset=utf-8',
+  '/dashboard-insights.js': 'text/javascript; charset=utf-8',
+  '/fact-finder.js': 'text/javascript; charset=utf-8',
   '/style.css': 'text/css; charset=utf-8',
   '/favicon.png': 'image/png',
   '/apple-touch-icon.png': 'image/png',
@@ -76,8 +101,21 @@ const { requireAuth } = accounts;
 const facts = createFacts(DATA_DIR);
 // Partner Universities: Admin only, kept out of the Advisor connector and every other account's reach.
 const direct = createDirect(DATA_DIR);
+// The student cards (what is known about a student besides the sheet), the message templates, the links typed for single
+// courses, the B2B partners and the management records of the Dashboard. Each is a file of its own in the data folder.
+const cards = createCards(DATA_DIR);
+const messages = createMessages(DATA_DIR);
+const courseLinks = createCourseLinks(DATA_DIR);
+const b2b = createB2b(DATA_DIR);
+const planning = createPlanning(DATA_DIR);
+// The AI helper (off until ANTHROPIC_API_KEY is set, see ai.js) and the option finder that uses it.
+const ai = createAi();
+const aiJobs = createJobs();
 // Daily backups (6 p.m., kept 30 days) and Admin's restore (see backups.js). `current` is the students, held in memory below.
-const backups = createBackups(DATA_DIR, () => ({ students: current, facts: facts.all(), partners: direct.all() }));
+const backups = createBackups(DATA_DIR, () => ({
+  students: current, facts: facts.all(), partners: direct.all(),
+  cards: cards.all(), b2b: b2b.all(), planning: planning.all(), templates: messages.stored(),
+}));
 setInterval(() => backups.tick(), 5 * 60 * 1000).unref();
 
 // The Incentive page's saved figures (commissions, advances, exchange rate), read-only, so the same Claude connector can also answer
@@ -111,7 +149,8 @@ const advisor = createAdvisorMcp({
 // The Incentive page lives here, at /incentive: Admin only, and behind its own password (INCENTIVE_PASSWORD) on top of the
 // login. The Claude connector above does not go through any of this: it reads the same data folder with its own secret address.
 const incentiveLock = createIncentiveLock();
-const PAGE_PATHS = new Set(['/', '/students', '/dashboard', '/users', '/activity', '/partner-universities', '/fact-file', '/admin']);
+const PAGE_PATHS = new Set(['/', '/students', '/dashboard', '/users', '/activity', '/partner-universities', '/fact-file', '/admin',
+  '/student', '/follow-ups', '/message-templates', '/b2b-partners']);
 const incentive = createIncentive({ dataDir: INCENTIVE_DIR, studentDataFile: DATA_FILE, getWorkbook: () => current, activity });
 
 async function handleIncentive(req, res, urlPath) {
@@ -324,37 +363,37 @@ function cellValueError(cells, sheet) {
 // cell it changed is checked against its rules and written onto the current workbook. Anything
 // outside the rules refuses the whole save (the page never offers it, so that means tampering or a
 // stale page).
-function handleTeamSave(req, res, parsed) {
+function teamSave(req, parsed) {
   const base = current && (parsed.baseRevision === current.revision ? current : history.get(parsed.baseRevision));
-  if (!base) return sendJSON(res, 409, { error: 'conflict', revision: current ? current.revision : 0 });
+  if (!base) return { status: 409, body: { error: 'conflict', revision: current ? current.revision : 0 } };
   const baseView = viewFor(req.user, base);
   let mineView;
   try {
     mineView = parsed.patch ? applyPatch(baseView, parsed.patch) : { sheets: parsed.sheets };
   } catch (e) {
-    return sendJSON(res, 409, { error: 'conflict', revision: current.revision });
+    return { status: 409, body: { error: 'conflict', revision: current.revision } };
   }
   if (!mineView || !Array.isArray(mineView.sheets)
     || !mineView.sheets.every((s) => s && typeof s.id === 'string' && Array.isArray(s.rows)
-      && s.rows.every((r) => r && typeof r === 'object' && !Array.isArray(r)))) return sendJSON(res, 400, { error: 'invalid payload' });
+      && s.rows.every((r) => r && typeof r === 'object' && !Array.isArray(r)))) return { status: 400, body: { error: 'invalid payload' } };
   const { changes, adds, deletes, errors } = teamChanges(req.user, baseView, mineView, CALCULATED_COLUMNS);
   if (errors.length) {
     activity.record(req, req.user, 'Change refused', { app: 'Student Details', changes: errors });
-    return sendJSON(res, 403, { error: errors.join(' ') });
+    return { status: 403, body: { error: errors.join(' ') } };
   }
-  if (!changes.length && !adds.length && !deletes.length) return sendJSON(res, 200, { ok: true, revision: current.revision });
+  if (!changes.length && !adds.length && !deletes.length) return { status: 200, body: { ok: true, revision: current.revision } };
   if (adds.length > 50) { // a person adds students one or a few at a time; thousands in one save is a mistake or an attack
     activity.record(req, req.user, 'Change refused', { app: 'Student Details', changes: [`Tried to add ${adds.length} students in one save`] });
-    return sendJSON(res, 403, { error: 'You can add up to 50 students in one save.' });
+    return { status: 403, body: { error: 'You can add up to 50 students in one save.' } };
   }
-  const conflict = () => sendJSON(res, 409, { error: 'conflict', revision: current.revision });
+  const conflict = () => ({ status: 409, body: { error: 'conflict', revision: current.revision } });
   // Teams work in the current intake only, as it is now: a page still holding an earlier intake (a newer one was
   // started meanwhile) is sent the fresh view instead of changing the earlier one.
   const intake = newestSheet(current.sheets.filter((s) => !s.hidden));
   const inIntake = (sheetId) => Boolean(intake) && sheetId === intake.id;
   const cellError = cellValueError(changes.map((c) => ({ col: c.col, value: c.value }))
     .concat(adds.flatMap((a) => Object.keys(a.row).map((col) => ({ col, value: a.row[col] })))), intake);
-  if (cellError) return sendJSON(res, 400, { error: cellError });
+  if (cellError) return { status: 400, body: { error: cellError } };
   // The rules were checked against the revision the page had, which may be older. Each change is checked again
   // against the student as the server has them now (someone may have moved them on, or changed their source,
   // meanwhile), so an old page can never change what the rules no longer allow.
@@ -397,7 +436,7 @@ function handleTeamSave(req, res, parsed) {
   for (const a of adds) {
     const sheet = current.sheets.find((s) => s.id === a.sheetId);
     if (!sheet || sheet.hidden || allIds.has(a.row._id) || !/^[\w-]{1,64}$/.test(a.row._id || '')) {
-      return sendJSON(res, 409, { error: 'conflict', revision: current.revision });
+      return { status: 409, body: { error: 'conflict', revision: current.revision } };
     }
     allIds.add(a.row._id);
     added.set(a.sheetId, [...(added.get(a.sheetId) || []), a.row]);
@@ -422,7 +461,13 @@ function handleTeamSave(req, res, parsed) {
   // A student moved to another stage leaves this team's view, and a new one is stored as the server
   // checked it: either way the page fetches its fresh view.
   const reload = adds.length > 0 || deletes.length > 0 || changes.some((c) => c.col === 'APPLICATION STATUS');
-  return sendJSON(res, 200, { ok: true, revision: next.revision, reload });
+  return { status: 200, body: { ok: true, revision: next.revision, reload } };
+}
+
+// Answers a team's save (see teamSave, which does the work and is also used when a team adds a student from the card form).
+function handleTeamSave(req, res, parsed) {
+  const out = teamSave(req, parsed);
+  return sendJSON(res, out.status, out.body);
 }
 
 const JSON_HEADERS = { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' };
@@ -726,6 +771,32 @@ function num(v) {
   return Number.isInteger(v) ? v : 0;
 }
 
+// The Dashboard's decision figures, made once per version of the students, the cards and the management records (and at
+// most 30 seconds old, as the partner lists are read fresh). Admin's version also holds the partner agreements.
+const insightsCache = new Map();
+function servedInsights(user, intake) {
+  const admin = isAdmin(user);
+  const key = `${admin ? 'admin' : 'manager'}:${intake}`;
+  const hit = insightsCache.get(key);
+  const cardsNow = cards.all();
+  const planNow = planning.all();
+  if (hit && hit.wb === current && hit.cards === cardsNow && hit.plan === planNow && Date.now() - hit.at < 30000) return hit.json;
+  if (insightsCache.size > 200) insightsCache.clear();
+  const data = buildInsights({
+    workbook: current, cards: cardsNow, planning: planNow, sheetId: intake, admin,
+    partners: admin ? direct.all() : [], b2b: admin ? b2b.all() : [],
+  });
+  const json = JSON.stringify(data);
+  insightsCache.set(key, { wb: current, cards: cardsNow, plan: planNow, at: Date.now(), json });
+  return json;
+}
+
+const portal = createPortalApi({
+  getWorkbook: () => current, writeWorkbook, recordChanges, teamSave,
+  cards, messages, courseLinks, facts, direct, b2b, planning, accounts, activity,
+  insights: servedInsights, finder: createFinder({ ai }), ai, jobs: aiJobs, calculated: CALCULATED_COLUMNS,
+});
+
 try {
   current = loadWorkbook();
   history.remember(current);
@@ -787,7 +858,7 @@ async function handleRestore(req, res, urlPath) {
   }
   if (urlPath !== '/api/restore') return send(res, 404, 'Not found');
   const id = String(body.id || '');
-  const parts = (Array.isArray(body.parts) ? body.parts : []).filter((p) => ['students', 'facts', 'partners'].includes(p));
+  const parts = (Array.isArray(body.parts) ? body.parts : []).filter((p) => ['students', 'facts', 'partners', 'cards', 'records'].includes(p));
   if (!BACKUP_ID.test(id)) return sendJSON(res, 400, { error: 'Choose a backup to restore.' });
   if (!parts.length) return sendJSON(res, 400, { error: 'Choose what to restore.' });
   const snap = backups.read(id);
@@ -796,6 +867,8 @@ async function handleRestore(req, res, urlPath) {
   if (parts.includes('students') && !isValidWorkbook(snap.students)) return sendJSON(res, 400, { error: 'The students in that backup could not be read, so nothing was restored.' });
   if (parts.includes('facts') && !Array.isArray(snap.facts)) return sendJSON(res, 400, { error: 'That backup has no Fact File, so nothing was restored.' });
   if (parts.includes('partners') && !Array.isArray(snap.partners)) return sendJSON(res, 400, { error: 'That backup has no Partner Universities, so nothing was restored.' });
+  if (parts.includes('cards') && (!snap.cards || typeof snap.cards !== 'object')) return sendJSON(res, 400, { error: 'That backup has no student cards, so nothing was restored.' });
+  if (parts.includes('records') && !snap.planning && !Array.isArray(snap.b2b) && !snap.templates) return sendJSON(res, 400, { error: 'That backup has no B2B partners or Dashboard records, so nothing was restored.' });
   const safety = backups.create('before-restore');
   const done = [];
   if (parts.includes('students')) {
@@ -808,6 +881,13 @@ async function handleRestore(req, res, urlPath) {
   }
   if (parts.includes('facts')) { facts.restoreAll(snap.facts); done.push('the Fact File'); }
   if (parts.includes('partners')) { direct.restoreAll(snap.partners); done.push('the Partner Universities'); }
+  if (parts.includes('cards')) { cards.restoreAll(snap.cards); done.push('the student cards'); }
+  if (parts.includes('records')) {
+    if (Array.isArray(snap.b2b)) b2b.restoreAll(snap.b2b);
+    if (snap.planning) planning.restoreAll(snap.planning);
+    if (snap.templates) messages.restoreAll(snap.templates);
+    done.push('the B2B partners, the Dashboard records and the message templates');
+  }
   activity.record(req, req.user, 'Restored data', { app: 'Student Details', changes: [`Restored ${done.join(', ')} from the backup ${id}. The data as it was before is saved as ${safety}`] });
   return sendJSON(res, 200, { ok: true, restored: done, safety });
 }
@@ -838,7 +918,10 @@ const server = http.createServer(async (req, res) => {
     // The pages. The Manager lands on the dashboard; Admin-only pages send anyone else back home.
     const home = req.user.role === 'manager' ? '/dashboard' : '/students';
     if (req.method === 'GET') {
-      const page = { '/students': 'index.html', '/dashboard': 'dashboard.html', '/users': 'users.html', '/activity': 'activity.html', '/partner-universities': 'direct.html' }[urlPath];
+      const page = {
+        '/students': 'index.html', '/dashboard': 'dashboard.html', '/users': 'users.html', '/activity': 'activity.html', '/partner-universities': 'direct.html',
+        '/student': 'student.html', '/follow-ups': 'follow-ups.html', '/message-templates': 'templates.html', '/b2b-partners': 'b2b.html',
+      }[urlPath];
       if (urlPath === '/') return req.user.role === 'manager' ? send(res, 302, '', { Location: '/dashboard' }) : serveStatic(req, res);
       if (urlPath === '/fact-file') { // the list, or one university's page (?u=...); every account may read
         req.url = new URL(req.url, 'http://x').searchParams.get('u') ? '/fact-university.html' : '/fact-file.html';
@@ -846,7 +929,9 @@ const server = http.createServer(async (req, res) => {
       }
       if (urlPath === '/admin') return send(res, 302, '', { Location: isAdmin(req.user) ? '/users' : home }); // the old address
       if (page) {
-        const allowed = urlPath === '/students' || (urlPath === '/dashboard' ? (isAdmin(req.user) || isManager(req.user)) : isAdmin(req.user));
+        // Every account opens the sheet, a student card and the follow-ups (each shows only the students the account sees);
+        // the Dashboard is for Admin and the Manager; the rest is Admin's.
+        const allowed = ['/students', '/student', '/follow-ups'].includes(urlPath) || (urlPath === '/dashboard' ? (isAdmin(req.user) || isManager(req.user)) : isAdmin(req.user));
         if (!allowed) return send(res, 302, '', { Location: home });
         req.url = '/' + page;
         return serveStatic(req, res);
@@ -887,6 +972,8 @@ const server = http.createServer(async (req, res) => {
       });
     }
     if (urlPath === '/api/facts' || /^\/api\/facts\/[a-f0-9]{12}(\/delete)?$/.test(urlPath)) return await handleFacts(req, res, urlPath);
+    // The student cards and the pages around them (portal-api.js).
+    if (await portal.handle(req, res, urlPath)) return;
     if (urlPath === '/api/direct' || /^\/api\/direct\/[a-f0-9]{12}(\/delete|\/files(\/[a-f0-9]{12}(\/delete)?)?)?$/.test(urlPath)) return await handleDirect(req, res, urlPath);
     if (urlPath === '/api/restore' || urlPath.startsWith('/api/restore/')) return await handleRestore(req, res, urlPath);
     if (urlPath === '/api/events' && req.method === 'GET') return handleEvents(req, res);
@@ -909,7 +996,7 @@ const server = http.createServer(async (req, res) => {
     }
     if (SHARED_FILES[urlPath]) return serveShared(req, res);
     // The page files of the Admin-only pages are Admin-only too (their data was already refused; now their shells are as well).
-    if (['/users.html', '/activity.html', '/direct.html', '/dashboard.html'].includes(urlPath) && !isAdmin(req.user)
+    if (['/users.html', '/activity.html', '/direct.html', '/dashboard.html', '/templates.html', '/b2b.html'].includes(urlPath) && !isAdmin(req.user)
       && !(urlPath === '/dashboard.html' && isManager(req.user))) return send(res, 302, '', { Location: home });
     serveStatic(req, res);
   } catch (e) {
