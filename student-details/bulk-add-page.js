@@ -151,6 +151,8 @@
     const pickValue = () => (picker ? picker.value() : { source: '', detail: '', remarks: '' });
     const sourceText = () => { const v = pickValue(); return v.source ? [v.source, v.detail, v.remarks].filter(Boolean).join(': ') : 'your branch'; };
     go.addEventListener('click', async () => {
+      if (picker && !pickValue().source) { say('Choose where the students came from first.', true); return; }
+      if (picker && pickValue().group === 'Branch' && !pickValue().branch) { say('Choose which branch.', true); return; }
       const checks = checkRows(rows);
       const sendRows = rows.filter((_, i) => !checks[i].skip);
       if (!sendRows.length) return;

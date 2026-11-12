@@ -7,6 +7,11 @@ To find every marked change in the code, search the project for `CSS CHANGED`.
 
 Format: **date · file · what · from → to · why**
 
+- **2026-11-13 · shared/theme.css · amber missing-commission flag, small Dashboard text, Dashboard lists on a phone · from: the flag looked like plain blue text, Dashboard chips and notes were 13px, university lists on a phone ran headings together → to: an amber pill, 14px text, and on a phone only Students and Visas columns with room to read · why: the client's second review.**
+- **2026-11-13 · student-details/admin.css · Users, Partner Universities and Activity tables · from: rows turned into labelled cards only below 760px → to: below 1180px, so a zoomed-in browser never cuts the table off · why: the owner's zoom test.**
+
+- **2026-11-13 · shared/theme.css · wide tables when zoomed in, and the Dashboard tabs on a phone · from: Users and Partner Universities tables were wider than the screen below 1100px, and the Dashboard tabs ran off the right edge → to: table cells wrap from 1280px down, and the tabs wrap onto a second line on a phone · why: the owner's zoom test and the width audit.**
+
 - **2026-11-13 · shared/theme.css · number tiles above the sheet · from: one row that scrolled sideways inside itself, so on a zoomed-in browser the last tiles (Withdrawn, Conversion rate) were cut off → to: the tiles wrap onto a second row on narrower screens, so every tile is always visible · why: the owner saw the conversion rate cut off when zooming the browser.**
 
 - **2026-11-13 · shared/theme.css, shared/header.js · Admin pages in the side menu · from: Users, Activity, Message templates and Incentive were only inside the account menu at the bottom → to: they are in the side menu under a small "Admin only" heading (still in the account menu too) · why: the owner could not find them.**

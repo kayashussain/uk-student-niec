@@ -276,7 +276,7 @@ function createPortalApi({
     team: { title: 'Your teams', tagline: 'The work of all your teams in one place.', sections: ['inquiries', 'apply', 'mock', 'mockFeedback', 'defer'], tiles: ['active', 'applied', 'visas'] },
   };
   const TILE_LABEL = {
-    active: 'Students in progress', applied: 'Applications submitted', visas: 'Visas issued', toSubmit: 'Applications to submit', waitingOffer: 'Waiting for an offer',
+    active: 'Students in progress', applied: 'Applications submitted', visas: 'Visas issued (all intakes)', toSubmit: 'Applications to submit', waitingOffer: 'Waiting for an offer',
     atMock: 'Students at Mock Stage', toSchedule: 'Interviews to schedule', feedbackMissing: 'Feedback to write', inquiries: 'Open inquiries', toFollow: 'To follow up now', deferred: 'Deferred students',
   };
   function todayFor(user) {

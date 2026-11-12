@@ -144,7 +144,7 @@
           find.disabled = true; find.textContent = 'Looking...';
           try {
             const r = await fetch('/api/course-link', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ universityId: uni.id, university: uni.name, course: c.course }) }).then((x) => x.json());
-            if (r.link) { c.link = r.link; show(); find.remove(); window.open(r.link, '_blank', 'noopener'); } else { find.disabled = false; find.textContent = 'Not found on the website. Try again'; }
+            if (r.link) { c.link = r.link; show(); find.remove(); window.open(r.link, '_blank', 'noopener'); } else { find.disabled = false; find.textContent = r.error ? 'Could not reach the website. Try again' : 'No page found on the website. Try again'; }
           } catch (e) { find.disabled = false; find.textContent = 'Find the course page'; }
         });
         li.append(find);

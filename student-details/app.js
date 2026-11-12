@@ -127,6 +127,7 @@
   const BACKUP = new URLSearchParams(location.search).get('backup') || '';
   const isTeam = () => Boolean(Teams.teamOf(me)); // anyone but Admin
   const isViewOnly = () => Teams.isReadOnly(me);
+  let scrolledToYours = false;
   const isBranchAccount = () => Boolean(me && (me.departments || []).some((d) => Teams.DEPARTMENTS[d] && Teams.DEPARTMENTS[d].source));
   const canEditCol = (col, row = null) => Teams.canEdit(me, col, row); // row: a student the person's team added can have its basics filled in
   let saving = false;
@@ -1100,6 +1101,11 @@
       headerRow.appendChild(th);
     });
     $('#sheet').style.width = tableWidth + 'px';
+    // A team's own columns can be far to the right: the first time the sheet is drawn, they are brought into view.
+    if (isTeam() && !isBranchAccount() && !scrolledToYours) {
+      scrolledToYours = true;
+      requestAnimationFrame(() => { const mine = headerRow.querySelector('th.col-yours'); if (mine) mine.scrollIntoView({ inline: 'center', block: 'nearest' }); });
+    }
   }
 
   function closeFilterMenu() {
@@ -1674,7 +1680,7 @@
     }
     const sheet = getActiveSheet();
     const hidden = sheet ? sheet.columns.filter((c) => !columns.includes(c)) : [];
-    if (hidden.length) text += ` · ${hidden.length} columns hidden on this sheet (${hidden.map(columnLabel).join(', ')})`;
+    if (hidden.length) text += ` · ${hidden.map(columnLabel).join(' and ')} ${hidden.length === 1 ? 'is' : 'are'} on each student's card`;
     rowCountEl.textContent = text;
   }
 

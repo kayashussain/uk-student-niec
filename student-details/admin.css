@@ -87,10 +87,13 @@ td[data-label="Last login"], td[data-label="Logged in"], td[data-label="Last act
 .actions select { padding: 4px 8px; font-size: 12px; }
 .muted { color: var(--dim); }
 
-/* Phones: each table row becomes a small card with labelled lines. */
+/* 🔴 CSS CHANGED (2026-11-13): the Users, Partner Universities and Activity tables | from: rows became labelled cards only below 760px, so on a zoomed-in browser the table was cut off at the right | to: rows become labelled cards below 1180px (the table is still used on wide screens) */
+/* Narrow screens and zoomed-in browsers: each table row becomes a small card with labelled lines. */
 @media (max-width: 760px) {
   .page { padding: 14px 10px 40px; }
   .card { padding: 14px; }
+}
+@media (max-width: 1180px) {
   table, tbody, tr, td { display: block; width: 100%; }
   thead { display: none; }
   tr { padding: 10px 0; border-bottom: 1px solid var(--border); }

@@ -72,12 +72,12 @@
     const i = list.findIndex((c) => c.id === ins.selected);
     return i > 0 ? list[i - 1] : null;
   }
+  // Last intake's figure beside this one, in plain words. No arrows or colours: an intake that is still running is not
+  // comparable with one that has finished, so the page does not call a difference good or bad.
   function deltaNode(cur, prev, prevLabel, { isPercentPoints = false } = {}) {
     const d = el('div', 'ov-delta');
-    if (prev === null || prev === undefined || cur === null || cur === undefined) { d.append(el('span', 'ov-delta-none', 'No earlier intake to compare')); return d; }
-    const diff = isPercentPoints ? Math.round((cur - prev) * 10) / 10 : (prev ? Math.round(((cur - prev) / prev) * 100) : (cur ? 100 : 0));
-    const up = diff > 0; const flat = diff === 0;
-    d.append(el('span', `ov-chip ${flat ? 'flat' : up ? 'up' : 'down'}`, `${flat ? '=' : up ? '▲' : '▼'} ${Math.abs(diff)}${isPercentPoints ? ' pts' : '%'}`), el('span', 'ov-delta-text', `vs ${prevLabel}`));
+    if (prev === null || prev === undefined) { d.append(el('span', 'ov-delta-none', 'No earlier intake to compare')); return d; }
+    d.append(el('span', 'ov-delta-text', `${prevLabel}: ${isPercentPoints ? prev + '%' : number(prev)}`));
     return d;
   }
   function kpis() {

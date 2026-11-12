@@ -593,3 +593,21 @@ html[data-nav="folded"] .niec-sep span { display: none; }
 @media (max-width: 900px) { .niec-sep { display: none; } }
 /* 🔴 CSS CHANGED (2026-11-13): the number tiles above the sheet (Total students ... Conversion rate) | from: one row that scrolled sideways inside itself, so on a zoomed-in browser the last tiles (Withdrawn, Conversion rate) were cut off | to: the tiles wrap onto a second row when the screen is narrower, so every tile is always visible */
 .stat-group-cards { display: grid; grid-auto-flow: row; grid-template-columns: repeat(auto-fit, minmax(112px, 1fr)); grid-auto-columns: auto; width: 100%; max-width: 100%; overflow: visible; }
+/* 🔴 CSS CHANGED (2026-11-13): wide tables on Users and Partner Universities when the browser is zoomed in (screens up to 1280px wide) | from: the table was wider than the screen below 1100px, so the page scrolled sideways | to: cells and headings wrap from 1280px down, so the table always fits */
+@media (max-width: 1280px) {
+  .page .card table, .table-card table, .p-table-wrap table { width: 100%; min-width: 0; table-layout: auto; }
+  .page .card th, .page .card td, .table-card th, .table-card td, .p-table-wrap th, .p-table-wrap td { white-space: normal; overflow-wrap: anywhere; }
+  .page .card th, .table-card th, .p-table-wrap th { overflow-wrap: normal; word-break: normal; }
+}
+/* 🔴 CSS CHANGED (2026-11-13): the Dashboard page tabs on a phone | from: tabs ran off to the right and had to be swiped | to: tabs wrap onto a second line so every tab shows */
+@media (max-width: 760px) { #dashTabs.p-tabs { flex-wrap: wrap; overflow: visible; } }
+/* 🔴 CSS CHANGED (2026-11-13): amber "missing commission" flag, small Dashboard text, Dashboard lists on a phone | from: the missing-commission flag looked like plain blue link text; chips, notes and chart numbers on the Dashboard were 13px; the university lists on a phone ran their headings together | to: the flag is an amber pill; those texts are 14px; on a phone the lists show Students and Visas only, with room to read */
+.p-pill.p-link.p-pill-amber { background: var(--amber-bg, #fdf0d2); color: var(--amber-fg, #7a4a00); cursor: pointer; padding: 4px 12px; border-radius: 999px; font-weight: 650; }
+.ov-chip, .ov-delta-text, .ov-delta-none, .ov-funnel-conv, .ov-rank-note, .ov-axis, .ov-board-row.head, .ov-compare-row.head, .ov-money-item small { font-size: 14px; }
+@media (max-width: 560px) {
+  .ov-board-row { grid-template-columns: minmax(0, 1fr) 70px 70px; gap: 6px; }
+  .ov-board-row > :nth-child(3), .ov-board-row > :nth-child(4) { display: none; }
+  .ov-compare-row { grid-template-columns: minmax(0, 1fr) 64px 64px; }
+  .ov-compare-row > :nth-child(3), .ov-compare-row > :nth-child(4), .ov-compare-row > :nth-child(5), .ov-compare-row > :nth-child(7) { display: none; }
+  .ov-board-name b { white-space: normal; }
+}
