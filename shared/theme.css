@@ -586,3 +586,8 @@ label span, .p-card label span { font-size: 14px; }
 .t-kind { display: inline-block; margin: 0 0 8px; padding: 4px 12px; border-radius: 999px; background: color-mix(in srgb, var(--primary) 12%, transparent); color: var(--primary); font-size: 14px; font-weight: 650; letter-spacing: .02em; }
 .team-note { background: color-mix(in srgb, var(--primary) 10%, transparent); color: var(--primary); }
 #sheet thead th.col-yours { background: color-mix(in srgb, var(--primary) 14%, var(--panel)); box-shadow: inset 0 -3px 0 var(--primary); }
+/* 🔴 CSS CHANGED (2026-11-13): Admin pages in the side menu | from: Users, Activity, Message templates and Incentive were only inside the account menu | to: they are in the side menu under a small "Admin only" heading */
+.niec-sep { margin: 14px 12px 4px; padding-top: 12px; border-top: 1px solid var(--h-border, var(--border)); font-size: 13px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--text-dim); }
+html[data-nav="folded"] .niec-sep { margin: 10px 8px 2px; text-align: center; font-size: 0; }
+html[data-nav="folded"] .niec-sep span { display: none; }
+@media (max-width: 900px) { .niec-sep { display: none; } }

@@ -7,6 +7,10 @@ To find every marked change in the code, search the project for `CSS CHANGED`.
 
 Format: **date · file · what · from → to · why**
 
+- **2026-11-13 · shared/theme.css, shared/header.js · Admin pages in the side menu · from: Users, Activity, Message templates and Incentive were only inside the account menu at the bottom → to: they are in the side menu under a small "Admin only" heading (still in the account menu too) · why: the owner could not find them.**
+
+- **2026-11-13 · shared/header.js, shared/login.html, brand/, favicon and app icons · the Recruitment 360 logo, designed properly · from: the paper plane in a blue square with the name typed beside it → to: a dotted ring (the 360 degrees) trailing a paper plane that takes off from it, with the name "Recruitment 360" drawn as letters (so it looks the same on every computer); the folded menu, the browser tab and the phone home screen use the same ring and plane on a blue tile · why: the owner asked for the logo to be fixed first.**
+
 - **2026-11-13 · shared/theme.css · chart text rule · from: a rule meant for chart numbers also shrank the logo text in the menu → to: the rule only applies to the Dashboard charts · why: the logo name read tiny.**
 
 - **2026-11-13 · shared/theme.css · team workspaces (Today label, sheet team note, highlighted team columns) · from: every team saw the same Today and sheet headings → to: a small label on Today for the team, a note beside the sheet title, and the columns a team fills in with a soft blue heading · why: the owner asked for the portal to be modified for each team and for the branches.**
