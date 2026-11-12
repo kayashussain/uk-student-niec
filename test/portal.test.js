@@ -700,3 +700,16 @@ test('each kind of account gets its own workspace, and every branch in the list 
   assert.strictEqual(Fields.sourceGroup('Butwal Branch'), 'Branch');
   assert.strictEqual(Fields.storedSource('Branch', 'Palpa'), 'Palpa Branch');
 });
+
+test('a ready-made message template can be deleted and brought back', () => {
+  const os = require('os'); const fsx = require('fs'); const pathx = require('path');
+  const { createMessages } = require('../student-details/messages.js');
+  const m = createMessages(fsx.mkdtempSync(pathx.join(os.tmpdir(), 'msgdel-')));
+  const before = m.list().length;
+  const key = m.list().find((t) => t.builtIn).key;
+  assert.ok(m.hideTemplate(key).removed);
+  assert.strictEqual(m.list().length, before - 1);
+  assert.strictEqual(m.hiddenCount(), 1);
+  assert.strictEqual(m.restoreHidden().restored, 1);
+  assert.strictEqual(m.list().length, before);
+});

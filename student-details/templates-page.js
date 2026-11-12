@@ -52,6 +52,14 @@
       try { await api(`/api/templates/${t.key}/delete`, {}); say(t.builtIn ? 'Original text put back' : 'Deleted'); openKey = t.builtIn ? t.key : ''; await load(openKey); } catch (e) { say(e.message, true); }
     });
     if (t.edited || !t.builtIn) bar.append(remove);
+    if (t.builtIn) {
+      const del = h('button', { class: 'btn btn-danger', type: 'button' }, 'Delete this template');
+      del.addEventListener('click', async () => {
+        if (!(await window.NiecUI.confirm(`Delete "${t.name}"? It disappears from the list and from the student card. You can bring the ready-made templates back later.`, { danger: true, confirmText: 'Delete' }))) return;
+        try { await api(`/api/templates/${t.key}/hide`, {}); say('Deleted'); openKey = ''; await load(''); } catch (e) { say(e.message, true); }
+      });
+      bar.append(del);
+    }
     ed.replaceChildren(el('h2', '', t.name), el('p', 'p-muted', 'Which stages should this suit? The student card puts the suitable templates first.'), stages, el('h3', '', 'Words'), form, words, bar, msg);
     if (!data.canEdit) { ed.querySelectorAll('input, textarea, select, button').forEach((x) => { x.disabled = true; }); }
   }
@@ -76,7 +84,14 @@
     $('mailNote').textContent = data.mail.ready ? `Emails are sent from ${data.mail.from}.` : 'Email is not set up on this server yet, so sending only keeps a preview on the student card. Your system administrator sets it up once (the steps are in DEPLOY.md). Emails to students are sent from the mailbox set up for this system, and WhatsApp messages open from your own phone or WhatsApp Web.';
     list();
     signature();
-    const t = data.templates.find((x) => x.key === (key || openKey));
+    // A link to bring back the ready-made templates that were deleted.
+    const old = document.getElementById('bringBack'); if (old) old.remove();
+    if (data.hiddenCount && data.canEdit) {
+      const back = h('button', { class: 'btn', type: 'button', id: 'bringBack' }, `Bring back ${data.hiddenCount} deleted template${data.hiddenCount === 1 ? '' : 's'}`);
+      back.addEventListener('click', async () => { try { await api('/api/templates/restore-hidden', {}); say('Brought back'); await load(''); } catch (e) { say(e.message, true); } });
+      $('addTemplate').after(back);
+    }
+    const t = data.templates.find((x) => x.key === (key || openKey)) || data.templates[0];
     if (t) edit(t); else $('editor').replaceChildren(el('p', 'p-muted', 'Choose a template on the left to edit it.'));
   }
   $('addTemplate').addEventListener('click', () => dialog('New template', (body, close) => {

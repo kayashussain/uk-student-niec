@@ -766,7 +766,7 @@ function createPortalApi({
   async function handleTemplates(req, res, urlPath) {
     if (req.method === 'GET' && urlPath === '/api/templates') {
       const cfg = mailConfig();
-      sendJSON(res, 200, { templates: messages.list(), fields: Messages.FIELDS, signature: messages.signature(), stages: Teams.ALL_STATUSES, canEdit: Teams.isAdmin(req.user), mail: { ready: Boolean(cfg), from: cfg ? cfg.from : '' } });
+      sendJSON(res, 200, { templates: messages.list(), hiddenCount: messages.hiddenCount(), fields: Messages.FIELDS, signature: messages.signature(), stages: Teams.ALL_STATUSES, canEdit: Teams.isAdmin(req.user), mail: { ready: Boolean(cfg), from: cfg ? cfg.from : '' } });
       return true;
     }
     if (req.method !== 'POST') { send(res, 405, 'Method not allowed'); return true; }
@@ -785,6 +785,20 @@ function createPortalApi({
       if (out.error) { sendJSON(res, 400, { error: out.error }); return true; }
       record(`Added the message template "${out.template.name}"`);
       sendJSON(res, 200, { ok: true, template: out.template });
+      return true;
+    }
+    if (urlPath === '/api/templates/restore-hidden') {
+      const out = messages.restoreHidden();
+      record(`Brought back ${out.restored} deleted ready-made message template${out.restored === 1 ? '' : 's'}`);
+      sendJSON(res, 200, { ok: true, restored: out.restored });
+      return true;
+    }
+    const hideMatch = /^\/api\/templates\/([a-z0-9_]{1,40})\/hide$/.exec(urlPath);
+    if (hideMatch) {
+      const out = messages.hideTemplate(hideMatch[1]);
+      if (out.error) { sendJSON(res, 404, { error: out.error }); return true; }
+      record(`Deleted the ready-made message template "${out.removed.name}"`);
+      sendJSON(res, 200, { ok: true });
       return true;
     }
     const m = /^\/api\/templates\/([a-z0-9_]{1,40})(\/delete)?$/.exec(urlPath);

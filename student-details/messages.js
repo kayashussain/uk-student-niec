@@ -370,9 +370,10 @@ function createMessages(dir, { now = () => new Date() } = {}) {
   function load() {
     const data = read() || { templates: [], signature: cleanSignature({}) };
     const saved = new Map(data.templates.map((t) => [t.key, t]));
-    const builtIn = DEFAULTS.map((d) => (saved.has(d.key) ? { ...saved.get(d.key), builtIn: true, edited: true } : { ...d, builtIn: true, edited: false }));
+    const hidden = Array.isArray(data.hidden) ? data.hidden : [];
+    const builtIn = DEFAULTS.filter((d) => !hidden.includes(d.key)).map((d) => (saved.has(d.key) ? { ...saved.get(d.key), builtIn: true, edited: true } : { ...d, builtIn: true, edited: false }));
     const own = data.templates.filter((t) => !DEFAULTS.some((d) => d.key === t.key)).map((t) => ({ ...t, builtIn: false, edited: true }));
-    return { templates: [...builtIn, ...own], signature: cleanSignature(data.signature || {}), stored: data };
+    return { templates: [...builtIn, ...own], signature: cleanSignature(data.signature || {}), stored: data, hidden };
   }
 
   return {
@@ -404,6 +405,16 @@ function createMessages(dir, { now = () => new Date() } = {}) {
       return { template: made };
     },
     // A template of your own is deleted; a built-in one goes back to its original text.
+    // Deleting one of the ready-made templates hides it (and forgets any edit of it); the originals can be brought back.
+    hideTemplate(key) {
+      const { stored, templates, hidden } = load();
+      const old = templates.find((t) => t.key === key);
+      if (!old || !old.builtIn) return { error: 'No such ready-made template.' };
+      write({ ...stored, templates: stored.templates.filter((t) => t.key !== key), hidden: [...new Set([...hidden, key])] });
+      return { removed: old };
+    },
+    restoreHidden() { const { stored, hidden } = load(); write({ ...stored, hidden: [] }); return { restored: hidden.length }; },
+    hiddenCount: () => load().hidden.length,
     removeTemplate(key) {
       const { stored, templates } = load();
       const old = templates.find((t) => t.key === key);
