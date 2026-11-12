@@ -133,7 +133,7 @@ Daily backups and "today's" exchange rate follow Nepal time. To use a different 
 New in the same app, no new setup needed: the data goes in new files of the Student Details data folder (`cards.json`, `message-log.jsonl`, `message-templates.json`, `course-links.json`, `b2b-partners.json` with `b2b-files/`, `planning.json`), never in git. They are in the 6 p.m. backup (restore them from Activity, Restore data) and the first save of each day also copies them into `backups/`.
 
 - **Email to students** uses the same mailbox as the account emails (`node scripts/email.js setup`, see Email above). Messages go from that mailbox with the signature Admin writes on **Message templates**; a copy goes to the same mailbox unless Admin switches that off. Without the mailbox set up, sending only keeps a preview on the card.
-- **AI helper (optional)** for the option finder and Ask the analyst: set `ANTHROPIC_API_KEY` (a key from console.anthropic.com) in the host's settings, run NPM Install once (it adds the optional `@anthropic-ai/sdk` package), and Restart. The server must be allowed to reach `api.anthropic.com`. `NIEC_AI_MODEL` picks another model (default `claude-opus-5-5`). Without the key everything works and the finder uses its built-in matching. Only the Fact File's facts, the question and the student's study details are sent; never a name, email or phone number.
+- **The Fact File assistant needs nothing set up:** it runs inside the server and reads the entry rules in the Fact File. No key, no outside service.
 
 ## Updating the code later
 

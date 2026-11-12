@@ -86,9 +86,13 @@
   const columnLabel = (col) => COLUMN_LABELS[col] || col.split(' ')
     .map((w) => (KEEP_CAPS.has(w) ? w : w.charAt(0) + w.slice(1).toLowerCase())).join(' ');
   // A team always sees the columns it fills in, even where Admin's view hides them.
+  // The sheet starts at Application Status. Where the student came from (Student Source and the exact platform, event or partner)
+  // and the notes (what Remarks held) are on the student's card, which opens with a double-click on the student's name. The data of
+  // these two columns stays in the file and keeps working (branch students, the Dashboard, Incentive): the sheet just does not show them.
+  const CARD_COLUMNS = new Set(['REMARKS', 'STUDENT SOURCE']);
   const visibleColumns = (sheet) => {
     const hidden = new Set(HIDDEN_COLUMNS_BY_SHEET.filter((h) => h.matches(sheet.name || '')).flatMap((h) => h.columns));
-    return sheet.columns.filter((c) => !hidden.has(c) || (isTeam() && canEditCol(c)));
+    return sheet.columns.filter((c) => !CARD_COLUMNS.has(c) && (!hidden.has(c) || (isTeam() && canEditCol(c))));
   };
   let columns = []; // the active sheet's shown columns (see visibleColumns)
   let rows = [];    // reference to the active sheet's rows array
@@ -2713,6 +2717,9 @@
     const td = e.target.closest('td');
     // A double-click on the row number opens that student's card.
     if (td && body.contains(td) && td.classList.contains('col-idx') && !td.parentElement.classList.contains('pad-row')) { openCardOfRow(Number(td.parentElement.dataset.rowIdx)); return; }
+    // A double-click on the student's name (first or last) opens the card too; Enter or F2 still edits the name.
+    if (td && body.contains(td) && !td.parentElement.classList.contains('pad-row') && !e.target.closest('select, input')
+      && ['FIRST NAME', 'LAST NAME'].includes(columns[Number(td.dataset.colIndex)])) { openCardOfRow(Number(td.parentElement.dataset.rowIdx)); return; }
     if (!td || !body.contains(td) || td.classList.contains('col-idx') || e.target.closest('select, input')
       || td.parentElement.classList.contains('pad-row')) return;
     const rowIdx = Number(td.parentElement.dataset.rowIdx);
@@ -2782,7 +2789,7 @@
   // The keys that work like Google Sheets, in one place.
   const SHORTCUTS = [
     'Arrow keys / Tab: move between cells',
-    'Enter or F2 or double-click: edit a cell (Esc cancels)',
+    'Enter or F2 or double-click: edit a cell (Esc cancels); on a name, a double-click opens the card',
     'Just start typing: replace the cell',
     'Shift + arrows: select several cells',
     'Shift + Space: select the whole row',
@@ -2790,7 +2797,7 @@
     'Ctrl + C / X / V: copy, cut, paste (works with Excel and Google Sheets)',
     'Delete: clear the selected cells',
     'Ctrl + Z / Ctrl + Y: undo, redo',
-    'Double-click a row number (or press Open card): the student card',
+    'Double-click a student\'s name or row number (or press Open card): the student card',
   ].map((l) => '• ' + l).join('\n');
   const showShortcuts = () => NiecUI.alert(SHORTCUTS, { title: 'Keyboard shortcuts', confirmText: 'Got it' });
   $('#helpBtn').addEventListener('click', showShortcuts);

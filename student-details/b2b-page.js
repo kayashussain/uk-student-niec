@@ -1,4 +1,4 @@
-// B2B Partners (Admin only): the sub-agents and B2B platforms, their terms, contacts, agreements and what each has brought.
+// B2B Partners (Admin only): the B2B partners, their terms, contacts, agreements and what each has brought.
 (function () {
   const { el, h, api, field, number, percent } = window.Portal;
   const $ = (id) => document.getElementById(id);
@@ -9,13 +9,12 @@
   function stats(name) { return data.performance[String(name).toLowerCase()] || { students: 0, applied: 0, paid: 0, visas: 0 }; }
   function list() {
     const body = $('rows');
-    const sub = data.partners.filter((p) => p.kind === 'Sub-agent' && p.status === 'Active').length;
-    const plat = data.partners.filter((p) => p.kind === 'B2B platform' && p.status === 'Active').length;
+    const active = data.partners.filter((p) => p.status === 'Active').length;
     const total = data.partners.reduce((n, p) => n + stats(p.name).visas, 0);
     const tile = (label, v, sub1) => { const t = el('div', 'p-kpi'); t.append(el('b', '', String(v)), el('span', '', label), el('small', '', sub1 || '')); return t; };
-    $('kpis').replaceChildren(tile('Sub-agents', sub, 'active'), tile('B2B platforms', plat, 'active'), tile('Visas through partners', total, 'all intakes'));
+    $('kpis').replaceChildren(tile('B2B partners', active, 'active'), tile('Visas through partners', total, 'every intake on the sheet'));
     $('count').textContent = data.partners.length ? `${data.partners.length} partners` : '';
-    if (!data.partners.length) { body.replaceChildren(h('tr', {}, h('td', { colspan: 8, class: 'p-empty' }, el('b', '', 'No partners yet'), 'Add the first sub-agent or B2B platform.'))); return; }
+    if (!data.partners.length) { body.replaceChildren(h('tr', {}, h('td', { colspan: 7, class: 'p-empty' }, el('b', '', 'No partners yet'), 'Add the first B2B partner.'))); return; }
     body.replaceChildren(...data.partners.map((p) => {
       const st = stats(p.name);
       const tr = el('tr');
@@ -24,7 +23,7 @@
       const st1 = el('td'); st1.append(pill);
       const contact = el('td', '', [p.contact.name, p.contact.phone].filter(Boolean).join(', ') || 'None yet');
       const terms = el('td'); (p.terms.length ? p.terms : ['None yet']).forEach((t) => terms.append(el('div', 'p-small', t)));
-      tr.append(name, el('td', '', p.kind), st1, el('td', '', p.agreementEnd || 'None yet'), contact, terms, el('td', 'num', number(st.students)), el('td', 'num', number(st.visas)));
+      tr.append(name, st1, el('td', '', p.agreementEnd || 'None yet'), contact, terms, el('td', 'num', number(st.students)), el('td', 'num', number(st.visas)));
       return tr;
     }));
   }
@@ -55,16 +54,14 @@
     const ed = $('editor');
     const st = stats(p.name);
     const name = field('Name', { value: p.name, max: 120 });
-    const kind = field('Kind', { kind: 'select', choices: data.kinds, value: p.kind });
-    kind.input.querySelector('option[value=""]').remove();
     const status = field('Status', { kind: 'select', choices: data.statuses, value: p.status });
     status.input.querySelector('option[value=""]').remove();
     const city = field('City or country', { value: p.city, max: 300 });
     const start = field('Agreement starts', { value: p.agreementStart, placeholder: '1 Jan 2026', max: 40 });
     const end = field('Agreement ends', { value: p.agreementEnd, placeholder: '31 Dec 2026', max: 40 });
     const form = el('div', 'p-form');
-    form.append(name.wrap, kind.wrap, status.wrap, city.wrap, start.wrap, end.wrap);
-    const terms = repeater(p.kind === 'Sub-agent' ? 'What NIEC pays this sub-agent' : 'What the platform and NIEC share', [['item', 'For', 'Postgraduate student with a visa'], ['terms', 'Terms', 'Rs 40,000 after enrolment']], p.terms, 'Add a term');
+    form.append(name.wrap, status.wrap, city.wrap, start.wrap, end.wrap);
+    const terms = repeater('What is agreed (who gets what)', [['item', 'For', 'Postgraduate student with a visa'], ['terms', 'Terms', 'Rs 40,000 after enrolment']], p.terms, 'Add a term');
     const contacts = repeater('Contact people', [['name', 'Name'], ['phone', 'Phone'], ['email', 'Email']], p.contacts, 'Add a contact');
     const pay = field('Payment terms', { kind: 'area', value: p.paymentTerms, max: 12000, wide: true });
     const notes = field('Notes', { kind: 'area', value: p.notes, max: 12000, wide: true });
@@ -102,7 +99,7 @@
     const save = h('button', { class: 'btn btn-primary', type: 'button' }, 'Save');
     save.addEventListener('click', async () => {
       try {
-        await api('/api/b2b/' + id, { name: name.input.value, kind: kind.input.value, status: status.input.value, city: city.input.value, agreementStart: start.input.value, agreementEnd: end.input.value, terms: terms.values(), contacts: contacts.values(), paymentTerms: pay.input.value, notes: notes.input.value });
+        await api('/api/b2b/' + id, { name: name.input.value, status: status.input.value, city: city.input.value, agreementStart: start.input.value, agreementEnd: end.input.value, terms: terms.values(), contacts: contacts.values(), paymentTerms: pay.input.value, notes: notes.input.value });
         say('Saved'); await load(); edit(id);
       } catch (e) { say(e.message, true); }
     });
@@ -117,18 +114,16 @@
   $('add').addEventListener('click', async () => {
     const name = await new Promise((resolve) => window.Portal.dialog('Add a partner', (body, close) => {
       const n = field('Name', { max: 120, placeholder: 'Himal Education Hub' });
-      const k = field('Kind', { kind: 'select', choices: ['Sub-agent', 'B2B platform'], value: 'Sub-agent' });
-      k.input.querySelector('option[value=""]').remove();
       const msg = el('div', 'p-msg');
       const foot = el('div', 'p-dialog-foot');
       foot.append(h('button', { class: 'btn', type: 'button', onclick: () => close() }, 'Cancel'));
       const ok = h('button', { class: 'btn btn-primary', type: 'button' }, 'Add');
-      ok.addEventListener('click', async () => { try { close(await api('/api/b2b', { name: n.input.value, kind: k.input.value })); } catch (e) { msg.textContent = e.message; msg.className = 'p-msg error'; } });
+      ok.addEventListener('click', async () => { try { close(await api('/api/b2b', { name: n.input.value })); } catch (e) { msg.textContent = e.message; msg.className = 'p-msg error'; } });
       foot.append(ok);
       body.append(el('div', 'p-form p-form-2'), msg, foot);
-      body.firstChild.append(n.wrap, k.wrap);
+      body.firstChild.append(n.wrap);
     }).then(resolve));
     if (name) { await load(); edit(name.id); }
   });
-  load().catch((e) => { $('rows').replaceChildren(h('tr', {}, h('td', { colspan: 8, class: 'p-notice bad' }, e.message))); });
+  load().catch((e) => { $('rows').replaceChildren(h('tr', {}, h('td', { colspan: 7, class: 'p-notice bad' }, e.message))); });
 })();

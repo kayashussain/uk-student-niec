@@ -15,6 +15,7 @@ Format: **date · file · what · from → to · why**
 - **From:** these pages and parts did not exist.
 - **To:** the same Mist palette, fonts, rounded cards and pill buttons as the rest of the site (every colour and the font come from `shared/theme.css`; every class starts with `p-`).
 - **Existing pages:** no existing rule was changed. The sheet (`index.html`) gains one button (Open card) and the Dashboard gains a row of tabs; both use the new classes. Colours, fonts and layout of everything that existed are as before.
+- **Also (2026-11-12):** the Dashboard funnel, weekly pace and "business at a glance" blocks and the Fact File assistant answer list use the same `p-` classes (new rules appended to this file, nothing existing changed).
 - **Why:** the owner asked for a recruitment portal with a student card, messages, university options, partners and business analysis.
 
 ## 2026-11-07 · `shared/theme.css` · fee cells in coloured rows, hovering a selected row, four-digit row numbers

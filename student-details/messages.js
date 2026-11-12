@@ -31,12 +31,11 @@ const FIELDS = [
   ['gross_fee', 'Gross fee'], ['scholarship', 'Scholarship'], ['fee_after_scholarship', 'Fee after scholarship'], ['remaining_fee', 'Remaining tuition fee'],
   ['student_id', 'Student ID'], ['today', "Today's date"],
   ['options_table', 'The university options prepared on the card (university, course, fee, scholarship and link), on a line of its own'],
-  ['documents_list', 'The documents needed for the application, on a line of its own'],
-  ['missing_documents', 'The documents not yet ticked as received on the card, on a line of its own'],
+  ['documents_list', 'The checklist of documents needed to apply, on a line of its own'],
 ];
 // The short name of each word, for the note that tells the sender which details are still empty.
 const FIELD_LABEL = Object.fromEntries(FIELDS.map(([k, label]) => [k, label.replace(/\s*\(.*\)$/, '')]));
-const BLOCK_FIELDS = new Set(['options_table', 'documents_list', 'missing_documents']);
+const BLOCK_FIELDS = new Set(['options_table', 'documents_list']);
 
 // The built-in templates. `stages`: the stages at which the card offers the template first.
 const DEFAULTS = [
@@ -80,17 +79,6 @@ const DEFAULTS = [
       'Please send them by replying to this email or on WhatsApp. If any document is not ready yet, tell us and we will advise you.',
     ].join('\n\n'),
     whatsapp: 'Namaste {first_name}, to submit your application we need these documents:\n{documents_list}\n\nPlease send clear scans or photos here. - {sender_name}, NIEC',
-  },
-  {
-    key: 'missing_documents', name: 'Reminder: documents still needed', stages: ['Application Stage', 'Mock Stage', 'Payment Stage', 'CAS Stage'],
-    subject: 'Reminder: documents still needed for your application',
-    body: [
-      'Dear {first_name},',
-      'Thank you for the documents you have sent so far. We are still waiting for these:',
-      '{missing_documents}',
-      'Please send them as soon as you can, so that your application is not delayed.',
-    ].join('\n\n'),
-    whatsapp: 'Namaste {first_name}, a gentle reminder. We are still waiting for these documents:\n{missing_documents}\n\nPlease send them when you can so your application is not delayed. - {sender_name}, NIEC',
   },
   {
     key: 'application_submitted', name: 'Application submitted', stages: ['Application Stage'],
@@ -318,9 +306,7 @@ function blockText(key, ctx) {
       ...(o.note ? [`   Note: ${o.note}`] : []),
     ]);
   }
-  const docs = key === 'documents_list' ? ctx.documents : ctx.missingDocuments;
-  if (!docs.length) return [key === 'documents_list' ? '(no document list)' : 'Nothing: we have every document on our list. Thank you.'];
-  return docs.map((d) => `- ${d}`);
+  return ctx.documents.map((d) => `- ${d}`);
 }
 
 function blockHtml(key, ctx) {
@@ -342,9 +328,7 @@ function blockHtml(key, ctx) {
     return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin:4px 0 18px;border:1px solid #e3e8ee;border-radius:8px">`
       + `<tr style="background:#eef7fc">${th('University')}${th('Course')}${th('Tuition fee')}${th('Scholarship')}${th('Link')}</tr>${rows}</table>`;
   }
-  const docs = key === 'documents_list' ? ctx.documents : ctx.missingDocuments;
-  if (!docs.length) return `<p style="margin:0 0 14px">${key === 'documents_list' ? '(no document list)' : 'Nothing: we have every document on our list. Thank you.'}</p>`;
-  return `<ul style="margin:0 0 14px;padding-left:22px">${docs.map((d) => `<li style="margin:4px 0">${esc(d)}</li>`).join('')}</ul>`;
+  return `<ul style="margin:0 0 14px;padding-left:22px">${ctx.documents.map((d) => `<li style="margin:4px 0">${esc(d)}</li>`).join('')}</ul>`;
 }
 
 // Web addresses in a paragraph become links (only http and https ones).
@@ -362,9 +346,9 @@ function signatureLines(sig) {
 
 // One message, ready to send: the subject, the plain text and the HTML, with the signature. `missing` lists the
 // {words} that had nothing to show, by their names, so the sender can fill the gap before sending.
-function renderEmail({ subject, body, values, signature, options = [], documents = [], missingDocuments = [], siteUrl = '' }) {
+function renderEmail({ subject, body, values, signature, options = [], documents = [], siteUrl = '' }) {
   const missing = new Set();
-  const ctx = { options, documents, missingDocuments };
+  const ctx = { options, documents };
   const subj = fill(str(subject, LIMITS.subject), values, missing).replace(/\s+/g, ' ').trim();
   const textOut = [];
   const html = [];
@@ -372,7 +356,7 @@ function renderEmail({ subject, body, values, signature, options = [], documents
   const closeList = () => { if (list) { html.push(`<ul style="margin:0 0 14px;padding-left:22px">${list.join('')}</ul>`); list = null; } };
   str(body, LIMITS.body).split('\n').forEach((raw) => {
     const line = raw.trim();
-    const block = /^\{(options_table|documents_list|missing_documents)\}$/.exec(line);
+    const block = /^\{(options_table|documents_list)\}$/.exec(line);
     if (block) {
       closeList();
       textOut.push(...blockText(block[1], ctx));
@@ -420,13 +404,13 @@ ${html.join('\n')}
 }
 
 // The WhatsApp version: short plain text (WhatsApp shows *stars* as bold).
-function renderWhatsApp({ body, values, options = [], documents = [], missingDocuments = [] }) {
+function renderWhatsApp({ body, values, options = [], documents = [] }) {
   const missing = new Set();
-  const ctx = { options, documents, missingDocuments };
+  const ctx = { options, documents };
   const out = [];
   str(body, LIMITS.whatsapp).split('\n').forEach((raw) => {
     const line = raw.trim();
-    const block = /^\{(options_table|documents_list|missing_documents)\}$/.exec(line);
+    const block = /^\{(options_table|documents_list)\}$/.exec(line);
     if (block) { out.push(...blockText(block[1], ctx)); return; }
     out.push(fill(line.replace(/^##\s+/, ''), values, missing));
   });
@@ -535,16 +519,10 @@ function createMessages(dir, { now = () => new Date() } = {}) {
   };
 }
 
-// The documents to list for a student of a study level, and those not yet ticked on the card.
+// The checklist of documents to apply, for a student of a study level.
 function documentLists(card) {
   const level = card && card.profile ? card.profile.studyLevel : '';
-  const all = Fields.documentsFor(level).filter((d) => d.when === 'Application');
-  const everything = Fields.documentsFor(level);
-  const got = (card && card.documents) || {};
-  return {
-    documents: all.map((d) => d.text),
-    missingDocuments: everything.filter((d) => !got[d.key] && d.when === 'Application').map((d) => d.text),
-  };
+  return { documents: Fields.documentsFor(level).map((d) => d.text) };
 }
 
 module.exports = {

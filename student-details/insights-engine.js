@@ -231,6 +231,23 @@ function weekly(students, todayIso) {
   });
 }
 
+// ---- the journey as a funnel: how many reach each step and what share of the step before goes on ----
+function funnel(summary) {
+  const steps = [['Students', summary.students], ['Applied', summary.applied], ['Offer received', summary.offers], ['Paid the deposit', summary.paid], ['CAS received', summary.cas], ['Visa lodged', summary.lodged], ['Visa issued', summary.visas]];
+  return steps.map(([label, count], i) => ({ label, count, ofAll: pct(count, steps[0][1]), fromPrevious: i ? pct(count, steps[i - 1][1]) : null }));
+}
+// What was dated in each of the last 12 weeks (weeks end on today's weekday), to see the pace and whether it is rising.
+function trend(students, todayIso) {
+  const today = dayNumber(todayIso);
+  const keys = ['inquiry', 'applied', 'offer', 'paid', 'visa'];
+  const weeks = Array.from({ length: 12 }, (_, i) => ({ end: new Date((today - (11 - i) * 7) * DAY).toISOString().slice(0, 10), inquiry: 0, applied: 0, offer: 0, paid: 0, visa: 0 }));
+  students.forEach((s) => keys.forEach((k) => {
+    const d = today - dayNumber(s.dates[k]);
+    if (d >= 0 && d < 84) weeks[11 - Math.floor(d / 7)][k] += 1;
+  }));
+  return weeks;
+}
+
 // ---- when students first ask, by month of the year (every intake together) ----
 function seasonality(all) {
   const months = MONTH_NAMES.map((name) => ({ name, inquiries: 0, applications: 0, visas: 0 }));
@@ -636,7 +653,7 @@ function buildInsights({ workbook, cards = {}, planning = {}, partners = [], b2b
   }
   const season = seasonality(all);
   if (season.datedInquiries >= 20 && season.peakInquiry.length && season.peakInquiry.length <= 3) {
-    add('P3', 'Timing', `Most inquiries come in ${season.peakInquiry.join(' and ')}`, [`From ${season.datedInquiries} inquiries with a date, over every intake.`],
+    add('P3', 'Timing', `Most inquiries come in ${season.peakInquiry.join(' and ')}`, [`From ${season.datedInquiries} inquiries with a date, across your intakes so far.`],
       'An event held just before the busy month catches students while they are deciding; one held after it finds them already signed elsewhere.',
       `Plan the main event and the advert budget for the four weeks before ${season.peakInquiry[0]}.`, 'Inquiries in the month after the event, against the same month last year.', 'Medium');
   }
@@ -657,7 +674,7 @@ function buildInsights({ workbook, cards = {}, planning = {}, partners = [], b2b
       agreements.push({ label, kind, end: parsed, days, state: days < 0 ? 'ended' : (days <= 90 ? 'soon' : 'ok') });
     };
     partners.filter((u) => u.status !== 'Ended').forEach((u) => soon(u.name, 'University', u.agreementEnd));
-    b2b.filter((p) => p.status !== 'Ended').forEach((p) => soon(p.name, p.kind, p.agreementEnd));
+    b2b.filter((p) => p.status !== 'Ended').forEach((p) => soon(p.name, 'B2B partner', p.agreementEnd));
     const ending = agreements.filter((a) => a.state === 'soon' || a.state === 'ended');
     if (ending.length) {
       add('P1', 'Partners', `${plural(ending.length, 'agreement ends', 'agreements end')} within 90 days or ${ending.length === 1 ? 'has' : 'have'} already ended`, ending.slice(0, 5).map((a) => `${a.label}: ${a.state === 'ended' ? `ended ${-a.days} days ago` : `ends in ${a.days} days`} (${a.end}).`),
@@ -673,8 +690,21 @@ function buildInsights({ workbook, cards = {}, planning = {}, partners = [], b2b
   const order = { P1: 0, P2: 1, P3: 2 };
   findings.sort((a, b) => order[a.priority] - order[b.priority]);
 
+  // The business in a few sentences, then the money (Admin only: what a visa is worth is Admin's own assumption).
+  const headline = [];
+  headline.push(`${scopeName}: ${summary.students} students, ${summary.applied} applied (${pct(summary.applied, summary.students) ?? 0}%), ${summary.offers} with an offer, ${summary.paid} paid and ${summary.visas} with a visa.`);
+  if (targetView && targetView.visas) headline.push(targetView.status === 'reached' ? `The target of ${targetView.visas} visas is reached.` : targetView.status === 'missed' ? `The intake ended ${targetView.visas - targetView.visasNow} visas short of its target of ${targetView.visas}.` : targetView.expectedTotal !== null ? `The target is ${targetView.visas} visas and the forecast is about ${targetView.expectedTotal}: ${targetView.status === 'behind' ? `about ${targetView.gap} short` : 'on track'}.` : `The target is ${targetView.visas} visas; there is not enough history to forecast yet.`);
+  const bestChannel = [...channels.sources].filter((x) => !x.spendOnly && x.students >= MIN_SAMPLE && x.leadToVisa !== null).sort((a, b) => b.leadToVisa - a.leadToVisa)[0];
+  if (bestChannel) headline.push(`${bestChannel.label} is the strongest source: ${bestChannel.leadToVisa}% of its ${bestChannel.students} students reach a visa.`);
+  const value = admin && plan.settings && plan.settings.valuePerVisa ? plan.settings.valuePerVisa : 0;
+  const money = value ? {
+    valuePerVisa: value, earned: summary.visas * value, expected: targetView && targetView.expectedTotal !== null ? Math.round(targetView.expectedTotal * value) : null,
+    spend: channels.spendTotal, returnOnSpend: channels.spendTotal ? round1((summary.visas * value) / channels.spendTotal) : null,
+  } : null;
+
   return {
     asOf: new Date().toISOString(), today: todayIso,
+    headline, funnel: funnel(summary), trend: trend(students, todayIso), money,
     intakes: sheets.map((s) => ({ id: s.id, name: s.name })), selected: everyIntake ? 'all' : (selectedSheet ? selectedSheet.id : ''), scope: scopeName,
     summary, comparable, compare: intakes,
     findings,

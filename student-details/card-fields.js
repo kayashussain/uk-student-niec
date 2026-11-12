@@ -26,7 +26,7 @@
   // What the "where exactly" box is called for each source.
   const SOURCE_DETAIL_LABEL = {
     'Social Media': 'Which platform', Visitor: 'How they reached us', Reference: 'Who referred them', 'Language Classes': 'Which class',
-    Events: 'Which event', Agent: 'Which B2B partner (sub-agent)', 'Chitwan Branch': 'How the branch got them', 'Pokhara Branch': 'How the branch got them',
+    Events: 'Which event', Agent: 'Which B2B partner', 'Chitwan Branch': 'How the branch got them', 'Pokhara Branch': 'How the branch got them',
   };
 
   const LEAD_QUALITY = [
@@ -52,27 +52,22 @@
     { key: 'note', text: 'Note' }, { key: 'call', text: 'Phone call' }, { key: 'meeting', text: 'Office visit' }, { key: 'message', text: 'Message' },
   ];
 
-  // The documents a student is asked for. `when`: the step it is needed at; `levels`: who needs it (all levels when left out).
+  // The documents a student is asked for to apply (the checklist that goes in the email). CAS and visa documents are asked
+  // for later, in person.
   const DOCUMENTS = [
-    { key: 'passport', text: 'Passport (the page with the photo)', when: 'Application' },
-    { key: 'see', text: 'SEE (Grade 10) mark sheet and certificate', when: 'Application' },
-    { key: 'plus2', text: '+2 (Grade 12) transcript, certificate and character certificate', when: 'Application' },
-    { key: 'bachelor', text: 'Bachelor transcript, degree certificate and character certificate', when: 'Application', levels: ['Pre-Masters', 'Postgraduate', 'MBA', 'MRes or PhD'] },
-    { key: 'english', text: 'English test result (IELTS, PTE or other), or the MOI letter', when: 'Application' },
-    { key: 'cv', text: 'CV (up to date)', when: 'Application' },
-    { key: 'sop', text: 'Statement of purpose (SOP)', when: 'Application' },
-    { key: 'lor', text: 'Two recommendation letters (teacher or employer)', when: 'Application', levels: ['Top-up (final year)', 'Pre-Masters', 'Postgraduate', 'MBA', 'MRes or PhD'] },
-    { key: 'work', text: 'Work experience letters (for any study gap)', when: 'Application' },
-    { key: 'refusal', text: 'Any earlier visa refusal letter (any country)', when: 'Application' },
-    { key: 'deposit', text: 'Tuition deposit receipt', when: 'CAS' },
-    { key: 'bank', text: 'Bank statement or loan letter (funds held for 28 days)', when: 'CAS' },
-    { key: 'noc', text: 'No Objection Certificate (NOC) from the Ministry of Education', when: 'CAS' },
-    { key: 'tb', text: 'TB test certificate from an approved clinic', when: 'Visa' },
-    { key: 'cas', text: 'CAS statement from the university', when: 'Visa' },
+    { key: 'passport', text: 'Passport (the page with the photo)' },
+    { key: 'see', text: 'SEE (Grade 10) mark sheet and certificate' },
+    { key: 'plus2', text: '+2 (Grade 12) transcript, certificate and character certificate' },
+    { key: 'bachelor', text: 'Bachelor transcript, degree certificate and character certificate', levels: ['Pre-Masters', 'Postgraduate', 'MBA', 'MRes or PhD'] },
+    { key: 'english', text: 'English test result (IELTS, PTE or other), or the MOI letter' },
+    { key: 'cv', text: 'CV (up to date)' },
+    { key: 'sop', text: 'Statement of purpose (SOP)' },
+    { key: 'lor', text: 'Two recommendation letters (teacher or employer)', levels: ['Top-up (final year)', 'Pre-Masters', 'Postgraduate', 'MBA', 'MRes or PhD'] },
+    { key: 'work', text: 'Work experience letters (for any study gap)' },
+    { key: 'refusal', text: 'Any earlier visa refusal letter (any country)' },
   ];
-  // The documents for a study level. With no level known, only the ones every student needs (`all`: every document,
-  // for the checklist on the card, where a tick can be put on any of them).
-  const documentsFor = (level, { all = false } = {}) => DOCUMENTS.filter((d) => all || !d.levels || (level && d.levels.includes(level)));
+  // The documents for a study level. With no level known, only the ones every student needs.
+  const documentsFor = (level) => DOCUMENTS.filter((d) => !d.levels || (level && d.levels.includes(level)));
 
   // The details kept on the card, with the name shown and how each is typed. `list` names one of the lists above.
   const PROFILE_FIELDS = [

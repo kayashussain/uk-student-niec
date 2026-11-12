@@ -71,7 +71,7 @@ function cleanOption(input, old = {}) {
   };
 }
 
-const emptyCard = () => ({ profile: {}, followUp: null, notes: [], documents: {}, options: [], messages: [] });
+const emptyCard = () => ({ profile: {}, followUp: null, notes: [], options: [], messages: [] });
 
 // A card read from the file, made whole: an older or hand-edited file never breaks a page.
 function normalize(raw) {
@@ -79,16 +79,10 @@ function normalize(raw) {
   const follow = c.followUp && isoDay(c.followUp.date) ? {
     date: isoDay(c.followUp.date), note: str(c.followUp.note, LIMITS.short), setBy: str(c.followUp.setBy, 80), setAt: str(c.followUp.setAt, 40),
   } : null;
-  const documents = {};
-  Object.keys(c.documents && typeof c.documents === 'object' ? c.documents : {}).forEach((k) => {
-    const d = c.documents[k];
-    if (Fields.DOCUMENTS.some((x) => x.key === k) && d && d.received) documents[k] = { received: true, at: str(d.at, 40), by: str(d.by, 80) };
-  });
   return {
     profile: cleanProfile(c.profile, {}),
     followUp: follow,
     notes: (Array.isArray(c.notes) ? c.notes : []).filter((n) => n && n.id && n.text).slice(-LIMITS.notes),
-    documents,
     options: (Array.isArray(c.options) ? c.options : []).filter((o) => o && o.id && (o.university || o.course)).slice(0, LIMITS.options),
     messages: (Array.isArray(c.messages) ? c.messages : []).filter((m) => m && m.id).slice(-LIMITS.messages),
     createdAt: str(c.createdAt, 40), createdBy: str(c.createdBy, 80), updatedAt: str(c.updatedAt, 40), updatedBy: str(c.updatedBy, 80),
@@ -220,14 +214,6 @@ function createCards(dir, { now = () => new Date() } = {}) {
         if (!force && note.by !== by) return { error: 'Only the person who wrote a note, or Admin, can remove it.' };
         card.notes = card.notes.filter((n) => n.id !== noteId);
         return { removed: note };
-      });
-    },
-
-    setDocument(rowId, key, received, by) {
-      if (!Fields.DOCUMENTS.some((d) => d.key === key)) return { error: 'That document is not on the list.' };
-      return update(rowId, by, (card, stamp) => {
-        if (received) card.documents[key] = { received: true, at: stamp, by: by || '' };
-        else delete card.documents[key];
       });
     },
 

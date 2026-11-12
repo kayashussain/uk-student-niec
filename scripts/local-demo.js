@@ -4,8 +4,8 @@
 //   node scripts/local-demo.js --keep     starts it again on the demo folder as you left it
 //   PORT=9000 node scripts/local-demo.js  another port
 //
-// Nothing here is a real student (see scripts/demo-data.js) and nothing leaves your computer: no email is sent (a message
-// only keeps a preview on the student card), and the AI helper stays off unless you set ANTHROPIC_API_KEY yourself.
+// Nothing here is a real student (see scripts/demo-data.js) and nothing leaves your computer: the server sends no email (the
+// student card offers Open in my email program and Copy email text instead, until the office mailbox is set up).
 // The demo folder is never in git. To start from nothing again, press Ctrl+C and run the command without --keep.
 //
 // Log in at /login with one of these (demo passwords only, they are nothing to do with the real site):

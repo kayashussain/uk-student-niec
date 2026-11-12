@@ -15,8 +15,8 @@ const { buildIndex, searchCourses, pickLine, levelOf, parseCourses, createCourse
 const { createPlanning } = require('../student-details/planning');
 const { createB2b } = require('../student-details/b2b');
 const { createFacts } = require('../student-details/facts');
-const { createFinder, feeFloor, subjectWords } = require('../student-details/finder');
-const { createAi, createJobs } = require('../student-details/ai');
+const { createFinder, feeFloor } = require('../student-details/finder');
+const E = require('../student-details/eligibility');
 const { buildInsights, intakeSeason, workBack, NONE } = require('../student-details/insights-engine');
 const { buildDemo } = require('../scripts/demo-data');
 const { buildMessage } = require('../shared/mailer');
@@ -33,7 +33,7 @@ test('a card keeps only known details, a dropdown only one of its choices, and a
   assert.deepStrictEqual(cleanProfile({ counselor: '' }, { counselor: 'Asha', district: 'Kaski' }), { district: 'Kaski' });
 });
 
-test('notes, follow-ups, documents and options are saved on the card and survive a restart', () => {
+test('notes, follow-ups and options are saved on the card and survive a restart', () => {
   const dir = tmp();
   let cards = createCards(dir, { now: () => new Date('2026-11-11T05:00:00Z') });
   assert.deepStrictEqual(cards.get('row-1').notes, []);
@@ -42,8 +42,6 @@ test('notes, follow-ups, documents and options are saved on the card and survive
   assert.strictEqual(added.note.kind, 'call');
   assert.strictEqual(cards.setFollowUp('row-1', { date: '2026-13-01' }, 'Asha').error, 'That is not a real date.');
   cards.setFollowUp('row-1', { date: '2026-11-15', note: 'Ask for documents' }, 'Asha');
-  cards.setDocument('row-1', 'passport', true, 'Asha');
-  assert.ok(cards.setDocument('row-1', 'driving-licence', true, 'Asha').error);
   const option = cards.addOption('row-1', { university: 'University of West London', course: 'MSc Cyber Security', fee: '£17,250', scholarship: '£3,500', link: 'javascript:alert(1)' }, 'Asha').option;
   assert.strictEqual(option.link, '', 'only a real web address is kept as a link');
   assert.ok(cards.addOption('row-1', { university: 'University of West London', course: 'msc cyber security' }, 'Asha').duplicate, 'the same course is listed once');
@@ -60,7 +58,6 @@ test('notes, follow-ups, documents and options are saved on the card and survive
   const card = cards.get('row-1');
   assert.strictEqual(card.notes.length, 1);
   assert.strictEqual(card.options[0].link, 'https://www.uwl.ac.uk/course/cyber');
-  assert.ok(card.documents.passport.received);
   assert.strictEqual(card.createdBy, 'Asha');
   assert.ok(cards.addNote('../etc', { text: 'x' }, 'A').error, 'a card id is a row id, never a path');
 });
@@ -104,7 +101,7 @@ test('a template is filled in from the student, and an empty detail is named ins
 });
 
 test('several university options go into one email as one table, with the documents to send', () => {
-  const card = { profile: { studyLevel: 'Postgraduate' }, documents: { passport: { received: true } } };
+  const card = { profile: { studyLevel: 'Postgraduate' } };
   const options = [
     { university: 'University of West London', course: 'MSc Cyber Security', intake: 'January 2027', fee: '£17,250', scholarship: '£3,500', link: 'https://www.uwl.ac.uk/x' },
     { university: 'Ulster University', course: 'MSc Data Science', fee: '', scholarship: '', link: '' },
@@ -119,7 +116,7 @@ test('several university options go into one email as one table, with the docume
   assert.ok(!mail.html.includes('<b>bold</b>'), 'what was typed is shown as text, never run as HTML');
   assert.match(mail.text, /1\. University of West London: MSc Cyber Security \(January 2027\)\n {3}Tuition fee: £17,250\n {3}Scholarship: £3,500\n {3}Course page: https:\/\/www\.uwl\.ac\.uk\/x/);
   assert.ok(lists.documents.some((d) => d.startsWith('Bachelor transcript')), 'a postgraduate is asked for the Bachelor documents');
-  assert.ok(!lists.missingDocuments.some((d) => d.startsWith('Passport')), 'a document already received is not asked for again');
+  assert.ok(lists.documents.every((d) => !/CAS|visa application|TB test|bank statement/i.test(d)), 'only the documents to apply, not the CAS or visa ones');
   assert.ok(!Messages.documentLists({ profile: {} }).documents.some((d) => d.startsWith('Bachelor transcript')), 'with no level known, only what every student needs');
   const wa = Messages.renderWhatsApp({ body: t.whatsapp, values: Messages.valuesFor({ row: { 'FIRST NAME': 'Sita' }, sender: 'Asha' }), options, ...lists });
   assert.match(wa.text, /^Namaste Sita, here are your UK university options from NIEC:\n\n1\. University of West London: MSc Cyber Security/);
@@ -186,58 +183,45 @@ test('every course of the starting Fact File can be found with its fee, and a ty
 
 // ---- the option finder ----
 
-test('the option finder answers by itself while the AI helper is off, and only passes on Fact File facts when it is on', async () => {
+test('the Fact File assistant reads a description of the student and judges it against the entry rules', async () => {
   const dir = tmp();
   const universities = createFacts(dir).all();
   const index = buildIndex(universities, {});
   assert.strictEqual(feeFloor('From £18,792 - £19,854'), 18792);
-  assert.deepStrictEqual(subjectWords('Student wants nursing top up with low IELTS in London under 15000'), ['nursing', 'top']);
+  const read = E.readStudent('Student with 2.4 GPA and a 6 year gap, IELTS 5.5 (5.5 each band), wants a business course in London under 16,000 pounds for the January 2027 intake');
+  assert.deepStrictEqual([read.gpa, read.gapYears, read.ielts, read.ieltsBand, read.budget, read.intake], [2.4, 6, 5.5, 5.5, 16000, 'January 2027']);
+  assert.strictEqual(E.readStudent('62% in bachelor, no IELTS, MOI, visa refusal before, PTE 55').noEnglish, true);
+  assert.strictEqual(E.readStudent('62% in bachelor').level, '', 'a bachelor already studied is not the level wanted');
 
-  const off = createFinder({ ai: createAi({ env: {} }) });
-  assert.ok((await off({ body: {}, index, universities })).error);
-  const basic = await off({ body: { subject: 'cyber security', level: 'Postgraduate', budget: '16000' }, index, universities });
-  assert.strictEqual(basic.ai, false);
-  assert.match(basic.notice, /not switched on/);
-  assert.ok(basic.results.length >= 5 && basic.results.every((r) => r.fit === 'Needs checking'));
-  assert.strictEqual(basic.results[0].withinBudget, true, 'the options within the budget come first');
+  // The rules as the Fact File writes them.
+  assert.deepStrictEqual(E.englishRules('IELTS: 6.0 overall / 5.5 in each band; PTE: 59 overall / 59 in each band; English waiver: N/A'), { ielts: { overall: 6, band: 5.5 }, pte: { overall: 59, band: 59 }, waiver: false });
+  assert.deepStrictEqual(E.academicRules('12th Grade: 60% or above / GPA 2.75 or above'), { gpa: [2.75], percent: [60] });
+  assert.deepStrictEqual(E.gapRule('Gap: Upto 2 Years of GAP Accepted'), { years: 2, since: null, text: 'Gap: Upto 2 Years of GAP Accepted' });
+  assert.strictEqual(E.gapRule('- GAP: 2023 onwards').since, 2023);
+  const course = { academic: '12th Grade: 60% or above / GPA 2.75 or above; Gap: Upto 2 Years of GAP Accepted', english: 'IELTS: 6.0 overall / 5.5 in each band; PTE: 59 overall / 59 in each band' };
+  const weak = E.judge(E.readStudent('2.4 gpa 6 year gap ielts 5.5'), course);
+  assert.strictEqual(weak.status, 'not');
+  assert.strictEqual(weak.fails.length, 3, 'the grade, the gap and the English score each rule it out');
+  assert.strictEqual(E.judge(E.readStudent('2.9 gpa 1 year gap ielts 6.5'), course).status, 'eligible');
+  const partial = E.judge(E.readStudent('2.9 gpa ielts 6.5'), course);
+  assert.deepStrictEqual([partial.status, partial.missing], ['likely', ['the study gap']]);
+  assert.strictEqual(E.judge(E.readStudent('2.9 gpa 1 year gap'), { ...course, english: 'IELTS: 6.0 overall / 5.5 in each band; English waiver: MOI accepted' }).status, 'likely', 'no test, but a waiver exists');
+  assert.strictEqual(E.judge(E.readStudent('2.9 gpa'), { academic: '', english: '' }).status, 'unstated', 'a course with no readable rule gets no made-up verdict');
 
-  // With the AI helper: a stand-in for the Claude service that also invents an option that is not in the Fact File.
-  let sent = null;
-  const answer = { summary: 'One option fits.', options: [{ id: 'c0', fit: 'Eligible', why: 'The grade meets the rule.', check: '' }, { id: 'c9999', fit: 'Eligible', why: 'Made up', check: '' }], nothing_fits: '' };
-  const client = { beta: { messages: { stream(request) { sent = request; return { finalMessage: async () => ({ stop_reason: 'end_turn', model: 'claude-opus-5-5', content: [{ type: 'text', text: JSON.stringify(answer) }] }) }; } } } };
-  const on = createFinder({ ai: createAi({ env: {}, client }) });
-  const smart = await on({ body: { request: 'MBA with a 2.4 GPA and an 8 year gap', budget: '15000' }, index, universities, card: { profile: { studyLevel: 'MBA', grade: '2.4 GPA' } } });
-  assert.strictEqual(smart.ai, true);
-  assert.strictEqual(smart.results.length, 1, 'an option the AI made up is left out');
-  assert.ok(smart.results[0].fee && universities.some((u) => u.name === smart.results[0].university), 'the fee and the university come from the Fact File');
-  assert.strictEqual(sent.model, 'claude-opus-5-5');
-  assert.strictEqual(sent.output_config.format.type, 'json_schema');
-  assert.strictEqual(sent.fallbacks, 'default');
-  assert.deepStrictEqual(sent.system[1].cache_control, { type: 'ephemeral' });
-  assert.ok(!/Sharma|example\.com|98000/.test(JSON.stringify(sent.messages)), 'no name, email or phone number is sent');
-
-  // The AI fails: the built-in answer is given with the reason.
-  const broken = createFinder({ ai: createAi({ env: {}, client: { beta: { messages: { stream() { return { finalMessage: async () => { throw new Error('boom'); } }; } } } } }) });
-  const fallback = await broken({ body: { subject: 'nursing' }, index, universities });
-  assert.strictEqual(fallback.ai, false);
-  assert.match(fallback.notice, /built-in match instead/);
-});
-
-test('a question to the AI helper runs in the background, one at a time for each person', async () => {
-  const jobs = createJobs();
-  let release;
-  const first = jobs.start('u1', () => new Promise((resolve) => { release = resolve; }));
-  assert.ok(first.id);
-  assert.strictEqual(jobs.get('u1', first.id).status, 'working');
-  assert.strictEqual(jobs.get('u2', first.id), null, "nobody reads another person's answer");
-  assert.strictEqual(jobs.start('u1', async () => 1).status, 429);
-  await new Promise((r) => setTimeout(r, 5)); // the work starts a moment after the ticket is given
-  release({ ok: 1 });
-  await new Promise((r) => setTimeout(r, 5));
-  assert.deepStrictEqual(jobs.get('u1', first.id).result, { ok: 1 });
-  const failed = jobs.start('u1', async () => { throw new Error('no'); });
-  await new Promise((r) => setTimeout(r, 5));
-  assert.strictEqual(jobs.get('u1', failed.id).status, 'failed');
+  const find = createFinder();
+  assert.ok((await find({ body: {}, index })).error);
+  const answer = await find({ body: { request: '2.9 GPA, 1 year gap, IELTS 6.5, wants MSc cyber security' }, index });
+  assert.ok(answer.understood.includes('GPA 2.9') && answer.understood.includes('IELTS 6.5'), 'it says what it understood');
+  assert.ok(answer.results.length >= 5);
+  assert.ok(answer.results.every((r) => r.fit !== 'Not eligible' && r.fee !== undefined && r.why));
+  assert.ok(answer.notEligible.every((r) => r.fit === 'Not eligible' && r.why), 'the ruled-out courses say why');
+  assert.match(answer.summary, /can be offered/);
+  const hopeless = await find({ body: { request: '1.8 GPA, 12 year gap, IELTS 4.5, wants an MBA' }, index });
+  assert.ok(hopeless.results.every((r) => r.fit === 'Entry rules not in the Fact File'), 'with these details only courses whose rules the Fact File does not state remain, and they are marked so');
+  assert.ok(hopeless.notEligible.length >= 5 && hopeless.notEligible.every((r) => r.why));
+  // The student's own card fills what the words leave out.
+  const fromCard = await find({ body: { request: 'cyber security' }, index, card: { profile: { studyLevel: 'Postgraduate', grade: '2.9 GPA', englishTest: 'IELTS Academic', englishScore: '6.5', passedYear: '2025' } } });
+  assert.ok(fromCard.understood.includes('GPA 2.9') && fromCard.understood.includes('IELTS 6.5'));
 });
 
 // ---- management records ----
@@ -265,9 +249,9 @@ test('B2B partners keep their kind, terms and contacts apart from the Partner Un
   const b = createB2b(dir);
   assert.deepStrictEqual(b.list(), []);
   const made = b.create('Himal Education Hub', 'Owner').university;
-  const saved = b.update(made.id, { kind: 'Sub-agent', city: 'Pokhara', terms: [{ item: 'Student with a visa', terms: 'Rs 40,000' }, {}], contacts: [{ name: 'Hari', phone: '9800000001' }], agreementEnd: '2026-12-31' }, 'Owner').university;
+  const saved = b.update(made.id, { city: 'Pokhara', terms: [{ item: 'Student with a visa', terms: 'Rs 40,000' }, {}], contacts: [{ name: 'Hari', phone: '9800000001' }], agreementEnd: '2026-12-31' }, 'Owner').university;
   assert.deepStrictEqual(saved.terms, [{ item: 'Student with a visa', terms: 'Rs 40,000' }]);
-  assert.strictEqual(b.list()[0].kind, 'Sub-agent');
+  assert.strictEqual(b.list()[0].name, 'Himal Education Hub');
   assert.ok(fs.existsSync(path.join(dir, 'b2b-partners.json')) && !fs.existsSync(path.join(dir, 'direct-universities.json')));
   assert.strictEqual(b.create('himal education hub', 'Owner').error, 'That partner is already in the list.');
 });
@@ -437,6 +421,15 @@ test('on the real server: cards follow the rules of the sheet, messages are reco
   assert.deepStrictEqual((await follow('GET', '/api/students/search?q=sita')).json.students, [], 'search only finds the students the account sees');
   assert.strictEqual((await app('GET', '/api/students/search?q=9800000001')).json.students[0].name, 'Sita Sharma');
 
+  // The Student Source is chosen on the card (it is no longer a column of the sheet), with the rules of the sheet.
+  assert.strictEqual((await app('POST', `/api/cards/${sitaId}/source`, { source: 'Events' })).status, 403, 'a team cannot change the source of a student it did not add');
+  assert.strictEqual((await admin('POST', `/api/cards/${sitaId}/source`, { source: 'Made up' })).status, 400);
+  assert.strictEqual((await admin('POST', `/api/cards/${sitaId}/source`, { source: 'Events' })).status, 200);
+  assert.strictEqual((await admin('GET', `/api/cards/${sitaId}`)).json.student.source, 'Events');
+  assert.strictEqual((await follow('POST', `/api/cards/${hari.json.id}/source`, { source: 'Visitor' })).status, 200, 'a team sets the source of a student it added, while it is blank');
+  assert.strictEqual((await follow('POST', `/api/cards/${hari.json.id}/source`, { source: 'Events' })).status, 403, 'and only once');
+  await admin('POST', `/api/cards/${sitaId}/source`, { source: 'Social Media' });
+
   // Notes and follow-ups.
   const noted = await app('POST', `/api/cards/${sitaId}/notes`, { text: 'Documents received.', kind: 'call' });
   assert.strictEqual(noted.status, 200);
@@ -474,12 +467,10 @@ test('on the real server: cards follow the rules of the sheet, messages are reco
   // The link typed for the course is remembered for the next student.
   assert.ok((await app('GET', `/api/courses?q=${encodeURIComponent(pick.course)}`)).json.options.some((o) => o.linkIsCourse && o.link === 'https://example.org/course'));
 
-  // The option finder answers with its built-in match while the AI helper is off.
-  const found = await app('POST', '/api/finder', { subject: 'nursing', studentId: sitaId });
+  // The Fact File assistant, with the details of the student's card.
+  const found = await app('POST', '/api/finder', { request: 'nursing top up', studentId: sitaId });
   assert.strictEqual(found.status, 200);
-  assert.strictEqual(found.json.ai, false);
-  assert.ok(found.json.results.length > 0);
-  assert.strictEqual((await app('GET', '/api/ai/status')).json.ready, false);
+  assert.ok(found.json.results.length > 0 && found.json.understood.length > 0);
 
   // Templates: everyone reads, Admin changes.
   assert.ok((await app('GET', '/api/templates')).json.templates.length >= 12);
@@ -493,9 +484,9 @@ test('on the real server: cards follow the rules of the sheet, messages are reco
     assert.ok(res.status === 403 || res.status === 302, `${url} is not for a team (${res.status})`);
   }
   assert.strictEqual((await manager('GET', '/api/b2b')).status, 403);
-  const partner = (await admin('POST', '/api/b2b', { name: 'Himal Education Hub', kind: 'Sub-agent' })).json;
-  assert.strictEqual(partner.kind, 'Sub-agent');
-  assert.deepStrictEqual((await app('GET', '/api/card-lists')).json.subAgents, ['Himal Education Hub'], 'a team gets the names of the sub-agents, nothing else');
+  const partner = (await admin('POST', '/api/b2b', { name: 'Himal Education Hub' })).json;
+  assert.strictEqual(partner.name, 'Himal Education Hub');
+  assert.deepStrictEqual((await app('GET', '/api/card-lists')).json.partners, ['Himal Education Hub'], 'a team gets the names of the B2B partners, nothing else');
   assert.strictEqual((await app('GET', '/api/insights')).status, 403);
   assert.strictEqual((await app('GET', '/api/planning')).status, 403);
   const figuresNow = (await manager('GET', '/api/insights')).json;
@@ -505,7 +496,6 @@ test('on the real server: cards follow the rules of the sheet, messages are reco
   assert.strictEqual((await manager('GET', '/api/insights')).json.target.visas, 30, 'a new target shows at once');
   assert.strictEqual((await admin('POST', '/api/planning/spend', { month: '2026-10', source: 'Social Media', amount: 20000 })).status, 200);
   assert.strictEqual((await manager('GET', '/api/planning')).json.settings.valuePerVisa, undefined, 'the value of a visa is for Admin only');
-  assert.strictEqual((await admin('POST', '/api/analyst', { question: 'What should we do?' })).status, 409, 'the analyst says the AI helper is off');
   for (const page of ['/student', '/follow-ups']) assert.strictEqual((await follow('GET', page)).status, 200, `${page} opens for every account`);
 
   // Everything is written to the Activity record, and the backup holds the cards.

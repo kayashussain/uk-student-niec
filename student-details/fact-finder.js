@@ -1,7 +1,7 @@
 // The Fact File's links to the student cards: "Send to a student" (pick courses, pick a student, one email with all of them)
 // and the option finder for unusual requests. window.SendToStudent.open(options) is also used by the finder's results.
 (function (root) {
-  const { el, h, api, field, dialog, waitFor } = root.Portal;
+  const { el, h, api, field, dialog } = root.Portal;
   const F = root.CardFields;
   const say = (t, e) => root.NiecUI.toast(t, { type: e ? 'error' : 'success' });
 
@@ -88,69 +88,107 @@
     if (options && options.length) await open(options);
   }
 
-  // The option finder card of the Fact File page.
-  function finderCard(container) {
-    const card = el('section', 'p-card');
-    card.style.margin = '0 0 16px';
-    const head = el('div', 'p-card-head');
-    head.append(el('h2', '', 'Find options for a student'));
-    const badge = el('span', 'p-chip', 'Checking the AI helper…');
-    head.append(badge);
-    card.append(head, el('p', '', 'Describe the student and what they want, even an unusual case. It looks through every university in this Fact File and shows the course, link, fee and scholarship of each option.'));
+  // The assistant's answer as a list: what it understood, the summary, the options it can offer and the ones ruled out with the
+  // reason. onAdd(option): when given, each offered option has an Add button (on a student card); without it each has a tick box
+  // (on the Fact File page, to send the ticked ones to a student).
+  function drawAnswer(out, results, { onAdd, picks, sendBtn, last }) {
+    results.replaceChildren();
+    if (out.understood && out.understood.length) {
+      const u = el('div', 'p-understood');
+      u.append(el('span', 'p-muted p-small', 'Understood: '));
+      out.understood.forEach((x) => u.append(el('span', 'p-chip', x)));
+      results.append(u);
+    }
+    if (out.summary) results.append(el('div', `p-notice${out.results.length ? ' ok' : ' bad'}`, out.summary));
+    if (out.advice) results.append(el('div', 'p-notice warn', out.advice));
+    const card = (o, i, offered) => {
+      const c = el('div', `p-option${o.closed ? ' closed' : ''}`);
+      const left = el('div');
+      if (offered && !onAdd) {
+        const label = el('label', 'p-check');
+        const cb = el('input'); cb.type = 'checkbox';
+        cb.addEventListener('change', () => { if (cb.checked) picks.add(i); else picks.delete(i); sendBtn.hidden = !picks.size; });
+        const t = el('span'); t.append(el('b', '', o.course), el('div', 'p-muted p-small', `${o.university}${o.intake ? ' · ' + o.intake : ''}${o.level ? ' · ' + o.level : ''}`));
+        label.append(cb, t);
+        left.append(label);
+      } else {
+        left.append(el('h4', '', o.course), el('div', 'p-uni', `${o.university}${o.intake ? ' · ' + o.intake : ''}${o.level ? ' · ' + o.level : ''}`));
+      }
+      c.append(left);
+      const right = el('div');
+      right.append(el('span', `p-pill p-pill-${o.fit === 'Eligible' ? 'green' : o.fit === 'Likely eligible' ? 'blue' : o.fit === 'Not eligible' ? 'red' : 'gray'}`, o.fit));
+      if (offered && onAdd) { right.append(' ', h('button', { class: 'btn btn-sm', type: 'button', onclick: () => onAdd(o) }, 'Add')); }
+      c.append(right);
+      if (offered) {
+        const money = el('div', 'p-money');
+        [['Fee', o.fee], ['Scholarship', o.scholarship]].forEach(([k, v]) => { const sp = el('span'); sp.append(el('span', 'p-muted', k + ': '), el('b', '', v || 'to be confirmed')); money.append(sp); });
+        c.append(money);
+      }
+      const why = el('div', 'p-why');
+      why.append(o.why || '');
+      if (o.check) why.append(' ', el('b', '', o.check));
+      c.append(why);
+      if (offered && o.link) { const a = el('a', 'p-link p-small', o.linkIsCourse ? 'Course page' : 'University website'); a.href = o.link; a.target = '_blank'; a.rel = 'noopener'; const w = el('div', 'p-why'); w.append(a); c.append(w); }
+      return c;
+    };
+    last.splice(0, last.length, ...out.results);
+    out.results.forEach((o, i) => results.append(card(o, i, true)));
+    if (out.notEligible && out.notEligible.length) {
+      const d = el('details');
+      d.style.marginTop = '8px';
+      d.append(el('summary', 'p-link', `Ruled out (${out.notEligible.length} shown): why they do not fit`));
+      const box = el('div', 'p-option-results');
+      out.notEligible.forEach((o, i) => box.append(card(o, i, false)));
+      d.append(box);
+      results.append(d);
+    }
+    if (!out.results.length && !out.advice) results.append(el('div', 'p-empty', 'Nothing matches. Try fewer words.'));
+  }
+
+  // The assistant's box: a description of the student, an Ask button and the answer. `studentId`: the student whose card
+  // details are used as well (on a student card). `onAdd`: see drawAnswer.
+  function finderPanel(container, { studentId = '', onAdd = null, placeholder = '' } = {}) {
     const box = el('div', 'p-finder');
     const request = el('textarea', 'p-input');
-    request.placeholder = 'Student with 2.4 GPA and a 6 year gap, IELTS 5.5, wants a business course in London under 16,000 pounds for January 2027.';
+    request.placeholder = placeholder || 'Student with 2.4 GPA and a 6 year gap, IELTS 5.5, wants a business course in London under 16,000 pounds for January 2027.';
     request.maxLength = 1500;
     const form = el('div', 'p-form');
-    const lv = field('Level', { kind: 'select', choices: F.STUDY_LEVELS });
-    const subj = field('Subject', { placeholder: 'business', max: 120 });
-    const intake = field('Intake', { placeholder: 'January 2027', max: 60 });
-    const budget = field('Budget for the first year (GBP)', { max: 20 });
-    form.append(lv.wrap, subj.wrap, intake.wrap, budget.wrap);
-    const go = h('button', { class: 'btn btn-primary', type: 'button' }, 'Find options');
+    const lv = field('Level (optional)', { kind: 'select', choices: F.STUDY_LEVELS });
+    const intake = field('Intake (optional)', { placeholder: 'January 2027', max: 60 });
+    form.append(lv.wrap, intake.wrap);
+    const go = h('button', { class: 'btn btn-primary', type: 'button' }, 'Ask');
     const results = el('div', 'p-option-results');
     const picks = new Set();
-    let last = [];
+    const last = [];
     const sendBtn = h('button', { class: 'btn', type: 'button' }, 'Send the ticked options to a student');
     sendBtn.hidden = true;
     sendBtn.addEventListener('click', () => open(last.filter((_, i) => picks.has(i))));
-    box.append(request, form, el('div', 'p-bar'), results, sendBtn);
-    box.querySelector('.p-bar').append(go);
-    card.append(box);
-    container.before(card);
-    api('/api/ai/status').then((s) => { badge.textContent = s.ready ? 'AI helper on' : 'AI helper off: built-in matching'; badge.title = s.message || ''; }).catch(() => { badge.textContent = ''; });
+    const bar = el('div', 'p-bar');
+    bar.append(go);
+    box.append(request, form, bar, results, sendBtn);
+    request.addEventListener('keydown', (e) => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) go.click(); });
     go.addEventListener('click', async () => {
       go.disabled = true; picks.clear(); sendBtn.hidden = true;
-      results.replaceChildren(el('div', 'p-thinking', 'Looking through the Fact File…'));
+      results.replaceChildren(el('div', 'p-thinking', 'Reading the entry rules of every university…'));
       try {
-        let out = await api('/api/finder', { request: request.value, level: lv.input.value, subject: subj.input.value, intake: intake.input.value, budget: budget.input.value });
-        if (out.job) out = await waitFor('/api/finder/' + out.job);
-        results.replaceChildren();
-        if (out.notice) results.append(el('div', 'p-notice warn', out.notice));
-        if (out.summary) results.append(el('div', 'p-notice ok', out.summary));
-        if (out.nothingFits) results.append(el('div', 'p-notice bad', out.nothingFits));
-        last = out.results;
-        out.results.forEach((o, i) => {
-          const c = el('div', `p-option${o.closed ? ' closed' : ''}`);
-          const left = el('label', 'p-check');
-          const cb = el('input'); cb.type = 'checkbox';
-          cb.addEventListener('change', () => { if (cb.checked) picks.add(i); else picks.delete(i); sendBtn.hidden = !picks.size; });
-          const t = el('span'); t.append(el('b', '', o.course), el('div', 'p-muted p-small', `${o.university}${o.intake ? ' · ' + o.intake : ''}${o.level ? ' · ' + o.level : ''}`));
-          left.append(cb, t);
-          c.append(left, el('span', `p-pill p-pill-${o.fit === 'Eligible' ? 'green' : o.fit === 'Likely eligible' ? 'blue' : 'amber'}`, o.fit));
-          const money = el('div', 'p-money');
-          [['Fee', o.fee], ['Scholarship', o.scholarship]].forEach(([k, v]) => { const s = el('span'); s.append(el('span', 'p-muted', k + ': '), el('b', '', v || 'to be confirmed')); money.append(s); });
-          c.append(money);
-          const why = el('div', 'p-why');
-          why.append(el('b', '', o.fit + '. '), o.why || '', o.check ? ' To check: ' + o.check : '');
-          c.append(why);
-          if (o.link) { const a = el('a', 'p-link p-small', o.linkIsCourse ? 'Course page' : 'University website'); a.href = o.link; a.target = '_blank'; a.rel = 'noopener'; const w = el('div', 'p-why'); w.append(a); c.append(w); }
-          results.append(c);
-        });
-        if (!out.results.length && !out.nothingFits) results.append(el('div', 'p-empty', 'Nothing matches. Try fewer words.'));
+        const out = await api('/api/finder', { request: request.value, level: lv.input.value, intake: intake.input.value, studentId });
+        drawAnswer(out, results, { onAdd, picks, sendBtn, last });
       } catch (e) { results.replaceChildren(el('div', 'p-notice bad', e.message)); }
       go.disabled = false;
     });
+    container.append(box);
+    return box;
   }
-  root.SendToStudent = { open, sendUniversity, finderCard };
+
+  // The assistant's card on the Fact File page.
+  function finderCard(container) {
+    const card = el('section', 'p-card');
+    card.style.margin = '0 0 16px';
+    card.append(el('div', 'p-card-head'));
+    card.firstChild.append(el('h2', '', 'Fact File assistant'), el('span', 'p-chip', 'Reads the entry rules of every university'));
+    card.append(el('p', '', 'Describe the student in your own words, even an unusual case: the grade, the study gap, the English score, the budget, the city, what they want to study. It tells you which universities and courses the student is eligible for, with the fee, scholarship and link of each, and why the others are ruled out.'));
+    finderPanel(card);
+    container.before(card);
+  }
+  root.SendToStudent = { open, sendUniversity, finderCard, finderPanel };
 })(this);

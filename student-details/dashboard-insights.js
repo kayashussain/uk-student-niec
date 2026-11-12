@@ -2,7 +2,7 @@
 // Intake plan). Everything shown is worked out on the server (insights-engine.js): this page only draws it and, for Admin,
 // edits the management records (targets, marketing spend, events, the decision log, market notes).
 (function () {
-  const { el, h, api, number, rupees, percent, field, dialog, waitFor, richText } = window.Portal;
+  const { el, h, api, number, rupees, percent, field, dialog } = window.Portal;
   const tabsBar = document.getElementById('dashTabs');
   const numbers = document.getElementById('panel-numbers');
   const panel = document.getElementById('panel-insights');
@@ -56,7 +56,6 @@
     const l = el('label', 'p-field'); l.style.minWidth = '260px';
     const sel = el('select');
     data.intakes.forEach((i) => sel.append(h('option', { value: i.id }, i.name)));
-    sel.append(h('option', { value: 'all' }, 'All intakes together'));
     sel.value = data.selected;
     sel.addEventListener('change', () => { intake = sel.value; load(); });
     l.append(el('span', 'p-label', 'Intake'), sel);
@@ -85,20 +84,22 @@
       const by = field('Visas needed by', { kind: 'date', value: t.byDate });
       const st = field('Teaching starts', { kind: 'date', value: t.startGuessed ? '' : t.startDate, hint: t.startGuessed && t.startDate ? `Not set: the plan assumes ${t.startDate}` : '' });
       const note = field('Note', { value: t.note, max: 300 });
-      f.append(v.wrap, by.wrap, st.wrap, note.wrap);
+      const worth = field('What one visa is worth to NIEC (Rs, average)', { value: plan.settings.valuePerVisa ? String(plan.settings.valuePerVisa) : '', max: 10, hint: 'Optional. Shows earnings and the return on marketing.' });
+      f.append(v.wrap, by.wrap, st.wrap, note.wrap, worth.wrap);
       const save = h('button', { class: 'btn btn-sm btn-primary', type: 'button' }, 'Save target');
-      save.addEventListener('click', async () => { try { await api('/api/planning/targets/' + data.selected, { visas: v.input.value, byDate: by.input.value, startDate: st.input.value, note: note.input.value }); say('Target saved'); load(); } catch (e) { say(e.message, true); } });
+      save.addEventListener('click', async () => { try { await api('/api/planning/targets/' + data.selected, { visas: v.input.value, byDate: by.input.value, startDate: st.input.value, note: note.input.value }); await api('/api/planning/settings', { valuePerVisa: worth.input.value }); say('Saved'); load(); } catch (e) { say(e.message, true); } });
       c.append(f, el('div', 'p-bar'));
       c.lastChild.append(save);
     }
     return c;
   }
+  let allFindings = false;
   function findings() {
     const box = el('div');
     box.append(el('div', 'p-card-head'));
     box.firstChild.append(el('h2', '', 'What stands out, and what to decide'));
     if (!data.findings.length) { const c = el('section', 'p-card'); c.append(el('p', '', 'Nothing stands out at the moment.')); box.append(c); return box; }
-    data.findings.forEach((f) => {
+    (allFindings ? data.findings : data.findings.slice(0, 5)).forEach((f) => {
       const c = el('article', `p-finding ${f.priority.toLowerCase()}`);
       c.append(el('span', 'p-prio', f.priority));
       const head = el('div'); head.append(el('h3', '', f.title), el('span', 'p-area', `${f.area} · ${f.confidence} confidence`));
@@ -109,38 +110,56 @@
       c.append(dl);
       box.append(c);
     });
+    if (data.findings.length > 5) box.append(h('button', { class: 'btn btn-sm no-print', type: 'button', onclick: () => { allFindings = !allFindings; draw(); } }, allFindings ? 'Show the first five only' : `Show all ${data.findings.length}`));
     return box;
   }
   function weeklyCard() {
     return card('This week and the week before', 'What was dated in the last 7 days against the 7 days before.', table(['', 'Last 7 days', 'The 7 before', 'Change'], data.weekly.map((w) => [w.label, number(w.last7), number(w.before7), (w.last7 - w.before7 > 0 ? '+' : '') + (w.last7 - w.before7)]), { numCols: [1, 2, 3] }));
   }
-  function analyst() {
-    const c = card('Ask the analyst', 'Ask about any of these figures. The answer comes only from your own records and says what it cannot know.');
-    c.classList.add('no-print');
-    const q = el('textarea', 'p-input');
-    q.placeholder = 'Where should we put next intake\'s marketing money, and why?';
-    q.maxLength = 1500;
-    const out = el('div');
-    const go = h('button', { class: 'btn btn-primary', type: 'button' }, 'Ask');
-    const examples = ['Which channel should get more money next intake, and which less?', 'Why are students not paying the deposit, and what should we do this week?', 'What should we tell the CEO about the January intake?'];
-    const ex = el('div', 'p-actions'); ex.style.margin = '8px 0';
-    examples.forEach((t) => ex.append(h('button', { class: 'p-chip', type: 'button', style: 'border:0;cursor:pointer', onclick: () => { q.value = t; } }, t)));
-    go.addEventListener('click', async () => {
-      if (!q.value.trim()) return;
-      go.disabled = true;
-      out.replaceChildren(el('div', 'p-thinking', 'Reading the figures…'));
-      try {
-        const start = await api('/api/analyst', { question: q.value, intake: intake || data.selected });
-        const r = await waitFor('/api/analyst/' + start.job);
-        const ans = el('div', 'p-answer'); richText(ans, r.answer);
-        out.replaceChildren(ans);
-        r.decisions.forEach((d) => { const f = el('article', 'p-finding p2'); f.append(el('span', 'p-prio', 'Decision'), el('h3', '', d.title)); const dl = el('dl'); [['Evidence', d.evidence], ['Why', d.why], ['Action', d.action], ['Measure', d.measure]].forEach(([k, v]) => dl.append(el('dt', '', k), el('dd', '', v))); f.append(dl); out.append(f); });
-        if (r.dataNeeded.length) { const n = el('div', 'p-notice warn'); n.append(el('b', '', 'To answer this better, record: '), r.dataNeeded.join('; ')); out.append(n); }
-      } catch (e) { out.replaceChildren(el('div', e.status === 409 ? 'p-notice warn' : 'p-notice bad', e.message)); }
-      go.disabled = false;
-    });
-    c.append(q, ex, go, out);
+  // The business in a few sentences, and the money.
+  function summaryCard() {
+    const c = card('The business at a glance', 'Worked out from your own sheet, student cards and records. Nothing is estimated from outside.');
+    const lead = el('div', 'p-answer');
+    data.headline.forEach((t) => lead.append(el('p', '', t)));
+    c.append(lead);
+    if (data.money) {
+      const m = data.money;
+      const k = el('div', 'p-kpis');
+      k.style.marginTop = '12px';
+      k.append(kpi('Earned so far', rupees(m.earned), `${data.summary.visas} visas at Rs ${number(m.valuePerVisa)} each`, 'good'), kpi('Expected when the intake ends', m.expected === null ? 'unknown' : rupees(m.expected), 'from the forecast'),
+        kpi('Marketing spent', rupees(m.spend), data.scope), kpi('Earned per rupee spent', m.returnOnSpend === null ? 'n/a' : String(m.returnOnSpend), 'so far, before the visas still to come', m.returnOnSpend !== null && m.returnOnSpend < 1 ? 'warn' : ''));
+      c.append(k, el('p', 'p-muted p-small', 'What a visa is worth is the figure you set under the target (Admin only). It is an assumption for planning, not read from the Incentive page.'));
+    } else if (admin()) c.append(el('p', 'p-muted p-small no-print', 'Set what one visa is worth to NIEC (average commission in rupees) under the target to see earnings and the return on marketing here.'));
     return c;
+  }
+  function funnelCard() {
+    const f = data.funnel;
+    const max = Math.max(1, f[0].count);
+    const box = el('div', 'p-bars');
+    f.forEach((x, i) => {
+      const row = el('div', 'p-bar-row');
+      const track = el('span', 'p-bar-track'); const fill = el('i', 'p-bar-fill'); fill.style.width = Math.max(1, (x.count / max) * 100) + '%'; track.append(fill);
+      row.append(el('span', '', x.label), track, el('span', 'num', `${number(x.count)}${x.fromPrevious !== null ? `  (${x.fromPrevious}% of the step before)` : ''}`));
+      box.append(row);
+    });
+    const weakest = f.slice(1).filter((x, i) => f[i].count >= 10).sort((a, b) => a.fromPrevious - b.fromPrevious)[0];
+    return card('The journey', 'How many students reach each step, and what share of the step before goes on.', box, weakest ? el('p', 'p-muted p-small', `The weakest step is ${weakest.label.toLowerCase()}: only ${weakest.fromPrevious}% of the step before go on.`) : null);
+  }
+  function trendCard() {
+    const t = data.trend;
+    const max = Math.max(1, ...t.map((w) => Math.max(w.applied, w.paid, w.inquiry)));
+    const row = el('div', 'p-months');
+    row.style.gridTemplateColumns = 'repeat(12, minmax(0, 1fr))';
+    t.forEach((w) => {
+      const col = el('div', 'p-month');
+      const pair = el('div'); pair.style.cssText = 'display:flex;gap:3px;align-items:flex-end;height:110px';
+      [['applied', 'var(--s1, #2a78d6)'], ['paid', 'var(--s2, #eb6834)'], ['visa', 'var(--s3, #1baf7a)']].forEach(([k, c]) => { const bar = el('i'); bar.style.cssText = `width:9px;border-radius:4px 4px 0 0;background:${c};height:${Math.max(2, (w[k] / max) * 110)}px`; bar.title = `${w[k]} ${k}`; pair.append(bar); });
+      col.append(el('b', '', String(w.applied + w.paid + w.visa)), pair, el('span', '', w.end.slice(5)));
+      row.append(col);
+    });
+    const key = el('p', 'p-muted p-small');
+    key.append('Each column is a week (its last day below). ', el('span', 'p-chip', 'blue: applications'), ' ', el('span', 'p-chip', 'orange: payments'), ' ', el('span', 'p-chip', 'green: visas'));
+    return card('The pace, week by week', 'What was dated in each of the last 12 weeks. A falling pace now is the early warning of a missed target.', row, key);
   }
   function decisionLog() {
     const c = card('Decision log', 'Each decision with what was expected and what really happened. Review it on its day: that is where the lesson for the next intake comes from.');
@@ -177,7 +196,7 @@
     const k = el('div', 'p-kpis');
     k.append(kpi('Students', number(s.students), data.scope, 'mark'), kpi('Applied', number(s.applied), `${percent(s.toApplication)} of students`), kpi('Offers', number(s.offers), `${percent(s.toOffer)} of applications`),
       kpi('Paid', number(s.paid), `${percent(s.toPayment)} of offers`), kpi('Visas', number(s.visas), `${percent(s.leadToVisa)} of all students`, 'good'), kpi('Visa success', percent(s.visaSuccess), `${s.refused} refused`));
-    return [chooser(), k, targetCard(), findings(), weeklyCard(), analyst(), decisionLog()];
+    return [chooser(), summaryCard(), k, funnelCard(), trendCard(), targetCard(), findings(), weeklyCard(), decisionLog()];
   }
 
   // ---- Channels and events ----
@@ -193,7 +212,7 @@
     const out = [chooser(), ch];
     // spend
     const spendSec = card('Marketing spend', 'What was paid, by month and source. Type the source and the detail the same way as on the student cards.');
-    const lines = plan.spend.filter((l) => data.selected === 'all' || !l.intake || l.intake === data.selected).sort((a, b) => b.month.localeCompare(a.month));
+    const lines = plan.spend.filter((l) => !l.intake || l.intake === data.selected).sort((a, b) => b.month.localeCompare(a.month));
     if (admin()) spendSec.append(h('button', { class: 'btn btn-sm btn-primary no-print', type: 'button', onclick: () => spendForm() }, '+ Add a spend line'));
     spendSec.append(lines.length ? table(['Month', 'Source', 'Detail', 'Campaign', 'Amount', 'Leads reported', 'Cost per lead', ''], lines.map((l) => [l.month, l.source, l.detail, l.campaign, rupees(l.amount), l.leads ? number(l.leads) : '', l.leads ? rupees(Math.round(l.amount / l.leads)) : '', admin() ? h('button', { class: 'p-link no-print', type: 'button', onclick: () => spendForm(l) }, 'Edit') : '']), { numCols: [4, 5, 6] }) : el('div', 'p-empty', 'No spend recorded for this intake yet.'));
     out.push(spendSec);
@@ -208,13 +227,13 @@
     const months = el('div', 'p-months');
     const max = Math.max(1, ...m.months.map((x) => x.inquiries));
     m.months.forEach((x) => { const col = el('div', 'p-month'); const bar = el('i'); bar.style.height = Math.max(2, (x.inquiries / max) * 110) + 'px'; col.append(el('b', '', String(x.inquiries)), bar, el('span', '', x.name.slice(0, 3))); months.append(col); });
-    out.push(card('When students first ask', `Inquiries by month of the year, over every intake (${m.datedInquiries} inquiries have a first inquiry day). Plan events and adverts for the weeks before the busy months.`, months));
+    out.push(card('When students first ask', `Inquiries by month of the year, across your intakes so far (${m.datedInquiries} inquiries have a first inquiry day). Plan events and adverts for the weeks before the busy months.`, months));
     return out;
   }
   const spendForm = (l) => recordForm(l ? 'Edit the spend line' : 'Add a spend line', 'spend', [
     ['month', 'Month', { placeholder: '2026-10', default: data.today.slice(0, 7), max: 7 }], ['amount', 'Amount paid (Rs)', { max: 12 }],
     ['source', 'Source', { kind: 'select', choices: plan.lists.sources }], ['detail', 'Where exactly', { max: 120, placeholder: 'TikTok, or the event name' }],
-    ['campaign', 'Campaign or advert', { max: 120 }], ['leads', 'Leads the platform or event reported', { max: 8 }], ['note', 'Note', { wide: true, max: 300 }]], l, { intake: data.selected === 'all' ? '' : data.selected });
+    ['campaign', 'Campaign or advert', { max: 120 }], ['leads', 'Leads the platform or event reported', { max: 8 }], ['note', 'Note', { wide: true, max: 300 }]], l, { intake: data.selected });
   const eventForm = (e) => recordForm(e ? 'Edit the event' : 'Add an event', 'events', [
     ['name', 'Name', { wide: true, max: 120, placeholder: 'UK Education Fair, Kathmandu (August 2026)' }], ['date', 'Date', { kind: 'date' }], ['type', 'Kind', { kind: 'select', choices: plan.lists.EVENT_TYPES }],
     ['place', 'Place', { max: 120 }], ['cost', 'Cost (Rs)', { max: 12 }], ['registered', 'Registered', { max: 6 }], ['attended', 'Attended', { max: 6 }],

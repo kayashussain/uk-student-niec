@@ -47,7 +47,7 @@ const EVENTS = [
   { name: 'UK Education Fair, Kathmandu (August 2026)', date: '2026-08-08', type: 'Education fair', place: 'Kathmandu', cost: 240000, registered: 420, attended: 265, universities: 'UWL, Ulster, Roehampton, Middlesex, York St John', note: 'Held one week after the +2 results.' },
   { name: 'Spot Assessment Day (October 2026)', date: '2026-10-03', type: 'University visit or spot assessment', place: 'NIEC head office', cost: 60000, registered: 95, attended: 71, universities: 'University of West London, Ulster University', note: 'Offers given on the day to students with complete documents.' },
 ];
-const SUB_AGENTS = ['Himal Education Hub (demo)', 'Lumbini Study Point (demo)', 'Koshi Career Centre (demo)'];
+const PARTNERS = ['Himal Education Hub (demo)', 'Lumbini Study Point (demo)', 'Koshi Career Centre (demo)'];
 const CAMPAIGNS = ['Scholarship advert, January 2027 intake', 'Nursing top-up advert', 'MBA without IELTS advert'];
 const LOST = [
   ['Chose another consultancy', 0.24], ['Funds or bank balance not ready', 0.2], ['Fees or deposit too high', 0.14], ['Stopped answering', 0.12], ['English score not enough', 0.08],
@@ -155,7 +155,7 @@ function buildDemo({ today = '2026-11-11', seed = 20261111 } = {}) {
         const profile = {};
         if (know()) {
           if (source === 'Events') profile.sourceDetail = pick(EVENTS).name;
-          else if (source === 'Agent') profile.sourceDetail = pick(SUB_AGENTS);
+          else if (source === 'Agent') profile.sourceDetail = pick(PARTNERS);
           else profile.sourceDetail = pick(details);
           if (source === 'Reference') profile.referredBy = `${pick(FIRST)} ${pick(LAST)} (demo)`;
           if (profile.sourceDetail === 'Facebook or Instagram advert (Meta Ads)') profile.campaign = pick(CAMPAIGNS);
@@ -212,8 +212,8 @@ function buildDemo({ today = '2026-11-11', seed = 20261111 } = {}) {
   };
   const stamp = new Date(now).toISOString();
   const b2b = [
-    ...SUB_AGENTS.map((name, i) => ({ id: `b2b00000000${i}`, name, kind: 'Sub-agent', status: 'Active', city: ['Pokhara', 'Butwal', 'Biratnagar'][i], agreementStart: '2026-01-01', agreementEnd: ['2026-12-31', '2027-06-30', ''][i], contacts: [{ name: `${pick(FIRST)} ${pick(LAST)} (demo)`, email: `partner${i}@example.com`, phone: `98000990${i}0` }], terms: [{ item: 'Student with a visa', terms: 'Rs 40,000 after enrolment' }], paymentTerms: 'Paid within 30 days of the university commission.', notes: '', agreements: [], updatedAt: stamp, updatedBy: 'Demo Admin' })),
-    { id: 'b2b000000009', name: 'Adventus', kind: 'B2B platform', status: 'Active', city: 'Online', agreementStart: '2025-06-01', agreementEnd: '2027-05-31', contacts: [{ name: 'Partner manager (demo)', email: 'manager@example.com', phone: '' }], terms: [{ item: 'Share of the university commission', terms: '70% to NIEC' }], paymentTerms: 'Paid after the student enrols.', notes: '', agreements: [], updatedAt: stamp, updatedBy: 'Demo Admin' },
+    ...PARTNERS.map((name, i) => ({ id: `b2b00000000${i}`, name, status: 'Active', city: ['Pokhara', 'Butwal', 'Biratnagar'][i], agreementStart: '2026-01-01', agreementEnd: ['2026-12-31', '2027-06-30', ''][i], contacts: [{ name: `${pick(FIRST)} ${pick(LAST)} (demo)`, email: `partner${i}@example.com`, phone: `98000990${i}0` }], terms: [{ item: 'Student with a visa', terms: 'Rs 40,000 after enrolment' }], paymentTerms: 'Paid within 30 days of the university commission.', notes: '', agreements: [], updatedAt: stamp, updatedBy: 'Demo Admin' })),
+    { id: 'b2b000000009', name: 'Adventus', status: 'Active', city: 'Online', agreementStart: '2025-06-01', agreementEnd: '2027-05-31', contacts: [{ name: 'Partner manager (demo)', email: 'manager@example.com', phone: '' }], terms: [{ item: 'Share of the university commission', terms: '70% to NIEC' }], paymentTerms: 'Paid after the student enrols.', notes: '', agreements: [], updatedAt: stamp, updatedBy: 'Demo Admin' },
   ];
   return { workbook: { revision: 1, sheets, activeSheetId: sheets[sheets.length - 1].id }, cards, planning, b2b, counselors: COUNSELORS };
 }

@@ -18,7 +18,6 @@ const { ROW_ID } = require('./cards');
 const Messages = require('./messages');
 const { buildIndex, searchCourses } = require('./course-index');
 const { EVENT_TYPES, DECISION_STATUS, MARKET_KINDS, LISTS: PLANNING_LISTS } = require('./planning');
-const { KINDS: B2B_KINDS } = require('./b2b');
 const { MAX_FILE_BYTES, STATUSES: PARTNER_STATUSES } = require('./direct');
 
 const text = (v) => String(v ?? '').trim();
@@ -29,7 +28,7 @@ const NEW_STUDENT_COLUMNS = ['FIRST NAME', 'LAST NAME', 'EMAIL', 'CONTACT NUMBER
 
 function createPortalApi({
   getWorkbook, writeWorkbook, recordChanges, teamSave, cards, messages, courseLinks, facts, direct, b2b, planning, accounts, activity,
-  insights = null, finder = null, ai = null, jobs = null, calculated = [],
+  insights = null, finder = null, calculated = [],
 }) {
   // ---- finding a student, and who may see or change them ----
   let indexed = { wb: null, map: new Map() };
@@ -97,7 +96,7 @@ function createPortalApi({
     return {
       people: [...counselors].sort((a, b) => a.localeCompare(b)),
       // Only the names: the terms agreed with a partner stay on the Admin-only page.
-      subAgents: b2b.list().filter((p) => p.kind === 'Sub-agent' && p.status !== 'Ended').map((p) => p.name),
+      partners: b2b.list().filter((p) => p.status !== 'Ended').map((p) => p.name),
       events: [...plan.events].sort((a, b) => b.date.localeCompare(a.date)).map((e) => e.name),
       campaigns: [...new Set(plan.spend.map((s) => s.campaign).filter(Boolean))].sort(),
       intakes: (() => { const wb = getWorkbook(); return wb ? Teams.viewFor(user, wb).sheets.map((s) => ({ id: s.id, name: s.name })) : []; })(),
@@ -151,6 +150,14 @@ function createPortalApi({
       });
     }
     // Sending.
+    if (body.channel === 'mailto') {
+      // The counselor sends it from their own email program (the card opened it there): only the record is kept.
+      if (!mailer.isAddress(to)) return sendJSON(res, 400, { error: to ? 'That email address does not look right.' : 'This student has no email address on the sheet.' });
+      const kept = cards.logMessage(found.row._id, { channel: 'email', template: template ? template.name : 'Own message', subject: email.subject, to, status: 'opened', text: email.text, options: ctx.options.length }, by(req));
+      if (kept.error) return sendJSON(res, 400, { error: kept.error });
+      note(req, [`Opened an email to ${nameOf(found.row) || 'a student'} in their own email program ("${email.subject}")`], 'Sent message');
+      return sendJSON(res, 200, { status: 'opened', message: kept.message, card: kept.card });
+    }
     const channel = body.channel === 'whatsapp' ? 'whatsapp' : 'email';
     const usesOptions = /\{options_table\}/.test(channel === 'email' ? emailBody : whatsappBody);
     if (usesOptions && !ctx.options.length) return sendJSON(res, 400, { error: 'Add at least one university option to the card first.' });
@@ -188,9 +195,26 @@ function createPortalApi({
     return sendJSON(res, 200, { status: 'sent', message: logged.message, card: logged.card, from: cfg.from });
   }
 
+  // The Student Source is a column of the sheet (hidden there: it is chosen on the card). Changed with the same rules as on the
+  // sheet: Admin any time; a team only while it is blank on a student its own team added (shared/teams.js).
+  function setSource(req, found, value) {
+    if (value && !Object.keys(Fields.SOURCE_DETAILS).includes(value)) return { error: 'That is not one of the sources.', status: 400 };
+    if (!Teams.canEdit(req.user, 'STUDENT SOURCE', found.row)) return { error: "This student's source cannot be changed from your account.", status: 403 };
+    const wb = getWorkbook();
+    if (Teams.isAdmin(req.user)) {
+      const next = { ...wb, revision: wb.revision + 1, sheets: wb.sheets.map((sh) => (sh.id !== found.sheet.id ? sh : { ...sh, rows: sh.rows.map((r) => (r._id === found.row._id ? { ...r, 'STUDENT SOURCE': value } : r)) })) };
+      writeWorkbook(next);
+      recordChanges(req, wb, next);
+      return { source: value };
+    }
+    const view = Teams.viewFor(req.user, wb);
+    const out = teamSave(req, { baseRevision: wb.revision, sheets: view.sheets.map((sh) => (sh.id !== found.sheet.id ? sh : { ...sh, rows: sh.rows.map((r) => (r._id === found.row._id ? { ...r, 'STUDENT SOURCE': value } : r)) })) });
+    return out.status === 200 ? { source: value } : { error: out.body.error === 'conflict' ? 'The sheet changed at the same moment. Please try again.' : out.body.error, status: out.status };
+  }
+
   // ---- one student's card ----
   async function handleCard(req, res, urlPath) {
-    const m = /^\/api\/cards\/([\w-]{1,64})(?:\/(profile|follow-up|notes|documents|options|messages)(?:\/([a-f0-9]{12}|preview|send))?(\/delete)?)?$/.exec(urlPath);
+    const m = /^\/api\/cards\/([\w-]{1,64})(?:\/(profile|follow-up|notes|options|messages|source)(?:\/([a-f0-9]{12}|preview|send))?(\/delete)?)?$/.exec(urlPath);
     if (!m) return false;
     const [, rowId, part, sub, del] = m;
     const found = rowIndex().get(rowId);
@@ -204,7 +228,7 @@ function createPortalApi({
         sendJSON(res, 200, {
           student: { ...brief(found.sheet, found.row), color: found.row._color || '', remarks: text(found.row.REMARKS), columns: found.sheet.columns, row: Object.fromEntries(found.sheet.columns.map((c) => [c, found.row[c] ?? ''])) },
           card,
-          can: { edit: editable, removeAnyNote: Teams.isAdmin(req.user) },
+          can: { edit: editable, removeAnyNote: Teams.isAdmin(req.user), source: editable && Teams.canEdit(req.user, 'STUDENT SOURCE', found.row) },
           me: { name: req.user.name },
           mail: { ready: Boolean(cfg), from: cfg ? cfg.from : '' },
           today: cards.today(),
@@ -245,8 +269,11 @@ function createPortalApi({
     } else if (part === 'notes' && !sub) {
       out = cards.addNote(rowId, body, by(req));
       if (!out.error) note(req, [`${who}: added a note`]);
-    } else if (part === 'documents') {
-      out = cards.setDocument(rowId, text(body.key), Boolean(body.received), by(req));
+    } else if (part === 'source') {
+      const done = setSource(req, found, text(body.source).slice(0, 60));
+      if (done.error) { sendJSON(res, done.status, { error: done.error }); return true; }
+      sendJSON(res, 200, { ok: true, source: done.source, card });
+      return true;
     } else if (part === 'options' && sub && del) {
       out = cards.removeOption(rowId, sub, by(req));
     } else if (part === 'options' && sub) {
@@ -386,7 +413,7 @@ function createPortalApi({
       req.on('error', reject);
     });
   }
-  // What each partner has brought: the students of a sub-agent (Student Source Agent, and the partner named on the card) and the
+  // What each partner has brought: the students of a B2B partner (Student Source Agent, and the partner named on the card) and the
   // students applied for through a B2B platform (the sheet's University Partner column). Matched by name, ignoring capitals.
   function b2bPerformance() {
     const out = {};
@@ -449,7 +476,7 @@ function createPortalApi({
       return true;
     }
     if (req.method === 'GET') {
-      if (!id) { sendJSON(res, 200, { partners: b2b.list(), kinds: B2B_KINDS, statuses: PARTNER_STATUSES, performance: b2bPerformance() }); return true; }
+      if (!id) { sendJSON(res, 200, { partners: b2b.list(), statuses: PARTNER_STATUSES, performance: b2bPerformance() }); return true; }
       const one = b2b.get(id);
       if (one) sendJSON(res, 200, one); else sendJSON(res, 404, { error: 'No such partner.' });
       return true;
@@ -460,9 +487,8 @@ function createPortalApi({
     if (!id) {
       const made = b2b.create(body.name, req.user.label);
       if (made.error) { sendJSON(res, 400, { error: made.error }); return true; }
-      const withKind = b2b.update(made.university.id, { ...made.university, kind: body.kind }, req.user.label);
       record(`Added ${made.university.name} to B2B Partners`);
-      sendJSON(res, 200, withKind.university || made.university);
+      sendJSON(res, 200, made.university);
       return true;
     }
     if (urlPath.endsWith('/delete')) {
@@ -574,49 +600,6 @@ function createPortalApi({
     return true;
   }
 
-  // "Ask the analyst": a question about the business, answered from the Dashboard's own figures (totals only: no student
-  // is named in them) and the management records.
-  const ANALYST = [
-    'You are the business analyst of the UK recruitment department of Nepal International Educational Consultancy (NIEC), an education consultancy in Nepal that places students in UK universities.',
-    'The head of UK recruitment, the CEO and the chairman ask you questions. Answer from the figures given below, which come from NIEC\'s own portal: the student sheet, the student cards, the marketing spend, the events, the targets, the decision log and the market notes.',
-    '',
-    'Rules:',
-    '- Every claim rests on a number from the figures. Quote the number. Never invent a figure, a market statistic, a competitor fact or a rule: when the figures do not hold the answer, say so plainly and name the exact record that would answer it.',
-    '- A rate marked low, or built on fewer than 10 students, is weak evidence: say so and do not build a decision on it alone.',
-    '- Lead with the decision. Then the evidence, the reason, what to do this week, and how to tell in a month whether it worked.',
-    '- Do not blame counselors for a low conversion without evidence: in Nepal students talk to several consultancies, and many inquiries are cold.',
-    '- Do not give obvious advice (follow up more, advertise more) without saying exactly what changes, for whom, and by how much.',
-    '- Write for a busy owner who is not an analyst: plain English, short sentences, no jargon, no dashes used as punctuation. Money is in Nepali rupees (Rs) unless it is a UK fee (GBP).',
-  ].join('\n');
-  const ANALYST_SCHEMA = {
-    type: 'object', additionalProperties: false, required: ['answer', 'decisions', 'data_needed'],
-    properties: {
-      answer: { type: 'string', description: 'The answer in short paragraphs. A line that starts with "- " is a bullet.' },
-      decisions: {
-        type: 'array',
-        items: {
-          type: 'object', additionalProperties: false, required: ['title', 'evidence', 'why', 'action', 'measure'],
-          properties: { title: { type: 'string' }, evidence: { type: 'string' }, why: { type: 'string' }, action: { type: 'string' }, measure: { type: 'string' } },
-        },
-      },
-      data_needed: { type: 'array', items: { type: 'string' }, description: 'What is missing from the records that would make the answer firmer. Empty when nothing is.' },
-    },
-  };
-  async function askAnalyst(question, figuresJson) {
-    const p = planning.all();
-    const records = JSON.stringify({ decisions: p.decisions, market: p.market });
-    const answer = await ai.askJson({
-      system: [{ text: ANALYST }, { text: `THE FIGURES (from the Dashboard, as JSON)\n${figuresJson}\n\nTHE DECISION LOG AND MARKET NOTES (as JSON)\n${records}`, cache: true }],
-      user: question, schema: ANALYST_SCHEMA, effort: 'high',
-    });
-    const d = answer.data || {};
-    return {
-      answer: text(d.answer).slice(0, 8000),
-      decisions: (Array.isArray(d.decisions) ? d.decisions : []).slice(0, 8).map((x) => ({ title: text(x.title), evidence: text(x.evidence), why: text(x.why), action: text(x.action), measure: text(x.measure) })),
-      dataNeeded: (Array.isArray(d.data_needed) ? d.data_needed : []).slice(0, 10).map((x) => text(x)).filter(Boolean),
-    };
-  }
-
   async function handle(req, res, urlPath) {
     if (!urlPath.startsWith('/api/')) return false;
     const query = () => new URL(req.url, 'http://x').searchParams;
@@ -641,50 +624,14 @@ function createPortalApi({
       send(res, 200, insights(req.user, query().get('intake') || ''), { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
       return true;
     }
-    // The AI helper: whether it is switched on, the option finder and "Ask the analyst". A question that goes to the AI is
-    // answered in the background: the page gets a ticket and asks for the answer every few seconds.
-    if (urlPath === '/api/ai/status' && req.method === 'GET') {
-      const state = ai.status();
-      sendJSON(res, 200, { ready: state.ready, message: ai.offMessage() });
-      return true;
-    }
+    // The Fact File assistant: describe a student, get the options they are eligible for (finder.js, eligibility.js).
     if (urlPath === '/api/finder' && req.method === 'POST') {
       const body = await bodyOf(req, res);
       if (!body) return true;
       const student = body.studentId && ROW_ID.test(String(body.studentId)) ? rowIndex().get(body.studentId) : null;
       const seen = student && canSee(req.user, student) ? student : null;
-      const work = () => finder({ body, index: courseIndex(), universities: facts.all(), card: seen ? cards.get(seen.row._id) : null });
-      if (!ai.status().ready || body.useAi === false) {
-        const out = await work();
-        sendJSON(res, out.error ? 400 : 200, out);
-        return true;
-      }
-      const started = jobs.start(req.user.id, work);
-      if (started.error) sendJSON(res, started.status || 429, { error: started.error });
-      else sendJSON(res, 202, { job: started.id });
-      return true;
-    }
-    if (urlPath === '/api/analyst' && req.method === 'POST') {
-      if (!managers(req, res, 'Ask the analyst')) return true;
-      const body = await bodyOf(req, res);
-      if (!body) return true;
-      const question = text(body.question).slice(0, 1500);
-      if (!question) { sendJSON(res, 400, { error: 'Type your question first.' }); return true; }
-      if (!ai.status().ready) { sendJSON(res, 409, { error: ai.offMessage(), off: true }); return true; }
-      if (!getWorkbook()) { sendJSON(res, 500, { error: 'Could not read the data file' }); return true; }
-      const figures = insights(req.user, text(body.intake));
-      const started = jobs.start(req.user.id, () => askAnalyst(question, figures));
-      if (started.error) sendJSON(res, started.status || 429, { error: started.error });
-      else sendJSON(res, 202, { job: started.id });
-      return true;
-    }
-    const jobMatch = /^\/api\/(?:finder|analyst)\/([a-f0-9]{16})$/.exec(urlPath);
-    if (jobMatch && req.method === 'GET') {
-      const job = jobs.get(req.user.id, jobMatch[1]);
-      if (!job) sendJSON(res, 404, { error: 'That question is no longer kept. Please ask again.' });
-      else if (job.status === 'working') sendJSON(res, 200, { status: 'working' });
-      else if (job.status === 'failed') sendJSON(res, 200, { status: 'failed', error: job.error });
-      else sendJSON(res, 200, { status: 'done', result: job.result });
+      const out = await finder({ body, index: courseIndex(), card: seen ? cards.get(seen.row._id) : null });
+      sendJSON(res, out.error ? 400 : 200, out);
       return true;
     }
     return false;

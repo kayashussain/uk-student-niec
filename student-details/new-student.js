@@ -8,7 +8,7 @@
   const today = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
 
   async function open({ me, intakes = [], activeSheetId = '', defaultStage = 'Inquiry', departments = [] } = {}) {
-    let lists = { people: [], subAgents: [], events: [], campaigns: [], stages: [], departments: [] };
+    let lists = { people: [], partners: [], events: [], campaigns: [], stages: [], departments: [] };
     try { lists = await api('/api/card-lists'); } catch (e) { /* the form still works without the suggestions */ }
     const admin = me && me.role === 'admin';
     return dialog('Add a student', (body, close) => {
@@ -41,7 +41,7 @@
       const campaign = make('campaign', 'Campaign or advert (if from an advert)', { list: 'ns-campaigns', max: 120, placeholder: 'Scholarship advert, January intake' });
       group('How the student found NIEC', source, detail, referred, campaign);
       source.input.addEventListener('change', redraw);
-      form.append(datalist('ns-events', lists.events), datalist('ns-agents', lists.subAgents), datalist('ns-campaigns', lists.campaigns), datalist('ns-people', lists.people));
+      form.append(datalist('ns-events', lists.events), datalist('ns-agents', lists.partners || []), datalist('ns-campaigns', lists.campaigns), datalist('ns-people', lists.people));
 
       group('What the student wants',
         make('UNIVERSITY NAME', 'University (if already chosen)', { max: 160 }), make('COURSE NAME', 'Course (if already chosen)', { max: 160 }),

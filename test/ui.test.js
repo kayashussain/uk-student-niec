@@ -119,20 +119,36 @@ test('screens: log in, edit, delete, search, team rules, Fact File', { timeout: 
     await page.close();
   });
 
-  await t.test('Student Source offers Language Classes, and the Dashboard counts students who came from them', async () => {
+  await t.test('the sheet starts at Application Status: Remarks and Student Source are on the student card, and the Dashboard still counts the source', async () => {
     const fresh = await (await admin.request.get('/api/data')).json();
     fresh.sheets[0].rows[1]['STUDENT SOURCE'] = 'Language Classes';
     assert.ok((await admin.request.post('/api/data', { data: { sheets: fresh.sheets, activeSheetId: fresh.activeSheetId, baseRevision: fresh.revision } })).ok());
     const page = await open(admin, '/students');
     await page.waitForSelector('#body tr:not(.pad-row)');
-    const col = await page.$$eval('#headerRow th', (ths) => ths.findIndex((th) => th.dataset.col === 'STUDENT SOURCE'));
-    const select = page.locator('#body tr:not(.pad-row)').first().locator('td').nth(col).locator('select');
-    await select.focus();
-    await page.waitForTimeout(300);
-    assert.ok((await select.locator('option').allTextContents()).includes('Language Classes'), 'Language Classes is one of the choices');
+    const heads = await page.$$eval('#headerRow th', (ths) => ths.map((th) => th.dataset.col || ''));
+    assert.strictEqual(heads[1], 'APPLICATION STATUS', 'the first column after S.N is Application Status');
+    assert.ok(!heads.includes('REMARKS') && !heads.includes('STUDENT SOURCE'), 'Remarks and Student Source are not on the sheet');
     await page.close();
     const dash = await (await admin.request.get('/api/dashboard')).json();
     assert.ok(JSON.stringify(dash).includes('Language Classes'), 'the Dashboard counts students whose source is Language Classes');
+  });
+
+  await t.test('a double-click on a student name opens that student card, Open card opens the one clicked', async () => {
+    const page = await open(admin, '/students');
+    await page.waitForSelector('#body tr:not(.pad-row)');
+    const nameIdx = await page.$$eval('#headerRow th', (ths) => ths.findIndex((th) => th.dataset.col === 'FIRST NAME'));
+    await page.locator('#body tr:not(.pad-row)').first().locator('td').nth(nameIdx).dblclick();
+    await page.waitForSelector('.p-drawer iframe');
+    const frame = page.frameLocator('.p-drawer iframe');
+    await frame.locator('.p-hero h1').waitFor();
+    assert.match(await frame.locator('.p-hero h1').textContent(), /Student/);
+    assert.ok(await frame.locator('.p-tabs button').count() === 3, 'three tabs only: Details, University options, Send a message');
+    await page.keyboard.press('Escape');
+    await page.waitForFunction(() => !document.querySelector('.p-drawer'));
+    await page.locator('#body tr:not(.pad-row)').nth(1).locator('td').nth(nameIdx).click();
+    await page.click('#openCard');
+    await page.waitForSelector('.p-drawer iframe');
+    await page.close();
   });
 
   await t.test('columns fit what is in them: a very long email is shown in full, and nothing else in the first rows is cut off', async () => {
@@ -180,7 +196,8 @@ test('screens: log in, edit, delete, search, team rules, Fact File', { timeout: 
   await t.test('an edit is confirmed, saved and still there after a reload', async () => {
     const page = await open(admin, '/students');
     await page.waitForSelector('#body tr:not(.pad-row)');
-    await page.locator('#body tr:not(.pad-row)').nth(1).locator('td').nth(1).click();
+    const nameCol = await page.$$eval('#headerRow th', (ths) => ths.findIndex((th) => th.dataset.col === 'LAST NAME'));
+    await page.locator('#body tr:not(.pad-row)').nth(1).locator('td').nth(nameCol).click();
     await page.keyboard.type('Bank statement is missing');
     await page.keyboard.press('Enter');
     await page.waitForSelector('.eg-box');
@@ -188,7 +205,7 @@ test('screens: log in, edit, delete, search, team rules, Fact File', { timeout: 
     await page.waitForFunction(() => document.querySelector('#status').textContent.includes('All changes saved'), null, { timeout: 10000 });
     await page.reload();
     await page.waitForSelector('#body tr:not(.pad-row)');
-    assert.strictEqual(await page.locator('#body tr:not(.pad-row)').nth(1).locator('td').nth(1).textContent(), 'Bank statement is missing');
+    assert.strictEqual(await page.locator('#body tr:not(.pad-row)').nth(1).locator('td').nth(nameCol).textContent(), 'Bank statement is missing');
     await page.close();
   });
 
@@ -199,7 +216,8 @@ test('screens: log in, edit, delete, search, team rules, Fact File', { timeout: 
     await page.route('**/api/data', (route) => (route.request().method() === 'POST' && loginEnded
       ? route.fulfill({ status: 401, contentType: 'application/json', body: JSON.stringify({ error: 'Please log in again.' }) })
       : route.continue()));
-    await page.locator('#body tr:not(.pad-row)').nth(3).locator('td').nth(1).click();
+    const nameCol = await page.$$eval('#headerRow th', (ths) => ths.findIndex((th) => th.dataset.col === 'FIRST NAME'));
+    await page.locator('#body tr:not(.pad-row)').nth(3).locator('td').nth(nameCol).click();
     await page.keyboard.type('Typed while the login had ended');
     await page.keyboard.press('Enter');
     await page.waitForSelector('.eg-box');
@@ -210,7 +228,7 @@ test('screens: log in, edit, delete, search, team rules, Fact File', { timeout: 
     loginEnded = false; // logged in again in another tab
     await page.waitForFunction(() => document.querySelector('#status').textContent.includes('All changes saved'), null, { timeout: 15000 });
     const saved = await (await admin.request.get('/api/data')).json();
-    assert.ok(saved.sheets[0].rows.some((r) => r['REMARKS'] === 'Typed while the login had ended'), 'the change was kept and saved');
+    assert.ok(saved.sheets[0].rows.some((r) => r['FIRST NAME'] === 'Typed while the login had ended'), 'the change was kept and saved');
     await page.close();
   });
 
@@ -219,7 +237,7 @@ test('screens: log in, edit, delete, search, team rules, Fact File', { timeout: 
     await page.waitForSelector('#body tr:not(.pad-row)');
     const shown = await page.textContent('#rowCount');
     assert.match(shown, /^(3|4) of (3|4) rows/, 'only the Application Stage students');
-    const select = page.locator('#body tr:not(.pad-row)').first().locator('select.status-select').nth(1);
+    const select = page.locator('#body tr:not(.pad-row)').first().locator('select.status-select').first();
     await select.focus();
     await select.selectOption('Mock Stage');
     await page.waitForSelector('dialog.ui-dialog[open]');
@@ -650,7 +668,7 @@ test('screens: log in, edit, delete, search, team rules, Fact File', { timeout: 
     await page.close();
   });
 
-  await t.test('a picked date shows at once, a filter survives a refresh and a new student follows it, Language Classes is offered', async () => {
+  await t.test('a picked date shows at once, a filter survives a refresh and a new student follows it', async () => {
     const cur = await (await admin.request.get('/api/data')).json();
     const sheet = cur.sheets[0];
     const originalRows = sheet.rows; // put back at the end, the tests after this one use them
@@ -674,13 +692,6 @@ test('screens: log in, edit, delete, search, team rules, Fact File', { timeout: 
     await page.waitForSelector('.eg-box');
     await page.click('.eg-ok');
     await page.waitForFunction(() => /11\/12\/2026/.test(document.querySelector('#body tr:not(.pad-row) td.date').textContent === '' ? '' : [...document.querySelectorAll('#body tr:not(.pad-row)')][0].innerText), null, { timeout: 5000 });
-
-    // The student source list offers Language Classes.
-    const sourceIdx = await colIndex('STUDENT SOURCE');
-    const sourceSelect = page.locator('#body tr:not(.pad-row)').first().locator('td').nth(sourceIdx).locator('select');
-    await sourceSelect.focus(); // the list of choices is filled in when the dropdown is opened
-    const options = await sourceSelect.locator('option').allTextContents();
-    assert.ok(options.includes('Language Classes'), 'Language Classes is in the Student Source list: ' + options.join(', '));
 
     // Filter on Application Stage, then refresh: the filter is still on.
     const statusTh = page.locator('#headerRow th[data-col="APPLICATION STATUS"]');

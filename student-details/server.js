@@ -30,7 +30,6 @@ const { createPlanning } = require('./planning');
 const { createB2b } = require('./b2b');
 const { createPortalApi } = require('./portal-api');
 const { buildInsights } = require('./insights-engine');
-const { createAi, createJobs } = require('./ai');
 const { createFinder } = require('./finder');
 
 const PORT = process.env.PORT || 4173;
@@ -108,9 +107,6 @@ const messages = createMessages(DATA_DIR);
 const courseLinks = createCourseLinks(DATA_DIR);
 const b2b = createB2b(DATA_DIR);
 const planning = createPlanning(DATA_DIR);
-// The AI helper (off until ANTHROPIC_API_KEY is set, see ai.js) and the option finder that uses it.
-const ai = createAi();
-const aiJobs = createJobs();
 // Daily backups (6 p.m., kept 30 days) and Admin's restore (see backups.js). `current` is the students, held in memory below.
 const backups = createBackups(DATA_DIR, () => ({
   students: current, facts: facts.all(), partners: direct.all(),
@@ -794,7 +790,7 @@ function servedInsights(user, intake) {
 const portal = createPortalApi({
   getWorkbook: () => current, writeWorkbook, recordChanges, teamSave,
   cards, messages, courseLinks, facts, direct, b2b, planning, accounts, activity,
-  insights: servedInsights, finder: createFinder({ ai }), ai, jobs: aiJobs, calculated: CALCULATED_COLUMNS,
+  insights: servedInsights, finder: createFinder(), calculated: CALCULATED_COLUMNS,
 });
 
 try {
