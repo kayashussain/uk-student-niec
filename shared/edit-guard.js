@@ -28,11 +28,7 @@
       border: 1px solid #d1d5db; background: var(--panel, #f2f4f7); color: #374151; }
     .eg-actions .eg-ok { background: #cc4a0a; border-color: #cc4a0a; color: #fff; }
     .eg-actions button:focus-visible { outline: 2px solid #2563eb; outline-offset: 2px; }
-    @media (prefers-color-scheme: dark) {
-      .eg-box { background: #1f2937; color: #f3f4f6; }
-      .eg-box p, .eg-box label { color: #d1d5db; }
-      .eg-actions button { background: #374151; border-color: #4b5563; color: #f3f4f6; }
-    }`;
+    `;
 
   let open = null; // { finish } while the box is showing
 

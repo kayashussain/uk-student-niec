@@ -9,6 +9,19 @@ Format: **date · file · what · from → to · why**
 
 ---
 
+## 2026-11-12 · every stylesheet and `shared/login.html` · one light look, comfortable for older eyes
+
+The owner asked for one look only, the light one, and made it comfortable for team members who find bright white hard to look at.
+
+- **One theme:** all dark-mode rules were removed from every stylesheet and page (22 blocks), and the page now declares itself light-only, so a computer set to dark mode shows the same light portal.
+- **No glare:** from pure white panels on a near-white page → to soft off-white panels (`#f7f8fa`) on a soft grey canvas (`#e9ecf0`), a slightly darker line colour so edges are easy to see, and softer shadows. Text boxes are a gentle off-white (`#fbfcfd`).
+- **Contrast:** body text is `#1a2230` (about 15 to 1 against the panels, far above the usual minimum of 4.5 to 1); secondary text is `#424c5b` (about 7 to 1); every status tag is at least 6 to 1.
+- **Bigger:** body text 15px (was 14px); sheet text 15px, with roomier rows (11px padding); sheet headings 13px; buttons 42px tall (was 36px) with 14.5px text; small buttons 36px; search box 44px tall; status tags and labels 13px; status-box labels 12px. The sheet's column widths follow the larger type, so nothing is cut off with "...".
+- **Colours:** the main blue is a little calmer (`#1f5fc0`, was `#0071e3`); the old bright orange became a deeper amber (`#b86a00`); the green, blue, amber and red tags are slightly deeper so their text is easy to read.
+- **Menu and login:** the frosted menu and the login page use the same soft greys instead of white.
+
+---
+
 ## 2026-11-12 · `shared/theme.css`, `student-details/portal.css`, `style.css`, `dashboard.css`, `fact-file.css`, `admin.css`, `shared/ui.css`, `shared/header.css` · the final design pass: Today screen, one design system, motion, empty states, small screens
 
 - **Today (new first screen, `portal.css`):** a large greeting, three big numbers, and five cards (inquiries to follow up, applications to submit, mock interviews to schedule, offers waiting for the deposit, CAS received with the visa not lodged). Each student is a row with initials and a stage tag, a click away from their card. A card with nothing to do shows a green "All clear". Rounded 24px cards, soft shadows, one blue count badge.

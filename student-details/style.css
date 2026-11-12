@@ -2,9 +2,9 @@
   /* NIEC brand, from the official logo and niec.edu.np: light blue, orange and grey. --niec-blue-text
      is the same blue a few shades deeper, for text on white (the logo blue itself is too light to read). */
   --niec-blue: #00adef;
-  --niec-blue-text: #0058b0;
+  --niec-blue-text: #164a98;
   --niec-blue-tint: #e8f7fe;
-  --niec-orange: #ff9f0a;
+  --niec-orange: #b86a00;
   --niec-grey: #9d9d9d;
   --bg: #f3f6fa;
   --panel: #ffffff;
@@ -12,11 +12,11 @@
   --border-strong: #c7ccd4;
   --text: #1c2126;
   --text-dim: #5b6472;
-  --accent: #ff9f0a;
+  --accent: #b86a00;
   --primary: #cc4a0a; /* orange for buttons with white text: readable (4.6:1), unlike the bright brand orange */
   --primary-hover: #b54008;
   --accent-dim: #fff0e5;
-  --orange: #ff9f0a;
+  --orange: #b86a00;
   --focus: #0284c7;
   --focus-dim: #e6f4fb;
   --focus-strong: #cbe9f8;
@@ -33,33 +33,7 @@
   --rc-green: #bbf0c8; --rc-yellow: #fdf0a6; --rc-orange: #fdd5a8; --rc-red: #fbc4c4; --rc-blue: #c3dafc; --rc-purple: #ddd0fa; --rc-grey: #d6dae0;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #14171c;
-    --panel: #1b1f26;
-    --border: #2a2f38;
-    --border-strong: #3a4049;
-    --text: #e7eaee;
-    --text-dim: #9aa2ad;
-    --accent: #ff8a47;
-    --accent-dim: #3a2415;
-    --orange: #ff8a47;
-    --focus: #5b8def;
-    --focus-dim: #1c2a44;
-    --focus-strong: #26406b;
-    --range-tint: rgba(91, 141, 239, 0.24);
-    --header-bg: #1f242c;
-    --row-alt: #191d24;
-    --row-hover: #212a3a;
-    --danger: #f87171;
-    --green-bg: #12301f; --green-fg: #6fd894;
-    --blue-bg: #17233f; --blue-fg: #8ab4ff;
-    --amber-bg: #3a2a10; --amber-fg: #f2b705;
-    --gray-bg: #262b33; --gray-fg: #aab1bb;
-    --red-bg: #3a1616; --red-fg: #f87171;
-    --rc-green: #1d5a35; --rc-yellow: #5c5415; --rc-orange: #5e3a14; --rc-red: #5e2222; --rc-blue: #223e72; --rc-purple: #41307a; --rc-grey: #3b414b;
-  }
-}
+
 
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
@@ -622,7 +596,7 @@ tr.defer-warning-row td { background-color: var(--red-bg) !important; }
 .stat-group-title { color: var(--niec-blue-text); }
 .stat-card { border-left: 3px solid var(--niec-blue); box-shadow: 0 1px 2px rgba(0, 119, 168, 0.08); }
 .stat-card .stat-value { color: var(--niec-blue-text); }
-.stat-card.stat-total { background: #0058b0; border-color: #0058b0; }
+.stat-card.stat-total { background: #164a98; border-color: #164a98; }
 .stat-card.stat-total .stat-value { color: #fff; }
 .stat-card.stat-total .stat-label { color: #fff; }
 .stat-card.stat-rate { border-left-color: var(--niec-orange); }
@@ -645,16 +619,7 @@ thead .filter-btn.active { color: var(--niec-orange); }
 /* Sheet tabs: the open intake in NIEC blue with an orange underline. */
 .sheet-tab.active { color: var(--niec-blue-text); box-shadow: inset 0 -2px 0 var(--niec-orange); }
 
-@media (prefers-color-scheme: dark) {
-  :root { --niec-blue-text: #6fd0f7; --niec-blue-tint: #10283a; }
-  .stat-card.stat-total { background: #0058b0; border-color: #0058b0; }
-  .stat-card.stat-rate .stat-value { color: #ff9a5c; }
-  .stat-card .stat-visa { color: #6fd894; }
-  thead th, thead th.col-idx { background: #12303f; color: #bfe9fb; border-right-color: #1d4153; }
-  thead th:hover { background: #173b4d; color: #fff; }
-  thead .filter-btn { color: #8fc9e3; }
-  .btn:hover { background: #173b4d; }
-}
+
 
 /* Exporting the whole sheet is for Admin and the Manager only. */
 body:not([data-role="admin"]):not([data-role="manager"]) #exportExcel { display: none; }

@@ -1,39 +1,40 @@
 /* Fly design system.
-   Light, airy and precise, in the way of the best consumer brands: soft grey canvas, white surfaces with hairline edges and gentle depth, refined type, one calm accent blue for the main action and for focus, generous space.
+   One light look, made to be easy on the eyes through a long day: a soft grey canvas, panels that are a gentle off-white instead of glaring pure white, strong dark text (about 15 to 1 contrast), a calm blue for the main action and for focus, and larger, roomier type and controls.
    Every page loads this last, so a value here changes every page. Sections: tokens, base, buttons and fields, the sheet, cards and pages, Incentive, small screens. */
 
 /* ---------- 1. Tokens ---------- */
 :root {
+  color-scheme: light;
   --font: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI Variable Display", "Segoe UI", system-ui, BlinkMacSystemFont, Roboto, "Helvetica Neue", Arial, sans-serif;
   --serif: var(--font);
 
-  --navy: #1d1d1f;
-  --navy-2: #2b2b30;
-  --gold: #0071e3;
-  --gold-deep: #0058b0;
-  --gold-soft: #e8f1fd;
+  --navy: #1a2230;
+  --navy-2: #2a3445;
+  --gold: #1f5fc0;
+  --gold-deep: #164a98;
+  --gold-soft: #dde8f8;
 
-  --ink: #1d1d1f;
+  --ink: #1a2230;
   --text: var(--ink);
-  --text-dim: #6e6e73;
-  --bg: #f5f5f7;
-  --panel: #ffffff;
-  --surface: #ffffff;
-  --ui-panel: #ffffff;
-  --soft: #f0f0f3;
-  --border: #e8e8ed;
-  --border-strong: #d2d2d7;
+  --text-dim: #424c5b;
+  --bg: #e9ecf0;
+  --panel: #f7f8fa;
+  --surface: #f7f8fa;
+  --ui-panel: #f7f8fa;
+  --soft: #e7eaef;
+  --border: #d5dae2;
+  --border-strong: #bfc6d1;
 
-  --header-bg: #fbfbfd;
-  --head-ink: #6e6e73;
-  --row-alt: #ffffff;
-  --row-hover: #f5f9ff;
-  --edit-bg: #ffffff;
+  --header-bg: #eceff3;
+  --head-ink: #424c5b;
+  --row-alt: #f2f4f7;
+  --row-hover: #e4edf9;
+  --edit-bg: #fbfcfd;
 
-  --focus: #0071e3;
-  --focus-dim: #e8f1fd;
-  --focus-strong: #cfe3fa;
-  --range-tint: rgba(0, 113, 227, .10);
+  --focus: #1f5fc0;
+  --focus-dim: #dde8f8;
+  --focus-strong: #c4d7f3;
+  --range-tint: rgba(31, 95, 192, .12);
 
   /* the brand accent keeps its old variable names, which other stylesheets still use */
   --niec-blue: var(--gold);
@@ -47,15 +48,15 @@
   --accent-strong: var(--navy-2);
   --accent-strong-hover: var(--navy);
   --on-accent: #ffffff;
-  --primary: #0071e3;
-  --primary-hover: #0077ed;
+  --primary: #1f5fc0;
+  --primary-hover: #1a56ae;
   --on-primary: #ffffff;
 
-  --green-bg: #e6f6ec; --green-fg: #1d7a3e;
-  --blue-bg: #e8f1fd;  --blue-fg: #0058b0;
-  --amber-bg: #fff3d6; --amber-fg: #8a5a00;
-  --gray-bg: #f0f0f3;  --gray-fg: #5c5c63;
-  --red-bg: #ffe8e6;   --red-fg: #c4271b;
+  --green-bg: #dcefe3; --green-fg: #14633a;
+  --blue-bg: #dce8f9;  --blue-fg: #164a98;
+  --amber-bg: #f9e9c4; --amber-fg: #6a4500;
+  --gray-bg: #e3e7ec;  --gray-fg: #3d4653;
+  --red-bg: #f9dedb;   --red-fg: #9c1f18;
   --ok-bg: var(--green-bg); --ok: var(--green-fg);
   --warn-bg: var(--amber-bg); --warn: var(--amber-fg);
   --wait-bg: var(--amber-bg); --wait: var(--amber-fg);
@@ -64,33 +65,18 @@
   --r-sm: 12px; --r-md: 18px; --r-lg: 24px;
   /* spacing scale, in steps of 4px: use these for gaps and padding */
   --s-1: 4px; --s-2: 8px; --s-3: 12px; --s-4: 16px; --s-5: 24px; --s-6: 32px; --s-7: 48px;
-  --orange: #ff9f0a; --niec-orange: #ff9f0a; --s1: #0071e3; --s2: #ff9f0a; --s3: #30b66b;
-  --sh-1: 0 1px 2px rgba(0, 0, 0, .04);
-  --sh-2: 0 2px 6px rgba(0, 0, 0, .04), 0 14px 34px -14px rgba(0, 0, 0, .14);
-  --sh-3: 0 4px 12px rgba(0, 0, 0, .06), 0 28px 70px -24px rgba(0, 0, 0, .28);
+  --orange: #b86a00; --niec-orange: #b86a00; --s1: #1f5fc0; --s2: #b86a00; --s3: #1f8a52;
+  --sh-1: 0 1px 2px rgba(20, 30, 50, .06);
+  --sh-2: 0 2px 6px rgba(20, 30, 50, .05), 0 12px 28px -14px rgba(20, 30, 50, .16);
+  --sh-3: 0 4px 12px rgba(20, 30, 50, .08), 0 26px 60px -24px rgba(20, 30, 50, .30);
   --ease: cubic-bezier(.2, .7, .2, 1);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --ink: #f5f5f7; --text: #ececf0; --text-dim: #a1a1a8;
-    --bg: #101012; --panel: #1c1c1e; --surface: #1c1c1e; --ui-panel: #1c1c1e; --soft: #2a2a2d;
-    --border: #2c2c2f; --border-strong: #3a3a3e;
-    --header-bg: #202023; --head-ink: #a1a1a8; --row-alt: #1c1c1e; --row-hover: #26262a; --edit-bg: #242427;
-    --focus: #2997ff; --focus-dim: #11253d; --focus-strong: #17385e; --range-tint: rgba(41, 151, 255, .18);
-    --gold: #2997ff; --gold-deep: #6cb7ff; --gold-soft: #11253d;
-    --accent-strong: #6cb7ff; --accent-strong-hover: #94cbff; --on-accent: #101012;
-    --primary: #0a84ff; --primary-hover: #3a9bff; --on-primary: #ffffff;
-    --green-bg: #12291a; --green-fg: #6fdc9a; --blue-bg: #11253d; --blue-fg: #6cb7ff;
-    --amber-bg: #2c2308; --amber-fg: #f0c869; --gray-bg: #2a2a2d; --gray-fg: #b4b4bb;
-    --red-bg: #2f1514; --red-fg: #ff9a92;
-    --sh-1: 0 1px 2px rgba(0, 0, 0, .4); --sh-2: 0 14px 34px -14px rgba(0, 0, 0, .7); --sh-3: 0 28px 70px -24px rgba(0, 0, 0, .85);
-  }
-}
+
 
 /* ---------- 2. Base ---------- */
 html, body, button, input, select, textarea, table, th, td, dialog, a, .ui-toast, .ui-dialog, .ui-dialog * { font-family: var(--font); }
-body { background: var(--bg); color: var(--text); letter-spacing: 0; -webkit-font-smoothing: antialiased; }
+body { background: var(--bg); color: var(--text); letter-spacing: 0; -webkit-font-smoothing: antialiased; font-size: 15px; line-height: 1.5; }
 h1, .kpi-value, .hero-value, .stat-card .stat-value, .summary-title, .summary-row.final .value { font-family: var(--serif); }
 h1 { color: var(--ink); font-weight: 650; letter-spacing: -.03em; }
 .hero-value { font-weight: 600; letter-spacing: -.04em; }
@@ -100,19 +86,19 @@ a { color: var(--gold-deep); }
 ::-webkit-scrollbar { width: 12px; height: 12px; }
 ::-webkit-scrollbar-thumb { background: #cdcdd5; border: 3px solid transparent; background-clip: content-box; border-radius: 99px; }
 ::-webkit-scrollbar-thumb:hover { background: #a9a9b4; background-clip: content-box; border: 3px solid transparent; }
-@media (prefers-color-scheme: dark) { ::-webkit-scrollbar-thumb { background: #2f4a3b; background-clip: content-box; } }
+
 .page, .wrap, .app-main { animation: fly-fade .25s ease both; }
 @keyframes fly-fade { from { opacity: 0; } to { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .page, .wrap, .app-main { animation: none; } .kpi:hover, .hero:hover, .uni-card:hover { transform: none !important; } }
 
 /* ---------- 3. Buttons and fields ---------- */
 .btn, button.btn, a.btn {
-  display: inline-flex; align-items: center; justify-content: center; min-height: 36px; padding: 0 18px;
+  display: inline-flex; align-items: center; justify-content: center; min-height: 42px; padding: 0 20px;
   border: 0; border-radius: 999px; background: color-mix(in srgb, var(--ink) 6%, transparent); color: var(--ink);
-  font-size: 13px; font-weight: 550; text-decoration: none; cursor: pointer; box-shadow: none;
+  font-size: 14.5px; font-weight: 600; text-decoration: none; cursor: pointer; box-shadow: none;
   transition: background-color .18s var(--ease), border-color .18s var(--ease), box-shadow .2s var(--ease), transform .12s;
 }
-.btn.btn-sm { min-height: 30px; padding: 0 14px; font-size: 12.5px; }
+.btn.btn-sm { min-height: 36px; padding: 0 16px; font-size: 13.5px; }
 .btn:hover:not(:disabled) { background: color-mix(in srgb, var(--ink) 10%, transparent); }
 .btn:active:not(:disabled) { transform: translateY(1px); }
 .btn:disabled, .btn:disabled:hover { opacity: .4; cursor: not-allowed; }
@@ -136,7 +122,7 @@ input[type="text"], input[type="search"], input[type="email"], input[type="passw
   transition: border-color .18s, box-shadow .18s;
 }
 input:focus, select:focus, textarea:focus { outline: none; border-color: var(--focus); box-shadow: 0 0 0 4px color-mix(in srgb, var(--focus) 18%, transparent); }
-#search, .topbar #search, input.search { height: 40px; width: 280px; padding: 0 18px; border-radius: 999px; border-color: var(--border); background: var(--panel); box-shadow: var(--sh-1); font-size: 13px; }
+#search, .topbar #search, input.search { height: 44px; width: 380px; padding: 0 20px; border-radius: 999px; border-color: var(--border-strong); background: var(--edit-bg); box-shadow: var(--sh-1); font-size: 14.5px; }
 input.search { width: 260px; }
 
 /* ---------- 4. The sheet (Student Details) ---------- */
@@ -146,15 +132,15 @@ input.search { width: 260px; }
 .save-status { font-size: 12px; color: var(--text-dim); }
 .status-summary { background: var(--bg); border: 0; padding: 2px 26px 12px; gap: 4px; }
 .stat-group-title { color: var(--text-dim); font-weight: 650; font-size: 12px; letter-spacing: .14em; }
-.stat-group-cards { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(70px, 1fr); gap: 8px; width: max(85%, 1120px); max-width: 100%; align-items: stretch; overflow-x: auto; padding: 4px 2px 8px; }
+.stat-group-cards { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(104px, 1fr); gap: 10px; width: max(88%, 1240px); max-width: 100%; align-items: stretch; overflow-x: auto; padding: 4px 2px 10px; }
 .stat-card, .stat-card.stat-total {
   display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 4px; min-width: 0; padding: 11px 4px 10px; text-align: center;
   background: var(--panel); border: 1px solid var(--border); border-radius: var(--r-md); box-shadow: var(--sh-1);
   transition: box-shadow .2s ease, border-color .2s ease, transform .2s var(--ease);
 }
 .stat-card:hover { border-color: color-mix(in srgb, var(--gold) 55%, var(--border)); box-shadow: var(--sh-2); transform: translateY(-2px); }
-.stat-card .stat-value, .stat-card.stat-total .stat-value { font-size: 24px; font-weight: 600; color: var(--ink); letter-spacing: -.03em; line-height: 1.1; font-variant-numeric: tabular-nums; }
-.stat-card .stat-label { display: block; width: 100%; min-height: 2.5em; white-space: normal; line-height: 1.25; font-size: 11px; letter-spacing: .05em; color: var(--text-dim); font-weight: 550; overflow-wrap: anywhere; hyphens: auto; }
+.stat-card .stat-value, .stat-card.stat-total .stat-value { font-size: 26px; font-weight: 600; color: var(--ink); letter-spacing: -.03em; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.stat-card .stat-label { display: block; width: 100%; min-height: 2.5em; white-space: normal; line-height: 1.25; font-size: 12px; letter-spacing: .03em; color: var(--text-dim); font-weight: 600; overflow-wrap: normal; hyphens: manual; word-break: normal; }
 .stat-card.stat-total { background: var(--gold-soft); border-color: color-mix(in srgb, var(--gold) 50%, var(--border)); box-shadow: inset 0 -3px 0 var(--gold), var(--sh-1); }
 .stat-card.stat-total .stat-label { color: var(--gold-deep); }
 .stat-card.stat-rate { box-shadow: inset 0 -3px 0 #ff9f0a, var(--sh-1); }
@@ -164,11 +150,11 @@ input.search { width: 260px; }
 .table-wrap { background: var(--panel); border-top: 1px solid var(--border); }
 #sheet thead th {
   background: var(--header-bg); border-right: 0; border-bottom: 1px solid var(--border);
-  font-size: 12px; font-weight: 600; letter-spacing: .02em; color: var(--head-ink);
+  font-size: 13px; font-weight: 650; letter-spacing: .01em; color: var(--head-ink);
 }
 #sheet thead th:hover { color: var(--ink); }
 #sheet thead th.col-idx, #sheet th.col-idx { background: var(--header-bg); color: var(--head-ink); }
-#sheet td { border-right: 0; border-bottom: 1px solid var(--border); padding: 9px 14px; font-size: 14px; font-weight: 400; }
+#sheet td { border-right: 0; border-bottom: 1px solid var(--border); padding: 11px 16px; font-size: 15px; font-weight: 400; }
 #sheet td.col-idx { color: var(--text-dim); font-size: 12.5px; font-weight: 500; }
 #sheet tbody tr.pad-row td { padding: 0; border: 0; height: 0; }
 #sheet tbody tr { transition: background-color .15s; }
@@ -253,7 +239,7 @@ select:not(.status-select):disabled { opacity: .5; cursor: not-allowed; }
 /* ---------- 5. Cards and pages (Dashboard, Fact File, Users, Activity, partners) ---------- */
 .page { padding-top: 38px; }
 .page-head h1 { font-size: 36px; }
-.page-head p { font-size: 14.5px; color: var(--text-dim); }
+.page-head p { font-size: 16px; color: var(--text-dim); }
 .page-head .search { align-self: flex-end; }
 .card, .kpi, .uni-card, .summary-card, .table-card, .hero { background: var(--panel); border: 1px solid color-mix(in srgb, var(--ink) 6%, transparent); border-radius: var(--r-lg); box-shadow: var(--sh-2); transition: box-shadow .25s var(--ease), transform .25s var(--ease), border-color .25s ease; }
 .kpi { padding: 22px 24px; }
@@ -350,3 +336,13 @@ a { transition: color .15s ease; }
   .niec-nav { min-width: 0; max-width: calc(100vw - 110px); }
   .page .card, .p-card, .table-card { overflow-x: auto; }
 }
+
+/* ---------- 10. Easy on the eyes ---------- */
+input, select, textarea, .adv-input { font-size: 15px; }
+input[type="text"], input[type="search"], input[type="email"], input[type="password"], input[type="date"], input[type="number"], input:not([type]), select, textarea { background: var(--edit-bg); border-color: var(--border-strong); }
+input[type="text"], input[type="email"], input[type="password"], input[type="date"], input[type="number"], input:not([type]), select { min-height: 42px; }
+.p-pill, .badge, .status-select, .chip { font-size: 13px; }
+label, .p-label, dt { font-size: 13.5px; }
+small, .p-small, .p-muted { font-size: 13.5px; }
+:focus-visible { outline-width: 3px; }
+::selection { background: color-mix(in srgb, var(--gold) 30%, transparent); }

@@ -31,30 +31,7 @@
     --red-bg: #fce8e8; --red-fg: #b91c1c;
     --edit-bg: #fff8ef;
   }
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --bg: #14171c;
-      --panel: #1b1f26;
-      --border: #2a2f38;
-      --border-strong: #3a4049;
-      --text: #e7eaee;
-      --text-dim: #9aa2ad;
-      --accent: #ff8a47;
-      --accent-dim: #3a2415;
-      --focus: #5b8def;
-      --focus-dim: #1c2a44;
-      --focus-strong: #26406b;
-      --range-tint: rgba(91, 141, 239, 0.24);
-      --header-bg: #1f242c;
-      --row-alt: #191d24;
-      --row-hover: #212a3a;
-      --danger: #f87171;
-      --green-bg: #12301f; --green-fg: #6fd894;
-      --amber-bg: #3a2a10; --amber-fg: #f2b705;
-      --red-bg: #3a1616; --red-fg: #f87171;
-      --edit-bg: #2a2118;
-    }
-  }
+  
   * { box-sizing: border-box; }
   [hidden] { display: none !important; }
   html, body { margin: 0; background: var(--bg); color: var(--text); }
@@ -77,10 +54,7 @@
   .top .subtitle { color: var(--text-dim); font-size: 11px; }
   .btn:hover { background: #e8f7fe; border-color: #00adef; }
   .btn:disabled:hover { border-color: var(--border-strong); }
-  @media (prefers-color-scheme: dark) {
-    .top .brand h1 { color: #6fd0f7; }
-    .btn:hover { background: #173b4d; }
-  }
+  
 
   .toolbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
   input.search {
@@ -144,10 +118,7 @@
   /* Light-blue NIEC column headings, matching Student Details. */
   thead th { background: #e8f7fe; color: #0a5878; border-bottom: 2px solid #00adef; border-right-color: #cdebf8; }
   thead th .info { color: #2f6f8a; }
-  @media (prefers-color-scheme: dark) {
-    thead th { background: #12303f; color: #bfe9fb; border-right-color: #1d4153; }
-    thead th .info { color: #8fc9e3; }
-  }
+  
   tbody td {
     padding: 7px 10px; border-bottom: 1px solid var(--border); border-right: 1px solid var(--border);
     white-space: nowrap; color: var(--text);
@@ -209,7 +180,7 @@
   .summary-row .hint { font-size: 10.5px; color: var(--text-dim); font-weight: 400; margin-left: 6px; }
   .summary-row.final { background: var(--accent-dim); }
   .summary-row.final .label, .summary-row.final .value { color: #b54008; font-weight: 700; }
-  @media (prefers-color-scheme: dark) { .summary-row.final .label, .summary-row.final .value { color: var(--accent); } }
+  
   .adv-input {
     width: 120px; text-align: right; padding: 5px 8px; border-radius: 6px;
     border: 1px solid var(--border-strong); background: var(--bg); font-size: 13px;

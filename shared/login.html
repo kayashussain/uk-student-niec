@@ -19,17 +19,7 @@
     --danger: #dc2626;
     --note-bg: #eef7fc;
   }
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --bg: #11161f;
-      --panel: #1a212d;
-      --border: #364152;
-      --text: #e5e7eb;
-      --text-dim: #9ca3af;
-      --danger: #f87171;
-      --note-bg: #16303f;
-    }
-  }
+  
   * { box-sizing: border-box; }
   body {
     margin: 0;
@@ -79,7 +69,7 @@
   .company { font-size: 12px; color: var(--text-dim); }
   h1 { margin: 0; font-size: 19px; color: var(--niec-blue-text); }
   .footnote { margin: 18px 0 0; padding-top: 14px; border-top: 1px solid var(--border); font-size: 12px; color: var(--text-dim); text-align: center; }
-  @media (prefers-color-scheme: dark) { h1 { color: var(--niec-blue); } }
+  
   .sub { margin: 2px 0 12px; color: var(--text-dim); }
   .note { margin: 0 0 6px; padding: 10px 12px; border-radius: 8px; background: var(--note-bg); font-size: 13px; }
   .note ol { margin: 4px 0 0; padding-left: 18px; }
@@ -116,7 +106,7 @@
   }
   button { transition: filter .12s, background .12s; }
   button:hover:not(:disabled) { background: #0f2438; }
-  @media (prefers-color-scheme: dark) { .hero { background: linear-gradient(165deg, #1d242d 0%, #171d24 100%); } }
+  
   button:focus-visible, .pw-toggle:focus-visible { outline: 2px solid var(--niec-blue); outline-offset: 2px; }
   button:disabled { opacity: 0.6; cursor: default; }
   .pw { position: relative; display: flex; }
@@ -124,40 +114,40 @@
   .pw-toggle { position: absolute; right: 4px; top: 50%; transform: translateY(-50%); margin: 0; padding: 5px 9px; background: none;
     color: var(--niec-blue-text); font-size: 12px; font-weight: 600; border-radius: 6px; }
   .pw-toggle:hover:not(:disabled) { background: var(--note-bg); filter: none; }
-  @media (prefers-color-scheme: dark) { .pw-toggle { color: var(--niec-blue); } }
+  
   .caps { margin: 4px 0 0; color: #b45309; font-size: 12px; font-weight: 600; }
-  @media (prefers-color-scheme: dark) { .caps { color: #f2b705; } }
+  
   .caps[hidden] { display: none; }
   @media (prefers-reduced-motion: reduce) { button { transition: none; } }
   .link { margin-top: 10px; padding: 0; background: none; color: var(--niec-blue-text); font-weight: 500; font-size: 13px; }
-  @media (prefers-color-scheme: dark) { .link { color: var(--niec-blue); } }
+  
   /* the same finish as the app: serif title, the NIEC blue-to-orange line, calm shadows */
   .card { position: relative; overflow: hidden; }
   .card::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 3px; background: linear-gradient(90deg, #00adef 0%, #00adef 62%, #fc6e1f 100%); }
   .card h1 { font-family: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif; font-weight: 500; letter-spacing: -.01em; }
   .hero h2 { font-family: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif; font-weight: 500; letter-spacing: -.02em; }
   .pw-toggle { box-shadow: none; }
-  @media (prefers-color-scheme: dark) { button { background: #8fc0e4; color: #10202c; } button:hover:not(:disabled) { background: #a6cdea; } }
+  
 
-  .hero { background: radial-gradient(90% 60% at 10% 0%, rgba(0, 113, 227, .14) 0%, rgba(0, 113, 227, 0) 70%), linear-gradient(180deg, #fbfbfd 0%, #f2f2f6 100%) !important; color: #1d1d1f !important; }
-  .hero h2 { color: #1d1d1f !important; font-weight: 650 !important; letter-spacing: -.035em !important; font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", sans-serif !important; }
-  .hero p, .hero small, .hero li { color: #6e6e73 !important; }
-  .hero ul li::before { background: #0071e3 !important; }
+  .hero { background: radial-gradient(90% 60% at 10% 0%, rgba(31, 95, 192, .14) 0%, rgba(31, 95, 192, 0) 70%), linear-gradient(180deg, #eef0f4 0%, #e6e9ee 100%) !important; color: #1a2230 !important; }
+  .hero h2 { color: #1a2230 !important; font-weight: 650 !important; letter-spacing: -.035em !important; font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", sans-serif !important; }
+  .hero p, .hero small, .hero li { color: #424c5b !important; }
+  .hero ul li::before { background: #1f5fc0 !important; }
   .panel { background: #f3f5fa !important; }
-  .panel { background: #ffffff !important; }
-  .card { background: #fff !important; border-radius: 24px !important; border: 1px solid rgba(0, 0, 0, .06) !important; box-shadow: 0 4px 12px rgba(0, 0, 0, .05), 0 30px 80px -30px rgba(0, 0, 0, .25) !important; }
-  .card input { background: #fff !important; }
+  .panel { background: #eef0f4 !important; }
+  .card { background: #f7f8fa !important; border-radius: 24px !important; border: 1px solid rgba(0, 0, 0, .06) !important; box-shadow: 0 4px 12px rgba(0, 0, 0, .05), 0 30px 80px -30px rgba(0, 0, 0, .25) !important; }
+  .card input { background: #fbfcfd !important; }
   .card::before { background: transparent !important; }
   .card h1 { font-family: system-ui, -apple-system, "Segoe UI", sans-serif !important; font-weight: 800 !important; letter-spacing: -.04em !important; }
-  button[type="submit"], form button:not(.pw-toggle) { background: #0071e3 !important; border-radius: 999px !important; }
-  button:hover:not(:disabled) { background: #0077ed !important; }
-  input:focus { border-color: #0071e3 !important; box-shadow: 0 0 0 4px rgba(0, 113, 227, .2) !important; }
-  .hero::after { background: linear-gradient(90deg, rgba(0,113,227,.0), rgba(0,113,227,.5), rgba(138,77,255,.0)) !important; }
+  button[type="submit"], form button:not(.pw-toggle) { background: #1f5fc0 !important; border-radius: 999px !important; }
+  button:hover:not(:disabled) { background: #1a56ae !important; }
+  input:focus { border-color: #1f5fc0 !important; box-shadow: 0 0 0 4px rgba(31, 95, 192, .2) !important; }
+  .hero::after { background: linear-gradient(90deg, rgba(31,95,192,.0), rgba(31,95,192,.5), rgba(138,77,255,.0)) !important; }
 </style>
 </head>
 <body>
 <aside class="hero" aria-hidden="true">
-  <div class="hero-logo"><svg viewBox="0 0 244 130" width="260" height="139" role="img" aria-label="Fly" style="color:#1d1d1f"><defs><linearGradient id="lgw" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#2f6bff"/><stop offset="1" stop-color="#8a4dff"/></linearGradient><linearGradient id="lgl" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#2f6bff" stop-opacity="0"/><stop offset="1" stop-color="#6a58ff"/></linearGradient></defs><g transform="translate(12 50) scale(1.3)" fill="none" stroke="currentColor" stroke-width="7.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6V38M4 6H23M4 20.5H20"/><path d="M33 2.5V38"/><path d="M43 17L54 38"/><path d="M65 17L49 49"/></g><path d="M100 86C132 86 164 72 186 48" fill="none" stroke="url(#lgl)" stroke-width="3.8" stroke-linecap="round" stroke-dasharray="1 7"/><g transform="translate(200 36) rotate(-34) scale(1.5)"><path d="M26 -2L-18 -14L-6 2z" fill="url(#lgw)"/><path d="M26 -2L-6 2L-12 14z" fill="url(#lgw)" opacity=".6"/></g></svg></div>
+  <div class="hero-logo"><svg viewBox="0 0 244 130" width="260" height="139" role="img" aria-label="Fly" style="color:#1a2230"><defs><linearGradient id="lgw" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#2f6bff"/><stop offset="1" stop-color="#8a4dff"/></linearGradient><linearGradient id="lgl" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#2f6bff" stop-opacity="0"/><stop offset="1" stop-color="#6a58ff"/></linearGradient></defs><g transform="translate(12 50) scale(1.3)" fill="none" stroke="currentColor" stroke-width="7.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6V38M4 6H23M4 20.5H20"/><path d="M33 2.5V38"/><path d="M43 17L54 38"/><path d="M65 17L49 49"/></g><path d="M100 86C132 86 164 72 186 48" fill="none" stroke="url(#lgl)" stroke-width="3.8" stroke-linecap="round" stroke-dasharray="1 7"/><g transform="translate(200 36) rotate(-34) scale(1.5)"><path d="M26 -2L-18 -14L-6 2z" fill="url(#lgw)"/><path d="M26 -2L-6 2L-12 14z" fill="url(#lgw)" opacity=".6"/></g></svg></div>
   <div>
     <h2>Welcome back to your team’s workspace.</h2>
     <p>Everything your team needs to guide students from first inquiry to visa, in one place. </p>

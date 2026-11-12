@@ -11,9 +11,9 @@
   --axis: #c3c2b7;
   --border: #dfe3e8;
   --brand: #00adef;
-  --brand-text: #0058b0;
-  --orange: #ff9f0a;
-  --s1: #0071e3;
+  --brand-text: #164a98;
+  --orange: #b86a00;
+  --s1: #1f5fc0;
   --s2: #eb6834;
   --s3: #1baf7a;
   --quiet: #b6b4ab;     /* de-emphasised marks (students who are not moving forward) */
@@ -21,14 +21,7 @@
   --ok-bg: #dcfce7; --ok: #166534;
   --shadow: 0 1px 2px rgba(15, 23, 42, .05);
 }
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #0f141c; --surface: #161c26; --ink: #e5e7eb; --ink-2: #c3c2b7; --ink-3: #98968f;
-    --grid: #2b3544; --axis: #3a4556; --border: #2b3544; --brand-text: #6fd0f7;
-    --s1: #3987e5; --s2: #d95926; --s3: #199e70; --quiet: #5b6472;
-    --warn-bg: #3a2d10; --warn: #fcd34d; --ok-bg: #14321f; --ok: #86efac; --shadow: none;
-  }
-}
+
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
 html { scrollbar-gutter: stable; }
@@ -149,6 +142,6 @@ details.rates summary { cursor: pointer; color: var(--brand-text); font-weight: 
 .first-load :is(#attention, #speed, #notes, [id^="chart"]):empty {
   min-height: 96px; margin: 4px 18px 18px; border-radius: 8px; background: linear-gradient(90deg, #dde2e9 25%, #eceff3 37%, #dde2e9 63%); background-size: 400% 100%; animation: dash-shimmer 1.4s ease infinite;
 }
-@media (prefers-color-scheme: dark) { .first-load :is(#attention, #speed, #notes, [id^="chart"]):empty { background: linear-gradient(90deg, #232a35 25%, #2b3340 37%, #232a35 63%); background-size: 400% 100%; } }
+
 @keyframes dash-shimmer { 0% { background-position: 100% 50%; } 100% { background-position: 0 50%; } }
 @media (prefers-reduced-motion: reduce) { .first-load :is(#attention, #speed, #notes, [id^="chart"]):empty { animation: none; } }

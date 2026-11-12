@@ -1,15 +1,10 @@
 /* The Fact File pages (fact-file.html: the list, fact-university.html: one university's page). The page
    of a university is laid out like a document so it prints (or saves as a PDF) cleanly. */
 :root {
-  --blue: #00adef; --blue-text: #0058b0; --blue-tint: #e8f7fe; --orange: #ff9f0a; --orange-tint: #fff0e5;
+  --blue: #00adef; --blue-text: #164a98; --blue-tint: #e8f7fe; --orange: #b86a00; --orange-tint: #fff0e5;
   --bg: #f3f6fa; --panel: #ffffff; --border: #dfe3e8; --border-strong: #c7ccd4; --text: #1c2126; --dim: #5b6472; --danger: #dc2626;
 }
-@media (prefers-color-scheme: dark) {
-  :root {
-    --blue-text: #6fd0f7; --blue-tint: #10283a; --orange-tint: #3a2415; --bg: #0f141c; --panel: #161c26;
-    --border: #2b3544; --border-strong: #3a4556; --text: #e5e7eb; --dim: #9ca3af; --danger: #f87171;
-  }
-}
+
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
 html { scrollbar-gutter: stable; }

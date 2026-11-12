@@ -152,7 +152,7 @@
     t.forEach((w) => {
       const col = el('div', 'p-month');
       const pair = el('div'); pair.style.cssText = 'display:flex;gap:3px;align-items:flex-end;height:110px';
-      [['applied', 'var(--s1, #0071e3)'], ['paid', 'var(--s2, #eb6834)'], ['visa', 'var(--s3, #1baf7a)']].forEach(([k, c]) => { const bar = el('i'); bar.style.cssText = `width:9px;border-radius:4px 4px 0 0;background:${c};height:${Math.max(2, (w[k] / max) * 110)}px`; bar.title = `${w[k]} ${k}`; pair.append(bar); });
+      [['applied', 'var(--s1, #1f5fc0)'], ['paid', 'var(--s2, #eb6834)'], ['visa', 'var(--s3, #1baf7a)']].forEach(([k, c]) => { const bar = el('i'); bar.style.cssText = `width:9px;border-radius:4px 4px 0 0;background:${c};height:${Math.max(2, (w[k] / max) * 110)}px`; bar.title = `${w[k]} ${k}`; pair.append(bar); });
       col.append(el('b', '', String(w.applied + w.paid + w.visa)), pair, el('span', '', shortDay(w.start)));
       col.title = `Week from ${shortDay(w.start)} to ${shortDay(w.end)}`;
       row.append(col);

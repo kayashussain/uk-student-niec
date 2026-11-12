@@ -41,7 +41,7 @@
   const style = el('style');
   style.textContent = `
     .backup-bar { flex: 0 0 auto; position: sticky; top: 0; z-index: 50; background: #fff4d6; color: #5c3b00; border-bottom: 2px solid #e0a100; padding: 10px 16px; font: 14px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
-    @media (prefers-color-scheme: dark) { .backup-bar { background: #3a2d10; color: #fcd34d; border-color: #b8860b; } }
+    
     .backup-bar .row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
     .backup-bar .title { font-size: 15px; }
     .backup-bar .spacer { flex: 1; }

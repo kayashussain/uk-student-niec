@@ -2,7 +2,7 @@
    keyboard focus, gentle motion, loading placeholders and empty states. Self-contained, with its own
    colours, so it works the same on every page and in dark mode. */
 :root {
-  --ui-blue: #0058b0;
+  --ui-blue: #164a98;
   --ui-orange: #cc4a0a;
   --ui-orange-dark: #b54008;
   --ui-text: #1c2126;
@@ -15,22 +15,7 @@
   --ui-skeleton-b: #eceff3;
   --ui-shadow: 0 18px 48px rgba(15, 23, 42, .28);
 }
-@media (prefers-color-scheme: dark) {
-  :root {
-    --ui-blue: #6fd0f7;
-    --ui-orange: #cc4a0a;
-    --ui-orange-dark: #e0561a;
-    --ui-text: #e7eaee;
-    --ui-dim: #9aa2ad;
-    --ui-panel: #1f2530;
-    --ui-border: #2f3642;
-    --ui-danger: #f87171;
-    --ui-focus: #5bb4f0;
-    --ui-skeleton-a: #232a35;
-    --ui-skeleton-b: #2b3340;
-    --ui-shadow: 0 18px 48px rgba(0, 0, 0, .55);
-  }
-}
+
 
 /* Crisper text, a calmer text selection, and buttons that answer a press. */
 html { text-rendering: optimizeLegibility; }

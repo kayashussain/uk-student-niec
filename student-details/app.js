@@ -994,7 +994,7 @@
   // that one long entry stretches it. Short, exact things (names, email, phone numbers) are always shown in full; long
   // free text (university, course, remarks) is cut with "..." at the limit and shown in full on hover or when edited.
   // Measured once per sheet load and only ever made wider while editing, so columns never jump around under the cursor.
-  const CELL_PAD = 36; // the cell's side padding, its border and a little room to breathe
+  const CELL_PAD = 40; // the cell's side padding, its border and a little room to breathe
   const HEAD_PAD = 66; // heading padding, the sort arrow and the filter button
   const SHOW_IN_FULL = new Set(['FIRST NAME', 'LAST NAME', 'EMAIL', 'CONTACT NUMBER', 'UK CONTACT NUMBER', 'STUDENT ID', 'NOC NUMBER']);
   const TEXT_LIMITS = { // [narrowest, widest] width of the cell's text
@@ -1004,7 +1004,7 @@
   };
   let colWidths = {};
   let colWidthsFor = null;
-  const cellFont = () => `400 14px ${getComputedStyle(document.body).fontFamily}`;
+  const cellFont = () => `400 15px ${getComputedStyle(document.body).fontFamily}`;
 
   function measuredText(col) {
     const [min, max] = TEXT_LIMITS[col] || (LONG_TEXT_COLS.has(col) ? [150, 300] : [110, 260]);
@@ -1027,12 +1027,12 @@
     if (colWidthsFor !== activeSheetId) { colWidths = {}; colWidthsFor = activeSheetId; }
     if (colWidths[col]) return colWidths[col];
     const family = getComputedStyle(document.body).fontFamily;
-    const header = textWidth(columnLabel(col), `600 12px ${family}`) + HEAD_PAD;
+    const header = textWidth(columnLabel(col), `650 13px ${family}`) + HEAD_PAD;
     let cell;
     if (col === LANGUAGE_TEST_COL) cell = 420;
-    else if (SELECT_COLS[col]) cell = Math.max(...SELECT_COLS[col].map((o) => textWidth(o, `500 12px ${family}`)), 60) + 66;
-    else if (DATE_COLS.has(col)) cell = 150;
-    else if (NUM_COLS.has(col)) cell = 124;
+    else if (SELECT_COLS[col]) cell = Math.max(...SELECT_COLS[col].map((o) => textWidth(o, `600 13px ${family}`)), 60) + 76;
+    else if (DATE_COLS.has(col)) cell = 168;
+    else if (NUM_COLS.has(col)) cell = 132;
     else cell = measuredText(col) + CELL_PAD;
     colWidths[col] = Math.max(cell, header);
     return colWidths[col];
