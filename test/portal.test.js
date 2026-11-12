@@ -26,33 +26,30 @@ const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), 'niec-portal-'));
 // ---- the student card store ----
 
 test('a card keeps only known details, a dropdown only one of its choices, and a real date', () => {
-  const p = cleanProfile({ sourceDetail: ' TikTok ', leadQuality: 'Boiling', studyLevel: 'Postgraduate', inquiryDate: '2026-02-30', counselor: 'Asha', hacked: 'x', lostReason: 'Visa refused' });
-  assert.deepStrictEqual(p, { sourceDetail: 'TikTok', counselor: 'Asha', studyLevel: 'Postgraduate', lostReason: 'Visa refused' });
+  const p = cleanProfile({ sourceDetail: ' TikTok ', studyLevel: 'Postgraduate', inquiryDate: '2026-02-30', gapYears: '2', counselor: 'Asha', leadQuality: 'Hot', hacked: 'x', lostReason: 'Visa refused' });
+  assert.deepStrictEqual(p, { sourceDetail: 'TikTok', studyLevel: 'Postgraduate', gapYears: '2', lostReason: 'Visa refused' }, 'the removed details (counselor, how promising) are no longer kept');
   assert.strictEqual(cleanProfile({ inquiryDate: '2026-11-05' }).inquiryDate, '2026-11-05');
   // What is not sent keeps its value; an empty text clears it.
-  assert.deepStrictEqual(cleanProfile({ counselor: '' }, { counselor: 'Asha', district: 'Kaski' }), { district: 'Kaski' });
+  assert.deepStrictEqual(cleanProfile({ location: '' }, { location: 'Manchester', subject: 'Business' }), { subject: 'Business' });
 });
 
-test('notes, follow-ups and options are saved on the card and survive a restart', () => {
+test('notes and options are saved on the card and survive a restart', () => {
   const dir = tmp();
   let cards = createCards(dir, { now: () => new Date('2026-11-11T05:00:00Z') });
   assert.deepStrictEqual(cards.get('row-1').notes, []);
   assert.strictEqual(cards.addNote('row-1', { text: '' }, 'Asha').error, 'Please write the note first.');
   const added = cards.addNote('row-1', { text: 'Called, will visit on Sunday.', kind: 'call' }, 'Asha');
   assert.strictEqual(added.note.kind, 'call');
-  assert.strictEqual(cards.setFollowUp('row-1', { date: '2026-13-01' }, 'Asha').error, 'That is not a real date.');
-  cards.setFollowUp('row-1', { date: '2026-11-15', note: 'Ask for documents' }, 'Asha');
-  const option = cards.addOption('row-1', { university: 'University of West London', course: 'MSc Cyber Security', fee: '£17,250', scholarship: '£3,500', link: 'javascript:alert(1)' }, 'Asha').option;
+  assert.strictEqual(cards.setFollowUp, undefined, 'follow-ups are gone');
+  const option = cards.addOption('row-1', { university: 'University of West London', course: 'MSc Cyber Security', fee: '£17,250', deposit: '£8,000', scholarship: '£3,500', link: 'javascript:alert(1)' }, 'Asha').option;
   assert.strictEqual(option.link, '', 'only a real web address is kept as a link');
+  assert.strictEqual(option.deposit, '£8,000');
   assert.ok(cards.addOption('row-1', { university: 'University of West London', course: 'msc cyber security' }, 'Asha').duplicate, 'the same course is listed once');
   cards.updateOption('row-1', option.id, { link: 'https://www.uwl.ac.uk/course/cyber' }, 'Asha');
-  // Finishing a follow-up writes what came of it as a note and sets the next one.
-  const done = cards.finishFollowUp('row-1', { outcome: 'Documents promised for Friday.', nextDate: '2026-11-20', nextNote: 'Check documents' }, 'Asha');
-  assert.strictEqual(done.card.followUp.date, '2026-11-20');
-  assert.match(done.card.notes[1].text, /Follow-up of 2026-11-15 done \(Ask for documents\)\. Documents promised for Friday\./);
   // Only the writer (or Admin) removes a note.
+  const second = cards.addNote('row-1', { text: 'Documents promised' }, 'Asha');
   assert.ok(cards.removeNote('row-1', added.note.id, 'Bikram').error);
-  assert.ok(!cards.removeNote('row-1', done.card.notes[1].id, 'Bikram', true).error);
+  assert.ok(!cards.removeNote('row-1', second.note.id, 'Bikram', true).error);
 
   cards = createCards(dir);
   const card = cards.get('row-1');
@@ -80,14 +77,13 @@ test('a WhatsApp number gets the Nepal country code unless it has one', () => {
   assert.strictEqual(Fields.whatsappNumber('+977 980-1234567'), '9779801234567');
   assert.strictEqual(Fields.whatsappNumber('+44 7700 900123'), '447700900123');
   assert.strictEqual(Fields.whatsappNumber('call later'), '');
-  assert.strictEqual(Fields.DISTRICTS.length, 77);
 });
 
 // ---- messages ----
 
 test('a template is filled in from the student, and an empty detail is named instead of leaving a hole', () => {
   const row = { 'FIRST NAME': 'Sita', 'LAST NAME': 'Sharma', 'UNIVERSITY NAME': 'Bangor University', 'COURSE NAME': 'MSc Finance', 'APPLICATION SUBMISSION DATE': '11/2/2026' };
-  const values = Messages.valuesFor({ row, sheetName: 'Jan Intake 2027', card: { profile: { counselor: 'Asha Demo' } }, sender: 'Owner' });
+  const values = Messages.valuesFor({ row, sheetName: 'Jan Intake 2027', card: { profile: {} }, sender: 'Owner' });
   assert.strictEqual(values.application_date, '2 November 2026', 'a month-first date of the sheet is written out in full');
   const t = Messages.DEFAULTS.find((x) => x.key === 'application_submitted');
   const mail = Messages.renderEmail({ subject: t.subject, body: t.body, values, signature: { name: 'Asha Demo', title: 'Counselor', phone: '+977 1 5550000' } });
@@ -125,7 +121,7 @@ test('several university options go into one email as one table, with the docume
 test('Admin edits a template, adds one, and a built-in one can be put back', () => {
   const dir = tmp();
   const m = createMessages(dir);
-  assert.ok(m.list().length >= 12 && m.list().every((t) => t.builtIn && !t.edited));
+  assert.ok(m.list().length === 6 && m.list().every((t) => t.builtIn && !t.edited));
   assert.ok(m.saveTemplate('offer_received', { name: 'Offer', subject: 'Your offer', body: 'Dear {first_name},\n\nWell done.', whatsapp: 'Well done {first_name}' }, 'Owner').template);
   assert.strictEqual(m.get('offer_received').subject, 'Your offer');
   assert.ok(m.get('offer_received').edited);
@@ -272,8 +268,10 @@ test('every student is counted once in each table, and a blank detail is shown a
   assert.strictEqual(r.scope, 'Jan Intake 2027');
   const n = r.summary.students;
   assert.strictEqual(r.channels.sources.filter((s) => !s.spendOnly).reduce((sum, s) => sum + s.students, 0), n);
-  assert.strictEqual(r.team.counselors.reduce((sum, t) => sum + t.students, 0), n);
-  assert.ok(r.team.counselors.some((t) => t.label === NONE), 'students with no counselor are counted under their own heading, not shared out');
+  assert.strictEqual(r.team, undefined, 'there is no counselor table any more');
+  assert.strictEqual(r.campaigns, undefined);
+  assert.strictEqual(r.seasonality, undefined);
+  assert.ok(r.plan.needs.length && r.plan.needs.every((x) => x.left === null || x.left === Math.max(0, x.need - x.have)), 'the plan shows what is needed, what is held and what is still to find');
   r.channels.sources.filter((s) => s.details.length).forEach((s) => assert.strictEqual(s.details.reduce((sum, d) => sum + d.students, 0), s.students, s.label));
   assert.ok(r.summary.applied <= n && r.summary.visas <= r.summary.paid, 'a later step never has more students than an earlier one');
   const all = figures({ sheetId: 'all' });
@@ -328,7 +326,7 @@ test('each finding carries its numbers, the reason and the decision, most urgent
   r.findings.forEach((f) => { assert.ok(f.title && f.evidence.length && f.why && f.decision && f.measure && ['P1', 'P2', 'P3'].includes(f.priority), f.title); });
   const order = r.findings.map((f) => Number(f.priority.slice(1)));
   assert.deepStrictEqual(order, [...order].sort((a, b) => a - b), 'P1 before P2 before P3');
-  assert.ok(r.findings.some((f) => /follow-ups? (is|are) overdue/.test(f.title)));
+  assert.ok(!r.findings.some((f) => /follow-up/i.test(f.title)), 'no finding about follow-ups any more');
   assert.ok(r.findings.some((f) => f.area === 'Partners' && /agreement/.test(f.title)), 'Admin is told about an agreement that is ending');
   const manager = figures({ admin: false });
   assert.ok(!manager.findings.some((f) => /agreement/.test(f.title)) && manager.partners.agreements.length === 0, 'the partner agreements are Admin only');
@@ -382,7 +380,7 @@ test('on the real server: cards follow the rules of the sheet, messages are reco
   const made = await admin('POST', '/api/students/new', {
     stage: 'Application Stage',
     fields: { 'FIRST NAME': 'Sita', 'LAST NAME': 'Sharma', EMAIL: 'Sita.Sharma@Example.com', 'CONTACT NUMBER': '9800000001', 'STUDENT SOURCE': 'Social Media', 'UNIVERSITY NAME': 'Bangor University', 'GROSS FEE': '999' },
-    profile: { sourceDetail: 'TikTok', counselor: 'Asha', studyLevel: 'Postgraduate', inquiryDate: '2026-11-01' }, followUp: { date: '2026-11-15', note: 'Call' }, note: 'Came with her brother.',
+    profile: { sourceDetail: 'TikTok', studyLevel: 'Postgraduate', inquiryDate: '2026-11-01' }, note: 'Came with her brother.',
   });
   assert.strictEqual(made.status, 200, JSON.stringify(made.json));
   const sitaId = made.json.id;
@@ -394,14 +392,14 @@ test('on the real server: cards follow the rules of the sheet, messages are reco
   assert.strictEqual((await admin('POST', '/api/students/new', { fields: { EMAIL: 'a@example.com' } })).status, 400, 'a student needs a name');
   let card = (await admin('GET', `/api/cards/${sitaId}`)).json;
   assert.strictEqual(card.card.profile.sourceDetail, 'TikTok');
-  assert.strictEqual(card.card.followUp.date, '2026-11-15');
+  assert.strictEqual(card.card.followUp, undefined, 'there are no follow-ups any more');
   assert.strictEqual(card.card.notes[0].text, 'Came with her brother.');
   assert.strictEqual(card.student.name, 'Sita Sharma');
   assert.ok(card.can.edit);
   assert.strictEqual(card.mail.ready, false);
 
   // A team adds its own student: at the team's stage, with only what the team may fill in.
-  const hari = await follow('POST', '/api/students/new', { stage: 'Visa Issued', fields: { 'FIRST NAME': 'Hari', 'CONTACT NUMBER': '9800000002', 'UNIVERSITY NAME': 'Bangor University' }, profile: { leadQuality: 'Warm' } });
+  const hari = await follow('POST', '/api/students/new', { stage: 'Visa Issued', fields: { 'FIRST NAME': 'Hari', 'CONTACT NUMBER': '9800000002', 'UNIVERSITY NAME': 'Bangor University' }, profile: { sourceDetail: 'Walk in' } });
   assert.strictEqual(hari.status, 200, JSON.stringify(hari.json));
   wb = (await admin('GET', '/api/data')).json;
   const hariRow = wb.sheets[0].rows.find((r) => r._id === hari.json.id);
@@ -430,14 +428,11 @@ test('on the real server: cards follow the rules of the sheet, messages are reco
   assert.strictEqual((await follow('POST', `/api/cards/${hari.json.id}/source`, { source: 'Events' })).status, 403, 'and only once');
   await admin('POST', `/api/cards/${sitaId}/source`, { source: 'Social Media' });
 
-  // Notes and follow-ups.
+  // Notes.
   const noted = await app('POST', `/api/cards/${sitaId}/notes`, { text: 'Documents received.', kind: 'call' });
   assert.strictEqual(noted.status, 200);
   assert.strictEqual(noted.json.note.by, 'Asha');
-  const mine = (await app('GET', '/api/follow-ups')).json;
-  assert.ok(mine.due.some((d) => d.id === sitaId && d.what === 'Call'));
-  assert.ok(!(await follow('GET', '/api/follow-ups')).json.due.some((d) => d.id === sitaId));
-  assert.ok((await follow('GET', '/api/follow-ups')).json.unplanned.some((d) => d.id === hari.json.id), 'an inquiry with no follow-up day is listed');
+  assert.strictEqual((await app('GET', '/api/follow-ups')).status, 404, 'the Follow-ups page and its API are gone');
 
   // University options from the Fact File, and one email with all of them.
   const courses = (await app('GET', '/api/courses?q=cyber%20security&level=Postgraduate')).json;
@@ -473,7 +468,7 @@ test('on the real server: cards follow the rules of the sheet, messages are reco
   assert.ok(found.json.results.length > 0 && found.json.understood.length > 0);
 
   // Templates: everyone reads, Admin changes.
-  assert.ok((await app('GET', '/api/templates')).json.templates.length >= 12);
+  assert.ok((await app('GET', '/api/templates')).json.templates.length === 6);
   assert.strictEqual((await app('POST', '/api/templates/offer_received', { name: 'x', subject: 'y', body: 'z' })).status, 403);
   assert.strictEqual((await admin('POST', '/api/templates/signature', { name: 'Head of UK Recruitment', phone: '+977 1 5550000' })).status, 200);
   assert.match((await app('POST', `/api/cards/${sitaId}/messages/preview`, { template: 'offer_received' })).json.text, /Head of UK Recruitment\n/);
@@ -496,7 +491,8 @@ test('on the real server: cards follow the rules of the sheet, messages are reco
   assert.strictEqual((await manager('GET', '/api/insights')).json.target.visas, 30, 'a new target shows at once');
   assert.strictEqual((await admin('POST', '/api/planning/spend', { month: '2026-10', source: 'Social Media', amount: 20000 })).status, 200);
   assert.strictEqual((await manager('GET', '/api/planning')).json.settings.valuePerVisa, undefined, 'the value of a visa is for Admin only');
-  for (const page of ['/student', '/follow-ups']) assert.strictEqual((await follow('GET', page)).status, 200, `${page} opens for every account`);
+  for (const page of ['/student', '/compose']) assert.strictEqual((await follow('GET', page)).status, 200, `${page} opens for every account`);
+  assert.strictEqual((await follow('GET', '/follow-ups')).status, 404, 'the Follow-ups page is gone');
 
   // Everything is written to the Activity record, and the backup holds the cards.
   const activity = (await admin('GET', '/api/activity?limit=200')).json.events;
@@ -507,4 +503,21 @@ test('on the real server: cards follow the rules of the sheet, messages are reco
   assert.strictEqual((await admin('GET', `/api/cards/${sitaId}`)).json.card.notes.length, 3);
   assert.strictEqual((await admin('POST', '/api/restore', { id: copy, parts: ['cards'] })).status, 200);
   assert.strictEqual((await admin('GET', `/api/cards/${sitaId}`)).json.card.notes.length, 2, 'the cards are back as they were in the backup');
+});
+
+// ---- the map of the UK and the assistant's remarks ----
+
+test('the assistant reads a place, a number of universities and the deposit from the remarks, and shows only universities near the place', async () => {
+  const P = require('../student-details/places');
+  assert.ok(P.readWhere('student wants to study near Manchester'), 'a place is understood');
+  assert.strictEqual(P.readWhere('nothing about a place here'), null);
+  const { createFacts } = require('../student-details/facts');
+  const { buildIndex } = require('../student-details/course-index');
+  const { createFinder } = require('../student-details/finder');
+  const index = buildIndex(createFacts(tmp()).all(), {});
+  const out = await createFinder()({ body: { request: 'wants 3 universities near Manchester, show the minimum cash deposit and the full tuition fee', level: 'Postgraduate', subject: 'business', grade: '2.9 GPA', englishTest: 'IELTS Academic', englishScore: '6.5' }, index });
+  assert.ok(out.results.length > 0 && out.results.length <= 3, 'at most the 3 universities asked for');
+  assert.strictEqual(new Set(out.results.map((r) => r.universityId)).size, out.results.length, 'one course for each university');
+  assert.ok(out.results.every((r) => r.showDeposit && r.showFullFee));
+  assert.ok(out.understood.some((x) => /Manchester/.test(x)) && out.understood.some((x) => /3 universities/.test(x)) && out.understood.some((x) => /deposit/.test(x)));
 });

@@ -22,7 +22,7 @@
       const pill = el('span', `p-pill p-pill-${p.status === 'Active' ? 'green' : p.status === 'Ended' ? 'red' : 'amber'}`, p.status);
       const st1 = el('td'); st1.append(pill);
       const contact = el('td', '', [p.contact.name, p.contact.phone].filter(Boolean).join(', ') || 'None yet');
-      const terms = el('td'); (p.terms.length ? p.terms : ['None yet']).forEach((t) => terms.append(el('div', 'p-small', t)));
+      const terms = el('td'); if (p.commissionRate) terms.append(el('div', 'p-small', 'Commission: ' + p.commissionRate)); (p.terms.length ? p.terms : ['None yet']).forEach((t) => terms.append(el('div', 'p-small', t)));
       tr.append(name, st1, el('td', '', p.agreementEnd || 'None yet'), contact, terms, el('td', 'num', number(st.students)), el('td', 'num', number(st.visas)));
       return tr;
     }));
@@ -59,13 +59,25 @@
     const city = field('City or country', { value: p.city, max: 300 });
     const start = field('Agreement starts', { value: p.agreementStart, placeholder: '1 Jan 2026', max: 40 });
     const end = field('Agreement ends', { value: p.agreementEnd, placeholder: '31 Dec 2026', max: 40 });
+    const rate = field('Commission rate', { value: p.commissionRate, placeholder: '15% of the first year fee, or Rs 40,000 per visa', max: 120, wide: true });
     const form = el('div', 'p-form');
-    form.append(name.wrap, status.wrap, city.wrap, start.wrap, end.wrap);
+    form.append(name.wrap, status.wrap, city.wrap, start.wrap, end.wrap, rate.wrap);
     const terms = repeater('What is agreed (who gets what)', [['item', 'For', 'Postgraduate student with a visa'], ['terms', 'Terms', 'Rs 40,000 after enrolment']], p.terms, 'Add a term');
     const contacts = repeater('Contact people', [['name', 'Name'], ['phone', 'Phone'], ['email', 'Email']], p.contacts, 'Add a contact');
     const pay = field('Payment terms', { kind: 'area', value: p.paymentTerms, max: 12000, wide: true });
     const notes = field('Notes', { kind: 'area', value: p.notes, max: 12000, wide: true });
     const perf = el('div', 'p-notice', `Brought so far: ${number(st.students)} students, ${number(st.applied)} applied, ${number(st.paid)} paid, ${number(st.visas)} with a visa${st.students ? ` (${percent(Math.round((st.visas / st.students) * 1000) / 10)} of students).` : '.'}`);
+    const byIntake = Object.entries(st.intakes || {});
+    const intakes = el('div');
+    intakes.append(el('h3', '', 'By intake'));
+    if (!byIntake.length) intakes.append(el('p', 'p-muted p-small', 'No students yet.'));
+    else {
+      const t = el('table', 'p-table');
+      t.append(h('thead', {}, h('tr', {}, ...['Intake', 'Students', 'Applied', 'Visas'].map((x) => el('th', '', x)))));
+      const tb = el('tbody');
+      byIntake.forEach(([name2, v]) => tb.append(h('tr', {}, el('td', '', name2), el('td', 'num', number(v.students)), el('td', 'num', number(v.applied)), el('td', 'num', number(v.visas)))));
+      t.append(tb); intakes.append(t);
+    }
     // agreement files
     const files = el('div');
     files.append(el('h3', '', 'Agreement files'));
@@ -99,14 +111,14 @@
     const save = h('button', { class: 'btn btn-primary', type: 'button' }, 'Save');
     save.addEventListener('click', async () => {
       try {
-        await api('/api/b2b/' + id, { name: name.input.value, status: status.input.value, city: city.input.value, agreementStart: start.input.value, agreementEnd: end.input.value, terms: terms.values(), contacts: contacts.values(), paymentTerms: pay.input.value, notes: notes.input.value });
+        await api('/api/b2b/' + id, { name: name.input.value, status: status.input.value, city: city.input.value, agreementStart: start.input.value, agreementEnd: end.input.value, commissionRate: rate.input.value, terms: terms.values(), contacts: contacts.values(), paymentTerms: pay.input.value, notes: notes.input.value });
         say('Saved'); await load(); edit(id);
       } catch (e) { say(e.message, true); }
     });
     const close = h('button', { class: 'btn', type: 'button', onclick: () => { ed.hidden = true; open = null; } }, 'Close');
     const del = h('button', { class: 'btn btn-danger', type: 'button', onclick: async () => { if (!(await window.NiecUI.confirm(`Remove ${p.name} from B2B Partners?`, { danger: true, confirmText: 'Remove' }))) return; await api(`/api/b2b/${id}/delete`, {}); ed.hidden = true; say('Removed'); load(); } }, 'Remove from list');
     bar.append(save, close, del);
-    ed.replaceChildren(el('h2', '', p.name), perf, form, terms.node, pay.wrap, files, contacts.node, notes.wrap, bar);
+    ed.replaceChildren(el('h2', '', p.name), perf, intakes, form, terms.node, pay.wrap, files, contacts.node, notes.wrap, bar);
     ed.hidden = false;
     ed.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }

@@ -27,6 +27,7 @@ const { createCards } = require('./cards');
 const { createMessages } = require('./messages');
 const { createCourseLinks } = require('./course-index');
 const { createPlanning } = require('./planning');
+const { createSourceOptions } = require('./source-options');
 const { createB2b } = require('./b2b');
 const { createPortalApi } = require('./portal-api');
 const { buildInsights } = require('./insights-engine');
@@ -64,16 +65,16 @@ const serveStatic = createStaticServer(ROOT, {
   '/direct-page.js': 'text/javascript; charset=utf-8',
   '/calc.js': 'text/javascript; charset=utf-8',
   '/suggest.js': 'text/javascript; charset=utf-8',
-  // The portal pages around the sheet: the student card, follow-ups, message templates, B2B partners, the decision pages.
+  // The portal pages around the sheet: the student card, the compose page, message templates, B2B partners, the decision pages.
   '/card-fields.js': 'text/javascript; charset=utf-8',
   '/portal.css': 'text/css; charset=utf-8',
   '/portal-ui.js': 'text/javascript; charset=utf-8',
   '/student.html': 'text/html; charset=utf-8',
+  '/compose.html': 'text/html; charset=utf-8',
+  '/compose-page.js': 'text/javascript; charset=utf-8',
   '/student-page.js': 'text/javascript; charset=utf-8',
   '/card-drawer.js': 'text/javascript; charset=utf-8',
   '/new-student.js': 'text/javascript; charset=utf-8',
-  '/follow-ups.html': 'text/html; charset=utf-8',
-  '/follow-ups-page.js': 'text/javascript; charset=utf-8',
   '/templates.html': 'text/html; charset=utf-8',
   '/templates-page.js': 'text/javascript; charset=utf-8',
   '/b2b.html': 'text/html; charset=utf-8',
@@ -105,12 +106,13 @@ const direct = createDirect(DATA_DIR);
 const cards = createCards(DATA_DIR);
 const messages = createMessages(DATA_DIR);
 const courseLinks = createCourseLinks(DATA_DIR);
+const sourceOptions = createSourceOptions(DATA_DIR);
 const b2b = createB2b(DATA_DIR);
 const planning = createPlanning(DATA_DIR);
 // Daily backups (6 p.m., kept 30 days) and Admin's restore (see backups.js). `current` is the students, held in memory below.
 const backups = createBackups(DATA_DIR, () => ({
   students: current, facts: facts.all(), partners: direct.all(),
-  cards: cards.all(), b2b: b2b.all(), planning: planning.all(), templates: messages.stored(),
+  cards: cards.all(), b2b: b2b.all(), planning: planning.all(), templates: messages.stored(), sourceOptions: sourceOptions.stored(),
 }));
 setInterval(() => backups.tick(), 5 * 60 * 1000).unref();
 
@@ -146,7 +148,7 @@ const advisor = createAdvisorMcp({
 // login. The Claude connector above does not go through any of this: it reads the same data folder with its own secret address.
 const incentiveLock = createIncentiveLock();
 const PAGE_PATHS = new Set(['/', '/students', '/dashboard', '/users', '/activity', '/partner-universities', '/fact-file', '/admin',
-  '/student', '/follow-ups', '/message-templates', '/b2b-partners']);
+  '/student', '/compose', '/message-templates', '/b2b-partners']);
 const incentive = createIncentive({ dataDir: INCENTIVE_DIR, studentDataFile: DATA_FILE, getWorkbook: () => current, activity });
 
 async function handleIncentive(req, res, urlPath) {
@@ -789,7 +791,7 @@ function servedInsights(user, intake) {
 
 const portal = createPortalApi({
   getWorkbook: () => current, writeWorkbook, recordChanges, teamSave,
-  cards, messages, courseLinks, facts, direct, b2b, planning, accounts, activity,
+  cards, messages, courseLinks, sourceOptions, facts, direct, b2b, planning, accounts, activity,
   insights: servedInsights, finder: createFinder(), calculated: CALCULATED_COLUMNS,
 });
 
@@ -882,6 +884,7 @@ async function handleRestore(req, res, urlPath) {
     if (Array.isArray(snap.b2b)) b2b.restoreAll(snap.b2b);
     if (snap.planning) planning.restoreAll(snap.planning);
     if (snap.templates) messages.restoreAll(snap.templates);
+    if (snap.sourceOptions) sourceOptions.restoreAll(snap.sourceOptions);
     done.push('the B2B partners, the Dashboard records and the message templates');
   }
   activity.record(req, req.user, 'Restored data', { app: 'Student Details', changes: [`Restored ${done.join(', ')} from the backup ${id}. The data as it was before is saved as ${safety}`] });
@@ -916,7 +919,7 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'GET') {
       const page = {
         '/students': 'index.html', '/dashboard': 'dashboard.html', '/users': 'users.html', '/activity': 'activity.html', '/partner-universities': 'direct.html',
-        '/student': 'student.html', '/follow-ups': 'follow-ups.html', '/message-templates': 'templates.html', '/b2b-partners': 'b2b.html',
+        '/student': 'student.html', '/compose': 'compose.html', '/message-templates': 'templates.html', '/b2b-partners': 'b2b.html',
       }[urlPath];
       if (urlPath === '/') return req.user.role === 'manager' ? send(res, 302, '', { Location: '/dashboard' }) : serveStatic(req, res);
       if (urlPath === '/fact-file') { // the list, or one university's page (?u=...); every account may read
@@ -925,9 +928,9 @@ const server = http.createServer(async (req, res) => {
       }
       if (urlPath === '/admin') return send(res, 302, '', { Location: isAdmin(req.user) ? '/users' : home }); // the old address
       if (page) {
-        // Every account opens the sheet, a student card and the follow-ups (each shows only the students the account sees);
+        // Every account opens the sheet, a student card and the compose page (each shows only the students the account sees);
         // the Dashboard is for Admin and the Manager; the rest is Admin's.
-        const allowed = ['/students', '/student', '/follow-ups'].includes(urlPath) || (urlPath === '/dashboard' ? (isAdmin(req.user) || isManager(req.user)) : isAdmin(req.user));
+        const allowed = ['/students', '/student', '/compose'].includes(urlPath) || (urlPath === '/dashboard' ? (isAdmin(req.user) || isManager(req.user)) : isAdmin(req.user));
         if (!allowed) return send(res, 302, '', { Location: home });
         req.url = '/' + page;
         return serveStatic(req, res);

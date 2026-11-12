@@ -977,7 +977,8 @@
   // Every column has a set width that doesn't depend on what's typed in it (wide enough for its title
   // and its kind of cell). Besides keeping the sheet tidy, it lets the browser lay the table out
   // without measuring every cell, which keeps typing and moving around a long sheet smooth.
-  const COL_IDX_WIDTH = 56; // room for a 4-digit row number
+  // 🔴 CSS CHANGED (2026-11-12): width of the S.N column | from: 56px | to: 92px | why: room for the new per-row Open button
+  const COL_IDX_WIDTH = 92; // room for a 4-digit row number and the Open button
   let measureCtx = null;
   function textWidth(text, font) {
     if (!measureCtx) measureCtx = document.createElement('canvas').getContext('2d');
@@ -1441,7 +1442,13 @@
     // Clicks on rows and cells are handled once, on the table body (see the grid section below).
     const idxTd = document.createElement('td');
     idxTd.className = 'col-idx';
-    idxTd.textContent = displayIdx + 1;
+    idxTd.append(document.createTextNode(String(displayIdx + 1)));
+    const openBtn = document.createElement('button');
+    openBtn.type = 'button';
+    openBtn.className = 'row-open';
+    openBtn.textContent = 'Open';
+    openBtn.title = "Open this student's card";
+    idxTd.append(openBtn);
     idxTd.title = 'Select this row (drag or Shift+Click for a range, Ctrl+Click for more). Delete clears it.';
     tr.appendChild(idxTd);
 
@@ -2271,7 +2278,7 @@
   }
 
   // "+ Add student" opens a form (new-student.js): the sheet's own columns go on the sheet, the rest (where the student came from,
-  // the counselor, the next follow-up ...) on the student's card. The server adds the student with the same rules as a save from
+  // the student's details ...) on the student's card. The server adds the student with the same rules as a save from
   // the sheet, and every open sheet picks the new student up by itself.
   async function addRow() {
     if (isViewOnly()) return;
@@ -2280,7 +2287,8 @@
     let defaultStage = isTeam() ? '' : 'Inquiry';
     const filtered = columnFilters['APPLICATION STATUS'];
     if (filtered && !isTeam()) { const first = [...filtered].find((v) => v !== ''); if (first) defaultStage = first; }
-    const made = await window.NewStudent.open({ me, intakes: sheets.map((x) => ({ id: x.id, name: x.name })), activeSheetId, defaultStage });
+    const here = sheets.find((x) => x.id === activeSheetId);
+    const made = await window.NewStudent.open({ me, activeSheetId, sheetName: here ? here.name : '', defaultStage });
     if (!made || !made.id) return;
     searchEl.value = '';
     reloadWanted = true;
@@ -2500,6 +2508,7 @@
   // element, because finishing an edit can redraw the table in the middle of the click.
   body.addEventListener('mousedown', (e) => {
     if (e.button !== 0) return;
+    if (e.target.closest('.row-open')) { e.preventDefault(); e.stopPropagation(); openCardOfRow(Number(e.target.closest('tr').dataset.rowIdx)); return; }
     const td = e.target.closest('td');
     if (!td || !body.contains(td) || td.parentElement.classList.contains('pad-row')) return;
     if (editing && editing.td === td) return; // clicking inside the cell being typed in moves the caret

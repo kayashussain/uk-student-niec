@@ -1,5 +1,5 @@
-// The requests behind the portal pages around the sheet: the student card (details, notes, follow-ups, documents,
-// university options, messages), adding a student from the card form, the Follow-ups page, the course finder over the
+// The requests behind the portal pages around the sheet: the student card (notes, university options, messages), adding a
+// student from the card form, the course finder over the
 // Fact File, the message templates, the B2B partners and the management records of the Dashboard.
 //
 // Who may see or change a student here is decided by the very same rules as on the sheet (shared/teams.js): Admin
@@ -14,6 +14,7 @@ const { sendJSON, send, readJSONBody } = require('../shared/server-utils');
 const Teams = require('../shared/teams');
 const mailer = require('../shared/mailer');
 const Fields = require('./card-fields');
+const { eventLabel } = require('./source-options');
 const { ROW_ID } = require('./cards');
 const Messages = require('./messages');
 const { buildIndex, searchCourses } = require('./course-index');
@@ -24,10 +25,10 @@ const text = (v) => String(v ?? '').trim();
 const STATUS = Teams.STATUS;
 const MAX_CELL_CHARS = 5000;
 // The columns the Add student form may fill in (for Admin; a team is further held to what its own rules allow).
-const NEW_STUDENT_COLUMNS = ['FIRST NAME', 'LAST NAME', 'EMAIL', 'CONTACT NUMBER', 'STUDENT SOURCE', 'REMARKS', 'UNIVERSITY NAME', 'COURSE NAME'];
+const NEW_STUDENT_COLUMNS = ['FIRST NAME', 'LAST NAME', 'EMAIL', 'CONTACT NUMBER', 'STUDENT SOURCE'];
 
 function createPortalApi({
-  getWorkbook, writeWorkbook, recordChanges, teamSave, cards, messages, courseLinks, facts, direct, b2b, planning, accounts, activity,
+  getWorkbook, writeWorkbook, recordChanges, teamSave, cards, messages, courseLinks, sourceOptions, courseLinker = null, facts, direct, b2b, planning, accounts, activity,
   insights = null, finder = null, calculated = [],
 }) {
   // ---- finding a student, and who may see or change them ----
@@ -90,15 +91,14 @@ function createPortalApi({
 
   // ---- the lists the card's dropdowns are filled from ----
   function cardLists(user) {
-    const counselors = new Set(accounts.people().map((p) => p.name));
-    Object.values(cards.all()).forEach((c) => { if (c.profile && c.profile.counselor) counselors.add(c.profile.counselor); });
     const plan = planning.all();
+    // The events Admin recorded on the Dashboard are offered too, with their day, as "Name, 21 Nov 2026".
+    const planned = [...plan.events].sort((a, b) => b.date.localeCompare(a.date)).map((e) => eventLabel(e.name, e.date));
     return {
-      people: [...counselors].sort((a, b) => a.localeCompare(b)),
+      sourceOptions: sourceOptions.all(planned),
+      sourceLabels: Fields.SOURCE_DETAIL_LABEL, sourceCanAdd: Fields.SOURCE_CAN_ADD,
       // Only the names: the terms agreed with a partner stay on the Admin-only page.
       partners: b2b.list().filter((p) => p.status !== 'Ended').map((p) => p.name),
-      events: [...plan.events].sort((a, b) => b.date.localeCompare(a.date)).map((e) => e.name),
-      campaigns: [...new Set(plan.spend.map((s) => s.campaign).filter(Boolean))].sort(),
       intakes: (() => { const wb = getWorkbook(); return wb ? Teams.viewFor(user, wb).sheets.map((s) => ({ id: s.id, name: s.name })) : []; })(),
       stages: Teams.ALL_STATUSES,
       departments: Teams.addableDepartments(user).map((d) => ({ id: d, label: Teams.DEPARTMENTS[d].label, start: Teams.DEPARTMENTS[d].start, source: Teams.DEPARTMENTS[d].source || '' })),
@@ -127,7 +127,7 @@ function createPortalApi({
   }
 
   async function handleMessages(req, res, found, card, action) {
-    const body = await bodyOf(req, res);
+    const body = await bodyOf(req, res, action === 'send' ? 24 * 1024 * 1024 : 256 * 1024);
     if (!body) return true;
     const template = messages.get(text(body.template)) || null;
     const subject = typeof body.subject === 'string' ? body.subject : (template ? template.subject : '');
@@ -146,7 +146,7 @@ function createPortalApi({
         subject: email.subject, text: email.text, html: email.html, missing: email.missing, to,
         whatsapp: { text: whatsapp.text, number, missing: whatsapp.missing },
         mail: { ready: Boolean(cfg), from: cfg ? cfg.from : '' },
-        options: ctx.options.length,
+        options: ctx.options.length, source: { subject, body: emailBody, whatsapp: whatsappBody },
       });
     }
     // Sending.
@@ -173,7 +173,17 @@ function createPortalApi({
     if (!email.subject || !emailBody.trim()) return sendJSON(res, 400, { error: 'The email needs a subject and a message.' });
     if (!mailer.isAddress(to)) return sendJSON(res, 400, { error: to ? 'That email address does not look right.' : 'This student has no email address on the sheet.' });
     if (tooManySends(req.user.id)) return sendJSON(res, 429, { error: 'Too many emails in a short time. Please wait a few minutes.' });
-    const entry = { channel, template: template ? template.name : 'Own message', subject: email.subject, to, text: email.text, options: usesOptions ? ctx.options.length : 0 };
+    // Files to send with this one email: decoded here, held in memory for the length of the send, never written to disk.
+    const files = [];
+    let total = 0;
+    for (const f of (Array.isArray(body.attachments) ? body.attachments : []).slice(0, 8)) {
+      const data = Buffer.from(String(f && f.data || ''), 'base64');
+      total += data.length;
+      if (!data.length) continue;
+      files.push({ name: text(f.name).replace(/[\\/\u0000-\u001f]/g, '').slice(0, 120) || 'attachment', type: text(f.type).slice(0, 80), data });
+    }
+    if (total > 15 * 1024 * 1024) return sendJSON(res, 413, { error: 'The files are too large to send together (the limit is 15 MB).' });
+    const entry = { channel, template: template ? template.name : 'Own message', subject: email.subject, to, text: email.text, options: usesOptions ? ctx.options.length : 0, attachments: files.map((f) => f.name) };
     if (usesOptions) ctx.options.forEach((o) => courseLinks.remember(o.universityId, o.course, o.link));
     if (!cfg) {
       // Email is not set up on this server (always the case on a test computer): nothing leaves, and the card keeps the
@@ -183,7 +193,7 @@ function createPortalApi({
     }
     try {
       await mailer.sendMail({ ...cfg, fromName: signature.company || Messages.COMPANY }, {
-        to, subject: email.subject, text: email.text, html: email.html, auto: false, bcc: signature.copyToOffice ? [cfg.from] : [],
+        to, subject: email.subject, text: email.text, html: email.html, auto: false, bcc: signature.copyToOffice ? [cfg.from] : [], attachments: files,
       });
     } catch (e) {
       const logged = cards.logMessage(found.row._id, { ...entry, status: 'failed', error: e.message }, by(req));
@@ -214,7 +224,7 @@ function createPortalApi({
 
   // ---- one student's card ----
   async function handleCard(req, res, urlPath) {
-    const m = /^\/api\/cards\/([\w-]{1,64})(?:\/(profile|follow-up|notes|options|messages|source)(?:\/([a-f0-9]{12}|preview|send))?(\/delete)?)?$/.exec(urlPath);
+    const m = /^\/api\/cards\/([\w-]{1,64})(?:\/(profile|notes|options|messages|source)(?:\/([a-f0-9]{12}|preview|send))?(\/delete)?)?$/.exec(urlPath);
     if (!m) return false;
     const [, rowId, part, sub, del] = m;
     const found = rowIndex().get(rowId);
@@ -260,9 +270,6 @@ function createPortalApi({
           .map((f) => `${who} › ${f.label}: "${card.profile[f.key] || '(blank)'}" → "${out.card.profile[f.key] || '(blank)'}"`);
         if (changed.length) note(req, changed);
       }
-    } else if (part === 'follow-up') {
-      out = body.done ? cards.finishFollowUp(rowId, body, by(req)) : cards.setFollowUp(rowId, body, by(req));
-      if (!out.error) note(req, [body.done ? `${who}: follow-up done${out.card.followUp ? `, next on ${out.card.followUp.date}` : ''}` : (out.card.followUp ? `${who}: next follow-up on ${out.card.followUp.date}` : `${who}: follow-up cleared`)]);
     } else if (part === 'notes' && sub && del) {
       out = cards.removeNote(rowId, sub, by(req), Teams.isAdmin(req.user));
       if (!out.error) note(req, [`${who}: removed a note`]);
@@ -311,6 +318,7 @@ function createPortalApi({
     const rowId = 'row-' + Date.now().toString(36) + require('crypto').randomBytes(4).toString('hex');
     let sheet;
     if (Teams.isAdmin(req.user)) {
+      // The sheet the person is on: the student goes into that intake.
       sheet = wb.sheets.find((s) => s.id === body.sheetId) || currentIntake() || wb.sheets[0];
       const stage = Teams.ALL_STATUSES.includes(text(body.stage)) ? text(body.stage) : 'Inquiry';
       const row = { _id: rowId };
@@ -337,8 +345,8 @@ function createPortalApi({
     }
     // The card: where the student came from and the rest of what the form asked.
     const profile = body.profile && typeof body.profile === 'object' ? body.profile : {};
-    const saved = cards.setProfile(rowId, profile, by(req));
-    if (!saved.error && body.followUp && body.followUp.date) cards.setFollowUp(rowId, body.followUp, by(req));
+    // The first inquiry day is the day the student is added.
+    const saved = cards.setProfile(rowId, { sourceDetail: profile.sourceDetail, inquiryDate: cards.today() }, by(req));
     if (!saved.error && text(body.note)) cards.addNote(rowId, { text: body.note, kind: 'note' }, by(req));
     sendJSON(res, 200, { ok: true, id: rowId, sheetId: sheet.id, revision: getWorkbook().revision });
     return true;
@@ -361,31 +369,6 @@ function createPortalApi({
     const order = new Map((getWorkbook() ? getWorkbook().sheets : []).map((s, i) => [s.id, i]));
     out.sort((a, b) => (order.get(b.sheetId) - order.get(a.sheetId)) || a.name.localeCompare(b.name));
     return out.slice(0, 30);
-  }
-
-  function followUps(user) {
-    const today = cards.today();
-    const all = cards.all();
-    const due = [];
-    const unplanned = [];
-    const dayNumber = (iso) => Math.floor(Date.parse(iso + 'T00:00:00Z') / 86400000);
-    for (const { sheet, row } of visibleStudents(user)) {
-      const card = all[row._id];
-      const stage = text(row[STATUS]);
-      const last = card && card.notes.length ? card.notes[card.notes.length - 1] : null;
-      const base = {
-        ...brief(sheet, row), counselor: (card && card.profile.counselor) || '', quality: (card && card.profile.leadQuality) || '',
-        lastNote: last ? { at: last.at, by: last.by, text: last.text.slice(0, 200) } : null, remarks: text(row.REMARKS).slice(0, 200),
-        editable: canChange(user, { sheet, row }),
-      };
-      if (card && card.followUp) {
-        due.push({ ...base, date: card.followUp.date, what: card.followUp.note, days: dayNumber(today) - dayNumber(card.followUp.date) });
-      } else if (['Inquiry', 'Hold', 'Defer'].includes(stage) && sheet.id === (currentIntake() || {}).id) {
-        unplanned.push(base);
-      }
-    }
-    due.sort((a, b) => a.date.localeCompare(b.date) || a.name.localeCompare(b.name));
-    return { today, due, unplanned: unplanned.slice(0, 300), me: user.name };
   }
 
   // ---- the course finder over the Fact File ----
@@ -423,16 +406,18 @@ function createPortalApi({
     const bump = (name, row, stage) => {
       const key = text(name).toLowerCase();
       if (!key) return;
-      const e = out[key] || (out[key] = { students: 0, applied: 0, paid: 0, visas: 0 });
-      e.students += 1;
-      if (['Application Stage', 'Mock Stage', 'Payment Stage', 'CAS Stage', 'CAS Issued', 'Visa Lodge', 'Visa Issued', 'Visa Rejected'].includes(stage) || text(row['APPLICATION SUBMISSION DATE'])) e.applied += 1;
+      const e = out[key] || (out[key] = { students: 0, applied: 0, paid: 0, visas: 0, intakes: {} });
+      const it = e.intakes[row._intake] || (e.intakes[row._intake] = { students: 0, applied: 0, visas: 0 });
+      e.students += 1; it.students += 1;
+      if (['Application Stage', 'Mock Stage', 'Payment Stage', 'CAS Stage', 'CAS Issued', 'Visa Lodge', 'Visa Issued', 'Visa Rejected'].includes(stage) || text(row['APPLICATION SUBMISSION DATE'])) { e.applied += 1; it.applied += 1; }
       if (['CAS Stage', 'CAS Issued', 'Visa Lodge', 'Visa Issued'].includes(stage) || text(row['PAYMENT DATE'])) e.paid += 1;
-      if (stage === 'Visa Issued' || text(row['VISA RECEIVED DATE'])) e.visas += 1;
+      if (stage === 'Visa Issued' || text(row['VISA RECEIVED DATE'])) { e.visas += 1; it.visas += 1; }
     };
     wb.sheets.forEach((sheet) => sheet.rows.forEach((row) => {
       if (!isStudent(row)) return;
       const stage = text(row[STATUS]);
       const card = all[row._id];
+      row = { ...row, _intake: sheet.name };
       if (text(row['STUDENT SOURCE']) === 'Agent' && card && card.profile.sourceDetail) bump(card.profile.sourceDetail, row, stage);
       if (text(row['UNIVERSITY PARTNER'])) bump(row['UNIVERSITY PARTNER'], row, stage);
     }));
@@ -606,7 +591,17 @@ function createPortalApi({
     if (urlPath === '/api/card-lists' && req.method === 'GET') { sendJSON(res, 200, cardLists(req.user)); return true; }
     if (urlPath === '/api/students/search' && req.method === 'GET') { sendJSON(res, 200, { students: searchStudents(req.user, (query().get('q') || '').slice(0, 100)) }); return true; }
     if (urlPath === '/api/students/new' && req.method === 'POST') return handleNewStudent(req, res);
-    if (urlPath === '/api/follow-ups' && req.method === 'GET') { sendJSON(res, 200, followUps(req.user)); return true; }
+    // A missing platform, class or event (with its day) is added once and offered to everyone, so students are tagged the same way.
+    if (urlPath === '/api/source-options' && req.method === 'POST') {
+      if (Teams.isReadOnly(req.user)) { sendJSON(res, 403, { error: 'Your account can only view students.' }); return true; }
+      const body = await bodyOf(req, res);
+      if (!body) return true;
+      const out = sourceOptions.add(text(body.source), body.name, body.date);
+      if (out.error) { sendJSON(res, 400, { error: out.error }); return true; }
+      if (!out.existed) note(req, [`Added "${out.value}" to the choices of ${text(body.source)}`], 'Edited student card', 'Student sources');
+      sendJSON(res, 200, { ok: true, value: out.value, options: sourceOptions.all(planning.all().events.map((e) => eventLabel(e.name, e.date))) });
+      return true;
+    }
     if (urlPath.startsWith('/api/cards/')) return handleCard(req, res, urlPath);
     if (urlPath === '/api/courses' && req.method === 'GET') {
       const q = query();

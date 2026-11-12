@@ -9,6 +9,12 @@ Format: **date · file · what · from → to · why**
 
 ---
 
+## 2026-11-12 · `student-details/style.css` and `app.js` · Open button in each row
+
+From: only a row number in the S.N cell (column 56px wide) → to: the row number plus a small blue "Open" button (column 92px wide) that opens the student card. Why: the owner asked for a direct way to open a card from the row.
+
+---
+
 ## 2026-11-12 · `student-details/portal.css` (new file) · the look of the new portal pages and parts
 
 - **What:** a new stylesheet for the student card, the card window that slides over the sheet, the Add student form, Follow-ups, Message templates, B2B Partners, the option finder in the Fact File and the new Dashboard pages (Decisions, Channels and events, Universities and partners, Team and students lost, Intake plan, and the printable intake proposal).

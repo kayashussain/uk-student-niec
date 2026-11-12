@@ -127,7 +127,7 @@
       const k = el('div', 'p-kpis');
       k.style.marginTop = '12px';
       k.append(kpi('Earned so far', rupees(m.earned), `${data.summary.visas} visas at Rs ${number(m.valuePerVisa)} each`, 'good'), kpi('Expected when the intake ends', m.expected === null ? 'unknown' : rupees(m.expected), 'from the forecast'),
-        kpi('Marketing spent', rupees(m.spend), data.scope), kpi('Earned per rupee spent', m.returnOnSpend === null ? 'n/a' : String(m.returnOnSpend), 'so far, before the visas still to come', m.returnOnSpend !== null && m.returnOnSpend < 1 ? 'warn' : ''));
+        kpi('Marketing spent', rupees(m.spend), data.scope), kpi('Earned per rupee spent on marketing', m.returnOnSpend === null ? 'n/a' : 'Rs ' + String(m.returnOnSpend), 'earned per 1 rupee of marketing, so far; visas still to come are not counted', m.returnOnSpend !== null && m.returnOnSpend < 1 ? 'warn' : ''));
       c.append(k, el('p', 'p-muted p-small', 'What a visa is worth is the figure you set under the target (Admin only). It is an assumption for planning, not read from the Incentive page.'));
     } else if (admin()) c.append(el('p', 'p-muted p-small no-print', 'Set what one visa is worth to NIEC (average commission in rupees) under the target to see earnings and the return on marketing here.'));
     return c;
@@ -145,6 +145,7 @@
     const weakest = f.slice(1).filter((x, i) => f[i].count >= 10).sort((a, b) => a.fromPrevious - b.fromPrevious)[0];
     return card('The journey', 'How many students reach each step, and what share of the step before goes on.', box, weakest ? el('p', 'p-muted p-small', `The weakest step is ${weakest.label.toLowerCase()}: only ${weakest.fromPrevious}% of the step before go on.`) : null);
   }
+  const shortDay = (iso) => { const d = new Date(iso + 'T00:00:00Z'); return `${d.getUTCDate()} ${['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][d.getUTCMonth()]}`; };
   function trendCard() {
     const t = data.trend;
     const max = Math.max(1, ...t.map((w) => Math.max(w.applied, w.paid, w.inquiry)));
@@ -154,11 +155,12 @@
       const col = el('div', 'p-month');
       const pair = el('div'); pair.style.cssText = 'display:flex;gap:3px;align-items:flex-end;height:110px';
       [['applied', 'var(--s1, #2a78d6)'], ['paid', 'var(--s2, #eb6834)'], ['visa', 'var(--s3, #1baf7a)']].forEach(([k, c]) => { const bar = el('i'); bar.style.cssText = `width:9px;border-radius:4px 4px 0 0;background:${c};height:${Math.max(2, (w[k] / max) * 110)}px`; bar.title = `${w[k]} ${k}`; pair.append(bar); });
-      col.append(el('b', '', String(w.applied + w.paid + w.visa)), pair, el('span', '', w.end.slice(5)));
+      col.append(el('b', '', String(w.applied + w.paid + w.visa)), pair, el('span', '', shortDay(w.start)));
+      col.title = `Week from ${shortDay(w.start)} to ${shortDay(w.end)}`;
       row.append(col);
     });
     const key = el('p', 'p-muted p-small');
-    key.append('Each column is a week (its last day below). ', el('span', 'p-chip', 'blue: applications'), ' ', el('span', 'p-chip', 'orange: payments'), ' ', el('span', 'p-chip', 'green: visas'));
+    key.append('Each column is one week, named by the day it starts (for example 5 Oct is 5 to 11 October). The number above is all the steps dated in that week. ', el('span', 'p-chip', 'blue: applications'), ' ', el('span', 'p-chip', 'orange: payments'), ' ', el('span', 'p-chip', 'green: visas'));
     return card('The pace, week by week', 'What was dated in each of the last 12 weeks. A falling pace now is the early warning of a missed target.', row, key);
   }
   function decisionLog() {
@@ -207,33 +209,26 @@
       if (s.low && !s.spendOnly) rows[rows.length - 1][5] = percent(s.leadToVisa) + ' *';
       s.details.forEach((d) => rows.push({ sub: true, cells: [d.label, number(d.students), number(d.applied), number(d.paid), number(d.visas), percent(d.leadToVisa) + (d.low ? ' *' : ''), d.spend ? rupees(d.spend) : '', d.costPerStudent ? rupees(d.costPerStudent) : '', d.costPerApplication ? rupees(d.costPerApplication) : '', d.costPerVisa ? rupees(d.costPerVisa) : ''] }));
     });
-    const ch = card('Where students come from, and what each source costs', 'Each source with what is inside it (the platform, the event, the partner). Cost per student needs the marketing spend below. A blank cost means no spend was recorded for it.',
-      table(['Source and where exactly', 'Students', 'Applied', 'Paid', 'Visas', 'Student to visa', 'Spent', 'Per student', 'Per application', 'Per visa'], rows, { numCols: [1, 2, 3, 4, 5, 6, 7, 8, 9] }), lowNote());
+    const ch = card('Where students come from, and what each source costs', 'Each source with what is inside it (the platform, the event, the partner). The cost columns are marketing cost only (what was paid for adverts and events, divided by the students, applications or visas that came from it). They are not the cost of running the office. A blank cost means no spend was recorded for it.',
+      table(['Source and where exactly', 'Students', 'Applied', 'Paid', 'Visas', 'Student to visa', 'Marketing spent', 'Cost per student', 'Cost per application', 'Cost per visa'], rows, { numCols: [1, 2, 3, 4, 5, 6, 7, 8, 9] }), lowNote());
     const out = [chooser(), ch];
     // spend
     const spendSec = card('Marketing spend', 'What was paid, by month and source. Type the source and the detail the same way as on the student cards.');
     const lines = plan.spend.filter((l) => !l.intake || l.intake === data.selected).sort((a, b) => b.month.localeCompare(a.month));
     if (admin()) spendSec.append(h('button', { class: 'btn btn-sm btn-primary no-print', type: 'button', onclick: () => spendForm() }, '+ Add a spend line'));
-    spendSec.append(lines.length ? table(['Month', 'Source', 'Detail', 'Campaign', 'Amount', 'Leads reported', 'Cost per lead', ''], lines.map((l) => [l.month, l.source, l.detail, l.campaign, rupees(l.amount), l.leads ? number(l.leads) : '', l.leads ? rupees(Math.round(l.amount / l.leads)) : '', admin() ? h('button', { class: 'p-link no-print', type: 'button', onclick: () => spendForm(l) }, 'Edit') : '']), { numCols: [4, 5, 6] }) : el('div', 'p-empty', 'No spend recorded for this intake yet.'));
+    spendSec.append(lines.length ? table(['Month', 'Source', 'Detail', 'Amount', 'Leads reported', 'Cost per lead', ''], lines.map((l) => [l.month, l.source, l.detail, rupees(l.amount), l.leads ? number(l.leads) : '', l.leads ? rupees(Math.round(l.amount / l.leads)) : '', admin() ? h('button', { class: 'p-link no-print', type: 'button', onclick: () => spendForm(l) }, 'Edit') : '']), { numCols: [4, 5, 6] }) : el('div', 'p-empty', 'No spend recorded for this intake yet.'));
     out.push(spendSec);
     // events
     const ev = card('Events', 'Each event with its cost and how many students and visas are linked to it (choose Events and the event on the student card).');
     if (admin()) ev.append(h('button', { class: 'btn btn-sm btn-primary no-print', type: 'button', onclick: () => eventForm() }, '+ Add an event'));
     ev.append(data.events.length ? table(['Event', 'Date', 'Cost', 'Registered', 'Attended', 'Students', 'Visas', 'Cost per student', 'Cost per visa', ''], data.events.map((e) => [el('b', '', e.label), e.date, rupees(e.cost), e.registered ? number(e.registered) : '', e.attended ? number(e.attended) : '', number(e.students), number(e.visas), e.costPerStudent ? rupees(e.costPerStudent) : '', e.costPerVisa ? rupees(e.costPerVisa) : '', admin() ? h('button', { class: 'p-link no-print', type: 'button', onclick: () => eventForm(plan.events.find((x) => x.id === e.id)) }, 'Edit') : '']), { numCols: [2, 3, 4, 5, 6, 7, 8] }) : el('div', 'p-empty', 'No events recorded yet.'));
     out.push(ev);
-    if (data.campaigns.length) out.push(card('Adverts and campaigns', 'Students who came from a named campaign.', table(['Campaign', 'Students', 'Applied', 'Visas', 'Spent', 'Per student', 'Per visa'], data.campaigns.map((c) => [c.label, number(c.students), number(c.applied), number(c.visas), c.spend ? rupees(c.spend) : '', c.costPerStudent ? rupees(c.costPerStudent) : '', c.costPerVisa ? rupees(c.costPerVisa) : '']), { numCols: [1, 2, 3, 4, 5, 6] })));
-    // when students ask
-    const m = data.seasonality;
-    const months = el('div', 'p-months');
-    const max = Math.max(1, ...m.months.map((x) => x.inquiries));
-    m.months.forEach((x) => { const col = el('div', 'p-month'); const bar = el('i'); bar.style.height = Math.max(2, (x.inquiries / max) * 110) + 'px'; col.append(el('b', '', String(x.inquiries)), bar, el('span', '', x.name.slice(0, 3))); months.append(col); });
-    out.push(card('When students first ask', `Inquiries by month of the year, across your intakes so far (${m.datedInquiries} inquiries have a first inquiry day). Plan events and adverts for the weeks before the busy months.`, months));
     return out;
   }
   const spendForm = (l) => recordForm(l ? 'Edit the spend line' : 'Add a spend line', 'spend', [
     ['month', 'Month', { placeholder: '2026-10', default: data.today.slice(0, 7), max: 7 }], ['amount', 'Amount paid (Rs)', { max: 12 }],
     ['source', 'Source', { kind: 'select', choices: plan.lists.sources }], ['detail', 'Where exactly', { max: 120, placeholder: 'TikTok, or the event name' }],
-    ['campaign', 'Campaign or advert', { max: 120 }], ['leads', 'Leads the platform or event reported', { max: 8 }], ['note', 'Note', { wide: true, max: 300 }]], l, { intake: data.selected });
+    ['leads', 'Leads the platform or event reported', { max: 8 }], ['note', 'Note', { wide: true, max: 300 }]], l, { intake: data.selected });
   const eventForm = (e) => recordForm(e ? 'Edit the event' : 'Add an event', 'events', [
     ['name', 'Name', { wide: true, max: 120, placeholder: 'UK Education Fair, Kathmandu (August 2026)' }], ['date', 'Date', { kind: 'date' }], ['type', 'Kind', { kind: 'select', choices: plan.lists.EVENT_TYPES }],
     ['place', 'Place', { max: 120 }], ['cost', 'Cost (Rs)', { max: 12 }], ['registered', 'Registered', { max: 6 }], ['attended', 'Attended', { max: 6 }],
@@ -257,23 +252,16 @@
       out.push(card('Agreements', 'Universities and B2B partners with the day each agreement ends (Admin only).', table(['Name', 'Kind', 'Ends', 'Days left', 'State'], [...data.partners.agreements].sort((a, b) => order[a.state] - order[b.state]).map((a) => [a.label, a.kind, a.end, a.days === null ? '' : String(a.days), el('span', `p-pill p-pill-${a.state === 'ok' ? 'green' : a.state === 'soon' ? 'amber' : a.state === 'ended' ? 'red' : 'gray'}`, text[a.state])]), { numCols: [3] })));
     }
     out.push(card('Courses most asked for', 'The courses on the sheet, with how far their students got.', table(['Course', 'Students', 'Applied', 'Visas'], data.courses.map((g) => [g.label, number(g.students), number(g.applied), number(g.visas)]), { numCols: [1, 2, 3] })));
-    out.push(card('Study level and home district', 'What students ask for and where they come from (from the student cards).', table(['Study level', 'Students', 'Applied', 'Visas'], data.levels.map((g) => [g.label, number(g.students), number(g.applied), number(g.visas)]), { numCols: [1, 2, 3] }), el('div', 'p-bar'), table(['District', 'Students', 'Applied', 'Visas'], data.districts.map((g) => [g.label, number(g.students), number(g.applied), number(g.visas)]), { numCols: [1, 2, 3] })));
+    out.push(card('Study level wanted', 'What level students ask for (from the student cards).', table(['Study level', 'Students', 'Applied', 'Visas'], data.levels.map((g) => [g.label, number(g.students), number(g.applied), number(g.visas)]), { numCols: [1, 2, 3] })));
     return out;
   }
 
-  // ---- Team and students lost ----
+  // ---- Students lost and the records ----
   function renderTeam() {
-    const t = data.team;
-    const f = t.followUps;
     const out = [chooser()];
-    const k = el('div', 'p-kpis');
-    k.append(kpi('Follow-ups overdue', f.overdue, f.oldestDays ? `the oldest ${f.oldestDays} days` : 'none', f.overdue ? 'warn' : 'good'), kpi('Due today', f.dueToday, '', 'mark'), kpi('Next 7 days', f.next7), kpi('Inquiries with no next step', f.inquiriesWithout, `of ${f.inquiries} open inquiries`, f.inquiriesWithout ? 'warn' : ''));
-    out.push(k);
-    out.push(card('Counselors', 'Workload and follow-up discipline. Do not rank people by these numbers alone: lead quality, course mix and the age of the case differ between counselors.',
-      table(['Counselor', 'Students', 'In progress', 'Applied', 'Visas', 'Overdue', 'No next step', 'Notes in 14 days', 'Messages sent'], t.counselors.map((c) => [c.label, number(c.students), number(c.active), number(c.applied), number(c.visas), c.overdue ? el('b', '', String(c.overdue)) : '0', number(c.noFollowUp), number(c.notes14), number(c.messages)]), { numCols: [1, 2, 3, 4, 5, 6, 7, 8] })));
     const lost = data.lost;
     out.push(card('Why students are lost', `${lost.total} students are withdrawn, on hold, deferred or refused. A reason recorded on the card turns each into a lesson.`, lost.reasons.length ? bars(lost.reasons.map((r) => ({ label: r.label, value: r.count, text: `${r.count} (${r.percent}%)` })), { quiet: true }) : el('div', 'p-empty', 'No students lost yet.')));
-    if (lost.wanted.length) { const ul = el('ul'); lost.wanted.forEach((w) => ul.append(el('li', '', `${w.wanted}${w.level ? ' (' + w.level + ')' : ''}`))); out.push(card('What students wanted that NIEC could not offer', 'Each is a student another consultancy may have enrolled: the courses and universities missing from the portfolio.', ul)); }
+    out.push(card('What students wanted that NIEC could not offer', 'Worked out from the cards of lost students: the subject and level they asked for, where the recorded reason was that we had no suitable course, the fee or deposit was too high, or the grades or English score were not accepted. The same request repeating is the sign of a gap in the university list.', lost.wanted.length ? table(['Subject', 'Level', 'Students', 'Why we lost them'], lost.wanted.map((w) => [el('b', '', w.subject), w.level, number(w.count), w.reasons.join(', ')]), { numCols: [2] }) : el('div', 'p-empty', 'Nothing yet. It fills in as lost students get a reason and a subject on their card.')));
     out.push(card('How long each step takes', 'Typical days between two dates on the same student (the middle value).', table(['Step', 'Typical time', 'Students counted'], data.speed.map((s) => [s.label, s.median === null ? 'not enough dates yet' : `${s.median} days`, number(s.samples)]), { numCols: [2] })));
     out.push(card('How complete the records are', 'Each detail, how many students have it, and the decision it makes possible. A decision cannot be better than its data.', table(['Detail', 'Filled in', 'Of', 'Share', 'What it lets you decide'], data.quality.map((q) => [q.label, number(q.filled), number(q.of), el('b', '', percent(q.percent)), q.decision]), { numCols: [1, 2, 3] })));
     return out;
@@ -288,6 +276,9 @@
     out[1].style.marginBottom = '14px';
     out.push(card(`Plan for ${p.intake}`, p.startDate ? `Teaching starts about ${p.startDate}${data.target && data.target.startGuessed ? ' (assumed from the intake name: set the day with the target)' : ''}. ${p.comparable ? `Compared with ${p.comparable.label}: ${p.comparable.students} students, ${p.comparable.applied} applications, ${p.comparable.visas} visas.` : 'There is no earlier intake to compare with yet.'}` : 'Choose one intake above.',
       table(['Step', 'Rate from NIEC\'s own history', 'Students counted'], [['Inquiry to application', p.rates.inquiryToApplication], ['Application to offer', p.rates.applicationToOffer], ['Offer to payment', p.rates.offerToPayment], ['Payment to visa', p.rates.paymentToVisa], ['Application to visa', p.rates.applicationToVisa]].map(([l, r]) => [l, r.percent === null ? 'not enough history yet' : r.percent + '%', number(r.n)]), { numCols: [1, 2] })));
+    out.push(card('What the target needs, what you have, what is still to find', p.needs.length ? 'Working back from the visa target with NIEC\'s own conversion rates. Still to find is what is needed minus what the intake already has.' : 'Set a visa target (on the Decisions page) to see what the intake needs.',
+      p.needs.length ? table(['Step', 'Needed', 'You have', 'Still to find'], p.needs.map((x) => [el('b', '', x.label), x.need === null ? 'not enough history' : number(x.need), number(x.have), x.left === null ? '' : el('b', '', number(x.left))]), { numCols: [1, 2, 3] }) : null,
+      p.needs.length ? el('p', 'p-muted p-small', p.weeklyPace.applicationsPerWeek ? `To finish before applications close on ${p.weeklyPace.closes} (${p.weeklyPace.weeksLeft} weeks): about ${number(p.weeklyPace.applicationsPerWeek)} applications and ${p.weeklyPace.inquiriesPerWeek ? number(p.weeklyPace.inquiriesPerWeek) : 'some'} new inquiries every week. Last week: ${p.weeklyPace.applicationsLastWeek} applications.` : 'The weekly pace needs a start day and applications still open.') : null));
     if (p.scenarios.length) out.push(card('What each choice needs', 'Working back from the visas wanted. Every number comes from the rates above; where the history is too thin the cell is empty rather than guessed.',
       table(['Choice', 'Visas', 'Paid', 'Offers', 'Applications', 'Inquiries', 'Based on'], p.scenarios.map((s) => [el('b', '', s.name), s.visas, s.paid ?? '', s.offers ?? '', s.applications ?? '', s.inquiries ?? '', s.basis]), { numCols: [1, 2, 3, 4, 5] })));
     if (p.timeline.length) {
@@ -296,6 +287,7 @@
       out.push(card('Working back from the start day', `A university's own deadline in the Fact File always comes first. The last safe week to apply is ten weeks before the start.${p.ownLatestApply ? ` From NIEC's own journeys (${p.ownJourneyDays} days from application to visa) the latest application day is about ${p.ownLatestApply}.` : ''}`, ol));
     }
     if (p.channelMix.length) out.push(card('Where the students came from last time', 'The starting point for the lead target of each channel.', table(['Channel', 'Share of students', 'Application rate', 'Student to visa', 'Cost per student'], p.channelMix.map((c) => [c.label, percent(c.share), percent(c.toApplication), percent(c.leadToVisa) + (c.low ? ' *' : ''), c.costPerStudent ? rupees(c.costPerStudent) : '']), { numCols: [1, 2, 3, 4] }), lowNote()));
+    if (p.channelPlan.length) out.push(card('Where the missing inquiries should come from, and the budget', 'The inquiries still to find, split by the share each source brought before, with the marketing cost per student it had. A blank budget means no spend was recorded for that source. Check the split before you spend: it repeats the past, it does not know what is new.', table(['Source', 'Inquiries to find', 'Cost per student', 'Budget'], p.channelPlan.map((c) => [c.label + (c.low ? ' *' : ''), number(c.students), c.costPerStudent ? rupees(c.costPerStudent) : '', c.budget ? rupees(c.budget) : '']), { numCols: [1, 2, 3] }), lowNote()));
     out.push(marketNotes());
     return out;
   }

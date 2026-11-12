@@ -157,31 +157,24 @@ function buildDemo({ today = '2026-11-11', seed = 20261111 } = {}) {
           if (source === 'Events') profile.sourceDetail = pick(EVENTS).name;
           else if (source === 'Agent') profile.sourceDetail = pick(PARTNERS);
           else profile.sourceDetail = pick(details);
-          if (source === 'Reference') profile.referredBy = `${pick(FIRST)} ${pick(LAST)} (demo)`;
-          if (profile.sourceDetail === 'Facebook or Instagram advert (Meta Ads)') profile.campaign = pick(CAMPAIGNS);
         }
         if (know()) profile.inquiryDate = iso(dates.inquiry);
-        if (know()) profile.counselor = weighted([[COUNSELORS[0], 0.5], [COUNSELORS[1], 0.3], [COUNSELORS[2], 0.2]])[0];
         if (know()) profile.studyLevel = level === 'MBA' ? 'MBA' : level;
-        if (know()) profile.courseInterest = pick(COURSES[level]).replace(/^(MSc|BSc \(Hons\)|BA \(Hons\)|MBA)\s*/, '') || 'Business';
-        if (know()) profile.district = pick(DISTRICTS);
+        if (know()) profile.subject = pick(COURSES[level]).replace(/^(MSc|BSc \(Hons\)|BA \(Hons\)|MBA)\s*/, '') || 'Business';
+        if (know()) { profile.gapYears = String(pick([0, 0, 1, 2, 3])); profile.location = pick(['', 'London', 'Manchester', 'Scotland', 'Birmingham', 'anywhere']); profile.budget = pick(['14000', '16000', '18000', '20000']); }
         if (know()) { profile.qualification = level === 'Undergraduate' ? '+2 or Grade 12' : (level === 'Top-up (final year)' ? 'Diploma or PCL' : 'Bachelor (4 years)'); profile.grade = pick(['2.6 GPA', '2.9 GPA', '3.2 GPA', '58%', '64%', '71%']); profile.passedYear = String(between(2019, 2026)); }
         if (know()) { profile.englishTest = pick(['IELTS Academic', 'PTE Academic', 'Not taken yet', 'MOI or waiver']); if (profile.englishTest.startsWith('IELTS')) profile.englishScore = pick(['6.0', '6.5', '5.5']); if (profile.englishTest.startsWith('PTE')) profile.englishScore = pick(['56', '59', '62']); }
-        if (stage === 'Inquiry' && know()) profile.leadQuality = weighted([['Hot', 0.2], ['Warm', 0.4], ['Cold', 0.25], ['Not eligible', 0.1], ['Unreachable', 0.05]])[0];
-        if (leftKind && leftKind !== 'R' && know()) { profile.lostReason = weighted(LOST)[0]; if (profile.lostReason === 'Course or university not available with us') profile.wanted = pick(WANTED); }
+        if (leftKind && leftKind !== 'R' && know()) { profile.lostReason = weighted(LOST)[0]; if (profile.lostReason === 'Course or university not available with us') profile.subject = pick(WANTED); }
         if (leftKind === 'R' && know()) profile.lostReason = 'Visa refused';
-        const card = { profile, followUp: null, notes: [], documents: {}, options: [], messages: [], createdAt: new Date(dates.inquiry).toISOString(), createdBy: profile.counselor || 'Demo Admin' };
+        const card = { profile, notes: [], options: [], messages: [], createdAt: new Date(dates.inquiry).toISOString(), createdBy: 'Demo Admin' };
         const noteCount = current ? between(0, 3) : (rnd() < 0.3 ? 1 : 0);
         for (let k = 0; k < noteCount; k += 1) {
           const when = Math.min(now - between(0, 20) * DAY, lastDate + between(1, 30) * DAY);
-          card.notes.push({ id: `demo${String(counter).padStart(4, '0')}n${k}`.padEnd(12, '0').slice(0, 12), at: new Date(when + between(9, 16) * 3600000).toISOString(), by: profile.counselor || COUNSELORS[0], kind: pick(['note', 'call', 'meeting']), text: pick(NOTES) });
+          card.notes.push({ id: `demo${String(counter).padStart(4, '0')}n${k}`.padEnd(12, '0').slice(0, 12), at: new Date(when + between(9, 16) * 3600000).toISOString(), by: COUNSELORS[0], kind: pick(['note', 'call', 'meeting']), text: pick(NOTES) });
         }
         card.notes.sort((a, b) => a.at.localeCompare(b.at));
-        if (current && !leftKind && furthest < 7 && rnd() < (stage === 'Inquiry' ? 0.62 : 0.5)) {
-          card.followUp = { date: iso(now + between(-9, 10) * DAY), note: pick(['Call about documents', 'Ask for the choice of university', 'Remind about the deposit', 'Check the IELTS result', 'Confirm the mock interview time']), setBy: profile.counselor || COUNSELORS[0], setAt: new Date(now - 3 * DAY).toISOString() };
-        }
-        if (furthest >= 1 && rnd() < 0.6) ['passport', 'see', 'plus2', 'english', 'cv'].forEach((k) => { if (rnd() < 0.8) card.documents[k] = { received: true, at: new Date(dates.applied).toISOString(), by: profile.counselor || COUNSELORS[0] }; });
-        if (Object.keys(profile).length || card.notes.length || card.followUp || Object.keys(card.documents).length) cards[id] = card;
+        if (Object.keys(profile).length || card.notes.length) cards[id] = card;
+        if (furthest >= 1 && rnd() < 0.4) card.options.push({ id: `demo${String(counter).padStart(4, '0')}o0`.padEnd(12, '0').slice(0, 12), universityId: '', university: row['UNIVERSITY NAME'] || 'Demo University', course: row['COURSE NAME'] || 'Demo course', level: '', intake: '', fee: '', deposit: '', scholarship: '', link: '', note: '', addedAt: new Date(dates.inquiry).toISOString(), addedBy: 'Demo Admin' });
       }
     });
     return { id: intake.id, name: intake.name, columns: [...DEFAULT_COLUMNS], rows, hidden: false, leadColumnsApplied: true, columnOrderVersion: 2 };

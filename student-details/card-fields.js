@@ -6,36 +6,27 @@
   if (typeof module === 'object' && module.exports) module.exports = factory();
   else root.CardFields = factory();
 })(typeof self !== 'undefined' ? self : this, () => {
-  // How a student who did not walk in found NIEC. Used on its own for a branch's students too.
-  const CHANNELS = [
-    'Facebook page', 'Facebook or Instagram advert (Meta Ads)', 'Instagram', 'TikTok', 'WhatsApp', 'Messenger',
-    'YouTube', 'LinkedIn', 'Viber', 'Website form', 'Google search or Maps', 'Other',
-  ];
-  // "Where exactly": the second step of each Student Source on the sheet. An empty list means the name is typed
-  // or picked from another list (an event from the Events list, a B2B partner from the B2B Partners page).
+  // "Where exactly": the second step of each Student Source. Each list is only the starting choices: anyone can add a choice
+  // that is missing (a new platform, a new event with its date) and it is then offered to everyone, so every student of the
+  // same platform or event is tagged with the very same words (see source-options.js). Events and B2B partners have no
+  // starting choices: an event is added with its date, a B2B partner comes from the B2B Partners page.
   const SOURCE_DETAILS = {
-    'Social Media': ['Facebook page', 'Facebook or Instagram advert (Meta Ads)', 'Instagram', 'TikTok', 'WhatsApp', 'Messenger', 'YouTube', 'LinkedIn', 'Viber', 'Other social media'],
-    Visitor: ['Walked in', 'Phone call', 'Website form', 'Google search or Maps', 'Signboard or hoarding', 'Newspaper, radio or TV', 'Other'],
-    Reference: ['Current or past NIEC student', 'Friend or family of the student', 'NIEC staff member', 'Teacher or college', 'Other person'],
-    'Language Classes': ['IELTS class', 'PTE class', 'Other class'],
+    'Social Media': ['Facebook page', 'Facebook or Instagram advert (Meta Ads)', 'Instagram', 'TikTok', 'WhatsApp', 'Messenger', 'YouTube', 'LinkedIn', 'Viber'],
+    Visitor: ['Walked in', 'Phone call', 'Website form', 'Google search or Maps', 'Signboard or hoarding', 'Newspaper, radio or TV'],
+    Reference: ['Current or past NIEC student', 'Friend or family of the student', 'NIEC staff member', 'Teacher or college'],
+    'Language Classes': ['IELTS class', 'PTE class'],
     Events: [],
     Agent: [],
-    'Chitwan Branch': CHANNELS.concat(['Walked in', 'Phone call', 'Reference', 'Event']),
-    'Pokhara Branch': CHANNELS.concat(['Walked in', 'Phone call', 'Reference', 'Event']),
+    'Chitwan Branch': [],
+    'Pokhara Branch': [],
   };
-  // What the "where exactly" box is called for each source.
+  // What the "where exactly" box is called for each source, and the sources a new choice can be added to.
   const SOURCE_DETAIL_LABEL = {
     'Social Media': 'Which platform', Visitor: 'How they reached us', Reference: 'Who referred them', 'Language Classes': 'Which class',
-    Events: 'Which event', Agent: 'Which B2B partner', 'Chitwan Branch': 'How the branch got them', 'Pokhara Branch': 'How the branch got them',
+    Events: 'Which event', Agent: 'Which B2B partner', 'Chitwan Branch': 'Detail', 'Pokhara Branch': 'Detail',
   };
+  const SOURCE_CAN_ADD = ['Social Media', 'Visitor', 'Reference', 'Language Classes', 'Events'];
 
-  const LEAD_QUALITY = [
-    { key: 'Hot', text: 'Hot: ready to apply now' },
-    { key: 'Warm', text: 'Warm: interested, needs follow-up' },
-    { key: 'Cold', text: 'Cold: only asking for now' },
-    { key: 'Not eligible', text: 'Not eligible yet (grades, English or funds)' },
-    { key: 'Unreachable', text: 'Not reachable' },
-  ];
   const STUDY_LEVELS = ['Foundation', 'Undergraduate', 'Top-up (final year)', 'Pre-Masters', 'Postgraduate', 'MBA', 'MRes or PhD'];
   const QUALIFICATIONS = ['SEE (Grade 10)', '+2 or Grade 12', 'A Levels', 'Diploma or PCL', 'Bachelor (3 years)', 'Bachelor (4 years)', 'Masters'];
   const ENGLISH_TESTS = ['IELTS Academic', 'IELTS UKVI', 'PTE Academic', 'PTE UKVI', 'Duolingo', 'TOEFL iBT', 'OET', 'University internal test', 'MOI or waiver', 'Not taken yet'];
@@ -72,34 +63,18 @@
   // The details kept on the card, with the name shown and how each is typed. `list` names one of the lists above.
   const PROFILE_FIELDS = [
     { key: 'sourceDetail', label: 'Where exactly', max: 120 },
-    { key: 'referredBy', label: 'Name of the person, event or partner', max: 120 },
-    { key: 'campaign', label: 'Campaign or advert', max: 120 },
     { key: 'inquiryDate', label: 'First inquiry day', type: 'date' },
-    { key: 'counselor', label: 'Counselor', max: 60 },
-    { key: 'leadQuality', label: 'Lead quality', list: 'LEAD_QUALITY' },
-    { key: 'studyLevel', label: 'Study level wanted', list: 'STUDY_LEVELS' },
-    { key: 'courseInterest', label: 'Course or subject wanted', max: 160 },
-    { key: 'preferredIntake', label: 'Intake wanted', max: 60 },
-    { key: 'budget', label: 'Budget for the first year (GBP)', max: 60 },
-    { key: 'district', label: 'Home district', max: 60 },
+    { key: 'studyLevel', label: 'Study level', list: 'STUDY_LEVELS' },
     { key: 'qualification', label: 'Highest qualification', list: 'QUALIFICATIONS' },
     { key: 'grade', label: 'GPA or percentage', max: 40 },
     { key: 'passedYear', label: 'Year passed', max: 10 },
+    { key: 'gapYears', label: 'Study gap (years)', max: 4 },
     { key: 'englishTest', label: 'English test', list: 'ENGLISH_TESTS' },
     { key: 'englishScore', label: 'English score', max: 60 },
+    { key: 'budget', label: 'Budget for the first year (GBP)', max: 60 },
+    { key: 'location', label: 'Where in the UK', max: 120 },
+    { key: 'subject', label: 'Subject or course wanted', max: 160 },
     { key: 'lostReason', label: 'Why the student did not go on', list: 'LOST_REASONS' },
-    { key: 'wanted', label: 'What the student wanted that we could not offer', max: 300 },
-  ];
-
-  // The 77 districts of Nepal, for the Home district box.
-  const DISTRICTS = [
-    'Achham', 'Arghakhanchi', 'Baglung', 'Baitadi', 'Bajhang', 'Bajura', 'Banke', 'Bara', 'Bardiya', 'Bhaktapur', 'Bhojpur', 'Chitwan',
-    'Dadeldhura', 'Dailekh', 'Dang', 'Darchula', 'Dhading', 'Dhankuta', 'Dhanusha', 'Dolakha', 'Dolpa', 'Doti', 'Eastern Rukum', 'Gorkha',
-    'Gulmi', 'Humla', 'Ilam', 'Jajarkot', 'Jhapa', 'Jumla', 'Kailali', 'Kalikot', 'Kanchanpur', 'Kapilvastu', 'Kaski', 'Kathmandu',
-    'Kavrepalanchok', 'Khotang', 'Lalitpur', 'Lamjung', 'Mahottari', 'Makwanpur', 'Manang', 'Morang', 'Mugu', 'Mustang', 'Myagdi',
-    'Nawalpur', 'Nuwakot', 'Okhaldhunga', 'Palpa', 'Panchthar', 'Parasi', 'Parbat', 'Parsa', 'Pyuthan', 'Ramechhap', 'Rasuwa', 'Rautahat',
-    'Rolpa', 'Rupandehi', 'Salyan', 'Sankhuwasabha', 'Saptari', 'Sarlahi', 'Sindhuli', 'Sindhupalchok', 'Siraha', 'Solukhumbu', 'Sunsari',
-    'Surkhet', 'Syangja', 'Tanahun', 'Taplejung', 'Terhathum', 'Udayapur', 'Western Rukum',
   ];
 
   // The sheet's columns in the groups the card shows them in (the card never changes them: the sheet does).
@@ -134,7 +109,7 @@
   }
 
   return {
-    CHANNELS, SOURCE_DETAILS, SOURCE_DETAIL_LABEL, LEAD_QUALITY, STUDY_LEVELS, QUALIFICATIONS, ENGLISH_TESTS, LOST_REASONS, LOST_STAGES,
-    NOTE_KINDS, DOCUMENTS, documentsFor, PROFILE_FIELDS, DISTRICTS, SHEET_SECTIONS, columnLabel, whatsappNumber,
+    SOURCE_DETAILS, SOURCE_DETAIL_LABEL, SOURCE_CAN_ADD, STUDY_LEVELS, QUALIFICATIONS, ENGLISH_TESTS, LOST_REASONS, LOST_STAGES,
+    NOTE_KINDS, DOCUMENTS, documentsFor, PROFILE_FIELDS, SHEET_SECTIONS, columnLabel, whatsappNumber,
   };
 });

@@ -21,10 +21,13 @@ const base64Lines = (text) => (Buffer.from(text, 'utf8').toString('base64').matc
 // The full message text (CRLF line endings): plain text and HTML versions of the same email.
 // `auto: false` leaves out the header that marks a message as written by a machine (used for the messages a counselor
 // sends to a student, which are personal letters and should be answered like one).
-function buildMessage({ from, fromName, to, subject, text, html, now = new Date(), auto = true }) {
+function buildMessage({ from, fromName, to, subject, text, html, now = new Date(), auto = true, attachments = [] }) {
   const boundary = '=_niec_' + crypto.randomBytes(12).toString('hex');
   const domain = from.split('@')[1];
   const sender = fromName ? `${encodeHeader(oneLine(fromName).replace(/"/g, ''))} <${from}>` : from;
+  // Files to send with the message: [{ name, type, data (a Buffer) }]. They exist only in memory, for this one message.
+  const outer = '=_niec_mixed_' + crypto.randomBytes(12).toString('hex');
+  const files = (attachments || []).filter((a) => a && a.data && a.data.length);
   const lines = [
     `From: ${sender}`,
     `To: ${to}`,
@@ -32,9 +35,10 @@ function buildMessage({ from, fromName, to, subject, text, html, now = new Date(
     `Date: ${now.toUTCString().replace('GMT', '+0000')}`,
     `Message-ID: <${crypto.randomBytes(12).toString('hex')}@${domain}>`,
     'MIME-Version: 1.0',
-    `Content-Type: multipart/alternative; boundary="${boundary}"`,
+    ...(files.length ? [`Content-Type: multipart/mixed; boundary="${outer}"`] : [`Content-Type: multipart/alternative; boundary="${boundary}"`]),
     ...(auto ? ['Auto-Submitted: auto-generated'] : []),
     '',
+    ...(files.length ? [`--${outer}`, `Content-Type: multipart/alternative; boundary="${boundary}"`, ''] : []),
     `--${boundary}`,
     'Content-Type: text/plain; charset=UTF-8',
     'Content-Transfer-Encoding: base64',
@@ -46,6 +50,15 @@ function buildMessage({ from, fromName, to, subject, text, html, now = new Date(
     '',
     base64Lines(html),
     `--${boundary}--`,
+    ...files.flatMap((f) => {
+      const name = oneLine(f.name).replace(/["\\]/g, '_').slice(0, 120) || 'attachment';
+      return [
+        `--${outer}`, `Content-Type: ${/^[\w.+-]+\/[\w.+-]+$/.test(f.type || '') ? f.type : 'application/octet-stream'}; name="${encodeHeader(name)}"`,
+        'Content-Transfer-Encoding: base64', `Content-Disposition: attachment; filename="${encodeHeader(name)}"`, '',
+        (f.data.toString('base64').match(/.{1,76}/g) || ['']).join('\r\n'),
+      ];
+    }),
+    ...(files.length ? [`--${outer}--`] : []),
     '',
   ];
   return lines.join('\r\n');
@@ -119,12 +132,13 @@ function friendlyError(e, host) {
 // Sends one message. cfg: { host, port, security, user, pass, from, fromName }.
 // Resolves when the server accepts it; rejects with a readable Error.
 // `bcc`: more addresses that get the same message without being named in it (the office's own copy). `auto`: see buildMessage.
-async function sendMail(cfg, { to, subject, text, html, bcc = [], auto = true }, { timeoutMs = 20000, rejectUnauthorized = true } = {}) {
+// `attachments`: files sent with this one message (kept in memory only, never written to the server's disk).
+async function sendMail(cfg, { to, subject, text, html, bcc = [], auto = true, attachments = [] }, { timeoutMs = 20000, rejectUnauthorized = true } = {}) {
   if (!cfg || !cfg.host || !cfg.port || !isAddress(cfg.from)) throw new Error('The mail server settings are incomplete.');
   if (!isAddress(to)) throw new Error('That is not a valid email address.');
   const host = String(cfg.host).trim();
   const port = Number(cfg.port);
-  const message = buildMessage({ from: cfg.from, fromName: cfg.fromName, to, subject, text, html, auto });
+  const message = buildMessage({ from: cfg.from, fromName: cfg.fromName, to, subject, text, html, auto, attachments });
   const copies = [...new Set((Array.isArray(bcc) ? bcc : [bcc]).filter((a) => isAddress(a) && a !== to))].slice(0, 5);
   const localName = cfg.from.split('@')[1];
   const tlsOptions = { host, port, servername: host, rejectUnauthorized };

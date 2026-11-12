@@ -25,6 +25,7 @@ function cleanPartner(input, old = {}) {
     agreementEnd: str(input.agreementEnd, 40).trim(),
     contacts,
     terms,
+    commissionRate: str(input.commissionRate, LIMITS.short).trim(),
     paymentTerms: str(input.paymentTerms, LIMITS.text),
     notes: str(input.notes, LIMITS.text),
   };
@@ -32,6 +33,7 @@ function cleanPartner(input, old = {}) {
 
 const summary = (p) => ({
   id: p.id, name: p.name, status: p.status, city: p.city,
+  commissionRate: p.commissionRate || '',
   terms: p.terms.map((t) => [t.item, t.terms].filter(Boolean).join(': ')),
   agreementStart: p.agreementStart, agreementEnd: p.agreementEnd, agreementCount: p.agreements.length, updatedAt: p.updatedAt,
   contact: p.contacts[0] || { name: '', email: '', phone: '' }, contactCount: p.contacts.length,

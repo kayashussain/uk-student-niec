@@ -290,6 +290,10 @@ th.col-idx, td.col-idx {
 }
 td.col-idx { background: var(--panel); color: var(--text-dim); font-variant-numeric: tabular-nums; }
 tbody tr.alt td.col-idx { background: var(--row-alt); }
+/* 🔴 CSS CHANGED (2026-11-12): small Open button in each row's S.N cell | from: no button, only the row number | to: a small blue text button at the right of the number (the number moves a little to the left) */
+td.col-idx { position: sticky; padding-right: 46px; }
+.row-open { position: absolute; right: 3px; top: 50%; transform: translateY(-50%); padding: 0 4px; font-size: 11px; line-height: 18px; border: 1px solid var(--focus); border-radius: 4px; background: transparent; color: var(--focus); cursor: pointer; }
+.row-open:hover { background: var(--focus); color: #fff; }
 thead th.col-idx { z-index: 4; }
 
 td {

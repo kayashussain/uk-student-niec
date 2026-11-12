@@ -41,12 +41,12 @@
     let skipped = 0;
     for (const o of options) {
       try {
-        await api(`/api/cards/${student.id}/options`, { universityId: o.universityId, university: o.university, course: o.course, level: o.level, intake: o.intake, fee: o.fee, scholarship: o.scholarship, link: o.link });
+        await api(`/api/cards/${student.id}/options`, { universityId: o.universityId, university: o.university, course: o.course, level: o.level, intake: o.intake, fee: o.fee, deposit: o.deposit, scholarship: o.scholarship, link: o.link });
         added += 1;
       } catch (e) { if (e.status === 409) skipped += 1; else { say(e.message, true); return; } }
     }
     say(`${added} option${added === 1 ? '' : 's'} added to ${student.name}${skipped ? ` (${skipped} already there)` : ''}`);
-    location.href = `/student?id=${encodeURIComponent(student.id)}#messages`;
+    location.href = `/student?id=${encodeURIComponent(student.id)}#message`;
   }
 
   // A window listing the courses of one university, to tick and send.
@@ -107,7 +107,7 @@
       if (offered && !onAdd) {
         const label = el('label', 'p-check');
         const cb = el('input'); cb.type = 'checkbox';
-        cb.addEventListener('change', () => { if (cb.checked) picks.add(i); else picks.delete(i); sendBtn.hidden = !picks.size; });
+        cb.addEventListener('change', () => { if (cb.checked) picks.add(i); else picks.delete(i); if (sendBtn) sendBtn.hidden = !picks.size; });
         const t = el('span'); t.append(el('b', '', o.course), el('div', 'p-muted p-small', `${o.university}${o.intake ? ' · ' + o.intake : ''}${o.level ? ' · ' + o.level : ''}`));
         label.append(cb, t);
         left.append(label);
@@ -121,7 +121,10 @@
       c.append(right);
       if (offered) {
         const money = el('div', 'p-money');
-        [['Fee', o.fee], ['Scholarship', o.scholarship]].forEach(([k, v]) => { const sp = el('span'); sp.append(el('span', 'p-muted', k + ': '), el('b', '', v || 'to be confirmed')); money.append(sp); });
+        const lines = [[o.showFullFee ? 'Full tuition fee' : 'Fee', o.fee]];
+        if (o.showDeposit) lines.push(['Minimum cash deposit', o.deposit]);
+        lines.push(['Scholarship', o.scholarship]);
+        lines.forEach(([k, v]) => { const sp = el('span'); sp.append(el('span', 'p-muted', k + ': '), el('b', '', v || 'to be confirmed')); money.append(sp); });
         c.append(money);
       }
       const why = el('div', 'p-why');
@@ -190,5 +193,5 @@
     finderPanel(card);
     container.before(card);
   }
-  root.SendToStudent = { open, sendUniversity, finderCard, finderPanel };
+  root.SendToStudent = { open, sendUniversity, finderCard, finderPanel, drawAnswer };
 })(this);

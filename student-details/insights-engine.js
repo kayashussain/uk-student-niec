@@ -40,7 +40,7 @@ function guessStart(name) {
 }
 
 // ---- one student, as the analysis reads them ----
-const EMPTY_CARD = { profile: {}, followUp: null, notes: [], messages: [], options: [], documents: {} };
+const EMPTY_CARD = { profile: {}, notes: [], messages: [], options: [] };
 function readStudents(workbook, cards) {
   const out = [];
   (workbook.sheets || []).forEach((sheet, sheetIndex) => {
@@ -57,15 +57,16 @@ function readStudents(workbook, cards) {
         name: `${text(row['FIRST NAME'])} ${text(row['LAST NAME'])}`.trim(),
         status, p, left, refused: status === 'Visa Rejected', visa: Boolean(p.reached.visa), active: !left && !p.reached.visa,
         inquiry: status === 'Inquiry',
-        source: text(row['STUDENT SOURCE']), detail: text(prof.sourceDetail), referredBy: text(prof.referredBy), campaign: text(prof.campaign),
-        counselor: text(prof.counselor), quality: text(prof.leadQuality), level: text(prof.studyLevel), district: text(prof.district),
-        lostReason: text(prof.lostReason), wanted: text(prof.wanted), interest: text(prof.courseInterest),
+        source: text(row['STUDENT SOURCE']), detail: text(prof.sourceDetail),
+        level: text(prof.studyLevel), subject: text(prof.subject), where: text(prof.location), budget: text(prof.budget),
+        grade: text(prof.grade), english: text(prof.englishScore), lostReason: text(prof.lostReason),
+        // Options were put together for the student: a serious inquiry.
+        optioned: (card.options || []).length > 0,
         university: text(row['UNIVERSITY NAME']), partner: text(row['UNIVERSITY PARTNER']), course: text(row['COURSE NAME']),
         dates: {
           inquiry: text(prof.inquiryDate), applied: isoDate(row['APPLICATION SUBMISSION DATE']), offer: isoDate(row['OFFER RECEIVED DATE']),
           paid: isoDate(row['PAYMENT DATE']), cas: isoDate(row['CAS RECEIVED DATE']), lodged: isoDate(row['VISA LODGE DATE']), visa: isoDate(row['VISA RECEIVED DATE']),
         },
-        followUp: card.followUp ? card.followUp.date : '',
         lastNoteAt: notes.length ? notes[notes.length - 1].at : '',
         messages: (card.messages || []).filter((m) => m.status === 'sent' || m.status === 'opened').length,
         hasCard: Boolean(cards && cards[row._id]),
@@ -77,8 +78,8 @@ function readStudents(workbook, cards) {
 
 // ---- a group of students counted along the journey ----
 const newGroup = (label) => ({ label, students: 0, qualified: 0, applied: 0, offers: 0, paid: 0, cas: 0, lodged: 0, visas: 0, refused: 0, lost: 0, active: 0, inquiries: 0 });
-// A lead worth a counselor's time: one who applied, or whom the counselor marked Hot or Warm.
-const isQualified = (s) => s.p.reached.applied || s.quality === 'Hot' || s.quality === 'Warm';
+// A serious inquiry: university options were prepared for the student, or the student has applied.
+const isQualified = (s) => s.p.reached.applied || s.optioned;
 function count(g, s) {
   g.students += 1;
   if (isQualified(s)) g.qualified += 1;
@@ -115,7 +116,6 @@ function groupBy(students, keyOf, { blank = NONE } = {}) {
 function spendTotals(lines) {
   const bySource = new Map();
   const byDetail = new Map();
-  const byCampaign = new Map();
   let total = 0;
   let leads = 0;
   lines.forEach((l) => {
@@ -124,9 +124,8 @@ function spendTotals(lines) {
     const add = (map, key) => { const e = map.get(key) || map.set(key, { amount: 0, leads: 0 }).get(key); e.amount += l.amount; e.leads += l.leads || 0; };
     add(bySource, l.source || NONE);
     if (l.detail) add(byDetail, `${l.source}\u0000${l.detail}`);
-    if (l.campaign) add(byCampaign, l.campaign);
   });
-  return { total, leads, bySource, byDetail, byCampaign };
+  return { total, leads, bySource, byDetail };
 }
 const costPer = (amount, n) => (amount > 0 && n > 0 ? Math.round(amount / n) : null);
 
@@ -152,7 +151,7 @@ function channelTable(students, spendLines) {
   spend.bySource.forEach((sp, label) => {
     if (!sources.some((s) => s.label === label)) sources.push({ ...rates(newGroup(label)), spend: sp.amount, reportedLeads: sp.leads, costPerStudent: null, costPerQualified: null, costPerApplication: null, costPerVisa: null, share: 0, visaShare: 0, details: [], detailMissing: 0, spendOnly: true });
   });
-  return { sources, spendTotal: spend.total, reportedLeads: spend.leads, byCampaign: spend.byCampaign };
+  return { sources, spendTotal: spend.total, reportedLeads: spend.leads };
 }
 
 // ---- concentration: how much rests on the biggest one ----
@@ -240,7 +239,7 @@ function funnel(summary) {
 function trend(students, todayIso) {
   const today = dayNumber(todayIso);
   const keys = ['inquiry', 'applied', 'offer', 'paid', 'visa'];
-  const weeks = Array.from({ length: 12 }, (_, i) => ({ end: new Date((today - (11 - i) * 7) * DAY).toISOString().slice(0, 10), inquiry: 0, applied: 0, offer: 0, paid: 0, visa: 0 }));
+  const weeks = Array.from({ length: 12 }, (_, i) => ({ start: new Date((today - (11 - i) * 7 - 6) * DAY).toISOString().slice(0, 10), end: new Date((today - (11 - i) * 7) * DAY).toISOString().slice(0, 10), inquiry: 0, applied: 0, offer: 0, paid: 0, visa: 0 }));
   students.forEach((s) => keys.forEach((k) => {
     const d = today - dayNumber(s.dates[k]);
     if (d >= 0 && d < 84) weeks[11 - Math.floor(d / 7)][k] += 1;
@@ -248,36 +247,17 @@ function trend(students, todayIso) {
   return weeks;
 }
 
-// ---- when students first ask, by month of the year (every intake together) ----
-function seasonality(all) {
-  const months = MONTH_NAMES.map((name) => ({ name, inquiries: 0, applications: 0, visas: 0 }));
-  let dated = 0;
-  all.forEach((s) => {
-    const add = (iso, key) => { if (iso) months[Number(iso.slice(5, 7)) - 1][key] += 1; };
-    if (s.dates.inquiry) dated += 1;
-    add(s.dates.inquiry, 'inquiries');
-    add(s.dates.applied, 'applications');
-    add(s.dates.visa, 'visas');
-  });
-  const peak = (key) => { const max = Math.max(...months.map((m) => m[key])); return max > 0 ? months.filter((m) => m[key] === max).map((m) => m.name) : []; };
-  return { months, datedInquiries: dated, peakInquiry: peak('inquiries'), peakApplication: peak('applications') };
-}
-
 // ---- how complete the records are, and what each detail lets you decide ----
 function completeness(students) {
   const lost = students.filter((s) => s.left || s.refused);
-  const inquiries = students.filter((s) => s.inquiry);
   const applied = students.filter((s) => s.p.reached.applied);
   const row = (label, group, has, decision) => ({ label, of: group.length, filled: group.filter(has).length, percent: pct(group.filter(has).length, group.length), decision });
   return [
     row('Student Source (on the sheet)', students, (s) => s.source, 'Which channels bring students, and where to put the marketing money.'),
     row('Where exactly (on the card)', students, (s) => s.detail, 'Which platform, event or partner inside a source works: "Social Media" alone cannot be acted on.'),
-    row('First inquiry day', students, (s) => s.dates.inquiry, 'Which months bring inquiries, how long it takes to turn one into an application, and when to run events.'),
-    row('Counselor', students, (s) => s.counselor, 'How the work is shared, and where follow-ups are slipping.'),
-    row('Lead quality', inquiries, (s) => s.quality, 'How many inquiries are worth chasing now, so a low conversion is not blamed on the counselor when the leads were cold.'),
-    row('Next follow-up day (inquiries)', inquiries, (s) => s.followUp, 'Nobody is forgotten: every inquiry has a next step with a date.'),
+    row('First inquiry day (the day the student was added)', students, (s) => s.dates.inquiry, 'How long it takes to turn an inquiry into an application.'),
     row('Study level wanted', students, (s) => s.level, 'Which levels to promote, and which universities are missing from the portfolio.'),
-    row('Home district', students, (s) => s.district, 'Where students come from, for branches, school visits and local adverts.'),
+    row('Grade and English score', students, (s) => s.grade && s.english, 'Lets the Fact File assistant name the universities each student is eligible for.'),
     row('Why the student did not go on', lost, (s) => s.lostReason, 'What to fix: price, speed, the portfolio, or the preparation of the students.'),
     row('Application submitted day', applied, (s) => s.dates.applied, 'The month charts, the speed of each university and the latest safe day to apply.'),
   ];
@@ -382,7 +362,6 @@ function buildInsights({ workbook, cards = {}, planning = {}, partners = [], b2b
   const partnerGroups = groupBy(students.filter((s) => s.p.reached.applied || s.partner), (s) => s.partner);
   const courses = groupBy(students.filter((s) => s.course), (s) => s.course).slice(0, 15);
   const levels = groupBy(students, (s) => s.level);
-  const districts = groupBy(students, (s) => s.district).slice(0, 15);
   const uniConcentration = { applications: concentration(universities, 'applied'), visas: concentration(universities, 'visas') };
   const partnerConcentration = { applications: concentration(partnerGroups, 'applied'), visas: concentration(partnerGroups, 'visas') };
   const uniSpeed = [...new Set(students.map((s) => s.university).filter(Boolean))].map((u) => {
@@ -392,45 +371,25 @@ function buildInsights({ workbook, cards = {}, planning = {}, partners = [], b2b
 
   // -- events and campaigns --
   const eventRows = plan.events.map((e) => {
-    const mine = all.filter((s) => s.detail.toLowerCase() === e.name.toLowerCase() || s.campaign.toLowerCase() === e.name.toLowerCase() || s.referredBy.toLowerCase() === e.name.toLowerCase());
+    const mine = all.filter((s) => s.detail.toLowerCase() === e.name.toLowerCase());
     const g = rates(mine.reduce((acc, s) => count(acc, s), newGroup(e.name)));
     return { ...g, id: e.id, date: e.date, type: e.type, place: e.place, cost: e.cost, registered: e.registered, attended: e.attended, costPerStudent: costPer(e.cost, g.students), costPerVisa: costPer(e.cost, g.visas), showUp: pct(e.attended, e.registered) };
   }).sort((a, b) => b.date.localeCompare(a.date));
-  const campaigns = groupBy(students.filter((s) => s.campaign), (s) => s.campaign).map((g) => {
-    const sp = channels.byCampaign.get(g.label) || { amount: 0, leads: 0 };
-    return { ...g, spend: sp.amount, reportedLeads: sp.leads, costPerStudent: costPer(sp.amount, g.students), costPerVisa: costPer(sp.amount, g.visas) };
-  });
-
   // -- why students are lost, and what they wanted that NIEC could not offer --
   const gone = students.filter((s) => (s.left && !s.refused) || s.refused || s.lostReason);
   const lostReasons = groupBy(gone, (s) => s.lostReason).map((g) => ({ label: g.label, count: g.students, percent: pct(g.students, gone.length) }));
-  const wanted = students.filter((s) => s.wanted).map((s) => ({ wanted: s.wanted, level: s.level, intake: s.intake })).slice(0, 40);
+  // What lost students were looking for that NIEC could not give, read from their cards: the same subject and level asked for again and again.
+  const unmetReasons = ['Course or university not available with us', 'Fees or deposit too high', 'Grades or study gap not accepted', 'English score not enough'];
+  const wantedMap = new Map();
+  gone.filter((s) => s.subject && unmetReasons.includes(s.lostReason)).forEach((s) => {
+    const key = `${s.subject.toLowerCase()}|${s.level}`;
+    const e = wantedMap.get(key) || wantedMap.set(key, { subject: s.subject, level: s.level, count: 0, reasons: new Set(), where: new Set() }).get(key);
+    e.count += 1; e.reasons.add(s.lostReason); if (s.where) e.where.add(s.where);
+  });
+  const wanted = [...wantedMap.values()].sort((a, b) => b.count - a.count).slice(0, 15).map((e) => ({ subject: e.subject, level: e.level, count: e.count, reasons: [...e.reasons], where: [...e.where].slice(0, 3) }));
 
-  // -- the team: workload and follow-ups --
   const today = dayNumber(todayIso);
   const inProgress = students.filter((s) => s.active);
-  const overdue = inProgress.filter((s) => s.followUp && dayNumber(s.followUp) < today);
-  const team = groupBy(students, (s) => s.counselor).map((g) => {
-    const mine = students.filter((s) => (s.counselor || NONE) === g.label);
-    const active = mine.filter((s) => s.active);
-    return {
-      ...g,
-      overdue: active.filter((s) => s.followUp && dayNumber(s.followUp) < today).length,
-      noFollowUp: active.filter((s) => s.inquiry && !s.followUp).length,
-      notes14: mine.filter((s) => s.lastNoteAt && (Date.parse(todayIso + 'T23:59:59Z') - Date.parse(s.lastNoteAt)) / DAY <= 14).length,
-      messages: mine.reduce((n, s) => n + s.messages, 0),
-    };
-  });
-  const followUps = {
-    overdue: overdue.length,
-    oldestDays: overdue.length ? Math.max(...overdue.map((s) => today - dayNumber(s.followUp))) : 0,
-    dueToday: inProgress.filter((s) => s.followUp === todayIso).length,
-    next7: inProgress.filter((s) => s.followUp && dayNumber(s.followUp) > today && dayNumber(s.followUp) <= today + 7).length,
-    inquiriesWithout: inProgress.filter((s) => s.inquiry && !s.followUp).length,
-    inquiries: inProgress.filter((s) => s.inquiry).length,
-  };
-  // Inquiries that have waited long without becoming an application.
-  const oldInquiries = inProgress.filter((s) => s.inquiry && s.dates.inquiry && today - dayNumber(s.dates.inquiry) > 30).length;
 
   // -- target and forecast --
   const chances = visaChances(all);
@@ -468,10 +427,26 @@ function buildInsights({ workbook, cards = {}, planning = {}, partners = [], b2b
   const sp = speed(all);
   const wholeJourney = sp.find((x) => x.key === 'applicationToVisa');
   const ownLatestApply = startDate && wholeJourney && wholeJourney.median !== null ? addDays(startDate, -(wholeJourney.median + 21)) : '';
+  // What the target needs, what NIEC already has, and what is still to find (the plan the owner works from every week).
+  const needBase = target && target.visas ? workBack(target.visas, pooled) : null;
+  const needs = needBase ? [['Inquiries', needBase.inquiries, summary.students], ['Applications', needBase.applications, summary.applied], ['Offers', needBase.offers, summary.offers], ['Paid the deposit', needBase.paid, summary.paid], ['Visas', needBase.visas, summary.visas]]
+    .map(([label, need, have]) => ({ label, need, have, left: need === null ? null : Math.max(0, need - have) })) : [];
+  const appLeft = needs.length ? needs[1].left : null;
+  const closing = targetView && targetView.weeksLeft !== null ? targetView.weeksLeft : null;
+  const weeklyPace = {
+    applicationsPerWeek: appLeft !== null && closing ? Math.ceil(appLeft / closing) : null,
+    inquiriesPerWeek: needs.length && needs[0].left !== null && closing ? Math.ceil(needs[0].left / closing) : null,
+    weeksLeft: closing, closes: targetView ? targetView.applicationsClose : '',
+    applicationsLastWeek: weekly(students, todayIso)[1].last7,
+  };
+  const channelPlan = needs.length && needs[0].left ? channelsAll.sources.filter((c) => !c.spendOnly && c.label !== NONE && c.share).map((c) => {
+    const students = Math.round(needs[0].left * c.share / 100);
+    return { label: c.label, students, budget: c.costPerStudent ? students * c.costPerStudent : null, costPerStudent: c.costPerStudent, low: c.low };
+  }) : [];
   const planView = {
     intake: scopeName, startDate, comparable: comparable ? { label: comparable.label, students: comparable.students, applied: comparable.applied, visas: comparable.visas, leadToVisa: comparable.leadToVisa } : null,
     rates: Object.fromEntries(Object.entries(pooled).map(([k, v]) => [k, { percent: v.value === null ? null : round1(v.value * 100), n: v.n }])),
-    scenarios, timeline: timeline(startDate, todayIso), ownLatestApply, ownJourneyDays: wholeJourney ? wholeJourney.median : null,
+    needs, weeklyPace, channelPlan, scenarios, timeline: timeline(startDate, todayIso), ownLatestApply, ownJourneyDays: wholeJourney ? wholeJourney.median : null,
     // The mix of channels of the comparable intake (or of every intake), as the starting point for the lead target of each channel.
     channelMix: channelsAll.sources.filter((s) => !s.spendOnly && s.label !== NONE).map((s) => ({ label: s.label, share: s.share, toApplication: s.toApplication, leadToVisa: s.leadToVisa, costPerStudent: s.costPerStudent, low: s.low })),
     costPerLead: costPer(channelsAll.spendTotal, all.length),
@@ -534,17 +509,6 @@ function buildInsights({ workbook, cards = {}, planning = {}, partners = [], b2b
       'Each is either a student for the next intake or a lost one with a reason. Left as they are they hide both.',
       'Go through them once: move the ones still interested to the next intake (set Defer), and close the others with the reason on their card.', 'Students left at Inquiry on a finished intake, aiming at none.', 'High');
   }
-  if (!over && followUps.overdue > 0) {
-    add(followUps.overdue >= 10 ? 'P1' : 'P2', 'Team', `${plural(followUps.overdue, 'follow-up is', 'follow-ups are')} overdue`,
-      [`The oldest has waited ${plural(followUps.oldestDays, 'day', 'days')}.`, ...team.filter((t) => t.overdue > 0).slice(0, 5).map((t) => `${t.label}: ${t.overdue} overdue.`)],
-      'In Nepal a student usually talks to several consultancies. The one that calls back on the promised day is the one that keeps the student.',
-      'Clear the Follow-ups page every morning before new work, oldest first.', 'Follow-ups overdue at 10 a.m. each day, aiming at none.', 'High');
-  }
-  if (!over && followUps.inquiries >= 5 && followUps.inquiriesWithout / followUps.inquiries >= 0.3) {
-    add('P2', 'Team', `${followUps.inquiriesWithout} of ${followUps.inquiries} inquiries have no next follow-up day`, [`${pct(followUps.inquiriesWithout, followUps.inquiries)}% of open inquiries have no date for the next contact.`],
-      'An inquiry with no next step is forgotten within a week, and the money spent to get it is lost.',
-      'Give every inquiry a follow-up day on its card when it is added, and a reason when it is closed.', 'Share of open inquiries with a follow-up day, aiming at all of them.', 'High');
-  }
   // How complete the records are.
   const quality = completeness(students);
   const q = (label) => quality.find((x) => x.label.startsWith(label));
@@ -553,7 +517,7 @@ function buildInsights({ workbook, cards = {}, planning = {}, partners = [], b2b
     if (detail.percent !== null && detail.percent < 70) {
       add('P2', 'Data', `${detail.of - detail.filled} of ${detail.of} students have no "where exactly" for their source`, [`Only ${detail.percent}% of cards say which platform, event or partner the student came from.`],
         '"Social Media" or "Events" alone cannot be acted on: the money goes to one platform or one event, not to a heading.',
-        'Fill in "where exactly" on the card of every student of this intake (a few minutes per counselor), and make it part of adding a student.', 'Share of cards with "where exactly", aiming above 90%.', 'High');
+        'Fill in "where exactly" on the card of every student of this intake, and make it part of adding a student.', 'Share of cards with "where exactly", aiming above 90%.', 'High');
     }
     const inq = q('First inquiry day');
     if (inq.percent !== null && inq.percent < 60) {
@@ -616,14 +580,14 @@ function buildInsights({ workbook, cards = {}, planning = {}, partners = [], b2b
       'Failed the credibility or Pre-CAS interview': 'More mock interviews before the real one, and a second mock for anyone who scores low in the first.',
       'Visa refused': 'Review each refusal letter and add the missing check before the CAS is requested.',
       'Family or personal decision': 'Invite the parents to the counseling; many of these decisions are made by the family.',
-      'Postponed to a later intake': 'Keep them warm: a follow-up day when the next intake opens.',
+      'Postponed to a later intake': 'Keep them warm: a note on the card to call them when the next intake opens.',
       'Stopped answering': 'Shorten the time to the first call, and use WhatsApp as well as phone calls.',
     }[topLost.label] || 'Look at these students one by one and note what they have in common.';
     add('P2', 'Lost students', `The main reason students are lost: ${topLost.label.toLowerCase()}`, [`${topLost.count} of the ${lostKnown} lost students with a reason (${pct(topLost.count, lostKnown)}%).`, ...lostReasons.filter((r) => r.label !== NONE).slice(1, 3).map((r) => `${r.label}: ${r.count}.`)],
       'One reason behind a third or more of the losses is a pattern, not bad luck.', fix, 'Students lost for this reason next intake.', lostKnown >= MIN_SAMPLE ? 'Medium' : 'Low');
   }
-  if (wanted.length >= 3) {
-    add('P3', 'Universities', `${wanted.length} students asked for something NIEC could not offer`, wanted.slice(0, 4).map((w) => `"${w.wanted}"${w.level ? ` (${w.level})` : ''}`),
+  if (wanted.length && wanted[0].count >= 3) {
+    add('P3', 'Universities', `${wanted[0].count} lost students were looking for ${wanted[0].subject}${wanted[0].level ? ` (${wanted[0].level})` : ''}, which NIEC could not give`, wanted.slice(0, 4).map((w) => `${w.count} x ${w.subject}${w.level ? ` (${w.level})` : ''}: ${w.reasons.join(', ').toLowerCase()}`),
       'Each is a student another consultancy enrolled. Together they show which university or course is missing from the portfolio.',
       'Group these by course, and approach a university (or a B2B partner that has it) for the most asked one.', 'Requests that could not be served, by course.', 'Low');
   }
@@ -637,31 +601,6 @@ function buildInsights({ workbook, cards = {}, planning = {}, partners = [], b2b
       }
     });
   }
-  const loads = team.filter((t) => t.label !== NONE && t.active > 0).map((t) => t.active);
-  if (loads.length >= 3) {
-    const mid = median(loads);
-    const heavy = team.filter((t) => t.label !== NONE && t.active >= Math.max(10, mid * 2));
-    if (heavy.length) {
-      add('P3', 'Team', `${heavy[0].label} carries ${heavy[0].active} students in progress, twice the typical load`, [`Typical load: ${Math.round(mid)} students in progress per counselor.`, ...heavy.map((t) => `${t.label}: ${t.active} in progress, ${t.overdue} follow-ups overdue.`)],
-        'An overloaded counselor answers late, and late answers lose students. This says nothing about how good the counselor is.', 'Move new inquiries to the others for two weeks, or hand over the students who are only waiting for a visa decision.', 'Students in progress per counselor.', 'Medium');
-    }
-  }
-  const unassigned = team.find((t) => t.label === NONE);
-  if (unassigned && n >= MIN_SAMPLE && unassigned.students / n >= 0.3) {
-    add('P3', 'Data', `${unassigned.students} students have no counselor on their card`, [`${pct(unassigned.students, n)}% of the students of ${scopeName}.`],
-      'The workload and the follow-ups of each person cannot be seen.', 'Set the counselor on each card (the Add student form asks for it from now on).', 'Share of cards with a counselor.', 'High');
-  }
-  const season = seasonality(all);
-  if (season.datedInquiries >= 20 && season.peakInquiry.length && season.peakInquiry.length <= 3) {
-    add('P3', 'Timing', `Most inquiries come in ${season.peakInquiry.join(' and ')}`, [`From ${season.datedInquiries} inquiries with a date, across your intakes so far.`],
-      'An event held just before the busy month catches students while they are deciding; one held after it finds them already signed elsewhere.',
-      `Plan the main event and the advert budget for the four weeks before ${season.peakInquiry[0]}.`, 'Inquiries in the month after the event, against the same month last year.', 'Medium');
-  }
-  eventRows.filter((e) => e.cost > 0 && e.students === 0 && dayNumber(e.date) < today - 21).slice(0, 3).forEach((e) => {
-    add('P3', 'Marketing', `No student is linked to the event "${e.label}"`, [`Held on ${e.date}, cost Rs ${e.cost.toLocaleString('en-IN')}, ${e.attended || 0} attended.`],
-      'Either the event brought no students, or its students were added without naming it. The two mean opposite things for the next event.',
-      'On the card of each student who came from it, choose Events and this event. Then decide whether to repeat it.', 'Students and visas linked to each event.', 'Medium');
-  });
   // Agreements that are ending (Admin only: the partner records are Admin's).
   const agreements = [];
   if (admin) {
@@ -711,13 +650,11 @@ function buildInsights({ workbook, cards = {}, planning = {}, partners = [], b2b
     target: targetView,
     weekly: weekly(students, todayIso),
     channels: { sources: channels.sources, spendTotal: channels.spendTotal, reportedLeads: channels.reportedLeads },
-    campaigns, events: eventRows,
-    seasonality: season,
+    events: eventRows,
     universities: { list: universities.slice(0, 25), concentration: uniConcentration, speed: uniSpeed.slice(0, 12) },
     partners: { list: partnerGroups.slice(0, 20), concentration: partnerConcentration, agreements },
-    courses, levels, districts,
+    courses, levels,
     lost: { total: gone.length, reasons: lostReasons, wanted },
-    team: { counselors: team, followUps, oldInquiries },
     speed: sp,
     quality,
     plan: planView,

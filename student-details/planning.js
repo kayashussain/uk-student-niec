@@ -30,7 +30,7 @@ const LISTS = {
   spend: {
     max: 3000,
     clean: (x) => ({
-      month: month(x.month), intake: str(x.intake, 80), source: str(x.source, 60), detail: str(x.detail, 120), campaign: str(x.campaign, 120),
+      month: month(x.month), intake: str(x.intake, 80), source: str(x.source, 60), detail: str(x.detail, 120),
       amount: amount(x.amount), leads: amount(x.leads, 1e7), note: str(x.note, 300),
     }),
     valid: (x) => (x.month && x.amount > 0 ? null : 'A spend line needs a month and an amount.'),

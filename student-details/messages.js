@@ -1,5 +1,5 @@
 // The messages NIEC sends to a student from the student card: ready-made templates for each step of the journey
-// (first inquiry, university options, documents, offer, mock interview, payment, CAS, visa ...), filled in with the
+// (university options and documents, application submitted, offer, mock interview, deferred), filled in with the
 // student's own details, sent by email from the office mailbox with the signature, or opened in WhatsApp.
 //
 // The system only sends. A student's reply goes to the office mailbox (or WhatsApp) like any other message; nothing
@@ -39,22 +39,6 @@ const BLOCK_FIELDS = new Set(['options_table', 'documents_list']);
 
 // The built-in templates. `stages`: the stages at which the card offers the template first.
 const DEFAULTS = [
-  {
-    key: 'inquiry_welcome', name: 'First reply to an inquiry', stages: ['Inquiry'],
-    subject: 'Your plan to study in the UK: next steps with NIEC',
-    body: [
-      'Dear {first_name},',
-      'Thank you for contacting Nepal International Educational Consultancy about studying in the UK. We are glad to guide you from choosing the right university to your visa.',
-      'To suggest the universities and courses that suit you, please share these with us:',
-      '- Your latest academic transcripts and certificates',
-      '- Your English test result (IELTS, PTE or other), or the date you plan to take the test',
-      '- The course or subject you are interested in, and the intake you prefer',
-      '- A copy of your passport, if you have one',
-      'You can reply to this email with the documents, send them on WhatsApp, or visit our office. Counseling is free.',
-      'We look forward to helping you.',
-    ].join('\n\n').replace(/\n\n- /g, '\n- '),
-    whatsapp: 'Namaste {first_name}, thank you for contacting NIEC about studying in the UK. To suggest the right universities for you, please send your academic transcripts, your English test result (or planned test date) and the course you are interested in. Counseling is free. - {sender_name}, NIEC',
-  },
   {
     key: 'options', name: 'University options and documents needed', stages: ['Inquiry', 'Application Stage'],
     subject: 'Your UK university options from NIEC',
@@ -127,95 +111,6 @@ const DEFAULTS = [
     whatsapp: 'Namaste {first_name}, your mock interview for {university} is scheduled{mock_date_phrase}. Please prepare: why this course and university, your modules, fees and funding, and your career plan. Join from a quiet place with good internet. - {sender_name}, NIEC',
   },
   {
-    key: 'payment_reminder', name: 'Tuition deposit: next step', stages: ['Payment Stage'],
-    subject: 'Next step: your tuition deposit for {university}',
-    body: [
-      'Dear {first_name},',
-      'You have completed the interview step for {university}. The next step is your tuition deposit, which the university needs before it issues your CAS.',
-      'What to do:',
-      '- Apply for the No Objection Certificate (NOC) from the Ministry of Education, which your bank needs to send the fee abroad',
-      '- Pay the deposit to the university bank account shown on your offer letter, through your bank',
-      '- Send us the payment receipt (the SWIFT copy) on the same day',
-      '- Keep the funds for your visa in your bank account from now on, as they must stay there for at least 28 days in a row',
-      'Please tell us the day you plan to pay, so that we can request your CAS without delay.',
-    ].join('\n\n').replace(/\n\n- /g, '\n- '),
-    whatsapp: 'Namaste {first_name}, the next step for {university} is your tuition deposit. Please get the NOC from the Ministry of Education, pay through your bank and send us the payment receipt the same day. Which day do you plan to pay? - {sender_name}, NIEC',
-  },
-  {
-    key: 'cas_requested', name: 'CAS requested', stages: ['CAS Stage'],
-    subject: 'Your CAS has been requested from {university}',
-    body: [
-      'Dear {first_name},',
-      'We have received your payment details and requested your CAS (Confirmation of Acceptance for Studies) from {university}.',
-      'While the university prepares it, please get these ready for the visa application:',
-      '- Your bank statement or education loan letter, showing the required funds held for at least 28 days in a row',
-      '- Your TB test certificate from a clinic approved for UK visas',
-      '- Your passport and all your original academic documents',
-      'We will contact you as soon as the CAS arrives.',
-    ].join('\n\n').replace(/\n\n- /g, '\n- '),
-    whatsapp: 'Namaste {first_name}, we have requested your CAS from {university}. Meanwhile please keep ready: your bank statement (funds held 28 days), your TB test certificate and your original documents. - {sender_name}, NIEC',
-  },
-  {
-    key: 'cas_received', name: 'CAS issued: visa application', stages: ['CAS Issued'],
-    subject: 'Your CAS is issued: time to apply for your visa',
-    body: [
-      'Dear {first_name},',
-      'Good news. {university} has issued your CAS{cas_date_phrase}. You can now apply for your UK student visa.',
-      'For the visa application we need:',
-      '- Your passport and your CAS statement',
-      '- Your bank statement or loan letter, showing the required funds held for at least 28 days in a row',
-      '- Your TB test certificate',
-      '- Your academic documents listed on the CAS, and your English test result',
-      'You will also pay the visa fee and the Immigration Health Surcharge online, and then give your fingerprints and photo at the visa application centre.',
-      'Please visit our office or call us to fix a time to fill in the visa form together.',
-    ].join('\n\n').replace(/\n\n- /g, '\n- '),
-    whatsapp: 'Good news {first_name}! Your CAS from {university} is issued. Please bring your passport, bank statement, TB certificate and academic documents so we can lodge your visa application. When can you come to the office? - {sender_name}, NIEC',
-  },
-  {
-    key: 'visa_lodged', name: 'Visa application lodged', stages: ['Visa Lodge'],
-    subject: 'Your UK visa application has been lodged',
-    body: [
-      'Dear {first_name},',
-      'Your UK student visa application has been lodged. Thank you for completing every step on time.',
-      'A decision usually takes about three weeks after your appointment at the visa application centre. During this time:',
-      '- Check your email every day, including the spam folder',
-      '- Answer any phone call or email from UK Visas and Immigration straight away, and tell us at once',
-      '- Do not book a flight until you have your visa',
-      'We will be in touch as soon as there is news.',
-    ].join('\n\n').replace(/\n\n- /g, '\n- '),
-    whatsapp: 'Namaste {first_name}, your UK visa application is lodged. The decision usually takes about three weeks after your appointment. Please check your email daily and tell us at once if UKVI contacts you. - {sender_name}, NIEC',
-  },
-  {
-    key: 'visa_issued', name: 'Visa granted: before you fly', stages: ['Visa Issued'],
-    subject: 'Congratulations: your UK student visa is granted',
-    body: [
-      'Dear {first_name},',
-      'Congratulations. Your UK student visa has been granted. Everyone at NIEC is very happy for you.',
-      'Before you travel:',
-      '- Set up your UKVI account and check your eVisa details',
-      '- Book your accommodation and tell the university your arrival date',
-      '- Book your flight to arrive before the latest enrolment date on your CAS',
-      '- Carry your passport, CAS, offer letter, academic originals, TB certificate and bank documents in your hand luggage',
-      '- Share your UK contact number with us once you arrive',
-      'We wish you every success in your studies at {university}. Please stay in touch, and tell your friends and family about your experience with us.',
-    ].join('\n\n').replace(/\n\n- /g, '\n- '),
-    whatsapp: 'Congratulations {first_name}! Your UK student visa is granted. Before you fly: check your eVisa, book accommodation and your flight, and carry all your original documents in your hand luggage. We wish you every success at {university}. - {sender_name}, NIEC',
-  },
-  {
-    key: 'visa_refused', name: 'Visa refused: your choices', stages: ['Visa Rejected'],
-    subject: 'About your UK visa decision and what we can do next',
-    body: [
-      'Dear {first_name},',
-      'We are sorry that your visa application was not successful this time. We know how much work you put into it, and a refusal is not the end of your plan.',
-      'Please send us the full refusal letter. Once we have read it we will explain the reason clearly and advise you on the choices, which usually are:',
-      '- Asking for an administrative review, when the refusal looks like a mistake',
-      '- Applying again with stronger documents',
-      '- Moving your plan to the next intake',
-      'Please call us or visit the office so that we can go through it together.',
-    ].join('\n\n').replace(/\n\n- /g, '\n- '),
-    whatsapp: 'Namaste {first_name}, we are sorry about the visa decision. Please send us the full refusal letter. We will explain the reason and advise you on the choices (review, a new application or the next intake). - {sender_name}, NIEC',
-  },
-  {
     key: 'defer', name: 'Deferred to the next intake', stages: ['Defer'],
     subject: 'Your UK study plan for the next intake',
     body: [
@@ -228,17 +123,6 @@ const DEFAULTS = [
       'We will contact you when applications for the next intake open. You can also write to us at any time.',
     ].join('\n\n').replace(/\n\n- /g, '\n- '),
     whatsapp: 'Namaste {first_name}, your UK plan is moved to the next intake. To be ready early, please complete any missing document or English test and keep your funds ready. We will contact you when applications open. - {sender_name}, NIEC',
-  },
-  {
-    key: 'follow_up', name: 'Checking in (follow-up)', stages: ['Inquiry', 'Hold', 'Withdrawn'],
-    subject: 'Checking in about your UK study plan',
-    body: [
-      'Dear {first_name},',
-      'We spoke a little while ago about your plan to study in the UK, and I wanted to check how things are going.',
-      'If you are still interested, we are ready to help you choose a university and prepare your application. If your plan has changed, it would help us to know, so that we can advise you better in future.',
-      'You can reply to this email or message us on WhatsApp at any time.',
-    ].join('\n\n'),
-    whatsapp: 'Namaste {first_name}, this is {sender_name} from NIEC. I wanted to check how your UK study plan is going. If you are still interested we are ready to help, and if your plan has changed please let us know. Thank you.',
   },
 ];
 
@@ -301,6 +185,7 @@ function blockText(key, ctx) {
     return ctx.options.flatMap((o, i) => [
       `${i + 1}. ${[o.university, o.course].filter(Boolean).join(': ')}${o.intake ? ` (${o.intake})` : ''}`,
       `   Tuition fee: ${optionFee(o)}`,
+      ...(o.deposit ? [`   Minimum cash deposit: ${o.deposit}`] : []),
       `   Scholarship: ${optionScholarship(o)}`,
       ...(o.link ? [`   Course page: ${o.link}`] : []),
       ...(o.note ? [`   Note: ${o.note}`] : []),
@@ -315,18 +200,21 @@ function blockHtml(key, ctx) {
     const th = (t) => `<th align="left" style="padding:9px 10px;border-bottom:2px solid #00adef;font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:#3b4757">${t}</th>`;
     const td = (t, extra = '') => `<td valign="top" style="padding:10px;border-bottom:1px solid #e3e8ee;font-size:14px;line-height:1.45;${extra}">${t}</td>`;
     const small = (t) => `<br><span style="color:#5b6472;font-size:12px">${esc(t)}</span>`;
+    // A column for the minimum cash deposit is added when any option carries one (asked for in the remarks of the options box).
+    const withDeposit = ctx.options.some((o) => o.deposit);
     const rows = ctx.options.map((o) => {
       const cells = [
         td(`<b>${esc(o.university)}</b>${o.intake ? small(o.intake) : ''}`),
         td(`${esc(o.course)}${o.level ? small(o.level) : ''}${o.note ? small(o.note) : ''}`),
         td(esc(optionFee(o)).replace(/\n/g, '<br>')),
+        ...(withDeposit ? [td(esc(o.deposit || 'Ask us').replace(/\n/g, '<br>'))] : []),
         td(esc(optionScholarship(o)).replace(/\n/g, '<br>')),
         td(o.link ? `<a href="${esc(o.link)}" style="color:#066a97">View course</a>` : '<span style="color:#5b6472">Ask us</span>', 'white-space:nowrap'),
       ];
       return `<tr>${cells.join('')}</tr>`;
     }).join('');
     return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin:4px 0 18px;border:1px solid #e3e8ee;border-radius:8px">`
-      + `<tr style="background:#eef7fc">${th('University')}${th('Course')}${th('Tuition fee')}${th('Scholarship')}${th('Link')}</tr>${rows}</table>`;
+      + `<tr style="background:#eef7fc">${th('University')}${th('Course')}${th('Tuition fee')}${withDeposit ? th('Minimum cash deposit') : ''}${th('Scholarship')}${th('Link')}</tr>${rows}</table>`;
   }
   return `<ul style="margin:0 0 14px;padding-left:22px">${ctx.documents.map((d) => `<li style="margin:4px 0">${esc(d)}</li>`).join('')}</ul>`;
 }

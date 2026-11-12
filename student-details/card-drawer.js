@@ -1,4 +1,4 @@
-// Opens a student's card over the page the person is on (the sheet, the follow-ups, the Fact File ...), so they can look
+// Opens a student's card over the page the person is on (the sheet, the Fact File ...), so they can look
 // at the student and carry on where they were. window.CardDrawer.open(rowId). Escape or the Close button shuts it.
 (function (root) {
   let current = null;

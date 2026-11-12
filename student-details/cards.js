@@ -1,6 +1,6 @@
 // The student cards: everything NIEC knows about a student that is not a column of the sheet. Where the student
-// came from exactly, the counselor, the kind of student, notes, the next follow-up, the documents received, the
-// university options prepared for them and the record of the messages sent to them.
+// came from exactly, what the student has studied (for the Fact File assistant), notes, the university options prepared
+// for them and the record of the messages sent to them.
 //
 // A card belongs to one student and is found by the student's row id (the `_id` every row of the sheet has, which
 // stays the same when the student is edited, moved to another stage or deferred to the next intake). The sheet itself
@@ -33,7 +33,7 @@ function isoDay(v) {
 }
 
 const LISTS = {
-  LEAD_QUALITY: Fields.LEAD_QUALITY.map((x) => x.key), STUDY_LEVELS: Fields.STUDY_LEVELS, QUALIFICATIONS: Fields.QUALIFICATIONS,
+  STUDY_LEVELS: Fields.STUDY_LEVELS, QUALIFICATIONS: Fields.QUALIFICATIONS,
   ENGLISH_TESTS: Fields.ENGLISH_TESTS, LOST_REASONS: Fields.LOST_REASONS,
 };
 
@@ -63,6 +63,7 @@ function cleanOption(input, old = {}) {
     level: pick('level', 80),
     intake: pick('intake', 80),
     fee: pick('fee', 400),
+    deposit: pick('deposit', 400),
     scholarship: pick('scholarship', 400),
     // Only a real web address is kept as the link (never "javascript:" or anything else a page could run).
     link: /^https?:\/\/[^\s<>"']+$/i.test(link) ? link : '',
@@ -71,17 +72,13 @@ function cleanOption(input, old = {}) {
   };
 }
 
-const emptyCard = () => ({ profile: {}, followUp: null, notes: [], options: [], messages: [] });
+const emptyCard = () => ({ profile: {}, notes: [], options: [], messages: [] });
 
 // A card read from the file, made whole: an older or hand-edited file never breaks a page.
 function normalize(raw) {
   const c = raw && typeof raw === 'object' ? raw : {};
-  const follow = c.followUp && isoDay(c.followUp.date) ? {
-    date: isoDay(c.followUp.date), note: str(c.followUp.note, LIMITS.short), setBy: str(c.followUp.setBy, 80), setAt: str(c.followUp.setAt, 40),
-  } : null;
   return {
     profile: cleanProfile(c.profile, {}),
-    followUp: follow,
     notes: (Array.isArray(c.notes) ? c.notes : []).filter((n) => n && n.id && n.text).slice(-LIMITS.notes),
     options: (Array.isArray(c.options) ? c.options : []).filter((o) => o && o.id && (o.university || o.course)).slice(0, LIMITS.options),
     messages: (Array.isArray(c.messages) ? c.messages : []).filter((m) => m && m.id).slice(-LIMITS.messages),
@@ -169,30 +166,6 @@ function createCards(dir, { now = () => new Date() } = {}) {
       return update(rowId, by, (card) => { card.profile = cleanProfile(input, card.profile); });
     },
 
-    // The next follow-up: a day and what to do. An empty day clears it.
-    setFollowUp(rowId, input, by) {
-      const date = isoDay(input && input.date);
-      if (input && input.date && !date) return { error: 'That is not a real date.' };
-      return update(rowId, by, (card, stamp) => {
-        card.followUp = date ? { date, note: str(input.note, LIMITS.short), setBy: by || '', setAt: stamp } : null;
-      });
-    },
-
-    // A follow-up that was done: what came of it is kept as a note, and the next one (if any) is set.
-    finishFollowUp(rowId, input, by) {
-      const next = isoDay(input && input.nextDate);
-      if (input && input.nextDate && !next) return { error: 'That is not a real date.' };
-      const outcome = str(input && input.outcome, LIMITS.noteText);
-      return update(rowId, by, (card, stamp) => {
-        if (!card.followUp && !outcome) return { error: 'There is no follow-up to finish.' };
-        const was = card.followUp ? `Follow-up of ${card.followUp.date} done${card.followUp.note ? ` (${card.followUp.note})` : ''}.` : 'Follow-up done.';
-        card.notes.push({ id: newId(), at: stamp, by: by || '', kind: 'followup', text: outcome ? `${was} ${outcome}` : was });
-        card.notes = card.notes.slice(-LIMITS.notes);
-        card.followUp = next ? { date: next, note: str(input.nextNote, LIMITS.short), setBy: by || '', setAt: stamp } : null;
-        return {};
-      });
-    },
-
     addNote(rowId, input, by) {
       const text = str(input && input.text, LIMITS.noteText);
       if (!text) return { error: 'Please write the note first.' };
@@ -255,6 +228,7 @@ function createCards(dir, { now = () => new Date() } = {}) {
           id: newId(), at: stamp, by: by || '', channel: entry.channel === 'whatsapp' ? 'whatsapp' : 'email',
           template: str(entry.template, 80), subject: str(entry.subject, 300), to: str(entry.to, 254),
           status: ['sent', 'failed', 'preview', 'opened'].includes(entry.status) ? entry.status : 'sent',
+          ...(Array.isArray(entry.attachments) && entry.attachments.length ? { attachments: entry.attachments.slice(0, 10).map((n) => str(n, 120)) } : {}),
           ...(entry.error ? { error: str(entry.error, 300) } : {}),
           ...(entry.options ? { options: Math.max(0, Math.min(LIMITS.options, Number(entry.options) || 0)) } : {}),
         };

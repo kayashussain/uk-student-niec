@@ -1,4 +1,4 @@
-// Small helpers shared by the portal pages (student card, follow-ups, templates, B2B partners, the decision pages and
+// Small helpers shared by the portal pages (student card, templates, B2B partners, the decision pages and
 // the Fact File's option finder). Loaded as window.Portal after session.js and ui.js.
 // Everything that comes from a student, a template or a partner is put on the page as text, never as HTML.
 (function (root) {
