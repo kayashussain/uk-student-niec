@@ -96,15 +96,17 @@
     wrap.setAttribute('role', 'region');
     wrap.setAttribute('aria-label', 'Entry requirements, fees and scholarships');
     const table = el('table', 'programs');
+    // A column nobody has filled in for any course is left out of the view (it is still there to fill in when editing).
+    const cols = PROGRAM_COLUMNS.filter(([key]) => key === 'name' || programs.some((p) => String(p[key] || '').trim()));
     const headRow = el('tr');
-    PROGRAM_COLUMNS.forEach(([, label]) => headRow.append(el('th', '', label)));
+    cols.forEach(([, label]) => headRow.append(el('th', '', label)));
     const thead = el('thead');
     thead.append(headRow);
     table.append(thead);
     const body = el('tbody');
     programs.forEach((p) => {
       const tr = el('tr');
-      PROGRAM_COLUMNS.forEach(([key, label]) => {
+      cols.forEach(([key, label]) => {
         const td = el('td');
         td.dataset.label = label;
         if (key === 'name') td.append(el('b', '', p.name)); else richText(td, p[key]);

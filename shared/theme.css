@@ -542,3 +542,18 @@ th { font-size: 15px; }
 .niec-avatar, .t-av, .p-avatar { font-size: 14px !important; }
 .bar-value small, .bar-value { font-size: 14px !important; }
 svg text, .line-body text { font-size: 13px !important; }
+/* 🔴 CSS CHANGED (2026-11-12): the last items under 14px found by measuring every page | from: small buttons 13.5px, sheet column headings 13px, row numbers 12.5px, stat tile labels 13px, dropdown options 13px, bold names 13.5px, code boxes 13px, chips 13px, university initials 12px | to: 14px for all of these and 15px for the sheet column headings */
+.btn-sm, .btn.btn-sm, button.btn-sm, a.btn-sm { font-size: 14px !important; }
+.stat-label, .stat-group-title, .stat-card .stat-label { font-size: 14px !important; }
+.th-label { font-size: 15px !important; }
+td.col-idx, th.col-idx { font-size: 14px !important; }
+option, select, select option { font-size: 14px; }
+.page b, .p-card b, .card b, .p-sent b, label b { font-size: 14px; }
+pre, .p-wa-preview { font-size: 14px !important; }
+.p-chip, .pill, .uni-mono { font-size: 14px !important; }
+/* 🔴 CSS CHANGED (2026-11-12): Fact File fees table | from: 13px text, no sign on a phone that it scrolls sideways | to: 14px text, and a soft shadow on the right edge on a phone */
+.programs { font-size: 14px; }
+@media (max-width: 700px) { .table-wrap { box-shadow: inset -14px 0 12px -12px rgba(0,0,0,.2); } }
+/* 🔴 CSS CHANGED (2026-11-12): small notes on Message templates | from: 13.5px | to: 14px */
+small, .p-muted, .muted, #mailNote, .help { font-size: 14px; }
+label span, .p-card label span { font-size: 14px; }

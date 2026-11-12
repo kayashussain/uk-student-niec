@@ -7,6 +7,12 @@ To find every marked change in the code, search the project for `CSS CHANGED`.
 
 Format: **date · file · what · from → to · why**
 
+- **2026-11-12 · shared/theme.css · small notes on Message templates · from: 13.5px → to: 14px · why: the measured sweep found them as the last items under 14px.**
+
+- **2026-11-12 · shared/theme.css · Fact File fees table · from: 13px text and no sign on a phone that it scrolls sideways → to: 14px text and a soft shadow on the right edge on a phone · why: the client could not tell the table scrolls. (The empty Duration and CAS deposit columns are now left out of the view, a code change.)**
+
+- **2026-11-12 · shared/theme.css · the last items under 14px, found by measuring every page · from: small buttons 13.5px, sheet column headings 13px, row numbers 12.5px, stat tile labels 13px, dropdown options 13px, bold names 13.5px, code boxes 13px, chips 13px, university initials 12px → to: 14px, and 15px for the sheet column headings · why: the client measured these and would approve once nothing is under 14px.**
+
 - **2026-11-12 · shared/theme.css · last small items · from: avatar initials 12px, Dashboard bar notes 12px, chart labels 11px → to: 14px, 14px, 13px · why: finishing the reading-size floor for older eyes.**
 
 - **2026-11-12 · shared/theme.css · a reading-size floor for the whole portal · from: many labels, notes, hints, table headings, menu account line and sub-lines at 10 to 13px → to: 14px for reading text, 15px for table headings, menu names and nav labels; table headings no longer break mid-word; wide tables on a phone show a soft shadow on the right edge · why: the client's last remaining blocker was text too small for older eyes.**
