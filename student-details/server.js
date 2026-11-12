@@ -952,7 +952,7 @@ const server = http.createServer(async (req, res) => {
         // Every account opens the sheet, a student card and the compose page (each shows only the students the account sees);
         // the Dashboard is for Admin and the Manager; the rest is Admin's.
         const allowed = ['/students', '/student', '/compose', '/bulk', '/bulk-add', '/today'].includes(urlPath) || (['/dashboard', '/events'].includes(urlPath) ? (isAdmin(req.user) || isManager(req.user)) : isAdmin(req.user));
-        if (!allowed) return send(res, 302, '', { Location: home });
+        if (!allowed) return send(res, 302, '', { Location: home + (String(home).includes('?') ? '&' : '?') + 'notice=admin' });
         req.url = '/' + page;
         return serveStatic(req, res);
       }
@@ -1017,7 +1017,7 @@ const server = http.createServer(async (req, res) => {
     if (SHARED_FILES[urlPath]) return serveShared(req, res);
     // The page files of the Admin-only pages are Admin-only too (their data was already refused; now their shells are as well).
     if (['/users.html', '/activity.html', '/direct.html', '/dashboard.html', '/templates.html', '/b2b.html', '/agents.html', '/events.html'].includes(urlPath) && !isAdmin(req.user)
-      && !(['/dashboard.html', '/events.html'].includes(urlPath) && isManager(req.user))) return send(res, 302, '', { Location: home });
+      && !(['/dashboard.html', '/events.html'].includes(urlPath) && isManager(req.user))) return send(res, 302, '', { Location: home + (String(home).includes('?') ? '&' : '?') + 'notice=admin' });
     serveStatic(req, res);
   } catch (e) {
     console.error(e);

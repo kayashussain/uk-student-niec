@@ -73,7 +73,7 @@
     mid.append(el('h1', '', s.name));
     const line = el('div', 'p-hero-line');
     line.append(stagePill(s.stage), el('span', '', s.intake));
-    if (s.source) line.append(el('span', 'p-chip', s.source + (profile().sourceDetail ? ': ' + profile().sourceDetail : '')));
+    if (s.source) line.append(el('span', 'p-chip', data.event ? s.source : s.source + (profile().sourceDetail ? ': ' + profile().sourceDetail : '')));
     // An event or marketing tag shows when and for how long it ran.
     if (data.event) { const e = data.event; line.append(el('span', 'p-chip', `${e.kind === 'Marketing' ? 'Marketing' : 'Event'}: ${e.name}, ${e.endDate && e.endDate !== e.date ? day(e.date) + ' to ' + day(e.endDate) : day(e.date)}`)); }
     mid.append(line);
@@ -127,7 +127,7 @@
       const dl = el('dl', 'p-facts');
       const fact = (k, v) => { const d = el('div', 'p-fact'); d.append(el('dt', '', k), el('dd', '', v || 'Not recorded')); dl.append(d); };
       fact('Student source', s.source);
-      fact(F.SOURCE_DETAIL_LABEL[s.source] || (s.source === 'Agent' ? 'Which agent' : 'Where exactly'), p.sourceDetail);
+      if (p.sourceDetail || (F.SOURCE_DETAILS[s.source] || []).length || s.source === 'Agent') fact(F.SOURCE_DETAIL_LABEL[s.source] || (s.source === 'Agent' ? 'Which agent' : 'Where exactly'), p.sourceDetail);
       box.append(dl);
       return box;
     }

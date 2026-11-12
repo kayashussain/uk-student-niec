@@ -2,6 +2,10 @@
 (function () {
   const { el, h, api, initials, stagePill } = window.Portal;
   const view = document.getElementById('view');
+  if (new URLSearchParams(location.search).get('notice') === 'admin') {
+    history.replaceState(null, '', location.pathname);
+    setTimeout(() => { if (window.NiecUI) window.NiecUI.toast('That page is for Admin only, so you are back on Today.', { type: 'error' }); }, 300);
+  }
   const ICON = {
     inquiries: '<path d="M4 5h16v11H8l-4 4V5z"/>',
     apply: '<path d="M7 3h8l4 4v14H7z"/><path d="M15 3v4h4M10 13h6M10 17h6"/>',

@@ -7,6 +7,8 @@ To find every marked change in the code, search the project for `CSS CHANGED`.
 
 Format: **date · file · what · from → to · why**
 
+- **2026-11-12 · shared/theme.css · "Admin only" label beside page titles · from: tiny grey text on B2B and Agents, yellow pill on Partner Universities → to: the same clear small label on all three · why: the client saw three different looks for the same thing.**
+
 - **2026-11-12 · shared/theme.css · hidden buttons · from: some buttons stayed visible when hidden, so a view-only Manager saw Add many and Add an event → to: hidden always means hidden · why: the client found buttons that only say "not allowed" after you press them.**
 
 - **2026-11-12 · shared/theme.css · number tiles above the sheet · from: lifted on hover like buttons → to: no hover effect · why: the client tried to click them and nothing happened.**

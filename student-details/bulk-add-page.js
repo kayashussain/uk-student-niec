@@ -108,10 +108,13 @@
     };
     draw();
     source.input.addEventListener('change', draw);
+    const isTeamUser = lists.departments.length > 0;
+    if (isTeamUser) { stage.wrap.hidden = true; }
     form.append(intake.wrap, stage.wrap);
     if (dept) form.append(dept.wrap);
     form.append(source.wrap, holder);
     set.append(form);
+    if (isTeamUser) set.append(el('p', 'p-muted p-small', 'New students start at the first stage of your team: ' + lists.departments.map((d) => d.start).filter(Boolean).join(' or ') + '.'));
     set.append(el('p', 'p-muted p-small', 'The event or marketing list comes from the Events and marketing page. Teams add students at the stage and intake their own rules allow.'));
     wrap.append(set);
 
