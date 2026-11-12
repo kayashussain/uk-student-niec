@@ -612,3 +612,30 @@ html[data-nav="folded"] .niec-sep span { display: none; }
   .ov-compare-row > :nth-child(3), .ov-compare-row > :nth-child(4), .ov-compare-row > :nth-child(5), .ov-compare-row > :nth-child(7) { display: none; }
   .ov-board-name b { white-space: normal; }
 }
+/* 🔴 CSS CHANGED (2026-11-13): the Student Details sheet on short screens (a zoomed-in browser) | from: on a short screen the number tiles and toolbar used all the height, so the sheet itself shrank to nothing and no student could be seen or opened (this is the "everything cancels" the owner saw at 150% and more) | to: the sheet always keeps room for at least about 8 rows, the page scrolls when the screen is very short, and on a short screen the number tiles become small one-line chips */
+body:has(#sheet) .table-wrap { flex: 1 0 380px; }
+html:has(#sheet) { overflow-y: auto; }
+@media (max-height: 820px) {
+  body:has(#sheet) .stat-group-title { display: none; }
+  body:has(#sheet) .stat-group-cards { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 6px; padding: 2px 2px 6px; }
+  body:has(#sheet) .stat-card, body:has(#sheet) .stat-card.stat-total { flex-direction: row; align-items: center; justify-content: center; gap: 8px; padding: 4px 10px; min-width: 0; }
+  body:has(#sheet) .stat-card .stat-value { font-size: 20px; }
+  body:has(#sheet) .stat-card .stat-label { min-height: 0; width: auto; }
+  body:has(#sheet) .status-summary { padding-bottom: 4px; }
+}
+/* 🔴 CSS CHANGED (2026-11-13): the top menu on narrow screens and zoomed-in browsers | from: below 900px the menu was one strip that scrolled sideways with no bar, so B2B Partners, Agents, Fact File and all Admin pages were hidden | to: the menu wraps onto as many lines as it needs so every page is always visible */
+@media (max-width: 900px) {
+  .niec-nav { flex-wrap: wrap; overflow: visible; max-width: none; height: auto; }
+  .niec-nav a { flex: 0 0 auto; }
+  .niec-fold { display: none; }
+  .niec-sep { display: block; flex: 0 0 100%; margin: 6px 4px 0; padding-top: 6px; }
+}
+/* 🔴 CSS CHANGED (2026-11-13): Add student and other pop-up forms on short screens | from: the Cancel and Add buttons sat below the visible part of the pop-up, reachable only by scrolling inside the form | to: the buttons stay fixed at the bottom of the pop-up and the fields scroll above them */
+dialog.p-dialog { max-height: 94vh; overflow: auto; }
+.p-dialog-foot { position: sticky; bottom: 0; z-index: 2; background: var(--panel); padding-top: 12px; padding-bottom: 6px; margin-top: 8px; border-top: 1px solid var(--border); }
+/* 🔴 CSS CHANGED (2026-11-13): lists and tables when zoomed in | from: Events, B2B and Agents tables squeezed names and the Edit button into one-word lines, long labels on the Dashboard were cut with dots, and the Fact File section chips ran off the edge | to: those tables keep a readable width and scroll sideways with a shadow, labels wrap, and the chips wrap */
+.p-table-wrap > .p-table { min-width: 760px; }
+.p-table td button, .p-table td .p-link, .p-table td a { white-space: nowrap; }
+.p-table-wrap { box-shadow: inset -12px 0 10px -10px rgba(0,0,0,.16); }
+.ov-rank-label { white-space: normal; overflow: visible; text-overflow: clip; }
+nav.toc { flex-wrap: wrap; overflow: visible; }

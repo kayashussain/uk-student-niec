@@ -7,6 +7,8 @@ To find every marked change in the code, search the project for `CSS CHANGED`.
 
 Format: **date · file · what · from → to · why**
 
+- **2026-11-13 · shared/theme.css · zoom fixes found by the zoom tester · (1) the Student Details sheet vanished on short screens (tiles and toolbar used all the height) → the sheet keeps room for about 8 rows, the page scrolls, and the tiles become small one-line chips on short screens; (2) the top menu hid pages below 900px → it wraps so every page shows; (3) pop-up form buttons below the visible part → they stay fixed at the bottom; (4) Events, B2B and Agents tables squeezed into one-word lines, Dashboard labels cut with dots, Fact File chips off the edge → readable width with a scroll shadow, wrapped labels and chips · why: the owner's zoom test.**
+
 - **2026-11-13 · shared/login.html · the title in the login box · from: 24px, the longer name wrapped to two lines → to: 20px, one line · why: the portal is now called International Student Recruitment.**
 
 - **2026-11-13 · shared/header.js, shared/login.html, shared/theme.css (logo width), brand/, favicon and app icons · the logo and the name · from: a dotted ring with a paper plane and the name "Recruitment 360" → to: a globe with a paper plane taking off from it, "ISR" in bold beside it (the menu), and "ISR" with "International Student Recruitment" under it (the login page, emails and printed Fact File) · why: the portal is now called International Student Recruitment (ISR), and the owner asked for the best logo.**
