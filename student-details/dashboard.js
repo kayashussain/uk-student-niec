@@ -81,21 +81,19 @@
     return d;
   }
   function kpis() {
-    const s = ins.summary; const p = previous();
+    const s = ins.summary;
     const trend = ins.trend || [];
     const cards = [
-      { label: 'Students', value: num(s.students), cur: s.students, prev: p && p.students, color: 'var(--s1)', series: null, hint: `${num(s.active)} still active` },
-      { label: 'Applications', value: num(s.applied), cur: s.applied, prev: p && p.applied, color: COLORS.applied, series: trend.map((t) => t.applied), hint: `${pct(s.toApplication)} of students` },
-      { label: 'Offers', value: num(s.offers), cur: s.offers, prev: p && p.offers, color: COLORS.offer, series: trend.map((t) => t.offer), hint: `${pct(s.toOffer)} of applications` },
-      { label: 'Payments', value: num(s.paid), cur: s.paid, prev: p && p.paid, color: COLORS.paid, series: trend.map((t) => t.paid), hint: `${pct(s.toPayment)} of offers` },
-      { label: 'Visas issued', value: num(s.visas), cur: s.visas, prev: p && p.visas, color: COLORS.visa, series: trend.map((t) => t.visa), hint: `${pct(s.toVisa)} of payments` },
-      { label: 'Visa success', value: pct(s.visaSuccess), cur: s.visaSuccess, prev: p && p.visaSuccess, color: 'var(--s3)', series: null, hint: `${num(s.refused)} refused`, points: true },
+      { label: 'Students', value: num(s.students), color: 'var(--s1)', series: null, hint: `${num(s.active)} still active` },
+      { label: 'Applications', value: num(s.applied), color: COLORS.applied, series: trend.map((t) => t.applied), hint: `${pct(s.toApplication)} of students` },
+      { label: 'Payments', value: num(s.paid), color: COLORS.paid, series: trend.map((t) => t.paid), hint: `${pct(s.toPayment)} of offers` },
+      { label: 'Visas issued', value: num(s.visas), color: COLORS.visa, series: trend.map((t) => t.visa), hint: ins.target && ins.target.visas ? `target ${ins.target.visas}` : `${pct(s.visaSuccess)} of decisions` },
     ];
     const row = el('div', 'ov-kpis');
     cards.forEach((c) => {
       const k = el('article', 'ov-kpi');
       k.style.setProperty('--accent', c.color);
-      k.append(el('span', 'ov-kpi-label', c.label), el('b', 'ov-kpi-value', c.value), deltaNode(c.cur, c.prev, p ? p.label : '', { isPercentPoints: c.points }), el('span', 'ov-kpi-hint', c.hint));
+      k.append(el('span', 'ov-kpi-label', c.label), el('b', 'ov-kpi-value', c.value), el('span', 'ov-kpi-hint', c.hint));
       if (c.series && c.series.some(Boolean)) k.append(sparkline(c.series, c.color));
       row.append(k);
     });
@@ -120,19 +118,29 @@
     const mid = svg('text', { x: 80, y: 82, 'text-anchor': 'middle', class: 'ov-ring-num' }); mid.textContent = String(t.visasNow);
     const sub = svg('text', { x: 80, y: 104, 'text-anchor': 'middle', class: 'ov-ring-sub' }); sub.textContent = `of ${t.visas} visas`;
     ring.append(mid, sub);
-    const status = { reached: ['Reached', 'green'], 'on-track': ['On track', 'green'], behind: ['Behind', 'red'], missed: ['Missed', 'red'], unknown: ['Not enough history yet', 'amber'], none: ['No target', 'amber'] }[t.status] || ['', 'amber'];
+    const T = window.DashText;
+    const stat = T.sayStatus(t);
     const side = el('div', 'ov-target-side');
-    side.append(el('span', `p-pill p-pill-${status[1]}`, status[0]));
-    const facts = el('dl', 'ov-facts');
-    const fact = (k, v) => { facts.append(el('dt', '', k), el('dd', '', v)); };
-    fact('Likely total', t.expectedTotal === null ? 'unknown' : `about ${Math.round(t.expectedTotal)}`);
-    if (t.forecast) fact('Range', `${t.forecast.low} to ${t.forecast.high}`);
-    if (t.byDate) fact('Needed by', shortDay(t.byDate));
-    if (t.gap) fact('Short by', `about ${t.gap} visas`);
-    if (t.gap && t.applicationsNeeded !== null) fact('Applications needed', `${t.applicationsNeeded}${t.perWeek ? `, about ${t.perWeek} a week` : ''}`);
-    side.append(facts);
+    side.append(el('span', `p-pill p-pill-${stat[1]}`, stat[0]), el('p', 'ov-target-text', T.targetSentence(t)));
     const wrap = el('div', 'ov-target-body'); wrap.append(ring, side);
     c.append(wrap);
+    return c;
+  }
+
+  // ---- what needs a decision: the top three, in plain words ----
+  function decisionCard() {
+    const c = card('ov-decide', 'Needs a decision', 'The most important things the figures say today');
+    const list = ins.findings.slice(0, 3);
+    if (!list.length && !dash.attention.length) { c.append(el('p', 'ov-ok', 'Nothing needs a decision right now.')); return c; }
+    const ol = el('ol', 'ov-decide-list');
+    list.forEach((f) => { const li = el('li'); li.append(el('b', '', f.title), el('span', '', f.decision)); ol.append(li); });
+    c.append(ol);
+    if (dash.attention.length) {
+      const w = el('div', 'ov-wait'); w.append(el('h3', '', 'Students waiting too long'));
+      dash.attention.slice(0, 3).forEach((a) => { const r = el('div', 'ov-wait-row'); r.append(el('b', '', String(a.count)), el('span', '', a.text)); w.append(r); });
+      c.append(w);
+    }
+    const more = el('button', 'p-link ov-more', 'See every decision'); more.type = 'button'; more.addEventListener('click', () => { const b = document.querySelector('#dashTabs [data-tab="decisions"]'); if (b) b.click(); }); c.append(more);
     return c;
   }
 
@@ -204,39 +212,19 @@
   }
 
   // ---- where students come from ----
-  const CHANNEL_METRICS = {
-    students: { label: 'Students', get: (g) => g.students, text: (g) => num(g.students) },
-    visas: { label: 'Visas', get: (g) => g.visas, text: (g) => num(g.visas) },
-    rate: { label: 'Reach a visa', get: (g) => (g.leadToVisa === null ? 0 : g.leadToVisa), text: (g) => pct(g.leadToVisa) },
-    cost: { label: 'Cost per student', get: (g) => g.costPerStudent || 0, text: (g) => (g.costPerStudent ? rupees(g.costPerStudent) : 'n/a') },
-  };
   function channelsCard() {
-    const c = card('ov-channels', 'Where students come from', 'Each source, and what it brings');
-    const tabs = el('div', 'ov-seg'); tabs.setAttribute('role', 'tablist');
-    Object.entries(CHANNEL_METRICS).forEach(([k, m]) => {
-      const b = el('button', '', m.label); b.type = 'button'; b.setAttribute('aria-pressed', String(channelMetric === k));
-      b.addEventListener('click', () => { channelMetric = k; draw(); });
-      tabs.append(b);
-    });
-    c.head.append(tabs);
-    const list = ins.channels.sources.slice();
-    const m = CHANNEL_METRICS[channelMetric];
-    list.sort((a, b) => m.get(b) - m.get(a));
-    const max = Math.max(1, ...list.map(m.get));
+    const c = card('ov-channels', 'Where students come from', 'The five biggest sources, and how many of their students reached a visa');
+    const list = ins.channels.sources.filter((g) => !g.spendOnly).slice(0, 5);
+    const max = Math.max(1, ...list.map((g) => g.students));
     const box = el('div', 'ov-rank');
     list.forEach((g) => {
       const row = el('div', 'ov-rank-row');
-      const track = el('span', 'ov-rank-track'); const fill = el('i', 'ov-rank-fill'); fill.style.width = Math.max(2, (m.get(g) / max) * 100) + '%'; track.append(fill);
-      row.append(el('span', 'ov-rank-label', g.label), track, el('b', 'ov-rank-value', m.text(g)), el('span', 'ov-rank-note', g.low ? 'few students' : `${pct(g.share)} of all`));
-      hover(row, () => ({ title: g.label, rows: [
-        { name: 'Students', value: num(g.students) }, { name: 'Applied', value: num(g.applied) }, { name: 'Offers', value: num(g.offers) }, { name: 'Paid', value: num(g.paid) }, { name: 'Visas', value: num(g.visas) },
-        { name: 'Student to visa', value: pct(g.leadToVisa) }, ...(g.spend ? [{ name: 'Spent', value: rupees(g.spend) }, { name: 'Cost per visa', value: g.costPerVisa ? rupees(g.costPerVisa) : 'no visa yet' }] : []),
-      ] }));
+      const track = el('span', 'ov-rank-track'); const fill = el('i', 'ov-rank-fill'); fill.style.width = Math.max(2, (g.students / max) * 100) + '%'; track.append(fill);
+      row.append(el('span', 'ov-rank-label', g.label), track, el('b', 'ov-rank-value', num(g.students)), el('span', 'ov-rank-note', `${num(g.visas)} ${g.visas === 1 ? 'visa' : 'visas'}`));
+      hover(row, () => ({ title: g.label, rows: [{ name: 'Students', value: num(g.students) }, { name: 'Paid', value: num(g.paid) }, { name: 'Visas', value: num(g.visas) }, ...(g.costPerVisa ? [{ name: 'Cost per visa', value: rupees(g.costPerVisa) }] : [])] }));
       box.append(row);
     });
     c.append(box);
-    const spend = ins.channels.spendTotal;
-    if (spend) c.append(el('p', 'ov-foot', `Marketing spent on this intake: ${rupees(spend)}${ins.channels.reportedLeads ? `, ${num(ins.channels.reportedLeads)} leads reported by the platforms` : ''}.`));
     return c;
   }
 
@@ -249,7 +237,7 @@
     const head = el('div', 'ov-board-row head');
     ['', 'Students', 'Offers', 'Paid', 'Visas'].forEach((h) => head.append(el('span', h ? 'num' : '', h)));
     t.append(head);
-    list.slice(0, 7).forEach((g) => {
+    list.slice(0, 5).forEach((g) => {
       const row = el('div', 'ov-board-row');
       const name = el('span', 'ov-board-name'); name.append(el('b', '', g.label));
       const track = el('i', 'ov-board-bar'); track.style.width = Math.max(3, (g.students / max) * 100) + '%'; name.append(track);
@@ -265,114 +253,20 @@
     return c;
   }
 
-  // ---- how fast ----
-  function speedCard() {
-    const c = card('ov-speed', 'How fast we move', 'Middle number of days between two dates on the same student');
-    const rows = dash.speed.filter((s) => s.median !== null && s.key !== 'whole');
-    const whole = dash.speed.find((s) => s.key === 'whole');
-    if (!rows.length) { c.append(el('p', 'ov-empty', 'Not enough dates entered yet.')); return c; }
-    const max = Math.max(1, ...rows.map((s) => s.median));
-    const box = el('div', 'ov-rank');
-    rows.forEach((s) => {
-      const row = el('div', 'ov-rank-row');
-      const track = el('span', 'ov-rank-track'); const fill = el('i', 'ov-rank-fill alt'); fill.style.width = Math.max(3, (s.median / max) * 100) + '%'; track.append(fill);
-      row.append(el('span', 'ov-rank-label', s.label), track, el('b', 'ov-rank-value', `${Math.round(s.median)} d`), el('span', 'ov-rank-note', `${s.samples} students`));
-      box.append(row);
-    });
-    c.append(box);
-    if (whole && whole.median !== null) c.append(el('p', 'ov-foot', `From application to visa the middle student takes ${Math.round(whole.median)} days (${whole.samples} students so far).`));
-    return c;
-  }
 
-  // ---- why students are lost ----
-  function lostCard() {
-    const c = card('ov-lost', 'Why students are lost', `${ins.lost.total} student${ins.lost.total === 1 ? '' : 's'} did not go on`);
-    if (!ins.lost.reasons.length) { c.append(el('p', 'ov-empty', 'No student has been lost in this intake.')); return c; }
-    const palette = ['var(--s1)', 'var(--s4)', 'var(--s2)', 'var(--s3)', 'var(--s5)', 'var(--ov-muted)'];
-    const total = ins.lost.reasons.reduce((n, r) => n + r.count, 0) || 1;
-    const R = 52; const C = 2 * Math.PI * R;
-    const d = svg('svg', { viewBox: '0 0 140 140', class: 'ov-donut', role: 'img', 'aria-label': 'Reasons students were lost' });
-    d.append(svg('circle', { cx: 70, cy: 70, r: R, fill: 'none', stroke: 'var(--ov-track)', 'stroke-width': 20 }));
-    let offset = 0;
-    ins.lost.reasons.forEach((r, i) => {
-      const len = (r.count / total) * C;
-      const seg = svg('circle', { cx: 70, cy: 70, r: R, fill: 'none', stroke: palette[Math.min(i, palette.length - 1)], 'stroke-width': 20, 'stroke-dasharray': `${Math.max(0, len - 1.5)} ${C}`, 'stroke-dashoffset': -offset, transform: 'rotate(-90 70 70)' });
-      hover(seg, () => ({ title: r.label, rows: [{ name: 'Students', value: num(r.count) }, { name: 'Share', value: pct(r.percent) }] }));
-      d.append(seg); offset += len;
-    });
-    const mid = svg('text', { x: 70, y: 76, 'text-anchor': 'middle', class: 'ov-ring-num small' }); mid.textContent = String(ins.lost.total); d.append(mid);
-    const legend = el('ul', 'ov-donut-legend');
-    ins.lost.reasons.slice(0, 6).forEach((r, i) => { const li = el('li'); const dot = el('i', 'ov-dot'); dot.style.background = palette[Math.min(i, palette.length - 1)]; li.append(dot, el('span', '', r.label), el('b', '', `${r.count}`)); legend.append(li); });
-    const wrap = el('div', 'ov-donut-wrap'); wrap.append(d, legend);
-    c.append(wrap);
-    return c;
-  }
 
-  // ---- what needs a person now ----
-  function attentionCard() {
-    const c = card('ov-attention', 'Needs attention', 'Students waiting longer than they should, longest first');
-    if (!dash.attention.length && !dash.chase.length) { c.append(el('p', 'ov-ok', 'Nothing is waiting too long. Well done.')); return c; }
-    const chips = el('div', 'ov-attn-chips');
-    dash.attention.forEach((a) => { const chip = el('div', 'ov-attn'); chip.append(el('b', '', String(a.count)), el('span', '', a.text)); chips.append(chip); });
-    c.append(chips);
-    const list = el('ul', 'ov-chase');
-    dash.chase.slice(0, 6).forEach((s) => { const li = el('li'); li.append(el('b', '', s.name), el('span', '', s.reason), el('em', '', `${s.days} days`)); list.append(li); });
-    c.append(list);
-    return c;
-  }
 
-  // ---- intake against intake ----
-  function compareCard() {
-    const c = card('ov-compare', 'Intake against intake', 'The same numbers for every intake on the sheet');
-    const list = ins.compare || [];
-    if (list.length < 2) { c.append(el('p', 'ov-empty', 'A second intake is needed to compare.')); return c; }
-    const max = Math.max(1, ...list.map((g) => g.students));
-    const t = el('div', 'ov-board-list');
-    const head = el('div', 'ov-compare-row head');
-    ['Intake', 'Students', 'Applied', 'Offers', 'Paid', 'Visas', 'Student to visa'].forEach((h, i) => head.append(el('span', i ? 'num' : '', h)));
-    t.append(head);
-    list.forEach((g) => {
-      const row = el('div', `ov-compare-row${g.id === ins.selected ? ' current' : ''}`);
-      const name = el('span', 'ov-board-name'); name.append(el('b', '', g.label)); const bar = el('i', 'ov-board-bar'); bar.style.width = Math.max(3, (g.students / max) * 100) + '%'; name.append(bar);
-      row.append(name, el('span', 'num', num(g.students)), el('span', 'num', num(g.applied)), el('span', 'num', num(g.offers)), el('span', 'num', num(g.paid)), el('span', 'num strong', num(g.visas)), el('span', 'num', pct(g.leadToVisa)));
-      t.append(row);
-    });
-    c.append(t);
-    return c;
-  }
 
-  // ---- the money (only when the cost of marketing or the worth of a visa is known) ----
-  function moneyCard() {
-    const m = ins.money;
-    if (!m || (!m.spend && !m.valuePerVisa)) return null;
-    const c = card('ov-money', 'Money', 'Marketing spend and what the visas are worth');
-    const grid = el('div', 'ov-money-grid');
-    const item = (label, value, hint) => { const d = el('div', 'ov-money-item'); d.append(el('span', '', label), el('b', '', value), el('small', '', hint || '')); grid.append(d); };
-    item('Spent on marketing', m.spend ? rupees(m.spend) : 'none recorded', 'this intake');
-    if (m.valuePerVisa) item('Earned so far', rupees(m.earned), `${ins.summary.visas} visas at ${rupees(m.valuePerVisa)}`);
-    if (m.valuePerVisa && m.expected) item('Likely when all are done', rupees(m.expected), 'from the forecast');
-    if (m.returnOnSpend !== null && m.returnOnSpend !== undefined && m.spend) item('Return on marketing', `${m.returnOnSpend}x`, 'earned for each rupee spent');
-    if (ins.summary.visas && m.spend) item('Marketing per visa', rupees(Math.round(m.spend / ins.summary.visas)), 'spend divided by visas');
-    c.append(grid);
-    return c;
-  }
 
   // ---- the page ----
   function draw() {
-    if (!ins || !dash) return;
+    if (!ins || !dash || !window.DashText) return;
     const page = el('div', 'ov');
-    const lead = ins.headline && ins.headline[1] ? ins.headline[1] : '';
-    if (lead) page.append(el('p', 'ov-lead', lead));
     page.append(kpis());
-    const r1 = el('div', 'ov-row ov-row-3-2'); r1.append(funnelCard(), targetCard());
-    page.append(r1, trendCard());
-    const r2 = el('div', 'ov-row ov-row-2'); r2.append(channelsCard(), leaderboard('Universities', 'Where students are placed', ins.universities.list, ins.universities.concentration, 'university'));
-    page.append(r2);
-    const r3 = el('div', 'ov-row ov-row-2'); r3.append(leaderboard('Partners', 'Who sends the applications', ins.partners.list, ins.partners.concentration, 'partner'), speedCard());
-    page.append(r3);
-    const r4 = el('div', 'ov-row ov-row-2'); r4.append(attentionCard(), lostCard());
-    page.append(r4, compareCard());
-    const money = moneyCard(); if (money) page.append(money);
+    const r1 = el('div', 'ov-row ov-row-2'); r1.append(targetCard(), decisionCard());
+    const r2 = el('div', 'ov-row ov-row-2'); r2.append(funnelCard(), trendCard());
+    const r3 = el('div', 'ov-row ov-row-2'); r3.append(channelsCard(), leaderboard('Universities', 'Where the students are placed', ins.universities.list, ins.universities.concentration, 'university'));
+    page.append(r1, r2, r3);
     if (ins.summary.low) page.append(el('p', 'ov-foot', 'This intake has fewer than 10 students, so a rate from it is a hint, not evidence.'));
     root.replaceChildren(page);
   }

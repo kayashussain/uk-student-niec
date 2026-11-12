@@ -7,6 +7,12 @@ To find every marked change in the code, search the project for `CSS CHANGED`.
 
 Format: **date · file · what · from → to · why**
 
+- **2026-11-13 · student-details/dashboard.css · the printed proposal · from: the second page ran over to a third page → to: both pages fit one A4 sheet each · why: the owner asked for a short proposal with charts.**
+
+- **2026-11-13 · student-details/dashboard.css · sizes of the big numbers on the Dashboard · from: the small-text rule for bold words also shrank the big numbers to 14px → to: the big numbers keep their own sizes (38px, 30px, 20px) · why: found while checking the new Dashboard.**
+
+- **2026-11-13 · student-details/dashboard.css (and dashboard.js, dashboard-insights.js) · the Dashboard, rebuilt for decisions | from: six headline cards compared with the last intake, a ring with jargon, many lists; long cards of text on Decisions, Universities and Intake plan; a seven-page proposal with no charts → to: four headline cards, a target ring with one plain sentence, a short "needs a decision" list, a funnel, two lines for the week, the top five sources and universities; Decisions as numbered cards with one line of what is seen and one of what to do; Universities as ranked bars; Intake plan with the visa target at the top and progress bars; and a two-page A4 proposal with bar charts · why: the owner said the Dashboard showed too many statistics poorly, compared with the wrong intake, used words he could not follow, and printed as a seven-page proposal without charts.**
+
 - **2026-11-13 · shared/theme.css, shared/header.css, shared/header.js · the menu open and close button, and the number tiles above the sheet · from: a "Fold the menu" link that shrank the menu to icons; large tiles that stretched to fill the row and were cut off when zoomed in → to: a 3-bar button at the top of the menu that closes it to a narrow strip and opens it again; small tiles of a fixed size that wrap onto a second row instead of being cut off · why: the owner asked for a 3-bar menu button and small cards that do not get cropped at 67 to 90 percent zoom.**
 
 - **2026-11-13 · shared/theme.css · order of the phone menu bar · from: your account button dropped below the open menu list → to: it stays on the bar at the right of the Menu button, and the list opens under the bar · why: found while checking the new phone menu.**

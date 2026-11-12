@@ -204,3 +204,101 @@ details.rates summary { cursor: pointer; color: var(--brand-text); font-weight: 
 
 @keyframes dash-shimmer { 0% { background-position: 100% 50%; } 100% { background-position: 0 50%; } }
 @media (prefers-reduced-motion: reduce) { .first-load :is(#attention, #speed, #notes, [id^="chart"]):empty { animation: none; } }
+
+/* 🔴 CSS CHANGED (2026-11-13): the Dashboard, rebuilt for decisions | from: six headline cards compared with the last intake, a ring with jargon, many lists; long cards of text on Decisions, Universities and Intake plan; a seven-page proposal with no charts | to: four headline cards, a target ring with one plain sentence, a short "needs a decision" list, a funnel, two lines for the week, the top five sources and universities; Decisions as numbered cards with one line of what is seen and one of what to do; Universities as ranked bars; Intake plan with the target at the top and progress bars; and a two-page A4 proposal with bar charts */
+.ov-kpis { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.ov-target-text { margin: 0; font-size: 16px; line-height: 1.5; color: var(--ink); }
+.ov-decide-list { margin: 0; padding: 0; list-style: none; counter-reset: dec; display: grid; gap: 12px; }
+.ov-decide-list li { counter-increment: dec; position: relative; display: grid; gap: 2px; padding-left: 38px; font-size: 15px; line-height: 1.45; }
+.ov-decide-list li::before { content: counter(dec); position: absolute; left: 0; top: 0; display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; background: var(--s1); color: #fff; font-weight: 700; font-size: 14px; }
+.ov-decide-list b { font-size: 16px; }
+.ov-decide-list span { color: var(--ink-2); }
+.ov-wait { margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--ov-grid); }
+.ov-wait h3 { margin: 0 0 6px; font-size: 14px; font-weight: 650; color: var(--ink-2); }
+.ov-wait-row { display: flex; gap: 10px; align-items: baseline; padding: 3px 0; font-size: 15px; }
+.ov-wait-row b { min-width: 28px; color: var(--warn); font-size: 18px; }
+.ov-more { margin-top: 14px; font-size: 15px; }
+/* Decisions */
+.dc { padding: 16px 0 14px; border-top: 1px solid var(--ov-grid); }
+.dc:first-of-type { border-top: 0; }
+.dc-head { display: flex; align-items: center; gap: 12px; }
+.dc-head h3 { margin: 0; flex: 1; font-size: 18px; font-weight: 650; letter-spacing: -.01em; }
+.dc-num { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; background: var(--ink); color: #fff; font-weight: 700; }
+.dc-prio { padding: 3px 12px; border-radius: 999px; font-size: 14px; font-weight: 700; background: var(--ov-track); color: var(--ink-2); }
+.dc-high .dc-num { background: #b3261e; }
+.dc-high .dc-prio { background: #fde8e6; color: #9b2c22; }
+.dc-medium .dc-prio { background: #fbefd0; color: #7a4a00; }
+.dc-see { margin: 8px 0 4px 42px; font-size: 16px; line-height: 1.5; }
+.dc-do { margin: 4px 0 6px 42px; font-size: 16px; line-height: 1.5; padding: 10px 14px; border-radius: 12px; background: color-mix(in srgb, var(--s1) 8%, transparent); }
+.dc > .p-link { margin-left: 42px; font-size: 15px; }
+.dc-more { margin: 8px 0 0 42px; font-size: 15px; color: var(--ink-2); }
+/* Universities and partners */
+.rk { display: grid; gap: 4px; }
+.rk-row { display: grid; grid-template-columns: minmax(180px, 2fr) minmax(120px, 3fr) 84px 72px; align-items: center; gap: 14px; padding: 10px 6px; border-radius: 12px; }
+.rk-row:hover { background: color-mix(in srgb, var(--s1) 5%, transparent); }
+.rk-name { display: grid; gap: 2px; min-width: 0; }
+.rk-name b { font-size: 16px; }
+.rk-track { height: 12px; border-radius: 999px; background: var(--ov-track); overflow: hidden; }
+.rk-fill { display: block; height: 100%; border-radius: 999px; background: var(--s1); }
+.rk-nums { display: grid; text-align: right; line-height: 1.2; }
+.rk-nums b { font-size: 20px; font-variant-numeric: tabular-nums; }
+.rk-visa b { color: var(--s3); }
+/* Intake plan */
+.plan-line { margin: 4px 0 14px; font-size: 16px; line-height: 1.55; }
+.plan-line .p-pill { margin-right: 8px; }
+.nd { display: grid; gap: 10px; }
+.nd-row { display: grid; grid-template-columns: minmax(150px, 1.4fr) minmax(120px, 3fr) 110px 100px; align-items: center; gap: 14px; font-size: 15px; }
+.nd-track { height: 14px; border-radius: 999px; background: var(--ov-track); overflow: hidden; }
+.nd-fill { display: block; height: 100%; border-radius: 999px; background: var(--s1); }
+.nd-have { text-align: right; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.nd-left { text-align: right; font-weight: 700; }
+.plan-go { display: flex; align-items: center; justify-content: space-between; gap: 18px; flex-wrap: wrap; }
+.plan-go p { margin: 4px 0 0; max-width: 60ch; }
+.btn-lg { min-height: 52px; padding: 0 26px; font-size: 17px; }
+/* The intake proposal: two A4 pages */
+.p-proposal { max-width: 860px; margin: 0 auto; background: #fff; }
+.prop-page { padding: 8px 4px 24px; }
+.prop-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding-bottom: 12px; border-bottom: 3px solid var(--s1); }
+.prop-org { font-weight: 800; font-size: 18px; letter-spacing: -.01em; }
+.prop-sub, .prop-date, .prop-note, .prop-foot { color: var(--ink-2); font-size: 14px; }
+.p-proposal h1 { margin: 18px 0 2px; font-size: 32px; }
+.p-proposal h2 { margin: 22px 0 8px; font-size: 18px; font-weight: 700; }
+.prop-call { margin: 14px 0; padding: 14px 18px; border-radius: 14px; border-left: 6px solid var(--s2); background: #fbf3df; font-size: 16px; line-height: 1.5; }
+.prop-call p { margin: 4px 0 0; }
+.prop-green { border-left-color: var(--s3); background: #e5f4ec; }
+.prop-red { border-left-color: #b3261e; background: #fde8e6; }
+.prop-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: 14px 0; }
+.prop-stat { padding: 12px 14px; border: 1px solid var(--border); border-radius: 12px; text-align: center; }
+.prop-stat b { display: block; font-size: 30px; font-family: var(--serif); }
+.prop-stat span { font-size: 14px; color: var(--ink-2); }
+.prop-chart { display: block; width: 100%; height: auto; }
+.prop-lbl { font-size: 13px; fill: #1a2230; }
+.prop-val { font-size: 13px; font-weight: 700; fill: #1a2230; }
+.prop-list { margin: 6px 0 10px; padding-left: 22px; font-size: 15px; line-height: 1.5; }
+.prop-list li { margin: 5px 0; max-width: none; }
+.prop-foot { margin-top: 18px; border-top: 1px solid var(--border); padding-top: 8px; }
+@media (max-width: 700px) { .rk-row { grid-template-columns: minmax(0, 1fr) 70px 60px; } .rk-track { display: none; } .nd-row { grid-template-columns: minmax(0, 1fr) 100px; } .nd-track, .nd-left { display: none; } .prop-stats { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 1100px) { .ov-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media print {
+  @page { size: A4; margin: 14mm; }
+  html, body { background: #fff !important; }
+  .page-head, #dashTabs, .no-print, .niec-header, .filters { display: none !important; }
+  .page { max-width: none; padding: 0; }
+  .p-proposal { max-width: none; border: 0; box-shadow: none; padding: 0; }
+  .prop-page { break-after: page; padding: 0; }
+  .prop-page:last-child { break-after: auto; }
+  .prop-call, .prop-stat { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .prop-chart rect { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}
+/* 🔴 CSS CHANGED (2026-11-13): sizes of the big numbers on the Dashboard | from: the small-text rule for bold words also shrank the big numbers to 14px | to: the big numbers keep their own sizes (38px, 30px, 20px) */
+.page .ov-kpi-value { font-size: 38px; }
+.page .prop-stat b { font-size: 30px; }
+.page .rk-nums b { font-size: 20px; }
+.page .ov-wait-row b { font-size: 18px; }
+.page .ov-decide-list b { font-size: 16px; }
+.page .ov-funnel-count, .page .ov-rank-value { font-size: 16px; }
+.page .dc-head h3 { font-size: 18px; text-transform: none; letter-spacing: -.01em; margin: 0; }
+.page .nd-row b { font-size: 15px; }
+
+/* 🔴 CSS CHANGED (2026-11-13): the printed proposal | from: the second page ran over to a third page | to: both pages fit one A4 sheet each (slightly smaller print scale, tighter headings) */
+@media print { .prop-page { zoom: .86; } .p-proposal h2 { margin: 14px 0 6px; } .prop-list { font-size: 14px; } }
