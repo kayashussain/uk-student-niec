@@ -680,3 +680,23 @@ test('a template with an unknown or unclosed placeholder is refused', () => {
   assert.match(m.saveTemplate(key, { name: 'x', subject: 'Hi', body: 'Hello {first_name' }, 't').error, /not closed/);
   assert.ok(m.saveTemplate(key, { name: 'x', subject: 'Hi {first_name}', body: 'Hello {full_name}' }, 't').template);
 });
+
+test('each kind of account gets its own workspace, and every branch in the list is a branch team', () => {
+  const Teams = require('../shared/teams.js');
+  const Fields = require('../student-details/card-fields.js');
+  assert.strictEqual(Teams.kindOf({ role: 'admin' }), 'admin');
+  assert.strictEqual(Teams.kindOf({ role: 'manager', departments: [] }), 'manager');
+  assert.strictEqual(Teams.kindOf({ role: 'staff', departments: ['mock'] }), 'mock');
+  assert.strictEqual(Teams.kindOf({ role: 'staff', departments: ['application', 'followup'] }), 'team');
+  Fields.BRANCHES.forEach((b) => {
+    const id = b.toLowerCase();
+    assert.ok(Teams.DEPARTMENTS[id], `${b} is a team`);
+    assert.strictEqual(Teams.DEPARTMENTS[id].source, `${b} Branch`);
+    assert.strictEqual(Teams.kindOf({ role: 'staff', departments: [id] }), 'branch');
+    assert.ok(Teams.seesRow({ role: 'staff', departments: [id] }, { 'STUDENT SOURCE': `${b} Branch`, 'APPLICATION STATUS': 'Mock Stage' }));
+    assert.ok(!Teams.seesRow({ role: 'staff', departments: [id] }, { 'STUDENT SOURCE': 'Visitor', 'APPLICATION STATUS': 'Mock Stage' }));
+  });
+  assert.ok(Fields.STORED_SOURCES.includes('Palpa Branch') && !Fields.STORED_SOURCES.includes('Branch'));
+  assert.strictEqual(Fields.sourceGroup('Butwal Branch'), 'Branch');
+  assert.strictEqual(Fields.storedSource('Branch', 'Palpa'), 'Palpa Branch');
+});

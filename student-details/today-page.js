@@ -13,7 +13,8 @@
     offers: '<path d="M12 3l2.5 5 5.5.8-4 3.9.9 5.5L12 15.6 7.1 18.200 8 12.700 4 8.800 9.500 8z"/>',
     cas: '<path d="M4 12l5 5L20 6"/>',
   };
-  const icon = (key) => { const s = el('span', 't-ico'); s.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true">${ICON[key] || ''}</svg>`; return s; };
+  const ICON_AS = { defer: 'inquiries', noUni: 'apply', noOffer: 'offers', mockFeedback: 'mock', preCas: 'mock' };
+  const icon = (key) => { const s = el('span', 't-ico'); s.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true">${ICON[ICON_AS[key] || key] || ''}</svg>`; return s; };
   const greeting = () => { const hr = new Date().getHours(); return hr < 12 ? 'Good morning' : hr < 18 ? 'Good afternoon' : 'Good evening'; };
 
   function tile(label, value) { const t = el('div', 't-tile'); t.append(el('b', '', String(value)), el('span', '', label)); return t; }
@@ -57,13 +58,23 @@
     const page = el('div');
     const head = el('div', 't-hello');
     const first = String(d.name || '').split(/\s+/)[0] || '';
-    head.append(el('h1', '', `${greeting()}${first ? ', ' + first : ''}`), el('p', '', new Date(d.today + 'T12:00:00').toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) + '. Here is what needs you today.'));
+    head.append(el('h1', '', `${greeting()}${first ? ', ' + first : ''}`), el('p', '', new Date(d.today + 'T12:00:00').toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) + '. ' + d.tagline));
+    const kindLabel = el('span', 't-kind', d.title);
+    head.insertBefore(kindLabel, head.firstChild);
+    // The buttons of each kind of account: what that team starts its day with.
     const actions = el('div', 't-actions');
-    actions.append(h('a', { class: 'btn btn-primary', href: '/students' }, 'Open Student Details'));
-    if (!d.readOnly) actions.append(h('a', { class: 'btn', href: '/bulk-add' }, 'Add many students'), h('a', { class: 'btn', href: '/bulk' }, 'Bulk follow-up'));
+    const go = (href, text, primary) => actions.append(h('a', { class: `btn${primary ? ' btn-primary' : ''}`, href }, text));
+    if (d.kind === 'manager') { go('/dashboard', 'Open the Dashboard', true); go('/students', 'Student Details'); }
+    else {
+      go('/students', 'Open Student Details', true);
+      if (['admin', 'branch', 'team'].includes(d.kind)) go('/bulk-add', 'Add many students');
+      if (['admin', 'branch', 'team', 'followup'].includes(d.kind)) go('/bulk', 'Bulk follow-up');
+      if (d.kind === 'admin') go('/dashboard', 'Dashboard');
+      if (['application', 'mock'].includes(d.kind)) go('/fact-file', 'Fact File');
+    }
     head.append(actions);
     const tiles = el('div', 't-tiles');
-    tiles.append(tile('Students in progress', d.totals.active), tile('Applications submitted', d.totals.applied), tile('Visas issued', d.totals.visas));
+    d.tiles.forEach((t) => tiles.append(tile(t.label, t.value)));
     const grid = el('div', 't-grid');
     d.sections.forEach((x) => grid.append(section(x)));
     page.append(head, tiles, grid);

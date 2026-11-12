@@ -99,3 +99,14 @@ their own); a restore first saves the current data as a "before restore" backup.
   Fact File content (an unedited university page is refreshed from it; one that has been saved by Admin is never touched).
 - `shared/teams.js`: who sees and changes what (used by the page and the server alike).
 - `shared/accounts.js`: login, sessions, people.
+
+## Recruitment 360: what changed in round 11
+
+- **Name and logo:** the portal is called Recruitment 360 (the consultancy's own name is still a setting). The logo is the paper plane with the name beside it (`brand/`).
+- **Student Source:** one **Branch** choice with a second dropdown for which branch (the list is `BRANCHES` in `student-details/card-fields.js`; add a branch there and it becomes a branch team, a Users page choice and a source everywhere). The sheet keeps "<name> Branch", so the incentive sums and the branch accounts work as before. Agent shows the agents, Events the events that were held, Language Classes the classes, Reference and Visitor their own lists, and Social Media asks for the platform and a remarks box (the campaign name). All forms use one component, `source-picker.js`.
+- **Add many students:** from an Excel or CSV file only (the paste box is gone). Bad lines and students already on the sheet are skipped, with the reason.
+- **Events and marketing:** new types for Meta (Facebook or Instagram) campaigns, campaigns on a partner page, and campus or college campaigns that are not schools.
+- **B2B Partners and Agents:** a Commission column shows the current intake's commission as a PDF or link that opens when clicked, or a "Missing for this intake" button. Each intake's commission is set in the editor (PDF upload or link).
+- **Fact File:** every course is a link to its own page, or shows "Find the course page".
+- **Dashboard:** rebuilt from zero (Overview: headline cards that compare with the intake before, target ring, funnel, week by week, sources, universities, partners, speed, losses, intake against intake, money). The other four tabs (Decisions, Marketing and sources, Universities and partners, Intake plan) are unchanged.
+- **Workspaces:** Admin, Manager, Application Team, Mock Team, Follow-up Team and each Branch have their own Today (own tiles, own work lists, own buttons) and menu, and a team sees its own sheet columns highlighted (`Teams.kindOf` in `shared/teams.js`).

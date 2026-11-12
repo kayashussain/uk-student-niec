@@ -265,45 +265,82 @@ function createPortalApi({
   }
 
   // ---- Today: what needs a person's attention now, for the students this account sees ----
+  // The home screen of each kind of account (Teams.kindOf): the same facts, but each team sees the work that is its own, in its own words.
+  const WORKSPACES = {
+    admin: { title: 'Everything at a glance', tagline: 'Here is what needs attention across the whole consultancy today.', sections: ['inquiries', 'apply', 'mock', 'offers', 'cas'], tiles: ['active', 'applied', 'visas'] },
+    manager: { title: 'The consultancy at a glance', tagline: 'The numbers and the students waiting, to look at. Open the Dashboard for the full picture.', sections: ['inquiries', 'apply', 'mock', 'offers', 'cas'], tiles: ['active', 'applied', 'visas'] },
+    application: { title: 'Application Team', tagline: 'Applications to submit, to chase and to complete.', sections: ['apply', 'noUni', 'noOffer', 'offers'], tiles: ['toSubmit', 'waitingOffer', 'applied'] },
+    mock: { title: 'Mock Team', tagline: 'Mock interviews to schedule and feedback still to write.', sections: ['mock', 'mockFeedback', 'preCas'], tiles: ['atMock', 'toSchedule', 'feedbackMissing'] },
+    followup: { title: 'Follow-up Team', tagline: 'Inquiries that have gone quiet and students who deferred.', sections: ['inquiries', 'defer'], tiles: ['inquiries', 'toFollow', 'deferred'] },
+    branch: { title: 'Your branch', tagline: 'Your branch students: who to call, what to submit and who is close to a visa.', sections: ['inquiries', 'apply', 'mock', 'offers', 'cas'], tiles: ['active', 'applied', 'visas'] },
+    team: { title: 'Your teams', tagline: 'The work of all your teams in one place.', sections: ['inquiries', 'apply', 'mock', 'mockFeedback', 'defer'], tiles: ['active', 'applied', 'visas'] },
+  };
+  const TILE_LABEL = {
+    active: 'Students in progress', applied: 'Applications submitted', visas: 'Visas issued', toSubmit: 'Applications to submit', waitingOffer: 'Waiting for an offer',
+    atMock: 'Students at Mock Stage', toSchedule: 'Interviews to schedule', feedbackMissing: 'Feedback to write', inquiries: 'Open inquiries', toFollow: 'To follow up now', deferred: 'Deferred students',
+  };
   function todayFor(user) {
     const all = cards.all();
     const today = cards.today();
     const dayNo = (iso) => Math.floor(Date.parse(iso + 'T00:00:00Z') / 86400000);
     const now = dayNo(today);
+    const kind = Teams.kindOf(user);
+    const space = WORKSPACES[kind] || WORKSPACES.team;
     const sections = [
       { key: 'inquiries', title: 'Inquiries to follow up', hint: 'No contact in the last 3 days', stage: 'Inquiry', rows: [] },
+      { key: 'defer', title: 'Deferred students to check', hint: 'Deferred and not contacted for 14 days', stage: 'Defer', rows: [] },
       { key: 'apply', title: 'Applications to submit', hint: 'At Application Stage, not submitted yet', stage: 'Application Stage', rows: [] },
+      { key: 'noUni', title: 'Applications without a university or course', hint: 'At Application Stage: choose where to apply first', stage: 'Application Stage', rows: [] },
+      { key: 'noOffer', title: 'Applications waiting for an offer', hint: 'Submitted over 10 days ago, no offer yet: chase the university', stage: '', rows: [] },
       { key: 'mock', title: 'Mock interviews to schedule', hint: 'At Mock Stage with no mock date', stage: 'Mock Stage', rows: [] },
+      { key: 'mockFeedback', title: 'Mock feedback to write', hint: 'The interview date has passed and no feedback is recorded', stage: '', rows: [] },
+      { key: 'preCas', title: 'Pre-CAS interview to record', hint: 'All mock feedback is in, the Pre-CAS result is not', stage: '', rows: [] },
       { key: 'offers', title: 'Offers waiting for the deposit', hint: 'Offer received, payment not made', stage: '', rows: [] },
       { key: 'cas', title: 'CAS received, visa not lodged', hint: 'The next step is the visa application', stage: '', rows: [] },
     ];
     const by = Object.fromEntries(sections.map((x) => [x.key, x]));
-    const totals = { active: 0, applied: 0, visas: 0 };
+    const totals = { active: 0, applied: 0, visas: 0, atMock: 0, deferred: 0, inquiries: 0 };
     const dateOf = (v) => { const t = text(v); const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(t); if (m) return t; const u = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(t); return u ? `${u[3]}-${u[1].padStart(2, '0')}-${u[2].padStart(2, '0')}` : ''; };
     for (const { sheet, row } of visibleStudents(user)) {
       const stage = text(row[STATUS]);
-      const gone = ['Withdrawn', 'Hold', 'Defer', 'Visa Rejected'].includes(stage);
-      if (gone) continue;
+      const card = all[row._id] || { notes: [], messages: [] };
+      const last = [...(card.notes || []).map((n) => n.at), ...(card.messages || []).map((m) => m.at)].filter(Boolean).sort().pop();
+      const lastDay = last ? dayNo(last.slice(0, 10)) : null;
+      const add = (key, detail, waited) => by[key].rows.push({ id: row._id, name: nameOf(row), stage, intake: sheet.name, detail, waited });
+      if (stage === 'Defer') {
+        totals.deferred += 1;
+        if (lastDay === null || now - lastDay >= 14) add('defer', lastDay === null ? 'No contact recorded' : `Last contact ${now - lastDay} days ago`, lastDay === null ? 999 : now - lastDay);
+        continue;
+      }
+      if (['Withdrawn', 'Hold', 'Visa Rejected'].includes(stage)) continue;
       const visa = stage === 'Visa Issued' || text(row['VISA RECEIVED DATE']);
       if (visa) { totals.visas += 1; continue; }
       totals.active += 1;
       if (text(row['APPLICATION SUBMISSION DATE'])) totals.applied += 1;
-      const card = all[row._id] || { notes: [], messages: [] };
-      const last = [...(card.notes || []).map((n) => n.at), ...(card.messages || []).map((m) => m.at)].filter(Boolean).sort().pop();
-      const lastDay = last ? dayNo(last.slice(0, 10)) : null;
       const created = dateOf(row['APPLICATION SUBMISSION DATE']);
-      const add = (key, detail, waited) => by[key].rows.push({ id: row._id, name: nameOf(row), stage, intake: sheet.name, detail, waited });
+      if (stage === 'Inquiry') totals.inquiries += 1;
+      if (stage === 'Mock Stage') totals.atMock += 1;
       if (stage === 'Inquiry' && (lastDay === null || now - lastDay >= 3)) add('inquiries', lastDay === null ? 'No contact recorded' : `Last contact ${now - lastDay} days ago`, lastDay === null ? 999 : now - lastDay);
       if (stage === 'Application Stage' && !created) add('apply', text(row['UNIVERSITY NAME']) || 'No university chosen yet', 0);
+      if (stage === 'Application Stage' && (!text(row['UNIVERSITY NAME']) || !text(row['COURSE NAME']))) add('noUni', !text(row['UNIVERSITY NAME']) ? 'No university chosen' : 'No course chosen', 0);
+      if (created && !dateOf(row['OFFER RECEIVED DATE']) && now - dayNo(created) > 10 && ['Application Stage', 'Mock Stage'].includes(stage)) add('noOffer', `Submitted ${now - dayNo(created)} days ago`, now - dayNo(created));
       if (stage === 'Mock Stage' && ![1, 2, 3, 4].some((n) => text(row[`MOCK SCHEDULE ${n}`]))) add('mock', text(row['UNIVERSITY NAME']) || 'No university', 0);
+      for (const n of [1, 2, 3, 4]) {
+        const d = dateOf(row[`MOCK SCHEDULE ${n}`]);
+        if (d && dayNo(d) <= now && !text(row[`FEEDBACK ${n}`])) { add('mockFeedback', `Mock ${n} was ${now - dayNo(d)} days ago`, now - dayNo(d)); break; }
+      }
+      if (stage === 'Mock Stage' && [1, 2, 3, 4].some((n) => text(row[`FEEDBACK ${n}`])) && !text(row['PRE CAS INTERVIEW'])) add('preCas', 'Feedback is in', 0);
       const offer = dateOf(row['OFFER RECEIVED DATE']);
       if (offer && !text(row['PAYMENT DATE'])) add('offers', `Offer received ${Math.max(0, now - dayNo(offer))} days ago`, Math.max(0, now - dayNo(offer)));
       const cas = dateOf(row['CAS RECEIVED DATE']);
       if (cas && !text(row['VISA LODGE DATE'])) add('cas', `CAS received ${Math.max(0, now - dayNo(cas))} days ago`, Math.max(0, now - dayNo(cas)));
     }
+    const counts = { toSubmit: by.apply.rows.length, waitingOffer: by.noOffer.rows.length, toSchedule: by.mock.rows.length, feedbackMissing: by.mockFeedback.rows.length, toFollow: by.inquiries.rows.length };
+    const value = { ...totals, ...counts };
     return {
-      today, name: user.name, totals,
-      sections: sections.map((x) => ({ key: x.key, title: x.title, hint: x.hint, stage: x.stage, count: x.rows.length, students: x.rows.sort((a, b) => b.waited - a.waited).slice(0, 6) })),
+      today, name: user.name, totals, kind, title: space.title, tagline: space.tagline,
+      tiles: space.tiles.map((k) => ({ key: k, label: TILE_LABEL[k], value: value[k] })),
+      sections: space.sections.map((k) => by[k]).map((x) => ({ key: x.key, title: x.title, hint: x.hint, stage: x.stage, count: x.rows.length, students: x.rows.sort((a, b) => b.waited - a.waited).slice(0, 6) })),
     };
   }
 

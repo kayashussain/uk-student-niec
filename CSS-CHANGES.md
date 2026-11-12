@@ -7,6 +7,10 @@ To find every marked change in the code, search the project for `CSS CHANGED`.
 
 Format: **date · file · what · from → to · why**
 
+- **2026-11-13 · shared/theme.css · chart text rule · from: a rule meant for chart numbers also shrank the logo text in the menu → to: the rule only applies to the Dashboard charts · why: the logo name read tiny.**
+
+- **2026-11-13 · shared/theme.css · team workspaces (Today label, sheet team note, highlighted team columns) · from: every team saw the same Today and sheet headings → to: a small label on Today for the team, a note beside the sheet title, and the columns a team fills in with a soft blue heading · why: the owner asked for the portal to be modified for each team and for the branches.**
+
 - **2026-11-13 · student-details/dashboard.css, dashboard.html, dashboard.js (code too) · the whole Dashboard Overview · from: the old Numbers page (a hero number, KPI row, bar charts and a table toggle) → to: a new Overview written from zero: six headline cards that compare with the intake before and show a mini trend, a visa target ring with forecast, a funnel with step-to-step rates, a week-by-week chart, a source ranking with a switch (students, visas, reach a visa, cost per student), universities and partners leaderboards, speed of each step, why students are lost as a ring, needs attention, intake against intake, and money · why: the owner asked for the dashboard to be rebuilt from zero, premium, with real statistics and not only tables and diagrams.**
 
 - **2026-11-13 · shared/theme.css · size of the logo in the side menu · from: 170px wide, so the name was tiny → to: 212px wide · why: the new longer name "Recruitment 360" needs more room to read.**

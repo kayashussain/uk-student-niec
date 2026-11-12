@@ -105,6 +105,15 @@
     return { role: role === 'manager' ? 'manager' : 'staff', departments: [...new Set(listed.filter((d) => DEPARTMENTS[d]))] };
   }
 
+  // The kind of workspace an account gets: admin, manager (view only), branch, or the one team (application, mock, followup) it works in.
+  // A person in several teams gets 'team' (the work of all of them).
+  function kindOf(x) {
+    const w = who(x);
+    if (w.role === 'admin') return 'admin';
+    if (!w.departments.length) return 'manager';
+    if (w.departments.some((d) => DEPARTMENTS[d].source)) return 'branch';
+    return w.departments.length === 1 ? w.departments[0] : 'team';
+  }
   const isAdmin = (x) => who(x).role === 'admin';
   const isManager = (x) => who(x).role === 'manager';
   // A Manager who works in no team can only view.
@@ -344,7 +353,7 @@
 
   return {
     DEPARTMENTS, MOVES, STATUS, ALL_STATUSES, NEW_STUDENT_COLUMNS, ROW_COLORS,
-    who, canDelete, canColor, isAdmin, isManager, isReadOnly, teamOf, viewKey, seesRow, canEdit, addableDepartments, newStudentStatus,
+    who, kindOf, canDelete, canColor, isAdmin, isManager, isReadOnly, teamOf, viewKey, seesRow, canEdit, addableDepartments, newStudentStatus,
     statusChoices, checkMove, newestSheet, viewFor, teamChanges,
   };
 });

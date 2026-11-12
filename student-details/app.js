@@ -127,6 +127,7 @@
   const BACKUP = new URLSearchParams(location.search).get('backup') || '';
   const isTeam = () => Boolean(Teams.teamOf(me)); // anyone but Admin
   const isViewOnly = () => Teams.isReadOnly(me);
+  const isBranchAccount = () => Boolean(me && (me.departments || []).some((d) => Teams.DEPARTMENTS[d] && Teams.DEPARTMENTS[d].source));
   const canEditCol = (col, row = null) => Teams.canEdit(me, col, row); // row: a student the person's team added can have its basics filled in
   let saving = false;
   let saveQueued = false;
@@ -658,6 +659,7 @@
         if (BACKUP) document.body.dataset.backup = '1';
         document.body.dataset.role = me.role;
         $('#viewOnly').hidden = !Teams.isReadOnly(me);
+        { const note = $('#teamNote'); if (note && me.role !== 'admin' && (me.departments || []).length) { const labels = me.departments.map((d) => (Teams.DEPARTMENTS[d] || { label: d }).label); note.textContent = isBranchAccount() ? `${labels.join(' and ')}: your students, every column` : `${labels.join(' and ')}: the highlighted columns are yours to fill in`; note.hidden = false; } }
         { const many = document.getElementById('bulkAdd'); if (many) many.hidden = Teams.isReadOnly(me); const bs = document.getElementById('bulkSend'); if (bs) bs.hidden = Teams.isReadOnly(me); }
         document.body.toggleAttribute('data-viewonly', Teams.isReadOnly(me));
         document.body.toggleAttribute('data-candelete', Teams.canDelete(me));
@@ -1064,6 +1066,7 @@
       th.style.width = width + 'px';
       tableWidth += width;
       if (col === sortCol) th.classList.add(sortDir === 1 ? 'sorted' : 'sorted-desc');
+      if (isTeam() && !isBranchAccount() && canEditCol(col)) th.classList.add('col-yours'); // the columns this team fills in
 
       const label = document.createElement('span');
       label.className = 'th-label';

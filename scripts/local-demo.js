@@ -12,6 +12,7 @@
 //   owner   Admin (sees everything, the Incentive page asks for "Demo Incentive 1")
 //   chief   Manager (the Dashboard and every student, view only)
 //   asha    Application Team      bikram   Mock Team      sunita   Follow-up Team
+//   chitwan Chitwan Branch        palpa    Palpa Branch
 //   password for all of them: Demo-Password-2026
 
 const fs = require('fs');
@@ -43,12 +44,12 @@ if (!keep) {
   const person = (username, name, role, departments) => ({ id: require('crypto').randomBytes(8).toString('hex'), username, name, email: '', role, departments, passwordHash: hash, mustChangePassword: false, disabled: false, createdAt: new Date().toISOString() });
   write('users.json', { users: [
     person('owner', 'Owner Demo', 'admin', []), person('chief', 'Chief Demo', 'manager', []),
-    person('asha', 'Asha Demo', 'staff', ['application']), person('bikram', 'Bikram Demo', 'staff', ['mock']), person('sunita', 'Sunita Demo', 'staff', ['followup']),
+    person('asha', 'Asha Demo', 'staff', ['application']), person('bikram', 'Bikram Demo', 'staff', ['mock']), person('sunita', 'Sunita Demo', 'staff', ['followup']), person('chitwan', 'Chitwan Branch Demo', 'staff', ['chitwan']), person('palpa', 'Palpa Branch Demo', 'staff', ['palpa']),
   ] });
   console.log('Made a fresh demo folder with', demo.workbook.sheets.reduce((n, s) => n + s.rows.length, 0), 'made-up students.');
 }
 
-console.log(`\nStarting the system at http://localhost:${port}\nLog in as owner (Admin), chief (Manager), asha, bikram or sunita. Password: Demo-Password-2026\nPress Ctrl+C to stop.\n`);
+console.log(`\nStarting the system at http://localhost:${port}\nLog in as owner (Admin), chief (Manager), asha, bikram, sunita, chitwan or palpa. Password: Demo-Password-2026\nPress Ctrl+C to stop.\n`);
 const env = { ...process.env, PORT: port, STUDENT_DETAILS_DATA_DIR: studentsDir, COUNSELOR_DATA_DIR: path.join(dir, 'counselor-incentive'), INCENTIVE_PASSWORD: process.env.INCENTIVE_PASSWORD || 'Demo Incentive 1' };
 const child = spawn(process.execPath, [path.join(root, 'student-details', 'server.js')], { env, stdio: 'inherit' });
 child.on('exit', (code) => process.exit(code || 0));
