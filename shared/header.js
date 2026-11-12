@@ -13,7 +13,7 @@
 
   header.innerHTML = `
     <a class="niec-brand" href="/students" title="Home" id="niecHome">
-      <span class="niec-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 11.5 21 3l-6.5 18-3.2-7.3L3 11.5z"/><path d="M11.3 13.7 21 3"/></svg></span>
+      <span class="niec-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M1 18.5C8 18.5 15.5 14 22 2c.7 7.5-2.2 15-11.5 18.2 1.6-2.6 1.1-4.4-1.3-5.4C6.500 16.300 3.800 17.800 1 18.500z" fill="currentColor" stroke="none"/><path d="M8 15.500C12 14 16.500 10.500 19.500 5.500" fill="none" stroke="#123a2e" stroke-width="1.100" stroke-linecap="round" opacity=".6"/></svg></span>
       <span class="niec-brand-text"><span class="niec-brand-name">Fly</span><span class="niec-brand-sub" id="niecCompany"></span></span>
     </a>
     <nav class="niec-nav" aria-label="Pages"></nav>
@@ -72,12 +72,13 @@
     direct: svg('<path d="M3 9l9-5 9 5-9 5-9-5z"/><path d="M7 11.5V16c0 1.4 2.2 3 5 3s5-1.6 5-3v-4.5"/>'),
     b2b: svg('<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>'),
     agents: svg('<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.5-3.5 3.2-5.5 6.5-5.5s6 2 6.5 5.5"/><path d="M16 5a3.5 3.5 0 0 1 0 7M18.5 15c1.8.8 3 2.4 3.3 5"/>'),
+    events: svg('<path d="M4 14V8l12-4v14L4 14z"/><path d="M16 8a3 3 0 0 1 0 6M7 14v4a2 2 0 0 0 4 0v-3"/>'),
     factfile: svg('<path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2V5z"/><path d="M4 19a2 2 0 0 1 2-2h13"/>'),
   };
   const LINKS = {
     admin: [['dashboard', '/dashboard', 'Dashboard'], ['sheet', '/students', 'Student Details'],
-      ['direct', '/partner-universities', 'Partner Universities'], ['b2b', '/b2b-partners', 'B2B Partners'], ['agents', '/agents', 'Agents'], ['factfile', '/fact-file', 'Fact File']],
-    manager: [['dashboard', '/dashboard', 'Dashboard'], ['sheet', '/students', 'Student Details'], ['factfile', '/fact-file', 'Fact File']],
+      ['direct', '/partner-universities', 'Partner Universities'], ['events', '/events', 'Events and marketing'], ['b2b', '/b2b-partners', 'B2B Partners'], ['agents', '/agents', 'Agents'], ['factfile', '/fact-file', 'Fact File']],
+    manager: [['dashboard', '/dashboard', 'Dashboard'], ['sheet', '/students', 'Student Details'], ['events', '/events', 'Events and marketing'], ['factfile', '/fact-file', 'Fact File']],
     staff: [['sheet', '/students', 'Student Details'], ['factfile', '/fact-file', 'Fact File']],
   };
 
@@ -91,9 +92,7 @@
     paletteLinks = [...links, ...(MENU_LINKS[me.role] || [])];
     header.querySelector('.niec-nav').innerHTML = links
       .map(([id, href, label]) => `<a href="${href}" title="${label}"${id === page ? ' aria-current="page"' : ''}><span class="niec-ico" aria-hidden="true">${ICONS[id] || ''}</span><span class="niec-lbl">${label}</span></a>`).join('')
-      + '<button type="button" class="niec-search" aria-label="Quick search" title="Quick search (Ctrl+K)"><span class="niec-ico"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.2-4.2"/></svg></span><span class="niec-lbl">Search</span><kbd>Ctrl K</kbd></button>'
       + '<button type="button" class="niec-fold" aria-label="Fold or open the menu" title="Fold or open the menu"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg><span>Fold the menu</span></button>';
-    header.querySelector('.niec-search').addEventListener('click', () => { if (!document.querySelector('.fly-pal-back')) palette(paletteLinks); });
     const fold = header.querySelector('.niec-fold');
     fold.addEventListener('click', () => {
       const folded = document.documentElement.getAttribute('data-nav') !== 'folded';

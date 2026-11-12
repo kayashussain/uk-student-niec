@@ -371,9 +371,9 @@ function buildInsights({ workbook, cards = {}, planning = {}, partners = [], b2b
 
   // -- events and campaigns --
   const eventRows = plan.events.map((e) => {
-    const mine = all.filter((s) => s.detail.toLowerCase() === e.name.toLowerCase());
+    const mine = all.filter((s) => { const d = s.detail.toLowerCase(); const n = e.name.toLowerCase(); return d === n || d.startsWith(n + ','); });
     const g = rates(mine.reduce((acc, s) => count(acc, s), newGroup(e.name)));
-    return { ...g, id: e.id, date: e.date, type: e.type, place: e.place, cost: e.cost, registered: e.registered, attended: e.attended, costPerStudent: costPer(e.cost, g.students), costPerVisa: costPer(e.cost, g.visas), showUp: pct(e.attended, e.registered) };
+    return { ...g, id: e.id, date: e.date, endDate: e.endDate || '', days: e.endDate ? Math.round((dayNumber(e.endDate) - dayNumber(e.date))) + 1 : 1, kind: e.kind || 'Event', type: e.type, place: e.place, cost: e.cost, registered: e.registered, attended: e.attended, costPerStudent: costPer(e.cost, g.students), costPerVisa: costPer(e.cost, g.visas), showUp: pct(e.attended, e.registered) };
   }).sort((a, b) => b.date.localeCompare(a.date));
   // -- why students are lost, and what they wanted that you could not offer --
   const gone = students.filter((s) => (s.left && !s.refused) || s.refused || s.lostReason);

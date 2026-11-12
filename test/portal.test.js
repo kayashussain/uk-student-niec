@@ -528,6 +528,26 @@ test('on the real server: cards follow the rules of the sheet, messages are reco
   assert.notStrictEqual(edited['GROSS FEE'], '1', 'only the details of the card can be changed from it');
   assert.strictEqual((await manager('POST', `/api/cards/${sitaId}/sheet`, { fields: { 'FIRST NAME': 'X' } })).status, 403, 'the Manager only views');
 
+  // Events and marketing: an activity is a tag; students tagged with it are counted; adding many students at once.
+  const fair = (await admin('POST', '/api/planning/events', { name: 'UK Education Fair', type: 'Education fair', date: '2026-08-08', endDate: '2026-08-10', place: 'Kathmandu', cost: 240000 })).json;
+  assert.ok(fair.id || (fair.entry && fair.entry.id), JSON.stringify(fair));
+  const fairId = fair.id || fair.entry.id;
+  const ad = (await admin('POST', '/api/planning/events', { name: 'Facebook scholarship ad', type: 'Facebook or Instagram advert', date: '2026-09-01', endDate: '2026-08-01', cost: 50000 })).json;
+  const adEntry = (await admin('GET', '/api/activities')).json.activities.find((a) => a.name === 'Facebook scholarship ad');
+  assert.strictEqual(adEntry.kind, 'Marketing');
+  assert.strictEqual(adEntry.endDate, '', 'an end before the start is dropped');
+  assert.strictEqual((await app('GET', '/api/activities')).status, 403, 'a team does not see the cost of events');
+  assert.strictEqual((await manager('GET', '/api/activities')).status, 200);
+  const many = (await admin('POST', '/api/students/bulk', { sheetId: wb.sheets[0].id, stage: 'Inquiry', source: 'Events', sourceDetail: 'UK Education Fair, 8 Aug 2026', rows: [{ first: 'Maya', last: 'Rai', email: 'maya@example.com', phone: '9800000011' }, { first: 'Tek', last: 'Gurung' }, { first: '', last: '' }] })).json;
+  assert.deepStrictEqual(many.results.map((r) => r.ok), [true, true, false]);
+  const fairNow = (await admin('GET', '/api/activities')).json.activities.find((a) => a.id === fairId);
+  assert.strictEqual(fairNow.leads, 2, 'the two students are leads of the event');
+  assert.strictEqual(fairNow.days, 3);
+  assert.strictEqual(fairNow.costPerLead, 120000);
+  const tagged = (await admin('GET', `/api/cards/${many.results[0].id}`)).json;
+  assert.strictEqual(tagged.event.name, 'UK Education Fair');
+  assert.strictEqual(tagged.student.source, 'Events');
+
   // Everything is written to the Activity record, and the backup holds the cards.
   const activity = (await admin('GET', '/api/activity?limit=200')).json.events;
   assert.ok(activity.some((e) => e.action === 'Edited student card' && e.changes.some((c) => /added a note/.test(c))));

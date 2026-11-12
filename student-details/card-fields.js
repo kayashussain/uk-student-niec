@@ -23,7 +23,7 @@
   // What the "where exactly" box is called for each source, and the sources a new choice can be added to.
   const SOURCE_DETAIL_LABEL = {
     'Social Media': 'Which platform', Visitor: 'How they reached us', Reference: 'Who referred them', 'Language Classes': 'Which class',
-    Events: 'Which event', Agent: 'Which B2B partner', 'Chitwan Branch': 'Detail', 'Pokhara Branch': 'Detail',
+    Events: 'Which event or marketing', Agent: 'Which agent', 'Chitwan Branch': 'Detail', 'Pokhara Branch': 'Detail',
   };
   const SOURCE_CAN_ADD = ['Social Media', 'Visitor', 'Reference', 'Language Classes', 'Events'];
 

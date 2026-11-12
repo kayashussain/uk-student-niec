@@ -43,8 +43,8 @@ const SOURCES = [
 // How likely a student of each source is to go all the way, so the channels differ the way they do in real life.
 const SOURCE_STRENGTH = { 'Social Media': 0.75, Reference: 1.35, Visitor: 1.1, Events: 1.0, Agent: 1.15, 'Language Classes': 1.25, 'Chitwan Branch': 0.95, 'Pokhara Branch': 0.95 };
 const EVENTS = [
-  { name: 'UK Study Seminar, Pokhara (March 2026)', date: '2026-03-14', type: 'Seminar or information session', place: 'Pokhara', cost: 85000, registered: 140, attended: 82, universities: 'University of West London, Bangor University', note: 'Joint session with two university representatives.' },
-  { name: 'UK Education Fair, Kathmandu (August 2026)', date: '2026-08-08', type: 'Education fair', place: 'Kathmandu', cost: 240000, registered: 420, attended: 265, universities: 'UWL, Ulster, Roehampton, Middlesex, York St John', note: 'Held one week after the +2 results.' },
+  { name: 'UK Study Seminar, Pokhara (March 2026)', date: '2026-03-14', endDate: '2026-03-14', type: 'Seminar or information session', place: 'Pokhara', cost: 85000, registered: 140, attended: 82, universities: 'University of West London, Bangor University', note: 'Joint session with two university representatives.' },
+  { name: 'UK Education Fair, Kathmandu (August 2026)', date: '2026-08-08', endDate: '2026-08-10', type: 'Education fair', place: 'Kathmandu', cost: 240000, registered: 420, attended: 265, universities: 'UWL, Ulster, Roehampton, Middlesex, York St John', note: 'Held one week after the +2 results.' },
   { name: 'Spot Assessment Day (October 2026)', date: '2026-10-03', type: 'University visit or spot assessment', place: 'the head office', cost: 60000, registered: 95, attended: 71, universities: 'University of West London, Ulster University', note: 'Offers given on the day to students with complete documents.' },
 ];
 const PARTNERS = ['Himal Education Hub (demo)', 'Lumbini Study Point (demo)', 'Koshi Career Centre (demo)'];

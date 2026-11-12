@@ -19,7 +19,7 @@ const { ROW_ID } = require('./cards');
 const Messages = require('./messages');
 const { buildIndex, searchCourses, linkKey } = require('./course-index');
 const { hostsOf } = require('./university-websites');
-const { EVENT_TYPES, DECISION_STATUS, MARKET_KINDS, LISTS: PLANNING_LISTS } = require('./planning');
+const { EVENT_TYPES, MARKETING_TYPES, DECISION_STATUS, MARKET_KINDS, LISTS: PLANNING_LISTS } = require('./planning');
 const { MAX_FILE_BYTES, STATUSES: PARTNER_STATUSES } = require('./direct');
 
 const text = (v) => String(v ?? '').trim();
@@ -239,6 +239,39 @@ function createPortalApi({
     return out.status === 200 ? { ok: true } : { error: out.body.error === 'conflict' ? 'The sheet changed at the same moment. Please try again.' : out.body.error, status: out.status };
   }
 
+  // ---- events and marketing: what was run to find students, and what each brought ----
+  // The tag on a student ("where exactly") names the event or the marketing; it matches an activity by its name (with or without the date).
+  const eventOf = (detail) => {
+    const d = text(detail).toLowerCase();
+    if (!d) return null;
+    return planning.all().events.find((e) => { const n = e.name.toLowerCase(); return d === n || d.startsWith(n + ','); }) || null;
+  };
+  function activities(user) {
+    const wb = getWorkbook();
+    const plan = planning.all();
+    const all = cards.all();
+    const list = plan.events.map((e) => ({ ...e, leads: 0, applied: 0, visas: 0, students: [] }));
+    const byName = (detail) => { const d = text(detail).toLowerCase(); return d ? list.find((e) => { const n = e.name.toLowerCase(); return d === n || d.startsWith(n + ','); }) : null; };
+    if (wb) wb.sheets.forEach((sheet) => sheet.rows.forEach((row) => {
+      if (!isStudent(row)) return;
+      const card = all[row._id];
+      const e = card && byName(card.profile.sourceDetail);
+      if (!e) return;
+      e.leads += 1;
+      const stage = text(row[STATUS]);
+      if (!['Inquiry', 'Defer', 'Hold', 'Withdrawn'].includes(stage) || text(row['APPLICATION SUBMISSION DATE'])) e.applied += 1;
+      if (stage === 'Visa Issued' || text(row['VISA RECEIVED DATE'])) e.visas += 1;
+      if (e.students.length < 60) e.students.push({ id: row._id, name: nameOf(row), stage, intake: sheet.name });
+    }));
+    const day = (iso) => Math.round(Date.parse(iso + 'T00:00:00Z') / 86400000);
+    return list.sort((a, b) => b.date.localeCompare(a.date)).map((e) => ({
+      id: e.id, name: e.name, kind: e.kind || 'Event', type: e.type, place: e.place, date: e.date, endDate: e.endDate || '',
+      days: e.date ? (e.endDate ? day(e.endDate) - day(e.date) + 1 : 1) : 0, note: e.note, cost: e.cost, leads: e.leads, applied: e.applied, visas: e.visas,
+      costPerLead: e.cost > 0 && e.leads > 0 ? Math.round(e.cost / e.leads) : null, costPerVisa: e.cost > 0 && e.visas > 0 ? Math.round(e.cost / e.visas) : null,
+      students: e.students, registered: e.registered, attended: e.attended,
+    }));
+  }
+
   // ---- one student's card ----
   async function handleCard(req, res, urlPath) {
     const m = /^\/api\/cards\/([\w-]{1,64})(?:\/(profile|notes|options|messages|source|sheet)(?:\/([a-f0-9]{12}|preview|send))?(\/delete)?)?$/.exec(urlPath);
@@ -257,6 +290,7 @@ function createPortalApi({
           card,
           can: { edit: editable, removeAnyNote: Teams.isAdmin(req.user), source: editable && Teams.canEdit(req.user, 'STUDENT SOURCE', found.row) },
           me: { name: req.user.name },
+          event: (() => { const e = eventOf(card.profile.sourceDetail); return e ? { name: e.name, kind: e.kind || 'Event', type: e.type, place: e.place, date: e.date, endDate: e.endDate } : null; })(),
           mail: { ready: Boolean(cfg), from: cfg ? cfg.from : '' },
           today: cards.today(),
         });
@@ -335,20 +369,19 @@ function createPortalApi({
   // The student goes on the sheet exactly as if the row had been typed there: Admin chooses the intake and the stage; a
   // team's student goes to the current intake at the team's own stage, with only what the team may fill in (teamSave
   // checks it with the same rules as a save from the sheet). The card details are kept with the new student.
-  async function handleNewStudent(req, res) {
-    const body = await bodyOf(req, res);
-    if (!body) return true;
+  // Adds one student (the sheet row and the card) with the rules of the sheet. Returns { status, json }.
+  function addStudent(req, body) {
     const wb = getWorkbook();
-    if (!wb) { sendJSON(res, 500, { error: 'Could not read the data file' }); return true; }
-    if (Teams.isReadOnly(req.user)) { sendJSON(res, 403, { error: 'Your account can only view students.' }); return true; }
+    if (!wb) { return { status: 500, json: { error: 'Could not read the data file' } }; }
+    if (Teams.isReadOnly(req.user)) { return { status: 403, json: { error: 'Your account can only view students.' } }; }
     const given = body.fields && typeof body.fields === 'object' ? body.fields : {};
     const fields = {};
     NEW_STUDENT_COLUMNS.forEach((col) => {
       const v = typeof given[col] === 'string' ? given[col].replace(/\s+/g, ' ').trim().slice(0, col === 'REMARKS' ? MAX_CELL_CHARS : 300) : '';
       if (v) fields[col] = col === 'EMAIL' ? v.toLowerCase() : v;
     });
-    if (!fields['FIRST NAME'] && !fields['LAST NAME']) { sendJSON(res, 400, { error: "Please enter the student's name." }); return true; }
-    if (fields.EMAIL && !mailer.isAddress(fields.EMAIL)) { sendJSON(res, 400, { error: 'That email address does not look right.' }); return true; }
+    if (!fields['FIRST NAME'] && !fields['LAST NAME']) { return { status: 400, json: { error: "Please enter the student's name." } }; }
+    if (fields.EMAIL && !mailer.isAddress(fields.EMAIL)) { return { status: 400, json: { error: 'That email address does not look right.' } }; }
     const rowId = 'row-' + Date.now().toString(36) + require('crypto').randomBytes(4).toString('hex');
     let sheet;
     if (Teams.isAdmin(req.user)) {
@@ -360,29 +393,53 @@ function createPortalApi({
       Object.keys(fields).forEach((c) => { if (sheet.columns.includes(c)) row[c] = fields[c]; });
       if (sheet.columns.includes(STATUS)) row[STATUS] = stage;
       const next = { ...wb, revision: wb.revision + 1, sheets: wb.sheets.map((s) => (s.id === sheet.id ? { ...s, rows: [...s.rows, row] } : s)) };
-      try { writeWorkbook(next); } catch (e) { console.error('[new student]', e); sendJSON(res, 500, { error: 'save failed' }); return true; }
+      try { writeWorkbook(next); } catch (e) { console.error('[new student]', e); return { status: 500, json: { error: 'save failed' } }; }
       recordChanges(req, wb, next);
     } else {
       const depts = Teams.addableDepartments(req.user);
       const dept = depts.includes(body.dept) ? body.dept : (depts.length === 1 ? depts[0] : null);
-      if (!dept) { sendJSON(res, 400, { error: 'Choose which team the new student is for.' }); return true; }
+      if (!dept) { return { status: 400, json: { error: 'Choose which team the new student is for.' } }; }
       const view = Teams.viewFor(req.user, wb);
       sheet = currentIntake();
       const mine = view.sheets.find((s) => sheet && s.id === sheet.id);
-      if (!mine) { sendJSON(res, 409, { error: 'There is no current intake to add the student to.' }); return true; }
+      if (!mine) { return { status: 409, json: { error: 'There is no current intake to add the student to.' } }; }
       // Only what this team may fill in on a student it adds; anything else typed in the form is left out, not refused.
       const stub = { _id: rowId, [STATUS]: Teams.DEPARTMENTS[dept].start, _addedByTeam: dept };
       const row = { ...stub };
       Object.keys(fields).forEach((c) => { if (mine.columns.includes(c) && Teams.canEdit(req.user, c, stub)) row[c] = fields[c]; });
       const out = teamSave(req, { baseRevision: wb.revision, sheets: view.sheets.map((s) => (s.id === mine.id ? { ...s, rows: [...s.rows, row] } : s)) });
-      if (out.status !== 200) { sendJSON(res, out.status, out.body.error === 'conflict' ? { error: 'The sheet changed at the same moment. Please try again.' } : out.body); return true; }
+      if (out.status !== 200) { return { status: out.status, json: out.body.error === 'conflict' ? { error: 'The sheet changed at the same moment. Please try again.' } : out.body }; }
     }
     // The card: where the student came from and the rest of what the form asked.
     const profile = body.profile && typeof body.profile === 'object' ? body.profile : {};
     // The first inquiry day is the day the student is added.
     const saved = cards.setProfile(rowId, { sourceDetail: profile.sourceDetail, inquiryDate: cards.today() }, by(req));
     if (!saved.error && text(body.note)) cards.addNote(rowId, { text: body.note, kind: 'note' }, by(req));
-    sendJSON(res, 200, { ok: true, id: rowId, sheetId: sheet.id, revision: getWorkbook().revision });
+    return { status: 200, json: { ok: true, id: rowId, sheetId: sheet.id, revision: getWorkbook().revision } };
+  }
+
+  async function handleNewStudent(req, res) {
+    const body = await bodyOf(req, res);
+    if (!body) return true;
+    const out = addStudent(req, body);
+    sendJSON(res, out.status, out.json);
+    return true;
+  }
+
+  // Many students at once, all with the same stage, source and event or marketing tag: one line each (name, email, phone).
+  async function handleBulkStudents(req, res) {
+    const body = await bodyOf(req, res, 1024 * 1024);
+    if (!body) return true;
+    const lines = (Array.isArray(body.rows) ? body.rows : []).slice(0, 200);
+    if (!lines.length) { sendJSON(res, 400, { error: 'Add at least one student.' }); return true; }
+    const results = [];
+    for (const r of lines) {
+      const fields = { 'FIRST NAME': text(r.first), 'LAST NAME': text(r.last), EMAIL: text(r.email), 'CONTACT NUMBER': text(r.phone), 'STUDENT SOURCE': text(body.source) };
+      const out = addStudent(req, { fields, profile: { sourceDetail: text(body.sourceDetail) }, stage: body.stage, sheetId: body.sheetId, dept: body.dept });
+      results.push(out.status === 200 ? { ok: true, id: out.json.id, name: [r.first, r.last].filter(Boolean).join(' ') } : { ok: false, name: [r.first, r.last].filter(Boolean).join(' '), error: out.json.error || 'Could not add.' });
+    }
+    note(req, [`Added ${results.filter((x) => x.ok).length} students at once${text(body.sourceDetail) ? ` (${text(body.sourceDetail)})` : ''}`], 'Added students');
+    sendJSON(res, 200, { results });
     return true;
   }
 
@@ -690,9 +747,15 @@ function createPortalApi({
   async function handle(req, res, urlPath) {
     if (!urlPath.startsWith('/api/')) return false;
     const query = () => new URL(req.url, 'http://x').searchParams;
+    if (urlPath === '/api/activities' && req.method === 'GET') {
+      if (!managers(req, res, 'Events and marketing')) return true;
+      sendJSON(res, 200, { activities: activities(req.user), types: EVENT_TYPES, marketingTypes: MARKETING_TYPES, canEdit: Teams.isAdmin(req.user) });
+      return true;
+    }
     if (urlPath === '/api/card-lists' && req.method === 'GET') { sendJSON(res, 200, cardLists(req.user)); return true; }
     if (urlPath === '/api/students/search' && req.method === 'GET') { sendJSON(res, 200, { students: searchStudents(req.user, (query().get('q') || '').slice(0, 100)) }); return true; }
     if (urlPath === '/api/students/new' && req.method === 'POST') return handleNewStudent(req, res);
+    if (urlPath === '/api/students/bulk' && req.method === 'POST') return handleBulkStudents(req, res);
     // A missing platform, class or event (with its day) is added once and offered to everyone, so students are tagged the same way.
     if (urlPath === '/api/source-options' && req.method === 'POST') {
       if (Teams.isReadOnly(req.user)) { sendJSON(res, 403, { error: 'Your account can only view students.' }); return true; }

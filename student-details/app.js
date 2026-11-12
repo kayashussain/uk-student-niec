@@ -2300,6 +2300,8 @@
     if (row && row._id && window.CardDrawer) window.CardDrawer.open(row._id);
   }
 
+  const addManyBtn = document.getElementById('bulkAdd');
+  if (addManyBtn) addManyBtn.addEventListener('click', () => { location.href = '/bulk-add'; });
   const bulkBtn = document.getElementById('bulkSend');
   if (bulkBtn) bulkBtn.addEventListener('click', () => { location.href = '/bulk'; });
 

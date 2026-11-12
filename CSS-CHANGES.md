@@ -9,6 +9,17 @@ Format: **date · file · what · from → to · why**
 
 ---
 
+## 2026-11-12 · `shared/theme.css`, `shared/header.css`, `shared/header.js`, `shared/login.html` · ivory and forest green with brass, the Fly wing mark
+
+The owner did not like the navy look, the logo or the colours, and chose warm ivory and forest green with a wing mark.
+
+- **Colours:** from navy (menu, buttons, ink) with gold → to deep forest green (menu `#0c231b`, buttons `#123a2e`) with brass (`#b08a45`), on warm ivory (`#f7f4ec`) with white cards. Text is a dark green-black (`#14211b`). Selected cells and focus rings are green (`#1f6b4f`). Dark mode is deep green.
+- **Logo:** from a paper plane on a navy square, with the name Fly in bold sans → to a brass wing on a forest-green rounded square, with Fly in a serif wordmark (28px) and the consultancy's name beside it.
+- **Menu:** the Search button is removed (Ctrl+K still opens quick search).
+- **Login page:** the same forest green, wing and wordmark.
+
+---
+
 ## 2026-11-12 · `shared/theme.css` (rewritten from zero), `shared/header.css`, `shared/login.html`, `shared/ui.css` · the Fly design system
 
 The owner asked to forget the earlier CSS rules and comments and design the system properly, as a luxury brand.

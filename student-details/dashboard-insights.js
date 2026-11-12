@@ -204,9 +204,10 @@
     spendSec.append(lines.length ? table(['Month', 'Source', 'Detail', 'Amount', 'Leads reported', 'Cost per lead', ''], lines.map((l) => [l.month, l.source, l.detail, rupees(l.amount), l.leads ? number(l.leads) : '', l.leads ? rupees(Math.round(l.amount / l.leads)) : '', admin() ? h('button', { class: 'p-link no-print', type: 'button', onclick: () => spendForm(l) }, 'Edit') : '']), { numCols: [4, 5, 6] }) : el('div', 'p-empty', 'No spend recorded for this intake yet.'));
     out.push(spendSec);
     // events
-    const ev = card('Events', 'Each event with its cost and how many students and visas are linked to it (choose Events and the event on the student card).');
-    if (admin()) ev.append(h('button', { class: 'btn btn-sm btn-primary no-print', type: 'button', onclick: () => eventForm() }, '+ Add an event'));
-    ev.append(data.events.length ? table(['Event', 'Date', 'Cost', 'Registered', 'Attended', 'Students', 'Visas', 'Cost per student', 'Cost per visa', ''], data.events.map((e) => [el('b', '', e.label), e.date, rupees(e.cost), e.registered ? number(e.registered) : '', e.attended ? number(e.attended) : '', number(e.students), number(e.visas), e.costPerStudent ? rupees(e.costPerStudent) : '', e.costPerVisa ? rupees(e.costPerVisa) : '', admin() ? h('button', { class: 'p-link no-print', type: 'button', onclick: () => eventForm(plan.events.find((x) => x.id === e.id)) }, 'Edit') : '']), { numCols: [2, 3, 4, 5, 6, 7, 8] }) : el('div', 'p-empty', 'No events recorded yet.'));
+    const ev = card('Events and marketing', 'What each one cost, how long it ran and how many students and visas it brought. Add and change them on the Events and marketing page.');
+    ev.append(h('a', { class: 'btn btn-sm no-print', href: '/events' }, 'Open Events and marketing'));
+    const ranText = (e) => (e.endDate && e.endDate !== e.date ? `${e.date} to ${e.endDate}` : e.date);
+    ev.append(data.events.length ? table(['Name', 'Ran', 'Days', 'Cost', 'Students', 'Visas', 'Cost per student', 'Cost per visa'], data.events.map((e) => [el('b', '', e.label), ranText(e), number(e.days), rupees(e.cost), number(e.students), number(e.visas), e.costPerStudent ? rupees(e.costPerStudent) : '', e.costPerVisa ? rupees(e.costPerVisa) : '']), { numCols: [2, 3, 4, 5, 6, 7] }) : el('div', 'p-empty', 'No event or marketing recorded yet.'));
     out.push(ev);
     return out;
   }
@@ -214,10 +215,6 @@
     ['month', 'Month', { placeholder: '2026-10', default: data.today.slice(0, 7), max: 7 }], ['amount', 'Amount paid (Rs)', { max: 12 }],
     ['source', 'Source', { kind: 'select', choices: plan.lists.sources }], ['detail', 'Where exactly', { max: 120, placeholder: 'TikTok, or the event name' }],
     ['leads', 'Leads the platform or event reported', { max: 8 }], ['note', 'Note', { wide: true, max: 300 }]], l, { intake: data.selected });
-  const eventForm = (e) => recordForm(e ? 'Edit the event' : 'Add an event', 'events', [
-    ['name', 'Name', { wide: true, max: 120, placeholder: 'UK Education Fair, Kathmandu (August 2026)' }], ['date', 'Date', { kind: 'date' }], ['type', 'Kind', { kind: 'select', choices: plan.lists.EVENT_TYPES }],
-    ['place', 'Place', { max: 120 }], ['cost', 'Cost (Rs)', { max: 12 }], ['registered', 'Registered', { max: 6 }], ['attended', 'Attended', { max: 6 }],
-    ['universities', 'Universities present', { wide: true, max: 300 }], ['note', 'Note', { kind: 'area', wide: true, max: 600 }]], e);
 
   // ---- Universities and partners ----
   function renderUniversities() {

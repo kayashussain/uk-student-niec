@@ -21,7 +21,9 @@ const amount = (v, max = 1e12) => {
 };
 const month = (v) => (/^\d{4}-(0[1-9]|1[0-2])$/.test(str(v, 7)) ? str(v, 7) : '');
 
-const EVENT_TYPES = ['Education fair', 'Seminar or information session', 'Webinar', 'University visit or spot assessment', 'School or college visit', 'Open day at the office', 'Other'];
+// What was run to find students: events and marketing. The last six are marketing; the rest are events.
+const MARKETING_TYPES = ['Facebook or Instagram advert', 'TikTok campaign', 'Google or YouTube ads', 'Signboard or hoarding', 'Newspaper, radio or TV', 'Other marketing'];
+const EVENT_TYPES = ['Education fair', 'Seminar or information session', 'Webinar', 'University visit or spot assessment', 'School or college visit', 'Open day at the office', 'Other', 'Facebook or Instagram advert', 'TikTok campaign', 'Google or YouTube ads', 'Signboard or hoarding', 'Newspaper, radio or TV', 'Other marketing'];
 const DECISION_STATUS = ['Open', 'Under way', 'Worked: keep it', 'Changed', 'Stopped'];
 const MARKET_KINDS = ['UK immigration rule', 'Nepal rule', 'University or partner', 'Competitor', 'Market'];
 
@@ -38,10 +40,10 @@ const LISTS = {
   events: {
     max: 1000,
     clean: (x) => ({
-      name: str(x.name, 120), date: isoDay(x.date), type: EVENT_TYPES.includes(x.type) ? x.type : 'Other', place: str(x.place, 120),
+      name: str(x.name, 120), date: isoDay(x.date), endDate: (isoDay(x.endDate) >= isoDay(x.date) ? isoDay(x.endDate) : ''), type: EVENT_TYPES.includes(x.type) ? x.type : 'Other', kind: MARKETING_TYPES.includes(x.type) ? 'Marketing' : 'Event', place: str(x.place, 120),
       cost: amount(x.cost), registered: amount(x.registered, 1e6), attended: amount(x.attended, 1e6), universities: str(x.universities, 300), note: str(x.note, 600),
     }),
-    valid: (x) => (x.name && x.date ? null : 'An event needs a name and a date.'),
+    valid: (x) => (x.name && x.date ? null : 'An event or a marketing activity needs a name and a start date.'),
   },
   decisions: {
     max: 1000,
@@ -174,4 +176,4 @@ function createPlanning(dir, { now = () => new Date() } = {}) {
   };
 }
 
-module.exports = { createPlanning, LISTS, EVENT_TYPES, DECISION_STATUS, MARKET_KINDS, cleanTarget, cleanSettings, amount };
+module.exports = { createPlanning, LISTS, EVENT_TYPES, MARKETING_TYPES, DECISION_STATUS, MARKET_KINDS, cleanTarget, cleanSettings, amount };

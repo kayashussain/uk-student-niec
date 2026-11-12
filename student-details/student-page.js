@@ -71,6 +71,8 @@
     const line = el('div', 'p-hero-line');
     line.append(stagePill(s.stage), el('span', '', s.intake));
     if (s.source) line.append(el('span', 'p-chip', s.source + (profile().sourceDetail ? ': ' + profile().sourceDetail : '')));
+    // An event or marketing tag shows when and for how long it ran.
+    if (data.event) { const e = data.event; line.append(el('span', 'p-chip', `${e.kind === 'Marketing' ? 'Marketing' : 'Event'}: ${e.name}, ${e.endDate && e.endDate !== e.date ? day(e.date) + ' to ' + day(e.endDate) : day(e.date)}`)); }
     mid.append(line);
     const facts = el('dl', 'p-facts');
     const fact = (k, v, href) => { if (!v) return; const d = el('div', 'p-fact'); const dd = el('dd'); if (href) { const a = el('a', '', v); a.href = href; dd.append(a); } else dd.textContent = v; d.append(el('dt', '', k), dd); facts.append(d); };
