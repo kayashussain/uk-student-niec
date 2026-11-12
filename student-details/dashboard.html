@@ -9,6 +9,7 @@
 <link rel="stylesheet" href="header.css" />
 <link rel="stylesheet" href="ui.css" />
 <link rel="stylesheet" href="dashboard.css" />
+<link rel="stylesheet" href="portal.css" />
 <link rel="stylesheet" href="theme.css" />
 </head>
 <body>
@@ -26,6 +27,16 @@
       </div>
     </div>
 
+    <div class="p-tabs no-print" id="dashTabs" role="tablist" aria-label="Dashboard pages">
+      <button type="button" role="tab" data-tab="numbers" aria-selected="true">Numbers</button>
+      <button type="button" role="tab" data-tab="decisions" aria-selected="false">Decisions</button>
+      <button type="button" role="tab" data-tab="channels" aria-selected="false">Channels and events</button>
+      <button type="button" role="tab" data-tab="universities" aria-selected="false">Universities and partners</button>
+      <button type="button" role="tab" data-tab="team" aria-selected="false">Team and students lost</button>
+      <button type="button" role="tab" data-tab="plan" aria-selected="false">Intake plan</button>
+    </div>
+    <div id="panel-insights" hidden></div>
+    <div id="panel-numbers">
     <section class="hero-row" aria-label="Headline numbers">
       <div class="hero card">
         <span class="hero-label">Total students</span>
@@ -87,6 +98,7 @@
     </section>
 
     <p class="notes" id="notes"></p>
+    </div>
   </main>
 
   <div class="tip" id="tip" role="tooltip" hidden></div>
@@ -94,6 +106,9 @@
 <script src="session.js"></script>
 <script src="ui.js"></script>
 <script src="header.js"></script>
+<script src="card-fields.js"></script>
+<script src="portal-ui.js"></script>
 <script src="dashboard.js"></script>
+<script src="dashboard-insights.js"></script>
 </body>
 </html>

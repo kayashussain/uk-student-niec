@@ -6,6 +6,11 @@ One login for everyone; each person sees only what their account allows.
 | Part | What it is |
 |---|---|
 | **Student Details** (`student-details/`) | The sheet of students by intake, with live co-editing, the Dashboard, the Users and Activity pages (Admin), and the **Fact File** (one page per university: fees, entry requirements, English tests, courses, intakes and the application process, searchable by course). |
+| **Student card** (`student.html`, `student-page.js`, `cards.js`, `portal-api.js`) | Opens from **Open card** (or a double-click on a row number) on the sheet, from Follow-ups and from the Fact File. Everything about one student besides the sheet: where they came from exactly (platform, event, B2B partner, who referred), counselor, lead quality, study level, grades and English test, notes, the next follow-up day, documents received, the university options prepared for them and every message sent. The sheet keeps exactly its columns; **+ Add student** is now a form that fills the sheet's columns and the card. Same visibility rules as the sheet (`shared/teams.js`). |
+| **Messages** (`messages.js`, `templates.html`) | A ready-made email and WhatsApp text for each step (first reply, options, documents, offer, mock interview, payment, CAS, visa ...), filled in from the student, with the signature. Email goes from the office mailbox set up in `mail.json`; WhatsApp opens `wa.me` with the text. Nothing reads replies. Admin edits the templates and the signature. Without mail settings (as on a test computer) a send only keeps a preview on the card. |
+| **University options** (`course-index.js`, `finder.js`, `fact-finder.js`) | Every course of the Fact File as one searchable list with its fee, scholarship and link. A counselor ticks several courses (from a student's card, or **Send to a student** on a Fact File page) and one email carries them all with the documents needed. The **option finder** on the Fact File page answers an unusual request (low grade, long gap, budget, city). With `ANTHROPIC_API_KEY` set (and `npm install` run) Claude judges eligibility from the Fact File only and may not invent an option; without it the finder matches by subject, level, intake, city and budget and shows the entry rule beside each option. No student name or contact detail is ever sent. |
+| **B2B Partners** (`b2b.js`, `b2b.html`) | Admin only: sub-agents (who send students) and B2B platforms (NIEC applies through them), with terms, contacts, agreement dates and files, and the students and visas each has brought. Partner Universities now also say whether the agreement is direct or through a B2B partner. |
+| **Dashboard decision pages** (`insights-engine.js`, `planning.js`, `dashboard-insights.js`) | Beside the existing Numbers: **Decisions** (target, forecast, findings with evidence, reason, decision and measure, the weekly pace, Ask the analyst, Decision log), **Channels and events** (cost per student, application and visa by source and by where exactly, marketing spend, events, adverts, the busy months), **Universities and partners** (concentration risk, speed, agreements ending), **Team and students lost** (follow-ups, workload, why students leave, how complete the records are) and **Intake plan** (what each choice needs in applications and inquiries, the calendar, market notes and a printable intake proposal). Admin writes the targets, spend, events, decisions and notes; the Manager reads. A rate from fewer than 10 students is starred and never used in a finding. |
 | **Partner Universities** (`student-details/direct.js`, `direct-page.js`) | Admin only: the universities NIEC works with directly, with campus locations, commission slabs, payment terms, agreement dates and contacts. Agreement files (PDF, Word, image, up to 10 MB) can be uploaded per university. Stored in `direct-universities.json` and `direct-files/` in the data folder (never in git, never served as pages); not in the Advisor connector, and the Backup tab does not include them. |
 | **Incentive** (`counselor-incentive/`) | Counsellor incentives and company earnings per intake. Runs inside the main app at `/incentive`: Admin only, behind its own password (`INCENTIVE_PASSWORD`). Reads the students from Student Details. |
 | **Shared** (`shared/`) | Accounts and login, the header, the team access rules, notices and confirmation boxes, the server helpers. |
@@ -20,6 +25,15 @@ npm start            # the site on http://localhost:8080 (Incentive at /incentiv
 The first time, the server writes a one-time setup code to `first-admin-code.txt` in its data folder (and prints it
 in the log). Open `/login`, enter it, and create the owner (Admin) account. Needs Node 18 or newer; there is nothing
 to install.
+
+## Try it on your computer first
+
+```bash
+node scripts/local-demo.js     # made-up students and data, at http://localhost:8080 (log in as owner, password Demo-Password-2026)
+```
+
+Nothing real is in it and nothing leaves the computer (no email is sent). `--keep` starts it again on the demo folder as you left it.
+Details and the other demo logins are at the top of `scripts/local-demo.js`.
 
 ## Tests
 

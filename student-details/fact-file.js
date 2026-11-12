@@ -115,6 +115,8 @@
   });
 
   fetch('/api/me', { cache: 'no-store' }).then((r) => r.json()).then((me) => { $('addForm').hidden = me.role !== 'admin' || Boolean(BACKUP); }).catch(() => {});
+  // The option finder for a student, above the list (not on an earlier backup, which is only looked at).
+  if (!BACKUP && window.SendToStudent) window.SendToStudent.finderCard(document.getElementById('count'));
   skeletons();
   load();
 })();

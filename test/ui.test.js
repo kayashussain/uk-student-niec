@@ -695,10 +695,15 @@ test('screens: log in, edit, delete, search, team rules, Fact File', { timeout: 
     assert.ok(await page.locator('#headerRow th[data-col="APPLICATION STATUS"] .filter-btn.active').count(), 'the filter button shows it is on');
 
     // A new student added with the filter on gets that status and stays in the filtered list.
+    // "+ Add student" opens the form; the student goes on the sheet at the filtered stage, and their card opens.
     await page.click('#addRow');
-    await page.waitForSelector('.eg-box');
-    await page.click('.eg-ok');
+    await page.waitForSelector('dialog.p-dialog[open]');
+    await page.fill('.p-dialog-body input >> nth=0', 'Newly');
+    await page.fill('.p-dialog-body input >> nth=1', 'Added');
+    await page.click('.p-dialog-foot .btn-primary');
     await page.waitForFunction(() => document.querySelectorAll('#body tr:not(.pad-row)').length === 3);
+    await page.waitForSelector('.p-drawer iframe');
+    await page.keyboard.press('Escape');
     const added = await page.locator('#body tr:not(.pad-row)').last().locator('td').nth(await colIndex('APPLICATION STATUS')).locator('select').inputValue();
     assert.strictEqual(added, 'Application Stage', 'the new student starts at the filtered status');
 

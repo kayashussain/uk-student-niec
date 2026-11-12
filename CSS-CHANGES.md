@@ -9,6 +9,14 @@ Format: **date · file · what · from → to · why**
 
 ---
 
+## 2026-11-12 · `student-details/portal.css` (new file) · the look of the new portal pages and parts
+
+- **What:** a new stylesheet for the student card, the card window that slides over the sheet, the Add student form, Follow-ups, Message templates, B2B Partners, the option finder in the Fact File and the new Dashboard pages (Decisions, Channels and events, Universities and partners, Team and students lost, Intake plan, and the printable intake proposal).
+- **From:** these pages and parts did not exist.
+- **To:** the same Mist palette, fonts, rounded cards and pill buttons as the rest of the site (every colour and the font come from `shared/theme.css`; every class starts with `p-`).
+- **Existing pages:** no existing rule was changed. The sheet (`index.html`) gains one button (Open card) and the Dashboard gains a row of tabs; both use the new classes. Colours, fonts and layout of everything that existed are as before.
+- **Why:** the owner asked for a recruitment portal with a student card, messages, university options, partners and business analysis.
+
 ## 2026-11-07 · `shared/theme.css` · fee cells in coloured rows, hovering a selected row, four-digit row numbers
 
 - **What, from, to:**

@@ -188,7 +188,7 @@ function buildDemo({ today = '2026-11-11', seed = 20261111 } = {}) {
   });
 
   const spend = [];
-  const line = (month, intake, source, detail, campaign, amount, leads, note = '') => spend.push({ id: `sp${String(spend.length).padStart(10, '0')}`, month, intake, source, detail, campaign, amount, leads, note });
+  const line = (month, intake, source, detail, campaign, amount, leads, note = '') => spend.push({ id: `a1${String(spend.length).padStart(10, '0')}`, month, intake, source, detail, campaign, amount, leads, note });
   ['2026-03', '2026-04', '2026-05', '2026-06', '2026-07'].forEach((m, i) => line(m, INTAKES[1].id, 'Social Media', 'Facebook or Instagram advert (Meta Ads)', 'Scholarship advert, September 2026 intake', 38000 + i * 4000, 60 + i * 9));
   ['2026-08', '2026-09', '2026-10', '2026-11'].forEach((m, i) => line(m, INTAKES[2].id, 'Social Media', 'Facebook or Instagram advert (Meta Ads)', CAMPAIGNS[i % 3], 52000 + i * 6000, 85 + i * 12));
   ['2026-08', '2026-09', '2026-10'].forEach((m, i) => line(m, INTAKES[2].id, 'Social Media', 'TikTok', '', 18000 + i * 2000, 40 + i * 5, 'Boosted videos'));
@@ -202,7 +202,7 @@ function buildDemo({ today = '2026-11-11', seed = 20261111 } = {}) {
       [INTAKES[1].id]: { visas: 35, applications: 0, byDate: '2026-09-10', startDate: INTAKES[1].start, note: '' },
     },
     spend,
-    events: EVENTS.map((e, i) => ({ ...e, id: `ev${String(i).padStart(10, '0')}` })),
+    events: EVENTS.map((e, i) => ({ ...e, id: `e0${String(i).padStart(10, '0')}` })),
     decisions: [
       { id: 'de0000000001', date: '2026-08-15', title: 'Move 30% of the advert budget from general posts to the scholarship advert', problem: 'General adverts brought many inquiries but few applications.', evidence: 'September intake: adverts gave the most inquiries and the lowest share of applications.', decision: 'Run one advert built around fees and scholarships, aimed at Bachelor graduates.', expected: '25 qualified inquiries a month at a lower cost per inquiry.', measure: 'Qualified inquiries and cost per inquiry from Meta Ads', reviewDate: '2026-11-01', outcome: '', lesson: '', status: 'Under way' },
       { id: 'de0000000002', date: '2026-09-28', title: 'Hold a spot assessment day with two universities', problem: 'Offers took three weeks, and students went elsewhere while waiting.', evidence: 'Typical time from application to offer was 16 days.', decision: 'Invite UWL and Ulster for one day of on-the-spot offers.', expected: '20 offers on the day.', measure: 'Offers given on the day, and how many paid', reviewDate: '2026-12-15', outcome: '', lesson: '', status: 'Under way' },

@@ -38,3 +38,13 @@ mail.json
 **/data.corrupt-*.json
 **/*.corrupt-*.json
 **/memory.json
+
+# The made-up data of scripts/local-demo.js
+demo-data/
+**/message-log.jsonl
+**/cards.json
+**/planning.json
+**/b2b-partners.json
+**/b2b-files/
+**/message-templates.json
+**/course-links.json

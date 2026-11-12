@@ -210,6 +210,13 @@
     copy.title = 'Copies a short summary to paste into WhatsApp or an email';
     copy.addEventListener('click', copySummary);
     bar.append(copy);
+    if (!BACKUP && window.SendToStudent) {
+      const send = el('button', 'btn btn-primary', 'Send to a student');
+      send.type = 'button';
+      send.title = 'Choose courses of this university and a student: the options are added to the student card and go in one email';
+      send.addEventListener('click', () => window.SendToStudent.sendUniversity(uni.id, uni.name));
+      bar.append(send);
+    }
     const print = el('button', 'btn', 'Print or save as PDF');
     print.type = 'button';
     print.addEventListener('click', () => window.print());

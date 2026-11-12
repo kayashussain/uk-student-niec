@@ -186,6 +186,13 @@ site isn't possible any more, since uploads need a login.)
 - `https://niec.duckdns.org/` should show the login page, then the tracker
 - `https://niec.duckdns.org/incentive/` should (as Admin) ask for the Incentive password, then show the incentive page
 
+## Student cards, messages, B2B Partners and the decision pages
+
+New in the same app, no new setup needed: the data goes in new files of the Student Details data folder (`cards.json`, `message-log.jsonl`, `message-templates.json`, `course-links.json`, `b2b-partners.json` with `b2b-files/`, `planning.json`), never in git. They are in the 6 p.m. backup (restore them from Activity, Restore data) and the first save of each day also copies them into `backups/`.
+
+- **Email to students** uses the same mailbox as the account emails (`node scripts/email.js setup`, see Email above). Messages go from that mailbox with the signature Admin writes on **Message templates**; a copy goes to the same mailbox unless Admin switches that off. Without the mailbox set up, sending only keeps a preview on the card.
+- **AI helper (optional)** for the option finder and Ask the analyst: set `ANTHROPIC_API_KEY` (a key from console.anthropic.com) in the host's settings, run NPM Install once (it adds the optional `@anthropic-ai/sdk` package), and Restart. The server must be allowed to reach `api.anthropic.com`. `NIEC_AI_MODEL` picks another model (default `claude-opus-5-5`). Without the key everything works and the finder uses its built-in matching. Only the Fact File's facts, the question and the student's study details are sent; never a name, email or phone number.
+
 ## Updating the code later
 
 ```bash
