@@ -170,10 +170,8 @@
     view.replaceChildren();
     const doc = el('article', 'doc');
     const top = el('div', 'doc-top');
-    const logo = el('img');
-    logo.src = 'isr-logo.png';
-    logo.alt = 'ISR';
-    top.append(logo, el('span', 'kind', 'University Fact File'));
+    const brandName = el('span', 'doc-brand', 'International Student Recruitment');
+    top.append(brandName, el('span', 'kind', 'University Fact File'));
     doc.append(top, el('h1', '', uni.name));
 
     const glance = el('dl', 'glance');

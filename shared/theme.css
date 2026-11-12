@@ -581,8 +581,6 @@ label span, .p-card label span { font-size: 14px; }
 .find-link { margin-left: 10px; background: none; border: 1px solid var(--border-strong, #c9d1db); border-radius: 999px; padding: 2px 12px; font: inherit; font-size: 14px; color: var(--niec-blue-text); cursor: pointer; }
 .find-link:hover { background: var(--blue-bg, #e3ecfb); }
 /* 🔴 CSS CHANGED (2026-11-13): size of the logo in the side menu | from: 170px wide, so "ISR" was tiny | to: 212px wide so the name reads clearly */
-/* 🔴 CSS CHANGED (2026-11-13): logo size in the menu | from: 212px wide for the longer name | to: 160px wide for the shorter ISR logo */
-.niec-logo-full { width: 160px; max-width: 100%; }
 /* 🔴 CSS CHANGED (2026-11-13): team workspaces | from: every team saw the same Today and the same sheet headings | to: a small label above the greeting on Today saying which team the page is for, a team note beside the sheet title, and the sheet columns a team fills in have a soft blue heading */
 .t-kind { display: inline-block; margin: 0 0 8px; padding: 4px 12px; border-radius: 999px; background: color-mix(in srgb, var(--primary) 12%, transparent); color: var(--primary); font-size: 14px; font-weight: 650; letter-spacing: .02em; }
 .team-note { background: color-mix(in srgb, var(--primary) 10%, transparent); color: var(--primary); }

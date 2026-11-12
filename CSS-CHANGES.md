@@ -7,6 +7,10 @@ To find every marked change in the code, search the project for `CSS CHANGED`.
 
 Format: **date · file · what · from → to · why**
 
+- **2026-11-13 · shared/login.html · the title in the login box · from: the long name repeated ("International Student Recruitment") → to: "Staff login", because the name is already large on the left · why: the name no longer needs to be said twice.**
+
+- **2026-11-13 · shared/header.css, shared/header.js, shared/login.html, student-details/portal.css, fact-file.css, mailer, favicons · no logo picture any more · from: a globe-and-plane logo picture in the menu, on the login page, in emails and on printed pages → to: the plain text "International Student Recruitment" with PORTAL under it (a small blue ISR tile only when the menu is folded, and as the browser-tab and phone icon) · why: the owner asked for just the name International Student Recruitment portal, with no logo.**
+
 - **2026-11-13 · shared/theme.css · the side menu on short screens, the team note and card tabs on a phone, phone numbers in tables · from: the menu was cut off at short heights with a hidden scroll bar (Today, Incentive and Log out out of reach); the team note ran off the screen on a phone; the student card tabs were cut at the right; phone numbers broke in the middle → to: a thin visible menu scroll bar, tighter spacing on short screens, Log out stays at the bottom; the note and tabs wrap; phone numbers stay whole · why: the second zoom test.**
 
 - **2026-11-13 · shared/theme.css · zoom fixes found by the zoom tester · (1) the Student Details sheet vanished on short screens (tiles and toolbar used all the height) → the sheet keeps room for about 8 rows, the page scrolls, and the tiles become small one-line chips on short screens; (2) the top menu hid pages below 900px → it wraps so every page shows; (3) pop-up form buttons below the visible part → they stay fixed at the bottom; (4) Events, B2B and Agents tables squeezed into one-word lines, Dashboard labels cut with dots, Fact File chips off the edge → readable width with a scroll shadow, wrapped labels and chips · why: the owner's zoom test.**

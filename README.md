@@ -102,7 +102,7 @@ their own); a restore first saves the current data as a "before restore" backup.
 
 ## ISR: what changed in round 11
 
-- **Name and logo:** the portal is called International Student Recruitment, ISR for short (the consultancy's own name is still a setting). The logo is a globe with a paper plane taking off from it, with ISR beside it (`brand/`: `isr-logo` with the full name, `isr-logo-compact` for the menu, `isr-icon`, and `isr-app-icon` for the browser tab and phone home screen).
+- **Name:** the portal is called International Student Recruitment, ISR for short, shown as plain text (no logo picture). The consultancy's own name is still a setting. The browser-tab and phone icons are a plain blue tile with the letters ISR.
 - **Student Source:** one **Branch** choice with a second dropdown for which branch (the list is `BRANCHES` in `student-details/card-fields.js`; add a branch there and it becomes a branch team, a Users page choice and a source everywhere). The sheet keeps "<name> Branch", so the incentive sums and the branch accounts work as before. Agent shows the agents, Events the events that were held, Language Classes the classes, Reference and Visitor their own lists, and Social Media asks for the platform and a remarks box (the campaign name). All forms use one component, `source-picker.js`.
 - **Add many students:** from an Excel or CSV file only (the paste box is gone). Bad lines and students already on the sheet are skipped, with the reason.
 - **Events and marketing:** new types for Meta (Facebook or Instagram) campaigns, campaigns on a partner page, and campus or college campaigns that are not schools.

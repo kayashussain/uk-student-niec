@@ -19,9 +19,11 @@ body.p-embed { padding-left: 0 !important; }
 .niec-header::after { content: none; }
 
 .niec-brand { display: flex; flex-direction: row; gap: 12px; align-items: center; text-decoration: none; color: inherit; padding: 0 4px 10px; border-bottom: 1px solid var(--h-border); }
-.niec-logo-full { display: block; width: 170px; height: auto; color: var(--h-text); }
-.niec-mark { display: none; flex: 0 0 44px; width: 44px; height: 44px; border-radius: 12px; overflow: hidden; box-shadow: 0 8px 20px -8px rgba(77, 99, 255, .55); }
-.niec-mark svg { display: block; width: 100%; height: 100%; }
+/* 🔴 CSS CHANGED (2026-11-13): the name at the top of the menu | from: a picture logo | to: plain text, "International Student Recruitment" with PORTAL under it; when the menu is folded, a small blue tile with the letters ISR */
+.niec-name { display: grid; gap: 1px; min-width: 0; }
+.niec-name b { display: block; font-size: 17px; font-weight: 780; letter-spacing: -.02em; line-height: 1.15; color: var(--h-text); }
+.niec-name small { display: block; margin-top: 3px; font-size: 13px; font-weight: 700; letter-spacing: .14em; color: var(--h-gold); }
+.niec-mark { display: none; flex: 0 0 44px; width: 44px; height: 44px; border-radius: 12px; background: var(--h-gold); color: #fff; font-size: 15px; font-weight: 800; letter-spacing: .02em; place-items: center; }
 .niec-brand-name { display: block; font-weight: 700; font-size: 26px; line-height: 1; letter-spacing: -.04em; color: var(--h-text); }
 .niec-brand-sub { display: block; font-size: 12px; color: var(--h-dim); }
 
@@ -64,8 +66,8 @@ html[data-nav="folded"] .niec-fold svg { transform: rotate(180deg); }
 @media (min-width: 901px) {
 html[data-nav="folded"] .niec-lbl, html[data-nav="folded"] .niec-fold span, html[data-nav="folded"] .niec-account-text, html[data-nav="folded"] .niec-caret { display: none; }
 html[data-nav="folded"] .niec-header { padding-left: 11px; padding-right: 11px; }
-html[data-nav="folded"] .niec-logo-full { display: none; }
-html[data-nav="folded"] .niec-mark { display: block; width: 40px; height: 40px; flex-basis: 40px; }
+html[data-nav="folded"] .niec-name { display: none; }
+html[data-nav="folded"] .niec-mark { display: grid; width: 40px; height: 40px; flex-basis: 40px; }
 html[data-nav="folded"] .niec-nav a, html[data-nav="folded"] .niec-fold { justify-content: center; padding-left: 0; padding-right: 0; }
 html[data-nav="folded"] .niec-nav a[aria-current="page"]::before { left: -11px; }
 html[data-nav="folded"] .niec-account-btn { justify-content: center; padding: 6px; }
@@ -78,8 +80,8 @@ html[data-nav="folded"] .niec-menu { left: 0; right: auto; width: 220px; }
   body:has(> .niec-header) { padding-left: 0; }
   .niec-header { position: sticky; top: 0; inset: auto; width: auto; height: auto; flex-direction: row; align-items: center; gap: 10px; padding: 8px 12px; overflow: visible; }
   .niec-brand { flex-direction: row; align-items: center; padding: 0; border: 0; }
-  .niec-logo-full { display: none; }
-  .niec-mark { display: block; width: 34px; height: 34px; flex-basis: 34px; }
+  .niec-name { display: none; }
+  .niec-mark { display: grid; width: 34px; height: 34px; flex-basis: 34px; font-size: 13px; }
   .niec-account-text, .niec-caret, .niec-fold { display: none; }
   .niec-nav { flex-direction: row; margin: 0; overflow-x: auto; scrollbar-width: none; flex: 1; }
   .niec-nav a { padding: 8px 10px; }

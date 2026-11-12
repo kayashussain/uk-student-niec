@@ -57,7 +57,7 @@ input:focus, textarea:focus { outline: 2px solid var(--blue); outline-offset: 1p
 /* One university: the document */
 .doc { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 34px 40px 40px; }
 .doc-top { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding-bottom: 14px; margin-bottom: 18px; border-bottom: 3px solid var(--blue); }
-.doc-top img { height: 44px; width: auto; display: block; }
+/* 🔴 CSS CHANGED (2026-11-13): the top of a printed Fact File | from: a picture logo | to: the name in plain bold text (style .doc-brand in portal.css) */
 .doc-top .kind { color: var(--dim); font-size: 12px; text-transform: uppercase; letter-spacing: .08em; }
 .doc h1 { margin: 0 0 4px; font-size: 28px; line-height: 1.2; }
 .doc .sub { margin: 0 0 18px; color: var(--dim); }
