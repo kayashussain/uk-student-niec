@@ -2266,75 +2266,35 @@
     } catch (e) { /* offline for a moment: try again next time */ }
   }
 
+  // "+ Add student" opens a form (new-student.js): the sheet's own columns go on the sheet, the rest (where the student came from,
+  // the counselor, the next follow-up ...) on the student's card. The server adds the student with the same rules as a save from
+  // the sheet, and every open sheet picks the new student up by itself.
   async function addRow() {
     if (isViewOnly()) return;
-    const depts = isTeam() ? Teams.addableDepartments(me) : [];
-    // Someone in several departments says which team the new student is for.
-    const dept = depts.length > 1 ? await chooseDepartment(depts) : (depts[0] || null);
-    if (isTeam() && !dept) return;
-    confirmChange(() => addRowNow(dept));
-  }
-
-  // A small menu under "+ Add student": one entry per department the person works in.
-  function chooseDepartment(depts) {
-    return new Promise((resolve) => {
-      closeSheetMenu();
-      const menu = document.createElement('div');
-      menu.className = 'sheet-menu dept-menu';
-      menu.dataset.sheetId = 'dept';
-      const head = document.createElement('div');
-      head.className = 'all-sheets-heading';
-      head.textContent = 'Add a student for';
-      menu.appendChild(head);
-      depts.forEach((d) => {
-        const item = document.createElement('div');
-        item.className = 'sheet-menu-item';
-        item.innerHTML = '<b></b><br><small></small>';
-        item.firstChild.textContent = Teams.DEPARTMENTS[d].label;
-        item.lastChild.textContent = `Starts at ${Teams.DEPARTMENTS[d].start}`;
-        item.addEventListener('click', () => { closeSheetMenu(); resolve(d); });
-        menu.appendChild(item);
-      });
-      document.body.appendChild(menu);
-      const rect = $('#addRow').getBoundingClientRect();
-      menu.style.left = Math.min(rect.left, window.innerWidth - menu.offsetWidth - 8) + 'px';
-      menu.style.top = rect.bottom + 4 + 'px';
-      openSheetMenu = menu;
-      setTimeout(() => document.addEventListener('mousedown', onSheetMenuDocClick, true), 0);
-      // Clicking elsewhere closes the menu without choosing.
-      const watch = setInterval(() => { if (!openSheetMenu || openSheetMenu !== menu) { clearInterval(watch); resolve(null); } }, 200);
-    });
-  }
-
-  function addRowNow(dept = null) {
-    pushUndo();
-    const blank = { _id: makeRowId() };
-    columns.forEach((c) => (blank[c] = ''));
-    // With a filter on (say Application Stage), the new student gets that value, so it shows up in the same filtered list
-    // instead of vanishing from it. A search that would hide the new row is cleared.
-    Object.entries(columnFilters).forEach(([col, allowed]) => {
-      const first = [...allowed].find((v) => v !== '');
-      // Only a dropdown column (stage, source...) is copied: a name or phone number from a real student must never be prefilled.
-      if (first !== undefined && columns.includes(col) && !CALC_COLS[col] && SELECT_COLS[col]) blank[col] = first;
-    });
+    if (dirty || saving) await saveData(); // what is typed in the sheet is saved first, so nothing is lost when the sheet refreshes
+    // With a filter on a dropdown column (say Application Stage), the new student starts at that value and stays in the filtered list.
+    let defaultStage = isTeam() ? '' : 'Inquiry';
+    const filtered = columnFilters['APPLICATION STATUS'];
+    if (filtered && !isTeam()) { const first = [...filtered].find((v) => v !== ''); if (first) defaultStage = first; }
+    const made = await window.NewStudent.open({ me, intakes: sheets.map((x) => ({ id: x.id, name: x.name })), activeSheetId, defaultStage });
+    if (!made || !made.id) return;
     searchEl.value = '';
-    // A team's new student starts at that team's stage (so it stays in the person's list) and is marked
-    // with the department, which lets the person fill in the student's basics (the server checks both).
-    if (isTeam()) {
-      blank['APPLICATION STATUS'] = Teams.newStudentStatus(me, dept);
-      blank._addedByTeam = dept;
-      if (dept && Teams.DEPARTMENTS[dept].source) blank['STUDENT SOURCE'] = Teams.DEPARTMENTS[dept].source; // a branch's student is tagged with the branch
-    }
-    rows.push(blank);
-    const startCol = columns.find((c) => isTextCell(c) && canEditCol(c, blank)) || columns[0];
-    selRanges = [singleRange(rows.length - 1, startCol)];
-    rowSelectMode = false;
-    markDirty();
-    renderBody();
-    tableWrap.scrollTop = 1e9;
-    if (renderWindow()) afterWindowChange();
-    // Ready to type straight into the new row.
-    setActiveCell(rows.length - 1, startCol, { scroll: false });
+    reloadWanted = true;
+    await checkForRemoteChanges();
+    flashStatus('Student added');
+    if (window.CardDrawer) window.CardDrawer.open(made.id);
+  }
+
+  // The student card of the picked row, or of the row the cursor is on.
+  function openCardOfRow(rowIdx) {
+    const row = rows[rowIdx];
+    if (row && row._id && window.CardDrawer) window.CardDrawer.open(row._id);
+  }
+  function openCardOfSelection() {
+    const picked = [...selectedRows][0];
+    const idx = picked !== undefined ? picked : (activeCell ? activeCell.rowIdx : undefined);
+    if (idx === undefined) { NiecUI.toast('Click a student first (a cell, or the row number), then press Open card.', { type: 'info' }); return; }
+    openCardOfRow(idx);
   }
 
   function describeRow(row) {
@@ -2501,6 +2461,7 @@
   }
 
   $('#addRow').addEventListener('click', addRow);
+  $('#openCard').addEventListener('click', openCardOfSelection);
   $('#delRow').addEventListener('click', () => { if (Teams.canDelete(me)) deleteRow(); });
   $('#exportExcel').addEventListener('click', exportExcel);
   $('#colorRow').addEventListener('click', openColorMenu);
@@ -2750,6 +2711,8 @@
 
   body.addEventListener('dblclick', (e) => {
     const td = e.target.closest('td');
+    // A double-click on the row number opens that student's card.
+    if (td && body.contains(td) && td.classList.contains('col-idx') && !td.parentElement.classList.contains('pad-row')) { openCardOfRow(Number(td.parentElement.dataset.rowIdx)); return; }
     if (!td || !body.contains(td) || td.classList.contains('col-idx') || e.target.closest('select, input')
       || td.parentElement.classList.contains('pad-row')) return;
     const rowIdx = Number(td.parentElement.dataset.rowIdx);
@@ -2827,6 +2790,7 @@
     'Ctrl + C / X / V: copy, cut, paste (works with Excel and Google Sheets)',
     'Delete: clear the selected cells',
     'Ctrl + Z / Ctrl + Y: undo, redo',
+    'Double-click a row number (or press Open card): the student card',
   ].map((l) => '• ' + l).join('\n');
   const showShortcuts = () => NiecUI.alert(SHORTCUTS, { title: 'Keyboard shortcuts', confirmText: 'Got it' });
   $('#helpBtn').addEventListener('click', showShortcuts);

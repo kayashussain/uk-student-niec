@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex, nofollow" />
+<title>Message templates · UK Student NIEC</title>
+<link rel="icon" type="image/png" href="favicon.png" />
+<link rel="stylesheet" href="header.css" />
+<link rel="stylesheet" href="ui.css" />
+<link rel="stylesheet" href="portal.css" />
+<link rel="stylesheet" href="theme.css" />
+</head>
+<body class="p-body">
+  <header class="niec-header" data-page="templates"></header>
+  <main class="p-page">
+    <div class="p-head">
+      <div>
+        <h1>Message templates</h1>
+        <p>The ready-made emails and WhatsApp messages counselors send from a student card, one for each step of the journey. Edit the words, the signature, or add your own. Words in curly brackets, like {first_name}, are filled in from the student.</p>
+      </div>
+      <div class="p-actions"><button class="btn btn-primary" type="button" id="addTemplate">+ New template</button></div>
+    </div>
+    <div class="p-notice" id="mailNote" hidden></div>
+    <div class="p-cols" style="grid-template-columns:minmax(0,320px) minmax(0,1fr);margin-top:16px">
+      <section class="p-card"><h2>Templates</h2><div class="p-templates" id="list" style="margin-top:12px"></div>
+        <h3 style="margin-top:22px">Email signature</h3><div id="sig"></div></section>
+      <section class="p-card" id="editor"><p class="p-muted">Choose a template on the left to edit it.</p></section>
+    </div>
+  </main>
+<script src="session.js"></script>
+<script src="ui.js"></script>
+<script src="header.js"></script>
+<script src="portal-ui.js"></script>
+<script src="templates-page.js"></script>
+</body>
+</html>

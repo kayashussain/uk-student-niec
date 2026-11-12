@@ -386,6 +386,31 @@ function createPortalApi({
       req.on('error', reject);
     });
   }
+  // What each partner has brought: the students of a sub-agent (Student Source Agent, and the partner named on the card) and the
+  // students applied for through a B2B platform (the sheet's University Partner column). Matched by name, ignoring capitals.
+  function b2bPerformance() {
+    const out = {};
+    const wb = getWorkbook();
+    if (!wb) return out;
+    const all = cards.all();
+    const bump = (name, row, stage) => {
+      const key = text(name).toLowerCase();
+      if (!key) return;
+      const e = out[key] || (out[key] = { students: 0, applied: 0, paid: 0, visas: 0 });
+      e.students += 1;
+      if (['Application Stage', 'Mock Stage', 'Payment Stage', 'CAS Stage', 'CAS Issued', 'Visa Lodge', 'Visa Issued', 'Visa Rejected'].includes(stage) || text(row['APPLICATION SUBMISSION DATE'])) e.applied += 1;
+      if (['CAS Stage', 'CAS Issued', 'Visa Lodge', 'Visa Issued'].includes(stage) || text(row['PAYMENT DATE'])) e.paid += 1;
+      if (stage === 'Visa Issued' || text(row['VISA RECEIVED DATE'])) e.visas += 1;
+    };
+    wb.sheets.forEach((sheet) => sheet.rows.forEach((row) => {
+      if (!isStudent(row)) return;
+      const stage = text(row[STATUS]);
+      const card = all[row._id];
+      if (text(row['STUDENT SOURCE']) === 'Agent' && card && card.profile.sourceDetail) bump(card.profile.sourceDetail, row, stage);
+      if (text(row['UNIVERSITY PARTNER'])) bump(row['UNIVERSITY PARTNER'], row, stage);
+    }));
+    return out;
+  }
   async function handleB2b(req, res, urlPath) {
     if (!adminOnly(req, res, 'B2B Partners')) return true;
     const id = (urlPath.match(/^\/api\/b2b\/([a-f0-9]{12})/) || [])[1];
@@ -424,7 +449,7 @@ function createPortalApi({
       return true;
     }
     if (req.method === 'GET') {
-      if (!id) { sendJSON(res, 200, { partners: b2b.list(), kinds: B2B_KINDS, statuses: PARTNER_STATUSES }); return true; }
+      if (!id) { sendJSON(res, 200, { partners: b2b.list(), kinds: B2B_KINDS, statuses: PARTNER_STATUSES, performance: b2bPerformance() }); return true; }
       const one = b2b.get(id);
       if (one) sendJSON(res, 200, one); else sendJSON(res, 404, { error: 'No such partner.' });
       return true;
