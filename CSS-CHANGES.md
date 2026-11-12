@@ -9,6 +9,16 @@ Format: **date · file · what · from → to · why**
 
 ---
 
+## 2026-11-12 · `shared/header.js`, `shared/header.css`, `shared/login.html` · the real Fly logo in the menu and on the login page
+
+The owner noticed the logo on screen was not the final logo. It was only the small plane square next to the typed word "Fly".
+
+- **Menu top:** from the small plane square plus the word "Fly" in plain type → to the final logo itself: the word "Fly" in the logo's own rounded letters, the dotted path and the paper plane (170px wide). When the menu is folded, and on a phone, the small plane square is shown instead.
+- **Login page:** from the small plane square plus "Fly" in plain type → to the final logo, large, at the top of the welcome side.
+- The small plane square in the folded menu now uses exactly the same drawing as the logo files (before, its plane was drawn smaller).
+
+---
+
 ## 2026-11-12 · `shared/theme.css`, `shared/header.css`, `shared/login.html` · an Apple-grade look: light, airy and precise
 
 The owner asked for the design of a top consumer brand: premium, expensive, calm.
