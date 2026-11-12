@@ -541,7 +541,7 @@ th { font-size: 15px; }
 /* 🔴 CSS CHANGED (2026-11-12): last small items | from: avatar initials 12px, Dashboard bar notes 12px, chart labels 11px | to: 14px, 14px and 13px */
 .niec-avatar, .t-av, .p-avatar { font-size: 14px !important; }
 .bar-value small, .bar-value { font-size: 14px !important; }
-svg text, .line-body text { font-size: 13px !important; }
+svg text, .line-body text { font-size: 14px !important; }
 /* 🔴 CSS CHANGED (2026-11-12): the last items under 14px found by measuring every page | from: small buttons 13.5px, sheet column headings 13px, row numbers 12.5px, stat tile labels 13px, dropdown options 13px, bold names 13.5px, code boxes 13px, chips 13px, university initials 12px | to: 14px for all of these and 15px for the sheet column headings */
 .btn-sm, .btn.btn-sm, button.btn-sm, a.btn-sm { font-size: 14px !important; }
 .stat-label, .stat-group-title, .stat-card .stat-label { font-size: 14px !important; }
@@ -557,3 +557,14 @@ pre, .p-wa-preview { font-size: 14px !important; }
 /* 🔴 CSS CHANGED (2026-11-12): small notes on Message templates | from: 13.5px | to: 14px */
 small, .p-muted, .muted, #mailNote, .help { font-size: 14px; }
 label span, .p-card label span { font-size: 14px; }
+/* 🔴 CSS CHANGED (2026-11-12): last 13px text and a scroll hint | from: Fact File City and Intakes labels 13.5px, chart numbers and months 13px, no sign that the Fact File fees table scrolls | to: 14px, and a line above the table on narrow screens saying to scroll sideways */
+.glance dt, .glance dd, .glance { font-size: 14px; }
+.scroll-hint { display: none; margin: 0 0 8px; font-size: 14px; color: var(--text-dim); }
+@media (max-width: 1000px) { .scroll-hint { display: block; } }
+/* 🔴 CSS CHANGED (2026-11-12): Partner Universities table on a 1440px screen | from: the table was 40px wider than the screen, so the page scrolled sideways and the last button was cut | to: table cells wrap up to 1600px wide screens and a card scrolls inside itself if still too wide */
+.page .card, .table-card { overflow-x: auto; }
+@media (max-width: 1600px) {
+  .page .card table, .table-card table { width: 100%; min-width: 0; table-layout: auto; }
+  .page .card td, .table-card td { white-space: normal; overflow-wrap: anywhere; }
+  .page .card th, .table-card th { white-space: normal; overflow-wrap: normal; word-break: normal; hyphens: manual; }
+}

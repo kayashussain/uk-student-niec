@@ -91,6 +91,7 @@
     const s = el('section');
     s.append(el('h2', '', 'Entry requirements, fees and scholarships'));
     if (!programs.length) { s.append(el('p', 'placeholder', 'Not added yet.')); doc.append(s); return; }
+    s.append(el('p', 'scroll-hint', 'This table is wide: swipe or scroll sideways to see every column.'));
     const wrap = el('div', 'table-wrap');
     wrap.tabIndex = 0; // the table scrolls sideways on a small screen: reachable (and scrollable) from the keyboard
     wrap.setAttribute('role', 'region');
