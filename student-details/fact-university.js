@@ -171,8 +171,8 @@
     const doc = el('article', 'doc');
     const top = el('div', 'doc-top');
     const logo = el('img');
-    logo.src = 'recruitment360-logo.png';
-    logo.alt = 'Recruitment 360';
+    logo.src = 'isr-logo.png';
+    logo.alt = 'ISR';
     top.append(logo, el('span', 'kind', 'University Fact File'));
     doc.append(top, el('h1', '', uni.name));
 
@@ -247,7 +247,7 @@
       view.append(toc);
     }
     view.append(doc);
-    document.title = `${uni.name} · Fact File · Recruitment 360`;
+    document.title = `${uni.name} · Fact File · ISR`;
 
     const bar = $('toolbar');
     bar.replaceChildren();

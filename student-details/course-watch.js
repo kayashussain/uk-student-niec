@@ -35,7 +35,7 @@ function createCourseWatch({ dir, getIndex, facts, finder, courseLinks, fetchFn 
   let running = false;
 
   async function openPage(url) {
-    const res = await fetchFn(url, { redirect: 'follow', headers: { 'User-Agent': 'Mozilla/5.0 (compatible; Recruitment360-portal)' }, signal: AbortSignal.timeout(20000) });
+    const res = await fetchFn(url, { redirect: 'follow', headers: { 'User-Agent': 'Mozilla/5.0 (compatible; ISR-portal)' }, signal: AbortSignal.timeout(20000) });
     const html = res.ok ? (await res.text()).slice(0, 600000) : '';
     return { status: res.status, ok: res.ok, finalUrl: res.url || url, html };
   }

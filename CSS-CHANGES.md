@@ -7,6 +7,10 @@ To find every marked change in the code, search the project for `CSS CHANGED`.
 
 Format: **date · file · what · from → to · why**
 
+- **2026-11-13 · shared/login.html · the title in the login box · from: 24px, the longer name wrapped to two lines → to: 20px, one line · why: the portal is now called International Student Recruitment.**
+
+- **2026-11-13 · shared/header.js, shared/login.html, shared/theme.css (logo width), brand/, favicon and app icons · the logo and the name · from: a dotted ring with a paper plane and the name "Recruitment 360" → to: a globe with a paper plane taking off from it, "ISR" in bold beside it (the menu), and "ISR" with "International Student Recruitment" under it (the login page, emails and printed Fact File) · why: the portal is now called International Student Recruitment (ISR), and the owner asked for the best logo.**
+
 - **2026-11-13 · shared/theme.css · amber missing-commission flag, small Dashboard text, Dashboard lists on a phone · from: the flag looked like plain blue text, Dashboard chips and notes were 13px, university lists on a phone ran headings together → to: an amber pill, 14px text, and on a phone only Students and Visas columns with room to read · why: the client's second review.**
 - **2026-11-13 · student-details/admin.css · Users, Partner Universities and Activity tables · from: rows turned into labelled cards only below 760px → to: below 1180px, so a zoomed-in browser never cuts the table off · why: the owner's zoom test.**
 

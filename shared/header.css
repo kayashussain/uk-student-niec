@@ -1,5 +1,5 @@
-/* 🔴 CSS CHANGED (2026-11-13): the logo in the menu and on the login page | from: the "Fly" letters with the paper plane on a dotted path | to: the paper plane icon with the name "Recruitment 360" beside it (the logo is a picture, in shared/header.js and shared/login.html) */
-/* The Recruitment 360 side menu every page shares (shared/header.js fills in the navigation and the account menu): a light frosted column on the left, folded to icons on request, a bar across the top on a phone. */
+/* 🔴 CSS CHANGED (2026-11-13): the logo in the menu and on the login page | from: the "Fly" letters with the paper plane on a dotted path | to: the paper plane icon with the name "ISR" beside it (the logo is a picture, in shared/header.js and shared/login.html) */
+/* The ISR side menu every page shares (shared/header.js fills in the navigation and the account menu): a light frosted column on the left, folded to icons on request, a bar across the top on a phone. */
 :root { --side-w: 252px; }
 html[data-nav="folded"] { --side-w: 78px; }
 /* Every page leaves room for the menu (the card window of a student, which shows a page inside another, does not). */

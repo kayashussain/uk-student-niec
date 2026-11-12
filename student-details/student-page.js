@@ -392,7 +392,7 @@
     render(template);
   }
   function render(template) {
-    document.title = `${data.student.name} · Student · Recruitment 360`;
+    document.title = `${data.student.name} · Student · ISR`;
     const frag = document.createDocumentFragment();
     frag.append(hero());
     if (!can()) frag.append(el('div', 'p-notice', 'You can read this student but not change them.'));

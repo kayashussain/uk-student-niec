@@ -59,7 +59,7 @@ function createCourseFinder({ fetchFn = (typeof fetch === 'function' ? fetch : n
       let result;
       try {
         const q = encodeURIComponent(`site:${hosts[0]} ${course}`);
-        const res = await fetchFn(SEARCH + q, { headers: { 'User-Agent': 'Mozilla/5.0 (compatible; Recruitment360-portal)' }, signal: AbortSignal.timeout(12000) });
+        const res = await fetchFn(SEARCH + q, { headers: { 'User-Agent': 'Mozilla/5.0 (compatible; ISR-portal)' }, signal: AbortSignal.timeout(12000) });
         if (!res.ok) throw new Error(`the search answered ${res.status}`);
         const found = pickResult(parseResults(await res.text()), { university, course, hosts });
         result = found ? { link: found.link, title: found.title } : { link: '', error: 'No course page found.' };

@@ -2448,7 +2448,7 @@
     const safeSheetName = sheetName.replace(/[\\/*?:[\]]/g, ' ').slice(0, 31) || 'Export';
 
     const wb = new ExcelJS.Workbook();
-    wb.creator = 'Recruitment 360';
+    wb.creator = 'ISR';
     wb.created = new Date();
 
     const ws = wb.addWorksheet(safeSheetName, { views: [{ state: 'frozen', ySplit: 1 }] });

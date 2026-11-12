@@ -118,7 +118,7 @@ test('adding a person emails their login details, and the password is not shown 
   assert.strictEqual(mailer.sent.length, 1);
   const mail = mailer.sent[0];
   assert.strictEqual(mail.to, 'sita@niecedu.com.np');
-  assert.match(mail.subject, /Set up your Recruitment 360 account/);
+  assert.match(mail.subject, /Set up your ISR account/);
   assert.match(mail.text, /Username: sita/);
   assert.match(mail.text, /Application Team \+ Follow-up Team/);
   assert.match(mail.text, /https:\/\/niec\.example\.org\/login/);
@@ -193,7 +193,7 @@ test('the mail client logs in, sends a UTF-8 message and dot-stuffs it', async (
     const mail = setupEmail({ name: 'Sita र', username: 'sita', temporaryPassword: 'abc', access: 'Manager', siteUrl: 'https://x.org' });
     await sendMail({ host: '127.0.0.1', port, security: 'none', user: 'mailer', pass: 'pw', from: 'system@niecedu.com.np', fromName: 'UK Student NIEC' }, { to: 'sita@x.org', ...mail });
     assert.deepStrictEqual(received.commands.slice(0, 5), ['EHLO niecedu.com.np', 'AUTH PLAIN <hidden>', 'MAIL FROM:<system@niecedu.com.np>', 'RCPT TO:<sita@x.org>', 'DATA']);
-    assert.match(received.data, /Subject: Set up your Recruitment 360 account/);
+    assert.match(received.data, /Subject: Set up your ISR account/);
     assert.match(received.data, /multipart\/alternative/);
     const body = buildMessage({ from: 'a@b.co', to: 'c@d.co', subject: 'Hi', text: 'x\n.\nline starting with a dot', html: '<p>x</p>' });
     assert.ok(!/\r\n\.\r\n/.test(body), 'the text part is base64, so a lone dot can never end the message');

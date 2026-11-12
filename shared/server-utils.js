@@ -245,10 +245,10 @@ const SHARED_FILES = {
   '/ui.js': 'text/javascript; charset=utf-8',
   '/ui.css': 'text/css; charset=utf-8',
   '/theme.css': 'text/css; charset=utf-8',
-  '/recruitment360-logo.png': 'image/png',
+  '/isr-logo.png': 'image/png',
   '/login.html': 'text/html; charset=utf-8',
 };
-const PUBLIC_SHARED = new Set(['/recruitment360-logo.png', '/login.html']);
+const PUBLIC_SHARED = new Set(['/isr-logo.png', '/login.html']);
 
 // Each file is read and compressed once, then kept in memory (the files only change with a deploy,
 // which restarts the server). Pages are always re-checked, so a deploy shows on a normal reload, but every

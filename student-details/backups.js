@@ -55,7 +55,7 @@ function createBackups(dir, collect, { now = () => new Date() } = {}) {
       id = `${kind}-${day}-${localHHMMSS(new Date(date.getTime() + n * 1000))}`;
     }
     const data = collect();
-    const body = { app: 'Recruitment 360', createdAt: date.toISOString(), kind, ...data };
+    const body = { app: 'ISR', createdAt: date.toISOString(), kind, ...data };
     fs.mkdirSync(folder, { recursive: true, mode: 0o700 });
     writeFileAtomic(fileOf(id), zlib.gzipSync(JSON.stringify(body), { level: 9 }));
     prune(date);
