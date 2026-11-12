@@ -234,7 +234,7 @@ function signatureLines(sig) {
 
 // One message, ready to send: the subject, the plain text and the HTML, with the signature. `missing` lists the
 // {words} that had nothing to show, by their names, so the sender can fill the gap before sending.
-function renderEmail({ subject, body, values, signature, options = [], documents = [], siteUrl = '' }) {
+function renderEmail({ subject, body, values, signature, options = [], documents = [], siteUrl = '', signatureSrc = 'cid:niec-signature' }) {
   const missing = new Set();
   const ctx = { options, documents };
   const subj = fill(str(subject, LIMITS.subject), values, missing).replace(/\s+/g, ' ').trim();
@@ -283,10 +283,8 @@ function renderEmail({ subject, body, values, signature, options = [], documents
 <table role="presentation" width="640" cellpadding="0" cellspacing="0" style="max-width:640px;background:#ffffff;border-radius:12px;border-top:4px solid #00adef">
 ${logo}<tr><td style="padding:${logo ? '12px' : '26px'} 28px 6px;font-size:15px;line-height:1.6">
 ${html.join('\n')}
-<p style="margin:18px 0 4px">Kind regards,</p>
-<div style="margin:0 0 18px;padding:12px 0 0 14px;border-left:3px solid #fc6e1f;font-size:13px;line-height:1.55;color:#4f5b69">${sigHtml}</div>
+${signatureSrc ? `<p style="margin:22px 0 0"><img src="${esc(signatureSrc)}" alt="${esc(text(signature && signature.name) || COMPANY)}" width="600" style="display:block;border:0;max-width:100%;height:auto"></p>` : `<p style="margin:18px 0 4px">Kind regards,</p><div style="margin:0 0 18px;padding:12px 0 0 14px;border-left:3px solid #fc6e1f;font-size:13px;line-height:1.55;color:#4f5b69">${sigHtml}</div>`}
 </td></tr>
-<tr><td style="padding:14px 28px 20px;border-top:1px solid #e3e8ee;color:#6b7280;font-size:12px;line-height:1.5">${esc(COMPANY)}. To ask anything about this message, simply reply to this email.</td></tr>
 </table></td></tr></table></body></html>`;
   return { subject: subj, text: plain, html: page, missing: [...missing].map((k) => FIELD_LABEL[k] || k) };
 }

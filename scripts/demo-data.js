@@ -204,11 +204,11 @@ function buildDemo({ today = '2026-11-11', seed = 20261111 } = {}) {
     settings: { valuePerVisa: 150000, maxCostPerLead: 0 },
   };
   const stamp = new Date(now).toISOString();
-  const b2b = [
-    ...PARTNERS.map((name, i) => ({ id: `b2b00000000${i}`, name, status: 'Active', city: ['Pokhara', 'Butwal', 'Biratnagar'][i], agreementStart: '2026-01-01', agreementEnd: ['2026-12-31', '2027-06-30', ''][i], contacts: [{ name: `${pick(FIRST)} ${pick(LAST)} (demo)`, email: `partner${i}@example.com`, phone: `98000990${i}0` }], terms: [{ item: 'Student with a visa', terms: 'Rs 40,000 after enrolment' }], paymentTerms: 'Paid within 30 days of the university commission.', notes: '', agreements: [], updatedAt: stamp, updatedBy: 'Demo Admin' })),
-    { id: 'b2b000000009', name: 'Adventus', status: 'Active', city: 'Online', agreementStart: '2025-06-01', agreementEnd: '2027-05-31', contacts: [{ name: 'Partner manager (demo)', email: 'manager@example.com', phone: '' }], terms: [{ item: 'Share of the university commission', terms: '70% to NIEC' }], paymentTerms: 'Paid after the student enrols.', notes: '', agreements: [], updatedAt: stamp, updatedBy: 'Demo Admin' },
-  ];
-  return { workbook: { revision: 1, sheets, activeSheetId: sheets[sheets.length - 1].id }, cards, planning, b2b, counselors: COUNSELORS };
+  const common = { status: 'Active', agreementStart: '2026-01-01', commissions: [{ intake: 'Jan Intake 2027', link: 'https://example.org/commission-demo', note: 'Demo link' }], notes: '', agreements: [], updatedAt: stamp, updatedBy: 'Demo Admin' };
+  // Agents send NIEC their students; B2B partners are the ones NIEC sends applications to.
+  const agents = PARTNERS.map((name, i) => ({ ...common, id: `ag0000000${i}0`.slice(0, 12), name, city: ['Pokhara', 'Butwal', 'Biratnagar'][i], agreementEnd: ['2026-12-31', '2027-06-30', ''][i], contacts: [{ name: `${pick(FIRST)} ${pick(LAST)} (demo)`, email: `agent${i}@example.com`, phone: `98000990${i}0` }] }));
+  const b2b = [{ ...common, id: 'b2b000000009', name: 'Adventus', city: 'Online', agreementStart: '2025-06-01', agreementEnd: '2027-01-31', contacts: [{ name: 'Partner manager (demo)', email: 'manager@example.com', phone: '9800099999' }] }];
+  return { workbook: { revision: 1, sheets, activeSheetId: sheets[sheets.length - 1].id }, cards, planning, b2b, agents, counselors: COUNSELORS };
 }
 
 module.exports = { buildDemo };

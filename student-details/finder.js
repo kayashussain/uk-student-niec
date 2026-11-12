@@ -34,10 +34,12 @@ function readAsk(body, card) {
     noEnglish: /waiver|moi/i.test(test),
     level: pick('studyLevel') || text(body.level), intake: text(body.intake),
     budget: Number(String(pick('budget')).replace(/[^\d.]/g, '')) || 0,
-    passedYear: wholeNumber(pick('passedYear')), gapYears: body.gapYears !== undefined && text(body.gapYears) !== '' ? Number(body.gapYears) : (text(profile.gapYears) !== '' ? Number(profile.gapYears) : null),
+    passedYear: wholeNumber(pick('passedYear')), gapYears: null,
   };
   const request = text(body.request || body.remarks).slice(0, 1500);
   const student = E.readStudent(request, known);
+  // The study gap is worked out from the year the student passed (a gap written in the remarks wins).
+  if (student.gapYears == null && student.passedYear) student.gapYears = Math.max(0, new Date().getFullYear() - student.passedYear);
   const place = text(body.location) || text(profile.location);
   const where = P.readWhere(`${place} ${request}`);
   const lower = request.toLowerCase();

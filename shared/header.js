@@ -21,7 +21,7 @@
 
   const LINKS = {
     admin: [['dashboard', '/dashboard', 'Dashboard'], ['sheet', '/students', 'Student Details'],
-      ['direct', '/partner-universities', 'Partner Universities'], ['b2b', '/b2b-partners', 'B2B Partners'], ['factfile', '/fact-file', 'Fact File']],
+      ['direct', '/partner-universities', 'Partner Universities'], ['b2b', '/b2b-partners', 'B2B Partners'], ['agents', '/agents', 'Agents'], ['factfile', '/fact-file', 'Fact File']],
     manager: [['dashboard', '/dashboard', 'Dashboard'], ['sheet', '/students', 'Student Details'], ['factfile', '/fact-file', 'Fact File']],
     staff: [['sheet', '/students', 'Student Details'], ['factfile', '/fact-file', 'Fact File']],
   };

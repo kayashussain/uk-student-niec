@@ -38,6 +38,7 @@ if (!keep) {
   write('cards.json', { cards: demo.cards });
   write('planning.json', demo.planning);
   write('b2b-partners.json', { universities: demo.b2b });
+  write('agents.json', { universities: demo.agents });
   const hash = hashPassword('Demo-Password-2026');
   const person = (username, name, role, departments) => ({ id: require('crypto').randomBytes(8).toString('hex'), username, name, email: '', role, departments, passwordHash: hash, mustChangePassword: false, disabled: false, createdAt: new Date().toISOString() });
   write('users.json', { users: [

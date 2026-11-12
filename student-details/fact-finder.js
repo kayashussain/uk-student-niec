@@ -1,5 +1,5 @@
 // The Fact File's links to the student cards: "Send to a student" (pick courses, pick a student, one email with all of them)
-// and the option finder for unusual requests. window.SendToStudent.open(options) is also used by the finder's results.
+// and the drawing of the assistant's answer (the assistant itself lives on the student card, in University options).
 (function (root) {
   const { el, h, api, field, dialog } = root.Portal;
   const F = root.CardFields;
@@ -131,7 +131,13 @@
       why.append(o.why || '');
       if (o.check) why.append(' ', el('b', '', o.check));
       c.append(why);
-      if (offered && o.link) { const a = el('a', 'p-link p-small', o.linkIsCourse ? 'Course page' : 'University website'); a.href = o.link; a.target = '_blank'; a.rel = 'noopener'; const w = el('div', 'p-why'); w.append(a); c.append(w); }
+      if (offered) {
+        const w = el('div', 'p-why');
+        const add = (text, href) => { const a = el('a', 'p-link p-small', text); a.href = href; a.target = '_blank'; a.rel = 'noopener'; if (w.childNodes.length) w.append(' · '); w.append(a); };
+        if (o.link) add(o.linkIsCourse ? 'Course page' : 'University website', o.link);
+        if (!o.linkIsCourse) add('Find the course page', F.courseSearchUrl(o));
+        c.append(w);
+      }
       return c;
     };
     last.splice(0, last.length, ...out.results);
@@ -148,50 +154,5 @@
     if (!out.results.length && !out.advice) results.append(el('div', 'p-empty', 'Nothing matches. Try fewer words.'));
   }
 
-  // The assistant's box: a description of the student, an Ask button and the answer. `studentId`: the student whose card
-  // details are used as well (on a student card). `onAdd`: see drawAnswer.
-  function finderPanel(container, { studentId = '', onAdd = null, placeholder = '' } = {}) {
-    const box = el('div', 'p-finder');
-    const request = el('textarea', 'p-input');
-    request.placeholder = placeholder || 'Student with 2.4 GPA and a 6 year gap, IELTS 5.5, wants a business course in London under 16,000 pounds for January 2027.';
-    request.maxLength = 1500;
-    const form = el('div', 'p-form');
-    const lv = field('Level (optional)', { kind: 'select', choices: F.STUDY_LEVELS });
-    const intake = field('Intake (optional)', { placeholder: 'January 2027', max: 60 });
-    form.append(lv.wrap, intake.wrap);
-    const go = h('button', { class: 'btn btn-primary', type: 'button' }, 'Ask');
-    const results = el('div', 'p-option-results');
-    const picks = new Set();
-    const last = [];
-    const sendBtn = h('button', { class: 'btn', type: 'button' }, 'Send the ticked options to a student');
-    sendBtn.hidden = true;
-    sendBtn.addEventListener('click', () => open(last.filter((_, i) => picks.has(i))));
-    const bar = el('div', 'p-bar');
-    bar.append(go);
-    box.append(request, form, bar, results, sendBtn);
-    request.addEventListener('keydown', (e) => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) go.click(); });
-    go.addEventListener('click', async () => {
-      go.disabled = true; picks.clear(); sendBtn.hidden = true;
-      results.replaceChildren(el('div', 'p-thinking', 'Reading the entry rules of every university…'));
-      try {
-        const out = await api('/api/finder', { request: request.value, level: lv.input.value, intake: intake.input.value, studentId });
-        drawAnswer(out, results, { onAdd, picks, sendBtn, last });
-      } catch (e) { results.replaceChildren(el('div', 'p-notice bad', e.message)); }
-      go.disabled = false;
-    });
-    container.append(box);
-    return box;
-  }
-
-  // The assistant's card on the Fact File page.
-  function finderCard(container) {
-    const card = el('section', 'p-card');
-    card.style.margin = '0 0 16px';
-    card.append(el('div', 'p-card-head'));
-    card.firstChild.append(el('h2', '', 'Fact File assistant'), el('span', 'p-chip', 'Reads the entry rules of every university'));
-    card.append(el('p', '', 'Describe the student in your own words, even an unusual case: the grade, the study gap, the English score, the budget, the city, what they want to study. It tells you which universities and courses the student is eligible for, with the fee, scholarship and link of each, and why the others are ruled out.'));
-    finderPanel(card);
-    container.before(card);
-  }
-  root.SendToStudent = { open, sendUniversity, finderCard, finderPanel, drawAnswer };
+  root.SendToStudent = { open, sendUniversity, drawAnswer };
 })(this);

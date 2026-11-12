@@ -1,5 +1,5 @@
 // The B2B Partners list: the other businesses NIEC works with to recruit students or to apply to universities. Each has its contact
-// people, agreement dates and files, the terms agreed (who gets what, when) and notes. Admin only, like the Partner Universities:
+// people, agreement dates and files, the commission structure of each intake and notes. Admin only, like the Partner Universities:
 // the server refuses every other account. Kept in b2b-partners.json in the data folder, with the agreement files in b2b-files/
 // (never in git, never served as pages). The store itself is the one the Partner Universities use (direct.js).
 
@@ -12,10 +12,11 @@ function cleanPartner(input, old = {}) {
   const contacts = (Array.isArray(input.contacts) ? input.contacts : []).slice(0, LIMITS.contacts).map((c) => ({
     name: str(c && c.name, LIMITS.short).trim(), email: str(c && c.email, LIMITS.short).trim(), phone: str(c && c.phone, LIMITS.short).trim(),
   })).filter((c) => c.name || c.email || c.phone);
-  // The terms: one row for each thing agreed, e.g. item "Postgraduate student with a visa", terms "Rs 40,000, paid after enrolment".
-  const terms = (Array.isArray(input.terms) ? input.terms : []).slice(0, LIMITS.slabs).map((t) => ({
-    item: str(t && t.item, LIMITS.short).trim(), terms: str(t && t.terms, LIMITS.short).trim(),
-  })).filter((t) => t.item || t.terms);
+  // The commission structure of each intake: a link to where it is written (the PDF files are uploaded beside it).
+  const commissions = (Array.isArray(input.commissions) ? input.commissions : []).slice(0, 40).map((c) => {
+    const link = str(c && c.link, 500).trim();
+    return { intake: str(c && c.intake, LIMITS.short).trim(), link: /^https?:\/\/[^\s<>"']+$/i.test(link) ? link : '', note: str(c && c.note, LIMITS.short).trim() };
+  }).filter((c) => c.intake || c.link || c.note);
   return {
     id: old.id,
     name: str(input.name, LIMITS.name).trim() || old.name || '',
@@ -24,19 +25,15 @@ function cleanPartner(input, old = {}) {
     agreementStart: str(input.agreementStart, 40).trim(),
     agreementEnd: str(input.agreementEnd, 40).trim(),
     contacts,
-    terms,
-    commissionRate: str(input.commissionRate, LIMITS.short).trim(),
-    paymentTerms: str(input.paymentTerms, LIMITS.text),
+    commissions,
     notes: str(input.notes, LIMITS.text),
   };
 }
 
 const summary = (p) => ({
   id: p.id, name: p.name, status: p.status, city: p.city,
-  commissionRate: p.commissionRate || '',
-  terms: p.terms.map((t) => [t.item, t.terms].filter(Boolean).join(': ')),
   agreementStart: p.agreementStart, agreementEnd: p.agreementEnd, agreementCount: p.agreements.length, updatedAt: p.updatedAt,
-  contact: p.contacts[0] || { name: '', email: '', phone: '' }, contactCount: p.contacts.length,
+  contact: p.contacts[0] || { name: '', email: '', phone: '' }, contactCount: p.contacts.length, commissionCount: (p.commissions || []).length,
 });
 
 const createB2b = (dir, options = {}) => createDirect(dir, {

@@ -9,6 +9,7 @@
   const embedded = params.get('embed') === '1';
   let data = null; // { student, card, can, me, mail, today }
     let templates = [];
+  let lists = { sourceOptions: {}, partners: [] };
     let showAllNotes = false;
   const TABS = [['details', 'Notes'], ['options', 'University options'], ['message', 'Send a message']];
   let tab = (location.hash || '#details').slice(1);
@@ -72,8 +73,48 @@
       }
       wrap.append(kind);
     }
-    wrap.append(notes());
+    wrap.append(origin(), notes());
     return wrap;
+  }
+
+  // ---- Where the student came from (the Student Source of the sheet, and the platform, event or agent inside it) ----
+  function origin() {
+    const p = profile();
+    const s = data.student;
+    const box = el('section', 'p-card');
+    box.append(el('h2', '', 'Where the student came from'));
+    const sources = Object.keys(F.SOURCE_DETAILS);
+    if (s.source && !sources.includes(s.source)) sources.push(s.source);
+    const src = field('Student source', { kind: 'select', choices: sources, value: s.source, disabled: !data.can.source });
+    const holder = el('div', 'p-field');
+    let detail = null;
+    const draw = () => {
+      const name = src.input.value;
+      const choices = name === 'Agent' ? lists.partners : (lists.sourceOptions[name] || F.SOURCE_DETAILS[name] || []);
+      const label = F.SOURCE_DETAIL_LABEL[name] || (name === 'Agent' ? 'Which agent' : 'Where exactly');
+      const current = detail ? detail.value : p.sourceDetail;
+      const f2 = choices.length ? field(label, { kind: 'select', choices: choices.includes(current) || !current ? choices : [...choices, current], value: current, disabled: !can() }) : field(label, { value: current, disabled: !can() || !name, max: 120 });
+      holder.replaceChildren(...f2.wrap.childNodes);
+      detail = f2.input;
+    };
+    draw();
+    src.input.addEventListener('change', () => { detail = null; draw(); });
+    const form = el('div', 'p-form');
+    form.append(src.wrap, holder);
+    box.append(form);
+    if (!data.can.source && s.source) box.append(el('p', 'p-muted p-small', 'The source of this student can only be changed by Admin.'));
+    if (can()) {
+      const bar = el('div', 'p-bar');
+      bar.append(h('button', { class: 'btn btn-primary', type: 'button', onclick: async () => {
+        try {
+          if (data.can.source && src.input.value !== (s.source || '')) { await save('source', { source: src.input.value }); data.student.source = src.input.value; }
+          await save('profile', { sourceDetail: detail ? detail.value : '' }, 'Saved');
+          render();
+        } catch (e) { /* shown */ }
+      } }, 'Save'));
+      box.append(bar);
+    }
+    return box;
   }
 
   // ---- Notes (replace the Remarks column of the sheet) ----
@@ -141,6 +182,7 @@
       const sch = field('Scholarship', { value: o.scholarship, disabled: !can(), max: 400 });
       const link = field('Course link', { value: o.link, disabled: !can(), max: 500, placeholder: 'https://…' });
       const note = field('Note for the student', { value: o.note, disabled: !can(), max: 400 });
+      if (!o.link) { const f = el('a', 'p-link p-small', 'Find the course page, then paste it in the link box'); f.href = F.courseSearchUrl(o); f.target = '_blank'; f.rel = 'noopener'; link.wrap.append(f); }
       form.append(fee.wrap, dep.wrap, sch.wrap, link.wrap, note.wrap);
       item.append(header, form);
       if (can()) {
@@ -168,7 +210,11 @@
     const money = el('div', 'p-money');
     [['Fee', o.fee], ['Scholarship', o.scholarship]].forEach(([k, v]) => { const sp = el('span'); sp.append(el('span', 'p-muted', k + ': '), el('b', '', v || 'to be confirmed')); money.append(sp); });
     c.append(money);
-    if (o.link) { const a = el('a', 'p-link p-small', o.linkIsCourse ? 'Course page' : 'University website'); a.href = o.link; a.target = '_blank'; a.rel = 'noopener'; const w = el('div', 'p-why'); w.append(a); c.append(w); }
+    const w = el('div', 'p-why');
+    const addLink = (text, href) => { const a = el('a', 'p-link p-small', text); a.href = href; a.target = '_blank'; a.rel = 'noopener'; if (w.childNodes.length) w.append(' · '); w.append(a); };
+    if (o.link) addLink(o.linkIsCourse ? 'Course page' : 'University website', o.link);
+    if (!o.linkIsCourse) addLink('Find the course page', F.courseSearchUrl(o));
+    c.append(w);
     return c;
   }
   // One box: everything about the student that matters for the universities, and the remarks, then Ask. What is typed is kept on the card.
@@ -187,8 +233,7 @@
     add('subject', 'Subject or course wanted', { max: 160, placeholder: 'Business, nursing, cyber security' });
     add('qualification', 'Highest qualification', { kind: 'select', choices: F.QUALIFICATIONS });
     add('grade', 'GPA or percentage', { max: 40, placeholder: '2.9 GPA or 62%' });
-    add('passedYear', 'Year passed', { max: 10 });
-    add('gapYears', 'Study gap (years)', { max: 4 });
+    add('passedYear', 'Year passed (the study gap is worked out from it)', { max: 10, placeholder: '2020' });
     add('englishTest', 'English test', { kind: 'select', choices: F.ENGLISH_TESTS });
     add('englishScore', 'English score', { max: 60 });
     add('budget', 'Budget for the first year (GBP)', { max: 60, placeholder: '17000' });
@@ -261,6 +306,12 @@
       b.addEventListener('click', () => openCompose(t.key));
       list.append(b);
     });
+    const own = el('button', 'p-template');
+    own.type = 'button';
+    own.disabled = !can();
+    own.append(el('b', '', 'Other: write my own message'), el('small', '', 'Write the words yourself and send them'));
+    own.addEventListener('click', () => openCompose('custom'));
+    list.append(own);
     left.append(list);
     const sentBox = el('section', 'p-card');
     sentBox.append(el('h2', '', 'Sent to this student'));
@@ -285,7 +336,7 @@
     } catch (e) { say(e.message, true); }
   }
 
-  const openCompose = (template) => { location.href = `/compose?id=${encodeURIComponent(id)}&template=${encodeURIComponent(template)}`; };
+  const openCompose = (template) => { (window.top || window).location.href = `/compose?id=${encodeURIComponent(id)}&template=${encodeURIComponent(template)}`; };
   function select(name, template) {
     tab = name;
     history.replaceState(null, '', location.pathname + location.search + '#' + name);
@@ -317,8 +368,8 @@
   async function start() {
     if (!id) { view.replaceChildren(el('div', 'p-card', 'Choose a student from the sheet first.')); return; }
     try {
-      const [d, t] = await Promise.all([api('/api/cards/' + encodeURIComponent(id)), api('/api/templates')]);
-      data = d; templates = t.templates;
+      const [d, t, l] = await Promise.all([api('/api/cards/' + encodeURIComponent(id)), api('/api/templates'), api('/api/card-lists')]);
+      data = d; templates = t.templates; lists = l;
       if (tab === 'messages') tab = 'message';
       if (!TABS.some(([k]) => k === tab)) tab = 'details';
       render();

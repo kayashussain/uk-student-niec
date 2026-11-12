@@ -240,13 +240,14 @@ test('targets, spend, events and decisions are checked before they are kept', ()
   assert.strictEqual(p.saveSettings({ valuePerVisa: '150000' }).settings.valuePerVisa, 150000);
 });
 
-test('B2B partners keep their kind, terms and contacts apart from the Partner Universities', () => {
+test('B2B partners keep their commission structure and contacts apart from the Partner Universities', () => {
   const dir = tmp();
   const b = createB2b(dir);
   assert.deepStrictEqual(b.list(), []);
   const made = b.create('Himal Education Hub', 'Owner').university;
-  const saved = b.update(made.id, { city: 'Pokhara', terms: [{ item: 'Student with a visa', terms: 'Rs 40,000' }, {}], contacts: [{ name: 'Hari', phone: '9800000001' }], agreementEnd: '2026-12-31' }, 'Owner').university;
-  assert.deepStrictEqual(saved.terms, [{ item: 'Student with a visa', terms: 'Rs 40,000' }]);
+  const saved = b.update(made.id, { city: 'Pokhara', commissions: [{ intake: 'Jan Intake 2027', link: 'https://example.org/rates' }, {}], contacts: [{ name: 'Hari', phone: '9800000001' }], agreementEnd: '2026-12-31' }, 'Owner').university;
+  assert.deepStrictEqual(saved.commissions, [{ intake: 'Jan Intake 2027', link: 'https://example.org/rates', note: '' }]);
+  assert.strictEqual(saved.terms, undefined, 'no terms any more');
   assert.strictEqual(b.list()[0].name, 'Himal Education Hub');
   assert.ok(fs.existsSync(path.join(dir, 'b2b-partners.json')) && !fs.existsSync(path.join(dir, 'direct-universities.json')));
   assert.strictEqual(b.create('himal education hub', 'Owner').error, 'That partner is already in the list.');
@@ -481,8 +482,7 @@ test('on the real server: cards follow the rules of the sheet, messages are reco
   assert.strictEqual((await manager('GET', '/api/b2b')).status, 403);
   const partner = (await admin('POST', '/api/b2b', { name: 'Himal Education Hub' })).json;
   assert.strictEqual(partner.name, 'Himal Education Hub');
-  assert.deepStrictEqual((await app('GET', '/api/card-lists')).json.partners, ['Himal Education Hub'], 'a team gets the names of the B2B partners, nothing else');
-  assert.strictEqual((await app('GET', '/api/insights')).status, 403);
+    assert.strictEqual((await app('GET', '/api/insights')).status, 403);
   assert.strictEqual((await app('GET', '/api/planning')).status, 403);
   const figuresNow = (await manager('GET', '/api/insights')).json;
   assert.strictEqual(figuresNow.summary.students, 2);
@@ -493,6 +493,28 @@ test('on the real server: cards follow the rules of the sheet, messages are reco
   assert.strictEqual((await manager('GET', '/api/planning')).json.settings.valuePerVisa, undefined, 'the value of a visa is for Admin only');
   for (const page of ['/student', '/compose']) assert.strictEqual((await follow('GET', page)).status, 200, `${page} opens for every account`);
   assert.strictEqual((await follow('GET', '/follow-ups')).status, 404, 'the Follow-ups page is gone');
+
+  // "Other": a message written from nothing; the signature picture is in the preview; sending to many students.
+  const own = (await app('POST', `/api/cards/${sitaId}/messages/preview`, { template: 'custom', subject: 'Hello', body: 'Dear {first_name},\n\nMy own words.' })).json;
+  assert.match(own.text, /My own words\./);
+  assert.match(own.html, /<img src="data:image\/png;base64,/, 'the office signature picture ends every email');
+  const bulk = (await app('GET', '/api/bulk/students?stage=Application%20Stage')).json;
+  assert.ok(bulk.students.some((x) => x.id === sitaId) && !bulk.students.some((x) => x.id === hari.json.id), 'the list holds only the students of that stage that the account may change');
+  const prev = (await app('POST', '/api/bulk/preview', { ids: [sitaId, hari.json.id], subject: 'Hi', body: 'Dear {first_name},\n\nA message.', whatsapp: 'Hello {first_name}' })).json;
+  assert.strictEqual(prev.items[0].name, 'Sita Sharma');
+  assert.strictEqual(prev.items[1].error, 'Not in your list.', 'a student the account cannot see is refused');
+  const bulkSent = (await app('POST', '/api/bulk/send-email', { ids: [sitaId], subject: 'Hi', body: 'Dear {first_name},\n\nA message.' })).json;
+  assert.strictEqual(bulkSent.results[0].status, 'not-configured', 'nothing leaves a computer with no mailbox');
+  assert.strictEqual((await follow('POST', '/api/bulk/send-email', { ids: [sitaId], subject: 'x', body: 'y' })).json.results[0].status, 'skipped', 'a team cannot send to a student it does not see');
+  assert.strictEqual((await manager('POST', '/api/bulk/preview', { ids: [sitaId], subject: 'x', body: 'y' })).json.items[0].error, 'Not in your list.', 'the Manager only views');
+
+  // Agents are their own list, apart from the B2B partners.
+  assert.strictEqual((await app('GET', '/api/agents')).status, 403);
+  const agent = (await admin('POST', '/api/agents', { name: 'Gorkha Agents' })).json;
+  assert.strictEqual(agent.name, 'Gorkha Agents');
+  assert.ok((await admin('POST', `/api/agents/${agent.id}`, { name: 'Gorkha Agents', contacts: [{ name: 'Mina', phone: '9801111111' }], commissions: [{ intake: 'Jan Intake 2027', link: 'https://example.org/rates', note: '' }, { intake: 'x', link: 'javascript:1' }] })).json.commissions[1].link === '', 'only a web address is kept as a link');
+  assert.deepStrictEqual((await app('GET', '/api/card-lists')).json.partners, ['Gorkha Agents'], 'the Agent choice on a student card lists the agents');
+  assert.strictEqual((await admin('GET', '/api/b2b')).json.partners.length, 1, 'B2B partners do not mix with agents');
 
   // Everything is written to the Activity record, and the backup holds the cards.
   const activity = (await admin('GET', '/api/activity?limit=200')).json.events;
@@ -520,4 +542,14 @@ test('the assistant reads a place, a number of universities and the deposit from
   assert.strictEqual(new Set(out.results.map((r) => r.universityId)).size, out.results.length, 'one course for each university');
   assert.ok(out.results.every((r) => r.showDeposit && r.showFullFee));
   assert.ok(out.understood.some((x) => /Manchester/.test(x)) && out.understood.some((x) => /3 universities/.test(x)) && out.understood.some((x) => /deposit/.test(x)));
+});
+
+test('the signature picture travels inside the email, shown in the text of the email by its content id', () => {
+  const html = '<p>Hi</p><img src="cid:niec-signature">';
+  const mime = buildMessage({ from: 'office@example.org', to: 'sita@example.com', subject: 'Hello', text: 'Hi', html, auto: false, inline: [{ cid: 'niec-signature', type: 'image/png', data: Buffer.from('PNGDATA') }] });
+  assert.match(mime, /multipart\/related/);
+  assert.match(mime, /Content-ID: <niec-signature>/);
+  assert.ok(mime.includes(Buffer.from('PNGDATA').toString('base64')));
+  const rendered = Messages.renderEmail({ subject: 'S', body: 'Hello', values: {}, signature: { name: 'Kayas' } });
+  assert.match(rendered.html, /src="cid:niec-signature"/);
 });

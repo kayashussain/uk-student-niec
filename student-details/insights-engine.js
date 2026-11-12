@@ -621,11 +621,6 @@ function buildInsights({ workbook, cards = {}, planning = {}, partners = [], b2b
         'Write to each contact person this week to renew, and note the answer on the partner page.', 'Agreements renewed before their end day.', 'High');
     }
   }
-  const dueDecisions = plan.decisions.filter((d) => d.reviewDate && dayNumber(d.reviewDate) <= today && !d.outcome && !['Stopped', 'Changed', 'Worked: keep it'].includes(d.status));
-  if (dueDecisions.length) {
-    add('P3', 'Decisions', `${plural(dueDecisions.length, 'decision is', 'decisions are')} due for review`, dueDecisions.slice(0, 4).map((d) => `${d.title} (review day ${d.reviewDate}).`),
-      'A decision that is never looked at again teaches nothing. The review is where the lesson for the next intake comes from.', 'Open the Decision log, write what really happened and the lesson for each.', 'Decisions reviewed on their day.', 'High');
-  }
   const order = { P1: 0, P2: 1, P3: 2 };
   findings.sort((a, b) => order[a.priority] - order[b.priority]);
 

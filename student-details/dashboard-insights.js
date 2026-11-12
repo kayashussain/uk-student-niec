@@ -113,9 +113,6 @@
     if (data.findings.length > 5) box.append(h('button', { class: 'btn btn-sm no-print', type: 'button', onclick: () => { allFindings = !allFindings; draw(); } }, allFindings ? 'Show the first five only' : `Show all ${data.findings.length}`));
     return box;
   }
-  function weeklyCard() {
-    return card('This week and the week before', 'What was dated in the last 7 days against the 7 days before.', table(['', 'Last 7 days', 'The 7 before', 'Change'], data.weekly.map((w) => [w.label, number(w.last7), number(w.before7), (w.last7 - w.before7 > 0 ? '+' : '') + (w.last7 - w.before7)]), { numCols: [1, 2, 3] }));
-  }
   // The business in a few sentences, and the money.
   function summaryCard() {
     const c = card('The business at a glance', 'Worked out from your own sheet, student cards and records. Nothing is estimated from outside.');
@@ -163,13 +160,6 @@
     key.append('Each column is one week, named by the day it starts (for example 5 Oct is 5 to 11 October). The number above is all the steps dated in that week. ', el('span', 'p-chip', 'blue: applications'), ' ', el('span', 'p-chip', 'orange: payments'), ' ', el('span', 'p-chip', 'green: visas'));
     return card('The pace, week by week', 'What was dated in each of the last 12 weeks. A falling pace now is the early warning of a missed target.', row, key);
   }
-  function decisionLog() {
-    const c = card('Decision log', 'Each decision with what was expected and what really happened. Review it on its day: that is where the lesson for the next intake comes from.');
-    const items = [...plan.decisions].sort((a, b) => b.date.localeCompare(a.date));
-    if (admin()) c.append(h('button', { class: 'btn btn-sm btn-primary no-print', type: 'button', onclick: () => decisionForm() }, '+ Record a decision'));
-    c.append(items.length ? table(['Date', 'Decision', 'Expected', 'Review day', 'Outcome', 'Status', ''], items.map((d) => [d.date, el('b', '', d.title), d.expected, d.reviewDate, d.outcome || '(not reviewed)', d.status, admin() ? h('button', { class: 'p-link no-print', type: 'button', onclick: () => decisionForm(d) }, 'Edit') : ''])) : el('div', 'p-empty', 'No decisions recorded yet.'));
-    return c;
-  }
   function recordForm(title, listName, spec, existing, extra) {
     return dialog(title, (body, close) => {
       const f = el('div', 'p-form p-form-2');
@@ -187,18 +177,12 @@
     }, { wide: true }).then((saved) => { if (saved) { say('Saved'); load(); } });
   }
   const todayIso = () => data.today;
-  const decisionForm = (d) => recordForm(d ? 'Edit the decision' : 'Record a decision', 'decisions', [
-    ['title', 'The decision', { wide: true, max: 160, placeholder: 'Move 30% of the advert budget to the scholarship advert' }], ['date', 'Decided on', { kind: 'date', default: todayIso() }], ['status', 'Status', { kind: 'select', choices: plan.lists.DECISION_STATUS }],
-    ['problem', 'The problem', { kind: 'area', wide: true, max: 1200 }], ['evidence', 'The evidence (numbers)', { kind: 'area', wide: true, max: 1200 }], ['decision', 'What exactly was decided', { kind: 'area', wide: true, max: 1200 }],
-    ['expected', 'What is expected', { kind: 'area', wide: true, max: 600 }], ['measure', 'How it will be measured', { wide: true, max: 300 }], ['reviewDate', 'Review on', { kind: 'date' }],
-    ['outcome', 'What really happened', { kind: 'area', wide: true, max: 1200 }], ['lesson', 'The lesson', { kind: 'area', wide: true, max: 600 }]], d);
-
   function renderDecisions() {
     const s = data.summary;
     const k = el('div', 'p-kpis');
     k.append(kpi('Students', number(s.students), data.scope, 'mark'), kpi('Applied', number(s.applied), `${percent(s.toApplication)} of students`), kpi('Offers', number(s.offers), `${percent(s.toOffer)} of applications`),
       kpi('Paid', number(s.paid), `${percent(s.toPayment)} of offers`), kpi('Visas', number(s.visas), `${percent(s.leadToVisa)} of all students`, 'good'), kpi('Visa success', percent(s.visaSuccess), `${s.refused} refused`));
-    return [chooser(), summaryCard(), k, funnelCard(), trendCard(), targetCard(), findings(), weeklyCard(), decisionLog()];
+    return [chooser(), summaryCard(), k, funnelCard(), trendCard(), targetCard(), findings(), ...lostCards()];
   }
 
   // ---- Channels and events ----
@@ -211,7 +195,7 @@
     });
     const ch = card('Where students come from, and what each source costs', 'Each source with what is inside it (the platform, the event, the partner). The cost columns are marketing cost only (what was paid for adverts and events, divided by the students, applications or visas that came from it). They are not the cost of running the office. A blank cost means no spend was recorded for it.',
       table(['Source and where exactly', 'Students', 'Applied', 'Paid', 'Visas', 'Student to visa', 'Marketing spent', 'Cost per student', 'Cost per application', 'Cost per visa'], rows, { numCols: [1, 2, 3, 4, 5, 6, 7, 8, 9] }), lowNote());
-    const out = [chooser(), ch];
+    const out = [chooser(), card('Where the marketing money figures come from', 'The system cannot see what you pay for adverts, boosts, events or agents. The cost figures below are only what you type under Marketing spend and Events (one line each time you pay: month, source, where exactly, amount). Until a line is added for a platform its cost stays empty, and a cost per visa is never guessed. Add a line each time you pay, and choose the same source and platform as on the student cards.'), ch];
     // spend
     const spendSec = card('Marketing spend', 'What was paid, by month and source. Type the source and the detail the same way as on the student cards.');
     const lines = plan.spend.filter((l) => !l.intake || l.intake === data.selected).sort((a, b) => b.month.localeCompare(a.month));
@@ -244,26 +228,21 @@
       kpi('Top three together', conc.top3Share !== null ? conc.top3Share + '%' : 'none', 'of applications'), kpi('Biggest partner', data.partners.concentration.applications.top || 'none', data.partners.concentration.applications.topShare !== null ? `${data.partners.concentration.applications.topShare}% of applications` : ''));
     out.push(k);
     out.push(card('Universities', 'How many students each university holds and how far they got. A big share on one university is a risk: its rules or its agents can change.', table(['University', 'Students', 'Applied', 'Offers', 'Paid', 'Visas', 'Refused', 'Application to visa'], u.list.map((g) => [g.label, number(g.students), number(g.applied), number(g.offers), number(g.paid), number(g.visas), number(g.refused), g.applied ? percent(Math.round((g.visas / g.applied) * 1000) / 10) + (g.applied < 10 ? ' *' : '') : ''])), lowNote()));
-    if (u.speed.length) out.push(card('How fast each university answers', 'Typical days from application to offer, where at least three students have both dates.', bars(u.speed.map((x) => ({ label: x.label, value: x.median, text: `${x.median} days` })), { quiet: true })));
     out.push(card('B2B partners and the sheet\'s University Partner', 'Students by the partner they were processed through.', table(['Partner', 'Students', 'Applied', 'Offers', 'Paid', 'Visas'], data.partners.list.map((g) => [g.label, number(g.students), number(g.applied), number(g.offers), number(g.paid), number(g.visas)]))));
     if (data.partners.agreements.length) {
       const order = { ended: 0, soon: 1, 'no-date': 2, unread: 3, ok: 4 };
       const text = { ended: 'Ended', soon: 'Ends soon', 'no-date': 'No end day recorded', unread: 'Day not understood', ok: 'In force' };
       out.push(card('Agreements', 'Universities and B2B partners with the day each agreement ends (Admin only).', table(['Name', 'Kind', 'Ends', 'Days left', 'State'], [...data.partners.agreements].sort((a, b) => order[a.state] - order[b.state]).map((a) => [a.label, a.kind, a.end, a.days === null ? '' : String(a.days), el('span', `p-pill p-pill-${a.state === 'ok' ? 'green' : a.state === 'soon' ? 'amber' : a.state === 'ended' ? 'red' : 'gray'}`, text[a.state])]), { numCols: [3] })));
     }
-    out.push(card('Courses most asked for', 'The courses on the sheet, with how far their students got.', table(['Course', 'Students', 'Applied', 'Visas'], data.courses.map((g) => [g.label, number(g.students), number(g.applied), number(g.visas)]), { numCols: [1, 2, 3] })));
-    out.push(card('Study level wanted', 'What level students ask for (from the student cards).', table(['Study level', 'Students', 'Applied', 'Visas'], data.levels.map((g) => [g.label, number(g.students), number(g.applied), number(g.visas)]), { numCols: [1, 2, 3] })));
     return out;
   }
 
-  // ---- Students lost and the records ----
-  function renderTeam() {
-    const out = [chooser()];
+  // ---- Why students are lost (a part of the Decisions page) ----
+  function lostCards() {
+    const out = [];
     const lost = data.lost;
     out.push(card('Why students are lost', `${lost.total} students are withdrawn, on hold, deferred or refused. A reason recorded on the card turns each into a lesson.`, lost.reasons.length ? bars(lost.reasons.map((r) => ({ label: r.label, value: r.count, text: `${r.count} (${r.percent}%)` })), { quiet: true }) : el('div', 'p-empty', 'No students lost yet.')));
     out.push(card('What students wanted that NIEC could not offer', 'Worked out from the cards of lost students: the subject and level they asked for, where the recorded reason was that we had no suitable course, the fee or deposit was too high, or the grades or English score were not accepted. The same request repeating is the sign of a gap in the university list.', lost.wanted.length ? table(['Subject', 'Level', 'Students', 'Why we lost them'], lost.wanted.map((w) => [el('b', '', w.subject), w.level, number(w.count), w.reasons.join(', ')]), { numCols: [2] }) : el('div', 'p-empty', 'Nothing yet. It fills in as lost students get a reason and a subject on their card.')));
-    out.push(card('How long each step takes', 'Typical days between two dates on the same student (the middle value).', table(['Step', 'Typical time', 'Students counted'], data.speed.map((s) => [s.label, s.median === null ? 'not enough dates yet' : `${s.median} days`, number(s.samples)]), { numCols: [2] })));
-    out.push(card('How complete the records are', 'Each detail, how many students have it, and the decision it makes possible. A decision cannot be better than its data.', table(['Detail', 'Filled in', 'Of', 'Share', 'What it lets you decide'], data.quality.map((q) => [q.label, number(q.filled), number(q.of), el('b', '', percent(q.percent)), q.decision]), { numCols: [1, 2, 3] })));
     return out;
   }
 
@@ -288,21 +267,8 @@
     }
     if (p.channelMix.length) out.push(card('Where the students came from last time', 'The starting point for the lead target of each channel.', table(['Channel', 'Share of students', 'Application rate', 'Student to visa', 'Cost per student'], p.channelMix.map((c) => [c.label, percent(c.share), percent(c.toApplication), percent(c.leadToVisa) + (c.low ? ' *' : ''), c.costPerStudent ? rupees(c.costPerStudent) : '']), { numCols: [1, 2, 3, 4] }), lowNote()));
     if (p.channelPlan.length) out.push(card('Where the missing inquiries should come from, and the budget', 'The inquiries still to find, split by the share each source brought before, with the marketing cost per student it had. A blank budget means no spend was recorded for that source. Check the split before you spend: it repeats the past, it does not know what is new.', table(['Source', 'Inquiries to find', 'Cost per student', 'Budget'], p.channelPlan.map((c) => [c.label + (c.low ? ' *' : ''), number(c.students), c.costPerStudent ? rupees(c.costPerStudent) : '', c.budget ? rupees(c.budget) : '']), { numCols: [1, 2, 3] }), lowNote()));
-    out.push(marketNotes());
     return out;
   }
-  function marketNotes() {
-    const c = card('Market watch', 'UK immigration rules, Nepal rules, universities and competitors: each note with where it came from and what it means for NIEC. Only write what you have checked, and say where you checked it.');
-    if (admin()) c.append(h('button', { class: 'btn btn-sm btn-primary no-print', type: 'button', onclick: () => marketForm() }, '+ Add a note'));
-    const items = [...plan.market].sort((a, b) => b.date.localeCompare(a.date));
-    c.append(items.length ? table(['Date', 'Kind', 'Note', 'Source', 'What it means', 'What to do', ''], items.map((m) => [m.date, m.kind, el('b', '', m.title), m.source, m.impact, m.action, admin() ? h('button', { class: 'p-link no-print', type: 'button', onclick: () => marketForm(m) }, 'Edit') : ''])) : el('div', 'p-empty', 'No notes yet. Add the rule changes and competitor moves that affect the next intake.'));
-    return c;
-  }
-  const marketForm = (m) => recordForm(m ? 'Edit the note' : 'Add a market note', 'market', [
-    ['title', 'What changed', { wide: true, max: 200 }], ['date', 'Date', { kind: 'date', default: todayIso() }], ['kind', 'Kind', { kind: 'select', choices: plan.lists.MARKET_KINDS }],
-    ['detail', 'Detail', { kind: 'area', wide: true, max: 2000 }], ['source', 'Where you checked it (official page or document)', { wide: true, max: 400 }], ['checkedOn', 'Checked on', { kind: 'date', default: todayIso() }],
-    ['impact', 'What it means for NIEC', { kind: 'area', wide: true, max: 800 }], ['action', 'What to do', { kind: 'area', wide: true, max: 800 }]], m);
-
   // The intake proposal: the figures and the plan in the words a CEO or chairman reads, to print or save as PDF.
   function proposal() {
     const d = data;
@@ -330,7 +296,7 @@
     panel.replaceChildren(bar, view);
   }
 
-  const RENDER = { decisions: renderDecisions, channels: renderChannels, universities: renderUniversities, team: renderTeam, plan: renderPlan };
+  const RENDER = { decisions: renderDecisions, channels: renderChannels, universities: renderUniversities, plan: renderPlan };
   function draw() { panel.replaceChildren(...RENDER[tab]()); }
   async function load() {
     clearTimeout(timer);

@@ -977,8 +977,8 @@
   // Every column has a set width that doesn't depend on what's typed in it (wide enough for its title
   // and its kind of cell). Besides keeping the sheet tidy, it lets the browser lay the table out
   // without measuring every cell, which keeps typing and moving around a long sheet smooth.
-  // 🔴 CSS CHANGED (2026-11-12): width of the S.N column | from: 56px | to: 92px | why: room for the new per-row Open button
-  const COL_IDX_WIDTH = 92; // room for a 4-digit row number and the Open button
+  // 🔴 CSS CHANGED (2026-11-13): width of the S.N column | from: 92px | to: 56px (as it was before the Open button) | why: the owner does not want the Open button in each row
+  const COL_IDX_WIDTH = 56; // room for a 4-digit row number
   let measureCtx = null;
   function textWidth(text, font) {
     if (!measureCtx) measureCtx = document.createElement('canvas').getContext('2d');
@@ -1443,12 +1443,6 @@
     const idxTd = document.createElement('td');
     idxTd.className = 'col-idx';
     idxTd.append(document.createTextNode(String(displayIdx + 1)));
-    const openBtn = document.createElement('button');
-    openBtn.type = 'button';
-    openBtn.className = 'row-open';
-    openBtn.textContent = 'Open';
-    openBtn.title = "Open this student's card";
-    idxTd.append(openBtn);
     idxTd.title = 'Select this row (drag or Shift+Click for a range, Ctrl+Click for more). Delete clears it.';
     tr.appendChild(idxTd);
 
@@ -2302,12 +2296,9 @@
     const row = rows[rowIdx];
     if (row && row._id && window.CardDrawer) window.CardDrawer.open(row._id);
   }
-  function openCardOfSelection() {
-    const picked = [...selectedRows][0];
-    const idx = picked !== undefined ? picked : (activeCell ? activeCell.rowIdx : undefined);
-    if (idx === undefined) { NiecUI.toast('Click a student first (a cell, or the row number), then press Open card.', { type: 'info' }); return; }
-    openCardOfRow(idx);
-  }
+
+  const bulkBtn = document.getElementById('bulkSend');
+  if (bulkBtn) bulkBtn.addEventListener('click', () => { location.href = '/bulk'; });
 
   function describeRow(row) {
     return [row['FIRST NAME'], row['LAST NAME']].filter(Boolean).join(' ') || 'this row';
@@ -2473,7 +2464,6 @@
   }
 
   $('#addRow').addEventListener('click', addRow);
-  $('#openCard').addEventListener('click', openCardOfSelection);
   $('#delRow').addEventListener('click', () => { if (Teams.canDelete(me)) deleteRow(); });
   $('#exportExcel').addEventListener('click', exportExcel);
   $('#colorRow').addEventListener('click', openColorMenu);
@@ -2508,7 +2498,6 @@
   // element, because finishing an edit can redraw the table in the middle of the click.
   body.addEventListener('mousedown', (e) => {
     if (e.button !== 0) return;
-    if (e.target.closest('.row-open')) { e.preventDefault(); e.stopPropagation(); openCardOfRow(Number(e.target.closest('tr').dataset.rowIdx)); return; }
     const td = e.target.closest('td');
     if (!td || !body.contains(td) || td.parentElement.classList.contains('pad-row')) return;
     if (editing && editing.td === td) return; // clicking inside the cell being typed in moves the caret
@@ -2806,7 +2795,7 @@
     'Ctrl + C / X / V: copy, cut, paste (works with Excel and Google Sheets)',
     'Delete: clear the selected cells',
     'Ctrl + Z / Ctrl + Y: undo, redo',
-    'Double-click a student\'s name or row number (or press Open card): the student card',
+    'Double-click a student\'s name or row number: the student card',
   ].map((l) => '• ' + l).join('\n');
   const showShortcuts = () => NiecUI.alert(SHORTCUTS, { title: 'Keyboard shortcuts', confirmText: 'Got it' });
   $('#helpBtn').addEventListener('click', showShortcuts);

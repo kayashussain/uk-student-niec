@@ -28,7 +28,7 @@ const MAX_CELL_CHARS = 5000;
 const NEW_STUDENT_COLUMNS = ['FIRST NAME', 'LAST NAME', 'EMAIL', 'CONTACT NUMBER', 'STUDENT SOURCE'];
 
 function createPortalApi({
-  getWorkbook, writeWorkbook, recordChanges, teamSave, cards, messages, courseLinks, sourceOptions, courseLinker = null, facts, direct, b2b, planning, accounts, activity,
+  getWorkbook, writeWorkbook, recordChanges, teamSave, cards, messages, courseLinks, sourceOptions, courseLinker = null, facts, direct, b2b, agents, planning, accounts, activity,
   insights = null, finder = null, calculated = [],
 }) {
   // ---- finding a student, and who may see or change them ----
@@ -98,7 +98,7 @@ function createPortalApi({
       sourceOptions: sourceOptions.all(planned),
       sourceLabels: Fields.SOURCE_DETAIL_LABEL, sourceCanAdd: Fields.SOURCE_CAN_ADD,
       // Only the names: the terms agreed with a partner stay on the Admin-only page.
-      partners: b2b.list().filter((p) => p.status !== 'Ended').map((p) => p.name),
+      partners: agents.list().filter((p) => p.status !== 'Ended').map((p) => p.name),
       intakes: (() => { const wb = getWorkbook(); return wb ? Teams.viewFor(user, wb).sheets.map((s) => ({ id: s.id, name: s.name })) : []; })(),
       stages: Teams.ALL_STATUSES,
       departments: Teams.addableDepartments(user).map((d) => ({ id: d, label: Teams.DEPARTMENTS[d].label, start: Teams.DEPARTMENTS[d].start, source: Teams.DEPARTMENTS[d].source || '' })),
@@ -106,6 +106,12 @@ function createPortalApi({
   }
 
   // ---- messages ----
+  // The office signature (the picture the owner supplied) goes at the end of every email: inline in the email that is sent, and as a
+  // data address in the preview (the preview window has no login, so it cannot fetch a picture from the server).
+  let signaturePicture = null;
+  try { signaturePicture = require('fs').readFileSync(require('path').join(__dirname, 'email-signature.png')); } catch (e) { signaturePicture = null; }
+  const inlinePictures = () => (signaturePicture ? [{ cid: 'niec-signature', type: 'image/png', data: signaturePicture }] : []);
+  const signatureSrc = (preview) => (signaturePicture ? (preview ? `data:image/png;base64,${signaturePicture.toString('base64')}` : 'cid:niec-signature') : '');
   const mailConfig = () => accounts.emailConfig();
   function messageContext(req, found, card, optionIds) {
     const picked = Array.isArray(optionIds) && optionIds.length ? card.options.filter((o) => optionIds.includes(o.id)) : card.options;
@@ -131,12 +137,13 @@ function createPortalApi({
     if (!body) return true;
     const template = messages.get(text(body.template)) || null;
     const subject = typeof body.subject === 'string' ? body.subject : (template ? template.subject : '');
-    const emailBody = typeof body.body === 'string' ? body.body : (template ? template.body : '');
-    const whatsappBody = typeof body.whatsapp === 'string' ? body.whatsapp : (template ? template.whatsapp : '');
+    const own = text(body.template) === 'custom'; // "Other": the sender writes everything
+    const emailBody = typeof body.body === 'string' ? body.body : (template ? template.body : (own ? 'Dear {first_name},\n\n' : ''));
+    const whatsappBody = typeof body.whatsapp === 'string' ? body.whatsapp : (template ? template.whatsapp : (own ? 'Hello {first_name}, ' : ''));
     const ctx = messageContext(req, found, card, body.optionIds);
     const cfg = mailConfig();
     const signature = messages.signature();
-    const email = Messages.renderEmail({ subject, body: emailBody, signature, siteUrl: cfg ? cfg.siteUrl : '', ...ctx });
+    const email = Messages.renderEmail({ subject, body: emailBody, signature, siteUrl: cfg ? cfg.siteUrl : '', signatureSrc: signatureSrc(action === 'preview'), ...ctx });
     const whatsapp = Messages.renderWhatsApp({ body: whatsappBody, ...ctx });
     const to = text(body.to) || text(found.row.EMAIL).toLowerCase();
     const number = Fields.whatsappNumber(found.row['CONTACT NUMBER']);
@@ -193,7 +200,7 @@ function createPortalApi({
     }
     try {
       await mailer.sendMail({ ...cfg, fromName: signature.company || Messages.COMPANY }, {
-        to, subject: email.subject, text: email.text, html: email.html, auto: false, bcc: signature.copyToOffice ? [cfg.from] : [], attachments: files,
+        to, subject: email.subject, text: email.text, html: email.html, auto: false, bcc: signature.copyToOffice ? [cfg.from] : [], attachments: files, inline: inlinePictures(),
       });
     } catch (e) {
       const logged = cards.logMessage(found.row._id, { ...entry, status: 'failed', error: e.message }, by(req));
@@ -398,36 +405,37 @@ function createPortalApi({
   }
   // What each partner has brought: the students of a B2B partner (Student Source Agent, and the partner named on the card) and the
   // students applied for through a B2B platform (the sheet's University Partner column). Matched by name, ignoring capitals.
-  function b2bPerformance() {
+  // What each partner has brought, by intake: visas first (that is what pays), and the students. B2B partners are the businesses NIEC sends
+  // applications to (the sheet's University Partner column); Agents are the ones that send students (Student Source "Agent", and the agent named
+  // on the student card). Matched by name, ignoring capitals.
+  function partnerPerformance(kind) {
     const out = {};
     const wb = getWorkbook();
     if (!wb) return out;
     const all = cards.all();
-    const bump = (name, row, stage) => {
+    const bump = (name, row, sheetName) => {
       const key = text(name).toLowerCase();
       if (!key) return;
-      const e = out[key] || (out[key] = { students: 0, applied: 0, paid: 0, visas: 0, intakes: {} });
-      const it = e.intakes[row._intake] || (e.intakes[row._intake] = { students: 0, applied: 0, visas: 0 });
+      const e = out[key] || (out[key] = { students: 0, visas: 0, intakes: {} });
+      const it = e.intakes[sheetName] || (e.intakes[sheetName] = { students: 0, visas: 0 });
       e.students += 1; it.students += 1;
-      if (['Application Stage', 'Mock Stage', 'Payment Stage', 'CAS Stage', 'CAS Issued', 'Visa Lodge', 'Visa Issued', 'Visa Rejected'].includes(stage) || text(row['APPLICATION SUBMISSION DATE'])) { e.applied += 1; it.applied += 1; }
-      if (['CAS Stage', 'CAS Issued', 'Visa Lodge', 'Visa Issued'].includes(stage) || text(row['PAYMENT DATE'])) e.paid += 1;
-      if (stage === 'Visa Issued' || text(row['VISA RECEIVED DATE'])) { e.visas += 1; it.visas += 1; }
+      if (text(row[STATUS]) === 'Visa Issued' || text(row['VISA RECEIVED DATE'])) { e.visas += 1; it.visas += 1; }
     };
     wb.sheets.forEach((sheet) => sheet.rows.forEach((row) => {
       if (!isStudent(row)) return;
-      const stage = text(row[STATUS]);
       const card = all[row._id];
-      row = { ...row, _intake: sheet.name };
-      if (text(row['STUDENT SOURCE']) === 'Agent' && card && card.profile.sourceDetail) bump(card.profile.sourceDetail, row, stage);
-      if (text(row['UNIVERSITY PARTNER'])) bump(row['UNIVERSITY PARTNER'], row, stage);
+      if (kind === 'agents') { if (text(row['STUDENT SOURCE']) === 'Agent' && card && card.profile.sourceDetail) bump(card.profile.sourceDetail, row, sheet.name); } else if (text(row['UNIVERSITY PARTNER'])) bump(row['UNIVERSITY PARTNER'], row, sheet.name);
     }));
     return out;
   }
-  async function handleB2b(req, res, urlPath) {
-    if (!adminOnly(req, res, 'B2B Partners')) return true;
-    const id = (urlPath.match(/^\/api\/b2b\/([a-f0-9]{12})/) || [])[1];
-    const record = (line) => activity.record(req, req.user, 'Edited partners', { app: 'B2B Partners', changes: [line] });
-    const fileMatch = urlPath.match(/^\/api\/b2b\/[a-f0-9]{12}\/files(?:\/([a-f0-9]{12})(\/delete)?)?$/);
+  // B2B Partners (the businesses NIEC sends applications to) and Agents (the businesses that send NIEC their students): the same kind of record.
+  async function handleB2b(req, res, urlPath) { return handlePartnerStore(req, res, urlPath, { store: b2b, prefix: 'b2b', label: 'B2B Partners', kind: 'b2b' }); }
+  async function handleAgents(req, res, urlPath) { return handlePartnerStore(req, res, urlPath, { store: agents, prefix: 'agents', label: 'Agents', kind: 'agents' }); }
+  async function handlePartnerStore(req, res, urlPath, { store: b2b, prefix, label, kind }) {
+    if (!adminOnly(req, res, label)) return true;
+    const id = (urlPath.match(new RegExp(`^/api/${prefix}/([a-f0-9]{12})`)) || [])[1];
+    const record = (line) => activity.record(req, req.user, 'Edited partners', { app: label, changes: [line] });
+    const fileMatch = urlPath.match(new RegExp(`^/api/${prefix}/[a-f0-9]{12}/files(?:/([a-f0-9]{12})(/delete)?)?$`));
     if (fileMatch) {
       const fid = fileMatch[1];
       if (req.method === 'GET' && fid && !fileMatch[2]) {
@@ -461,7 +469,7 @@ function createPortalApi({
       return true;
     }
     if (req.method === 'GET') {
-      if (!id) { sendJSON(res, 200, { partners: b2b.list(), statuses: PARTNER_STATUSES, performance: b2bPerformance() }); return true; }
+      if (!id) { sendJSON(res, 200, { partners: b2b.list(), statuses: PARTNER_STATUSES, performance: partnerPerformance(kind) }); return true; }
       const one = b2b.get(id);
       if (one) sendJSON(res, 200, one); else sendJSON(res, 404, { error: 'No such partner.' });
       return true;
@@ -472,20 +480,20 @@ function createPortalApi({
     if (!id) {
       const made = b2b.create(body.name, req.user.label);
       if (made.error) { sendJSON(res, 400, { error: made.error }); return true; }
-      record(`Added ${made.university.name} to B2B Partners`);
+      record(`Added ${made.university.name} to ${label}`);
       sendJSON(res, 200, made.university);
       return true;
     }
     if (urlPath.endsWith('/delete')) {
       const gone = b2b.remove(id);
       if (gone.error) { sendJSON(res, 404, { error: gone.error }); return true; }
-      record(`Removed ${gone.removed.name} from B2B Partners`);
+      record(`Removed ${gone.removed.name} from ${label}`);
       sendJSON(res, 200, { ok: true });
       return true;
     }
     const saved = b2b.update(id, body, req.user.label);
     if (saved.error) { sendJSON(res, 400, { error: saved.error }); return true; }
-    record(`Updated ${saved.university.name} in B2B Partners`);
+    record(`Updated ${saved.university.name} in ${label}`);
     sendJSON(res, 200, saved.university);
     return true;
   }
@@ -585,6 +593,73 @@ function createPortalApi({
     return true;
   }
 
+  // ---- sending one message to many students (email or WhatsApp) ----
+  const bulkSends = new Map();
+  async function handleBulk(req, res, urlPath) {
+    if (req.method === 'GET' && urlPath === '/api/bulk/students') {
+      const params = new URL(req.url, 'http://x').searchParams;
+      const sheet = text(params.get('sheet'));
+      const stage = text(params.get('stage'));
+      const list = [];
+      for (const { sheet: sh, row } of visibleStudents(req.user)) {
+        if (!canChange(req.user, rowIndex().get(row._id))) continue;
+        const b = brief(sh, row);
+        if (sheet && sh.id !== sheet) continue;
+        if (stage && b.stage !== stage) continue;
+        list.push({ id: b.id, name: b.name, stage: b.stage, intake: b.intake, sheetId: sh.id, email: b.email, phone: b.phone, whatsapp: Boolean(Fields.whatsappNumber(b.phone)) });
+        if (list.length >= 1000) break;
+      }
+      list.sort((a, b) => a.name.localeCompare(b.name));
+      sendJSON(res, 200, { students: list, ...(() => { const l = cardLists(req.user); return { intakes: l.intakes, stages: l.stages }; })(), mail: { ready: Boolean(mailConfig()) } });
+      return true;
+    }
+    if (req.method !== 'POST' || !/^\/api\/bulk\/(preview|send-email)$/.test(urlPath)) { send(res, 404, 'Not found'); return true; }
+    const body = await bodyOf(req, res, 512 * 1024);
+    if (!body) return true;
+    const ids = [...new Set(Array.isArray(body.ids) ? body.ids.map(String) : [])].filter((i) => ROW_ID.test(i)).slice(0, 150);
+    if (!ids.length) { sendJSON(res, 400, { error: 'Choose at least one student.' }); return true; }
+    const template = messages.get(text(body.template)) || null;
+    const subject = typeof body.subject === 'string' ? body.subject : (template ? template.subject : '');
+    const emailBody = typeof body.body === 'string' ? body.body : (template ? template.body : '');
+    const whatsappBody = typeof body.whatsapp === 'string' ? body.whatsapp : (template ? template.whatsapp : '');
+    const cfg = mailConfig();
+    const signature = messages.signature();
+    const preview = urlPath.endsWith('preview');
+    const items = [];
+    const sendOut = [];
+    for (const id of ids) {
+      const found = rowIndex().get(id);
+      if (!canSee(req.user, found) || !canChange(req.user, found)) { (preview ? items : sendOut).push(preview ? { id, error: 'Not in your list.' } : { id, name: '', status: 'skipped', error: 'Not in your list.' }); continue; }
+      const card = cards.get(id);
+      const ctx = messageContext(req, found, card, null);
+      const email = Messages.renderEmail({ subject, body: emailBody, signature, siteUrl: cfg ? cfg.siteUrl : '', signatureSrc: signatureSrc(preview), ...ctx });
+      const wa = Messages.renderWhatsApp({ body: whatsappBody, ...ctx });
+      const to = text(found.row.EMAIL).toLowerCase();
+      const number = Fields.whatsappNumber(found.row['CONTACT NUMBER']);
+      const needsOptions = /\{options_table\}/.test(emailBody + whatsappBody) && !ctx.options.length;
+      const item = { id, name: nameOf(found.row), to, subject: email.subject, text: email.text, missing: email.missing, whatsapp: { number, text: wa.text }, problem: needsOptions ? 'No university option on the card.' : (!mailer.isAddress(to) ? 'No email address.' : '') };
+      if (preview) { items.push(item); continue; }
+      if (item.problem) { sendOut.push({ id, name: item.name, status: 'skipped', error: item.problem }); continue; }
+      if (!cfg) { sendOut.push({ id, name: item.name, status: 'not-configured' }); continue; }
+      const recent = (bulkSends.get(req.user.id) || []).filter((t) => Date.now() - t < 10 * 60 * 1000);
+      if (recent.length >= 300) { sendOut.push({ id, name: item.name, status: 'skipped', error: 'Too many emails in a short time.' }); continue; }
+      const entry = { channel: 'email', template: template ? template.name : 'Own message', subject: email.subject, to, text: email.text, options: needsOptions ? 0 : ctx.options.length, attachments: [] };
+      try {
+        await mailer.sendMail({ ...cfg, fromName: signature.company || Messages.COMPANY }, { to, subject: email.subject, text: email.text, html: email.html, auto: false, bcc: signature.copyToOffice ? [cfg.from] : [], inline: inlinePictures() });
+        recent.push(Date.now()); bulkSends.set(req.user.id, recent);
+        cards.logMessage(id, { ...entry, status: 'sent' }, by(req));
+        sendOut.push({ id, name: item.name, status: 'sent' });
+      } catch (e) {
+        cards.logMessage(id, { ...entry, status: 'failed', error: e.message }, by(req));
+        sendOut.push({ id, name: item.name, status: 'failed', error: e.message });
+      }
+    }
+    if (preview) { sendJSON(res, 200, { items, mail: { ready: Boolean(cfg) } }); return true; }
+    note(req, [`Bulk email "${subject}": ${sendOut.filter((r) => r.status === 'sent').length} sent, ${sendOut.filter((r) => r.status !== 'sent').length} not sent`], 'Sent message');
+    sendJSON(res, 200, { results: sendOut });
+    return true;
+  }
+
   async function handle(req, res, urlPath) {
     if (!urlPath.startsWith('/api/')) return false;
     const query = () => new URL(req.url, 'http://x').searchParams;
@@ -603,6 +678,7 @@ function createPortalApi({
       return true;
     }
     if (urlPath.startsWith('/api/cards/')) return handleCard(req, res, urlPath);
+    if (urlPath === '/api/bulk/students' || urlPath === '/api/bulk/preview' || urlPath === '/api/bulk/send-email') return handleBulk(req, res, urlPath);
     if (urlPath === '/api/courses' && req.method === 'GET') {
       const q = query();
       const index = courseIndex();
@@ -612,6 +688,7 @@ function createPortalApi({
     }
     if (urlPath === '/api/templates' || urlPath.startsWith('/api/templates/')) return handleTemplates(req, res, urlPath);
     if (urlPath === '/api/b2b' || urlPath.startsWith('/api/b2b/')) return handleB2b(req, res, urlPath);
+    if (urlPath === '/api/agents' || urlPath.startsWith('/api/agents/')) return handleAgents(req, res, urlPath);
     if (urlPath === '/api/planning' || urlPath.startsWith('/api/planning/')) return handlePlanning(req, res, urlPath);
     if (urlPath === '/api/insights' && req.method === 'GET') {
       if (!managers(req, res, 'The Dashboard')) return true;

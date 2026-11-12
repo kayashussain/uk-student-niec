@@ -133,7 +133,7 @@ test('screens: log in, edit, delete, search, team rules, Fact File', { timeout: 
     assert.ok(JSON.stringify(dash).includes('Language Classes'), 'the Dashboard counts students whose source is Language Classes');
   });
 
-  await t.test('a double-click on a student name opens that student card, Open card opens the one clicked', async () => {
+  await t.test('a double-click on a student name or row number opens that student card; there is no Open button', async () => {
     const page = await open(admin, '/students');
     await page.waitForSelector('#body tr:not(.pad-row)');
     const nameIdx = await page.$$eval('#headerRow th', (ths) => ths.findIndex((th) => th.dataset.col === 'FIRST NAME'));
@@ -142,11 +142,11 @@ test('screens: log in, edit, delete, search, team rules, Fact File', { timeout: 
     const frame = page.frameLocator('.p-drawer iframe');
     await frame.locator('.p-hero h1').waitFor();
     assert.match(await frame.locator('.p-hero h1').textContent(), /Student/);
-    assert.ok(await frame.locator('.p-tabs button').count() === 3, 'three tabs only: Details, University options, Send a message');
+    assert.ok(await frame.locator('.p-tabs button').count() === 3, 'three tabs only: Notes, University options, Send a message');
     await page.keyboard.press('Escape');
     await page.waitForFunction(() => !document.querySelector('.p-drawer'));
-    await page.locator('#body tr:not(.pad-row)').nth(1).locator('td').nth(nameIdx).click();
-    await page.click('#openCard');
+    assert.strictEqual(await page.locator('#openCard, .row-open').count(), 0, 'no Open card button on top or in a row');
+    await page.locator('#body tr:not(.pad-row)').nth(1).locator('td.col-idx').dblclick();
     await page.waitForSelector('.p-drawer iframe');
     await page.close();
   });

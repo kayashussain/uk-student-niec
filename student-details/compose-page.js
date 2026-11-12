@@ -25,7 +25,7 @@
 
   async function build(templates) {
     const first = await api(`/api/cards/${id}/messages/preview`, { template: templateKey });
-    const tmpl = templates.find((t) => t.key === templateKey);
+    const tmpl = templates.find((t) => t.key === templateKey) || (templateKey === 'custom' ? { name: 'Write my own message' } : null);
     document.title = `${tmpl ? tmpl.name : 'Message'} · ${student.name} · UK Student NIEC`;
     const wrap = el('div');
     const head = el('div', 'p-head');
@@ -92,7 +92,7 @@
         frame.srcdoc = preview.html;
         notes.replaceChildren();
         if (preview.missing.length) notes.append(el('div', 'p-notice warn', 'Not filled in yet, so left out of the message: ' + preview.missing.join(', ') + '.'));
-        if (!mail.ready) notes.append(el('div', 'p-notice', 'This server cannot send email by itself yet (the office mailbox is not set up), so Send email is not available. Use Open in my email program, or copy the text. Attach files there yourself.'));
+        if (!mail.ready) notes.append(el('div', 'p-notice', 'This server cannot send email by itself yet (the office mailbox is not set up), so Send email is not available. Use Open in my email program, or copy the text. Attach files there yourself, and your own email signature there is used (the signature picture is added only to emails this server sends).'));
       } catch (e) { notes.replaceChildren(el('div', 'p-notice bad', e.message)); }
     };
     [subject, bodyText, to].forEach((x) => x.input.addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(refresh, 350); }));

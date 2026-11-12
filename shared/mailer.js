@@ -21,13 +21,16 @@ const base64Lines = (text) => (Buffer.from(text, 'utf8').toString('base64').matc
 // The full message text (CRLF line endings): plain text and HTML versions of the same email.
 // `auto: false` leaves out the header that marks a message as written by a machine (used for the messages a counselor
 // sends to a student, which are personal letters and should be answered like one).
-function buildMessage({ from, fromName, to, subject, text, html, now = new Date(), auto = true, attachments = [] }) {
+function buildMessage({ from, fromName, to, subject, text, html, now = new Date(), auto = true, attachments = [], inline = [] }) {
   const boundary = '=_niec_' + crypto.randomBytes(12).toString('hex');
   const domain = from.split('@')[1];
   const sender = fromName ? `${encodeHeader(oneLine(fromName).replace(/"/g, ''))} <${from}>` : from;
   // Files to send with the message: [{ name, type, data (a Buffer) }]. They exist only in memory, for this one message.
   const outer = '=_niec_mixed_' + crypto.randomBytes(12).toString('hex');
   const files = (attachments || []).filter((a) => a && a.data && a.data.length);
+  // Pictures shown inside the HTML (the signature): [{ cid, type, data }], referenced in the HTML as src="cid:<cid>".
+  const pictures = (inline || []).filter((a) => a && a.cid && a.data && a.data.length);
+  const related = '=_niec_rel_' + crypto.randomBytes(12).toString('hex');
   const lines = [
     `From: ${sender}`,
     `To: ${to}`,
@@ -45,10 +48,13 @@ function buildMessage({ from, fromName, to, subject, text, html, now = new Date(
     '',
     base64Lines(text),
     `--${boundary}`,
+    ...(pictures.length ? [`Content-Type: multipart/related; boundary="${related}"`, '', `--${related}`] : []),
     'Content-Type: text/html; charset=UTF-8',
     'Content-Transfer-Encoding: base64',
     '',
     base64Lines(html),
+    ...pictures.flatMap((p) => [`--${related}`, `Content-Type: ${/^image\/[\w.+-]+$/.test(p.type || '') ? p.type : 'image/png'}`, 'Content-Transfer-Encoding: base64', `Content-ID: <${String(p.cid).replace(/[^\w.@-]/g, '')}>`, 'Content-Disposition: inline', '', (p.data.toString('base64').match(/.{1,76}/g) || ['']).join('\r\n')]),
+    ...(pictures.length ? [`--${related}--`] : []),
     `--${boundary}--`,
     ...files.flatMap((f) => {
       const name = oneLine(f.name).replace(/["\\]/g, '_').slice(0, 120) || 'attachment';
@@ -133,12 +139,12 @@ function friendlyError(e, host) {
 // Resolves when the server accepts it; rejects with a readable Error.
 // `bcc`: more addresses that get the same message without being named in it (the office's own copy). `auto`: see buildMessage.
 // `attachments`: files sent with this one message (kept in memory only, never written to the server's disk).
-async function sendMail(cfg, { to, subject, text, html, bcc = [], auto = true, attachments = [] }, { timeoutMs = 20000, rejectUnauthorized = true } = {}) {
+async function sendMail(cfg, { to, subject, text, html, bcc = [], auto = true, attachments = [], inline = [] }, { timeoutMs = 20000, rejectUnauthorized = true } = {}) {
   if (!cfg || !cfg.host || !cfg.port || !isAddress(cfg.from)) throw new Error('The mail server settings are incomplete.');
   if (!isAddress(to)) throw new Error('That is not a valid email address.');
   const host = String(cfg.host).trim();
   const port = Number(cfg.port);
-  const message = buildMessage({ from: cfg.from, fromName: cfg.fromName, to, subject, text, html, auto, attachments });
+  const message = buildMessage({ from: cfg.from, fromName: cfg.fromName, to, subject, text, html, auto, attachments, inline });
   const copies = [...new Set((Array.isArray(bcc) ? bcc : [bcc]).filter((a) => isAddress(a) && a !== to))].slice(0, 5);
   const localName = cfg.from.split('@')[1];
   const tlsOptions = { host, port, servername: host, rejectUnauthorized };

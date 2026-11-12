@@ -9,6 +9,12 @@ Format: **date · file · what · from → to · why**
 
 ---
 
+## 2026-11-13 · `student-details/style.css` and `app.js` · Open button in each row removed
+
+From: the row number plus a small blue "Open" button (column 92px wide) → to: the row number only (column 56px wide). Why: the owner does not want an Open button in each row or in the toolbar; a double-click on the student's name or row number opens the card.
+
+---
+
 ## 2026-11-12 · `student-details/style.css` and `app.js` · Open button in each row
 
 From: only a row number in the S.N cell (column 56px wide) → to: the row number plus a small blue "Open" button (column 92px wide) that opens the student card. Why: the owner asked for a direct way to open a card from the row.

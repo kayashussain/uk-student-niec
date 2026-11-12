@@ -71,6 +71,8 @@ const serveStatic = createStaticServer(ROOT, {
   '/portal-ui.js': 'text/javascript; charset=utf-8',
   '/student.html': 'text/html; charset=utf-8',
   '/compose.html': 'text/html; charset=utf-8',
+  '/bulk.html': 'text/html; charset=utf-8',
+  '/bulk-page.js': 'text/javascript; charset=utf-8',
   '/compose-page.js': 'text/javascript; charset=utf-8',
   '/student-page.js': 'text/javascript; charset=utf-8',
   '/card-drawer.js': 'text/javascript; charset=utf-8',
@@ -78,6 +80,7 @@ const serveStatic = createStaticServer(ROOT, {
   '/templates.html': 'text/html; charset=utf-8',
   '/templates-page.js': 'text/javascript; charset=utf-8',
   '/b2b.html': 'text/html; charset=utf-8',
+  '/agents.html': 'text/html; charset=utf-8',
   '/b2b-page.js': 'text/javascript; charset=utf-8',
   '/dashboard-insights.js': 'text/javascript; charset=utf-8',
   '/fact-finder.js': 'text/javascript; charset=utf-8',
@@ -108,11 +111,12 @@ const messages = createMessages(DATA_DIR);
 const courseLinks = createCourseLinks(DATA_DIR);
 const sourceOptions = createSourceOptions(DATA_DIR);
 const b2b = createB2b(DATA_DIR);
+const agents = createB2b(DATA_DIR, { file: 'agents.json', filesFolder: 'agent-files', what: 'agent' });
 const planning = createPlanning(DATA_DIR);
 // Daily backups (6 p.m., kept 30 days) and Admin's restore (see backups.js). `current` is the students, held in memory below.
 const backups = createBackups(DATA_DIR, () => ({
   students: current, facts: facts.all(), partners: direct.all(),
-  cards: cards.all(), b2b: b2b.all(), planning: planning.all(), templates: messages.stored(), sourceOptions: sourceOptions.stored(),
+  cards: cards.all(), b2b: b2b.all(), agents: agents.all(), planning: planning.all(), templates: messages.stored(), sourceOptions: sourceOptions.stored(),
 }));
 setInterval(() => backups.tick(), 5 * 60 * 1000).unref();
 
@@ -148,7 +152,7 @@ const advisor = createAdvisorMcp({
 // login. The Claude connector above does not go through any of this: it reads the same data folder with its own secret address.
 const incentiveLock = createIncentiveLock();
 const PAGE_PATHS = new Set(['/', '/students', '/dashboard', '/users', '/activity', '/partner-universities', '/fact-file', '/admin',
-  '/student', '/compose', '/message-templates', '/b2b-partners']);
+  '/student', '/compose', '/bulk', '/message-templates', '/b2b-partners', '/agents']);
 const incentive = createIncentive({ dataDir: INCENTIVE_DIR, studentDataFile: DATA_FILE, getWorkbook: () => current, activity });
 
 async function handleIncentive(req, res, urlPath) {
@@ -791,7 +795,7 @@ function servedInsights(user, intake) {
 
 const portal = createPortalApi({
   getWorkbook: () => current, writeWorkbook, recordChanges, teamSave,
-  cards, messages, courseLinks, sourceOptions, facts, direct, b2b, planning, accounts, activity,
+  cards, messages, courseLinks, sourceOptions, facts, direct, b2b, agents, planning, accounts, activity,
   insights: servedInsights, finder: createFinder(), calculated: CALCULATED_COLUMNS,
 });
 
@@ -882,6 +886,7 @@ async function handleRestore(req, res, urlPath) {
   if (parts.includes('cards')) { cards.restoreAll(snap.cards); done.push('the student cards'); }
   if (parts.includes('records')) {
     if (Array.isArray(snap.b2b)) b2b.restoreAll(snap.b2b);
+    if (Array.isArray(snap.agents)) agents.restoreAll(snap.agents);
     if (snap.planning) planning.restoreAll(snap.planning);
     if (snap.templates) messages.restoreAll(snap.templates);
     if (snap.sourceOptions) sourceOptions.restoreAll(snap.sourceOptions);
@@ -919,7 +924,7 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'GET') {
       const page = {
         '/students': 'index.html', '/dashboard': 'dashboard.html', '/users': 'users.html', '/activity': 'activity.html', '/partner-universities': 'direct.html',
-        '/student': 'student.html', '/compose': 'compose.html', '/message-templates': 'templates.html', '/b2b-partners': 'b2b.html',
+        '/student': 'student.html', '/compose': 'compose.html', '/bulk': 'bulk.html', '/message-templates': 'templates.html', '/b2b-partners': 'b2b.html', '/agents': 'agents.html',
       }[urlPath];
       if (urlPath === '/') return req.user.role === 'manager' ? send(res, 302, '', { Location: '/dashboard' }) : serveStatic(req, res);
       if (urlPath === '/fact-file') { // the list, or one university's page (?u=...); every account may read
@@ -930,7 +935,7 @@ const server = http.createServer(async (req, res) => {
       if (page) {
         // Every account opens the sheet, a student card and the compose page (each shows only the students the account sees);
         // the Dashboard is for Admin and the Manager; the rest is Admin's.
-        const allowed = ['/students', '/student', '/compose'].includes(urlPath) || (urlPath === '/dashboard' ? (isAdmin(req.user) || isManager(req.user)) : isAdmin(req.user));
+        const allowed = ['/students', '/student', '/compose', '/bulk'].includes(urlPath) || (urlPath === '/dashboard' ? (isAdmin(req.user) || isManager(req.user)) : isAdmin(req.user));
         if (!allowed) return send(res, 302, '', { Location: home });
         req.url = '/' + page;
         return serveStatic(req, res);
@@ -995,7 +1000,7 @@ const server = http.createServer(async (req, res) => {
     }
     if (SHARED_FILES[urlPath]) return serveShared(req, res);
     // The page files of the Admin-only pages are Admin-only too (their data was already refused; now their shells are as well).
-    if (['/users.html', '/activity.html', '/direct.html', '/dashboard.html', '/templates.html', '/b2b.html'].includes(urlPath) && !isAdmin(req.user)
+    if (['/users.html', '/activity.html', '/direct.html', '/dashboard.html', '/templates.html', '/b2b.html', '/agents.html'].includes(urlPath) && !isAdmin(req.user)
       && !(urlPath === '/dashboard.html' && isManager(req.user))) return send(res, 302, '', { Location: home });
     serveStatic(req, res);
   } catch (e) {
