@@ -591,3 +591,5 @@ label span, .p-card label span { font-size: 14px; }
 html[data-nav="folded"] .niec-sep { margin: 10px 8px 2px; text-align: center; font-size: 0; }
 html[data-nav="folded"] .niec-sep span { display: none; }
 @media (max-width: 900px) { .niec-sep { display: none; } }
+/* 🔴 CSS CHANGED (2026-11-13): the number tiles above the sheet (Total students ... Conversion rate) | from: one row that scrolled sideways inside itself, so on a zoomed-in browser the last tiles (Withdrawn, Conversion rate) were cut off | to: the tiles wrap onto a second row when the screen is narrower, so every tile is always visible */
+.stat-group-cards { display: grid; grid-auto-flow: row; grid-template-columns: repeat(auto-fit, minmax(112px, 1fr)); grid-auto-columns: auto; width: 100%; max-width: 100%; overflow: visible; }

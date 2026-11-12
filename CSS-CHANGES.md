@@ -7,6 +7,8 @@ To find every marked change in the code, search the project for `CSS CHANGED`.
 
 Format: **date · file · what · from → to · why**
 
+- **2026-11-13 · shared/theme.css · number tiles above the sheet · from: one row that scrolled sideways inside itself, so on a zoomed-in browser the last tiles (Withdrawn, Conversion rate) were cut off → to: the tiles wrap onto a second row on narrower screens, so every tile is always visible · why: the owner saw the conversion rate cut off when zooming the browser.**
+
 - **2026-11-13 · shared/theme.css, shared/header.js · Admin pages in the side menu · from: Users, Activity, Message templates and Incentive were only inside the account menu at the bottom → to: they are in the side menu under a small "Admin only" heading (still in the account menu too) · why: the owner could not find them.**
 
 - **2026-11-13 · shared/header.js, shared/login.html, brand/, favicon and app icons · the Recruitment 360 logo, designed properly · from: the paper plane in a blue square with the name typed beside it → to: a dotted ring (the 360 degrees) trailing a paper plane that takes off from it, with the name "Recruitment 360" drawn as letters (so it looks the same on every computer); the folded menu, the browser tab and the phone home screen use the same ring and plane on a blue tile · why: the owner asked for the logo to be fixed first.**
