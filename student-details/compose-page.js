@@ -79,7 +79,7 @@
     right.append(attach);
 
     const notes = el('div');
-    right.append(notes);
+    left.insertBefore(notes, frame.previousSibling && frame.previousSibling.tagName === 'H2' ? frame : left.firstChild);
     const bar = el('div', 'p-bar');
     right.append(bar);
     const msg = el('div', 'p-msg');
@@ -90,7 +90,7 @@
         preview = await api(`/api/cards/${id}/messages/preview`, { template: templateKey, subject: subject.input.value, body: bodyText.input.value, to: to.input.value });
         frame.srcdoc = preview.html;
         notes.replaceChildren();
-        if (preview.missing.length) notes.append(el('div', 'p-notice warn', 'Not filled in yet, so left out of the message: ' + preview.missing.join(', ') + '.'));
+        if (preview.missing.length) notes.append(el('div', 'p-notice warn', 'Check before sending: this student has no ' + preview.missing.join(' and no ') + ' yet, so the message below has gaps. Fill them in on the student card first, or write the message yourself.'));
         if (!mail.ready) notes.append(el('div', 'p-notice', 'Email cannot be sent from this computer yet because the office mailbox is not set up (this is normal on a test computer). On the real server, Send email works and adds your signature picture. You can copy the text meanwhile.'));
       } catch (e) { notes.replaceChildren(el('div', 'p-notice bad', e.message)); }
     };

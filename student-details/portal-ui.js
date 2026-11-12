@@ -24,7 +24,17 @@
   }
 
   // GET (no body) or POST (a body). Throws an Error with the server's own sentence when the answer is not OK.
-  async function api(url, body) {
+  // The same save sent again while the first is still on its way (a double click) is not sent twice: both callers get the one answer.
+  const inFlight = new Map();
+  function api(url, body) {
+    if (body === undefined) return request(url, body);
+    const key = url + '|' + JSON.stringify(body);
+    if (inFlight.has(key)) return inFlight.get(key);
+    const p = request(url, body).finally(() => { inFlight.delete(key); });
+    inFlight.set(key, p);
+    return p;
+  }
+  async function request(url, body) {
     const res = await fetch(url, body === undefined ? { cache: 'no-store' } : { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
     const json = await res.json().catch(() => ({}));
     if (!res.ok) { const e = new Error(json.error || 'Something went wrong. Please try again.'); e.status = res.status; e.body = json; throw e; }

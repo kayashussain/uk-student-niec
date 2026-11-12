@@ -208,8 +208,8 @@
   // apply() runs once it's confirmed, revert() puts the cell back if it's cancelled.
   // Admin is asked before each change. Teams can only touch their own columns (and everything they do
   // is in the activity record), so they work without the extra question.
-  function confirmChange(apply, revert) {
-    if (window.EditGuard && !isTeam()) window.EditGuard.confirmChange(apply, revert);
+  function confirmChange(apply, revert, detail) {
+    if (window.EditGuard && !isTeam()) window.EditGuard.confirmChange(apply, revert, detail);
     else apply();
   }
 
@@ -656,6 +656,7 @@
         if (BACKUP) document.body.dataset.backup = '1';
         document.body.dataset.role = me.role;
         $('#viewOnly').hidden = !Teams.isReadOnly(me);
+        { const many = document.getElementById('bulkAdd'); if (many) many.hidden = Teams.isReadOnly(me); }
         document.body.toggleAttribute('data-viewonly', Teams.isReadOnly(me));
         document.body.toggleAttribute('data-candelete', Teams.canDelete(me));
       }
@@ -1859,7 +1860,11 @@
         skipRefocus = true; // the caller decides where focus goes next
         renderRow(rows.indexOf(row), col); // recalculates the fee columns and redraws status badges
         skipRefocus = false;
-      }, () => restoreCell(td, rows.indexOf(row), col, original));
+      }, () => restoreCell(td, rows.indexOf(row), col, original), (() => {
+        const who = [row['FIRST NAME'], row['LAST NAME']].filter(Boolean).join(' ');
+        const cut = (t) => { const s = String(t || ''); return s.length > 60 ? s.slice(0, 57) + '...' : s; };
+        return `${who ? who + ': ' : ''}${col.charAt(0) + col.slice(1).toLowerCase()} from "${cut(original) || 'empty'}" to "${cut(value) || 'empty'}".`;
+      })());
       const hint = SUGGEST_COLS.has(col) ? window.NiecSuggest.suggest(newVal, knownValues(col)) : null;
       if (hint) {
         // Looks mistyped: offer what was most likely meant. OK saves that, Keep mine saves what was typed.

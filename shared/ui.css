@@ -78,8 +78,9 @@ dialog.ui-dialog::backdrop { background: rgba(15, 23, 42, .5); backdrop-filter: 
   font: inherit; font-weight: 600; cursor: pointer; transition: background .12s, filter .12s;
 }
 .ui-dialog .ui-actions button:hover { background: rgba(127, 127, 127, .12); }
-.ui-dialog .ui-actions .ui-ok { background: var(--ui-orange); border-color: var(--ui-orange); color: #fff; }
-.ui-dialog .ui-actions .ui-ok:hover { background: var(--ui-orange-dark); border-color: var(--ui-orange-dark); filter: none; }
+/* 🔴 CSS CHANGED (2026-11-12): OK button in pop-up questions (Got it, Add them, Send...) | from: orange | to: the same blue as every other main button */
+.ui-dialog .ui-actions .ui-ok { background: var(--primary, #1d5fd1); border-color: var(--primary, #1d5fd1); color: var(--on-primary, #fff); }
+.ui-dialog .ui-actions .ui-ok:hover { background: var(--primary-hover, #174fb0); border-color: var(--primary-hover, #174fb0); filter: none; }
 .ui-dialog .ui-actions .ui-ok.danger { background: var(--ui-danger); border-color: var(--ui-danger); }
 .ui-dialog .ui-actions .ui-ok.danger:hover { filter: brightness(.92); background: var(--ui-danger); }
 @keyframes ui-dialog-in { from { opacity: 0; transform: translateY(8px) scale(.97); } to { opacity: 1; transform: none; } }

@@ -7,6 +7,11 @@ To find every marked change in the code, search the project for `CSS CHANGED`.
 
 Format: **date · file · what · from → to · why**
 
+- **2026-11-12 · shared/theme.css · hidden buttons · from: some buttons stayed visible when hidden, so a view-only Manager saw Add many and Add an event → to: hidden always means hidden · why: the client found buttons that only say "not allowed" after you press them.**
+
+- **2026-11-12 · shared/theme.css · number tiles above the sheet · from: lifted on hover like buttons → to: no hover effect · why: the client tried to click them and nothing happened.**
+- **2026-11-12 · shared/ui.css and shared/edit-guard.js · OK button in pop-up questions and in "Make this change?" · from: orange → to: the same blue as the other main buttons (danger stays red) · why: the client noticed one orange button among blue ones.**
+
 - **2026-11-12 · shared/theme.css · email page layout at laptop width · from: preview and message side by side below 1500px wide, so the email was cut off at 1366px → to: stacked (preview on top, message below) below 1500px so the whole email shows · why: the human tester saw the right edge of the email cut off on a 1366px laptop.**
 
 ---

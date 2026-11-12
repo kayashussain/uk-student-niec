@@ -25,7 +25,9 @@
     const seen = new Set();
     return list.map((r) => {
       const name = `${r.first} ${r.last}`.trim();
+      if (r.badBit) return { skip: true, note: `"${r.badBit}" is not a name, email or phone number, skipped` };
       if (!name) return { skip: true, note: 'No name, skipped' };
+      if (r.phone && r.phone.replace(/\D/g, '').length < 6) return { skip: true, note: 'The phone number looks too short, skipped' };
       if (r.email && !EMAIL_OK.test(r.email)) return { skip: true, note: 'The email does not look right, skipped' };
       const key = `${name.toLowerCase()}|${(r.email || '').toLowerCase()}|${(r.phone || '').replace(/\D/g, '')}`;
       if (seen.has(key)) return { skip: true, note: 'Same as an earlier line, skipped' };
@@ -40,11 +42,12 @@
       const parts = splitLine(line).map((p) => p.trim()).filter(Boolean);
       const email = parts.find((p) => /@/.test(p)) || '';
       const phone = parts.find((p) => /^[+\d][\d\s()-]{6,}$/.test(p)) || '';
-      const names = parts.filter((p) => p !== email && p !== phone);
+      const badBit = parts.find((p) => p !== email && p !== phone && (/\d/.test(p) || (/mail/i.test(p) && !/\s/.test(p)))) || '';
+      const names = parts.filter((p) => p !== email && p !== phone && p !== badBit);
       let first = names[0] || '';
       let last = names[1] || '';
       if (!last && /\s/.test(first)) { const w = first.split(/\s+/); first = w[0]; last = w.slice(1).join(' '); }
-      return { first, last, email, phone };
+      return { first, last, email, phone, badBit };
     });
   }
 

@@ -57,10 +57,12 @@
       if (a) foot.append(h('button', { class: 'btn btn-danger', type: 'button', onclick: async () => { if (await window.NiecUI.confirm('Remove it? Students tagged with it keep the tag text.', { danger: true, confirmText: 'Remove' })) { await api(`/api/planning/events/${a.id}/delete`, {}); close(true); } } }, 'Remove'));
       const ok = h('button', { class: 'btn btn-primary', type: 'button' }, 'Save');
       ok.addEventListener('click', async () => {
+        if (ok.disabled) return;
+        ok.disabled = true;
         try {
           await api('/api/planning/events', { ...(a ? { id: a.id } : {}), ...Object.fromEntries(Object.entries(f).map(([k, x]) => [k, x.input.value])) });
           close(true);
-        } catch (e) { msg.textContent = e.message; msg.className = 'p-msg error'; }
+        } catch (e) { ok.disabled = false; msg.textContent = e.message; msg.className = 'p-msg error'; }
       });
       foot.append(ok);
       body.append(grid, msg, foot);

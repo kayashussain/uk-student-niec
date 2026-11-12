@@ -26,7 +26,8 @@
     .eg-actions { display: flex; justify-content: flex-end; gap: 8px; }
     .eg-actions button { padding: 7px 16px; border-radius: 6px; font: inherit; font-weight: 600; cursor: pointer;
       border: 1px solid #d1d5db; background: var(--panel, #f2f4f7); color: #374151; }
-    .eg-actions .eg-ok { background: #cc4a0a; border-color: #cc4a0a; color: #fff; }
+    /* 🔴 CSS CHANGED (2026-11-12): OK button in the "Make this change?" box | from: orange | to: the same blue as every other main button */
+    .eg-actions .eg-ok { background: var(--primary, #1d5fd1); border-color: var(--primary, #1d5fd1); color: var(--on-primary, #fff); }
     .eg-actions button:focus-visible { outline: 2px solid #2563eb; outline-offset: 2px; }
     `;
 
@@ -35,7 +36,7 @@
   function isOpen() { return Boolean(open); }
 
   // Runs apply() once the change is confirmed (straight away while snoozed), or revert() if cancelled.
-  function confirmChange(apply, revert) {
+  function confirmChange(apply, revert, detail) {
     if (Date.now() < snoozedUntil()) { apply(); return; }
     if (open) { if (revert) revert(); return; } // one question at a time
 
@@ -57,6 +58,7 @@
           <button type="button" class="eg-ok">OK</button>
         </div>
       </div>`;
+    if (detail) overlay.querySelector('#eg-text').textContent = detail;
     const okBtn = overlay.querySelector('.eg-ok');
     let returnFocus = null;
 

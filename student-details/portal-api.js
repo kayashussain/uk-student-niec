@@ -225,9 +225,10 @@ function createPortalApi({
     const d = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3]));
     return d.getUTCFullYear() === +m[1] && d.getUTCMonth() === +m[2] - 1 && d.getUTCDate() === +m[3] ? t : null;
   };
+  const phoneOk = (t) => t === '' || (/^\+?[\d\s()-]{6,25}$/.test(t) && t.replace(/\D/g, '').length >= 6);
   const CARD_EDITABLE = {
     'FIRST NAME': (v) => text(v).slice(0, 80), 'LAST NAME': (v) => text(v).slice(0, 80), EMAIL: (v) => text(v).toLowerCase().slice(0, 120),
-    'CONTACT NUMBER': (v) => text(v).slice(0, 40), 'UNIVERSITY NAME': (v) => text(v).slice(0, 160), 'COURSE NAME': (v) => text(v).slice(0, 240),
+    'CONTACT NUMBER': (v) => { const t = text(v).slice(0, 40); return phoneOk(t) ? t : null; }, 'UNIVERSITY NAME': (v) => text(v).slice(0, 160), 'COURSE NAME': (v) => text(v).slice(0, 240),
     'APPLICATION SUBMISSION DATE': (v) => realDay(v),
     'OFFER RECEIVED DATE': (v) => realDay(v),
   };
@@ -386,7 +387,7 @@ function createPortalApi({
       for (const [col, clean] of Object.entries(CARD_EDITABLE)) {
         if (body.fields && Object.prototype.hasOwnProperty.call(body.fields, col)) {
           const v = clean(body.fields[col]);
-          if (v === null) { sendJSON(res, 400, { error: `${col} is not a real date.` }); return true; }
+          if (v === null) { sendJSON(res, 400, { error: col === 'CONTACT NUMBER' ? 'That phone number does not look right. Use digits, for example 9800000001.' : `${col} is not a real date.` }); return true; }
           if (v !== text(found.row[col])) changes[col] = v;
         }
       }
@@ -439,6 +440,7 @@ function createPortalApi({
     });
     if (!fields['FIRST NAME'] && !fields['LAST NAME']) { return { status: 400, json: { error: "Please enter the student's name." } }; }
     if (fields.EMAIL && !mailer.isAddress(fields.EMAIL)) { return { status: 400, json: { error: 'That email address does not look right.' } }; }
+    if (fields['CONTACT NUMBER'] && !phoneOk(fields['CONTACT NUMBER'])) { return { status: 400, json: { error: 'That phone number does not look right. Use digits, for example 9800000001 or +977 9800000001.' } }; }
     const rowId = 'row-' + Date.now().toString(36) + require('crypto').randomBytes(4).toString('hex');
     let sheet;
     if (Teams.isAdmin(req.user)) {
@@ -490,7 +492,17 @@ function createPortalApi({
     const lines = (Array.isArray(body.rows) ? body.rows : []).filter((r) => r && typeof r === 'object').slice(0, 200);
     if (!lines.length) { sendJSON(res, 400, { error: 'Add at least one student.' }); return true; }
     const results = [];
+    const existing = new Set();
+    for (const { row } of visibleStudents(req.user)) {
+      const em = text(row.EMAIL).toLowerCase(); const ph = text(row['CONTACT NUMBER']).replace(/\D/g, '');
+      if (em) existing.add('e:' + em);
+      if (ph.length >= 7) existing.add('p:' + ph);
+    }
     for (const r of lines) {
+      const em = text(r.email).toLowerCase(); const ph = text(r.phone).replace(/\D/g, '');
+      if ((em && existing.has('e:' + em)) || (ph.length >= 7 && existing.has('p:' + ph))) { results.push({ ok: false, name: [r.first, r.last].filter(Boolean).join(' '), error: 'Already on the sheet (same email or phone), not added again.' }); continue; }
+      if (em) existing.add('e:' + em);
+      if (ph.length >= 7) existing.add('p:' + ph);
       const fields = { 'FIRST NAME': text(r.first), 'LAST NAME': text(r.last), EMAIL: text(r.email), 'CONTACT NUMBER': text(r.phone), 'STUDENT SOURCE': text(body.source) };
       const out = addStudent(req, { fields, profile: { sourceDetail: text(body.sourceDetail) }, stage: body.stage, sheetId: body.sheetId, dept: body.dept });
       results.push(out.status === 200 ? { ok: true, id: out.json.id, name: [r.first, r.last].filter(Boolean).join(' ') } : { ok: false, name: [r.first, r.last].filter(Boolean).join(' '), error: out.json.error || 'Could not add.' });
