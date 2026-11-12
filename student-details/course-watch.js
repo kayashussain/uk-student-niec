@@ -53,6 +53,7 @@ function createCourseWatch({ dir, getIndex, facts, finder, courseLinks, fetchFn 
       courseLinks.remember(entry.universityId, entry.course, link);
     }
     rec.link = link;
+    if (hosts && hosts.length && !onHosts(link, hosts)) return { ...rec, status: 'unreachable', note: 'The saved link is not on the university website.' };
     let page;
     try { page = await openPage(link); } catch (e) { return { ...rec, status: 'unreachable', note: `The page could not be opened (${e.message}).` }; }
     if (page.status === 404 || page.status === 410) return { ...rec, status: 'inactive', confirmed: false, note: `The page is gone (the website answered ${page.status}).` };

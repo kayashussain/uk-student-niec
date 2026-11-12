@@ -35,7 +35,7 @@ function pickResult(results, { university, course, hosts }) {
     let host;
     try { host = new URL(r.url).hostname.toLowerCase(); } catch (e) { return; }
     if (!hosts || !hosts.some((x) => host === x || host.endsWith('.' + x))) return; // only the university's own website
-    const hay = `${decodeURIComponent(r.url.toLowerCase())} ${r.title.toLowerCase()}`;
+    const hay = `${(() => { try { return decodeURIComponent(r.url.toLowerCase()); } catch (e) { return r.url.toLowerCase(); } })()} ${r.title.toLowerCase()}`;
     const hits = need.filter((w) => hay.includes(w)).length;
     const uniHit = uni.some((w) => host.includes(w) || hay.includes(w));
     const coursePath = /\/(course|courses|study|undergraduate|postgraduate|programme|program|degree)s?\b/.test(r.url.toLowerCase());

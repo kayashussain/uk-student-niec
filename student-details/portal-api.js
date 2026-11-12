@@ -146,7 +146,9 @@ function createPortalApi({
     const signature = messages.signature();
     const email = Messages.renderEmail({ subject, body: emailBody, signature, siteUrl: cfg ? cfg.siteUrl : '', signatureSrc: signatureSrc(action === 'preview'), ...ctx });
     const whatsapp = Messages.renderWhatsApp({ body: whatsappBody, ...ctx });
-    const to = text(body.to) || text(found.row.EMAIL).toLowerCase();
+    const ownTo = text(found.row.EMAIL).toLowerCase();
+    const to = text(body.to) || ownTo;
+    if (to !== ownTo && /^[^\s@]+@[^\s@]+$/.test(to) && !Teams.isAdmin(req.user)) { sendJSON(res, 403, { error: 'Only the student\'s own address can be used from your account.' }); return true; }
     const number = Fields.whatsappNumber(found.row['CONTACT NUMBER']);
 
     if (action === 'preview') {

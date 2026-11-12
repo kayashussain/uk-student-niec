@@ -16,6 +16,7 @@ const escapeHtml = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&a
 
 // A header value with non-ASCII characters is sent as an RFC 2047 encoded word.
 const encodeHeader = (s) => (/^[\x20-\x7e]*$/.test(s) ? s : `=?UTF-8?B?${Buffer.from(s, 'utf8').toString('base64')}?=`);
+const quoteName = (s) => (/^[\x20-\x7e]*$/.test(s) && /[(),.:;<>@\[\]]/.test(s) ? `"${s}"` : encodeHeader(s));
 const base64Lines = (text) => (Buffer.from(text, 'utf8').toString('base64').match(/.{1,76}/g) || ['']).join('\r\n');
 
 // The full message text (CRLF line endings): plain text and HTML versions of the same email.
@@ -24,7 +25,7 @@ const base64Lines = (text) => (Buffer.from(text, 'utf8').toString('base64').matc
 function buildMessage({ from, fromName, to, subject, text, html, now = new Date(), auto = true, attachments = [], inline = [] }) {
   const boundary = '=_niec_' + crypto.randomBytes(12).toString('hex');
   const domain = from.split('@')[1];
-  const sender = fromName ? `${encodeHeader(oneLine(fromName).replace(/"/g, ''))} <${from}>` : from;
+  const sender = fromName ? `${quoteName(oneLine(fromName).replace(/["\\]/g, ''))} <${from}>` : from;
   // Files to send with the message: [{ name, type, data (a Buffer) }]. They exist only in memory, for this one message.
   const outer = '=_niec_mixed_' + crypto.randomBytes(12).toString('hex');
   const files = (attachments || []).filter((a) => a && a.data && a.data.length);
