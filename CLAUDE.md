@@ -40,6 +40,19 @@ The owner does not want old versions, copies or rewrites lying around, because a
 - **Everything is updated together.** When a rule, a formula, a figure or a sentence changes, change it everywhere it
   appears (code, comments, pages, emails, documents, tests), so nothing says the old thing.
 
+## Rule 3: the owner's real data is on the live server, and the data in a preview is made up (the owner insisted on this, strictly)
+
+- The live server holds the real students, intakes, partners and Fact File. The students, intakes and figures in any preview, demo, screenshot
+  or test run (`scripts/local-demo.js`, `scripts/demo-data.js`) are **made up by Claude** and must always be called that. Never present
+  them as real, and never let the owner think a number from them is real.
+- The owner wants to see and work with the real data before pushing to the live server. Claude cannot reach the live server or the owner's
+  browser, so the way is `scripts/local-live.js`: the owner downloads a backup from the live server (Admin, Restore, or the daily backup)
+  and runs `node scripts/local-live.js <the file>` on their own computer. When the owner asks again for live data, give these steps again,
+  say plainly what Claude cannot do, and do not invent data.
+- Real data never goes in git, in code, in tests or in screenshots sent anywhere. `live-data/` and the daily backups are ignored by git.
+- Every change must work with the data that already exists on the live server: stored values keep their meaning (for example a
+  student's Student Source stays "Chitwan Branch"), and new fields are optional.
+
 ## Other standing decisions (the owner's wishes)
 
 - **No em dashes and no en dashes anywhere** (pages, emails, documents, code comments, this file). Use a comma, a colon, a

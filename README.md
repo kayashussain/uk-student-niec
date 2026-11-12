@@ -110,3 +110,9 @@ their own); a restore first saves the current data as a "before restore" backup.
 - **Fact File:** every course is a link to its own page, or shows "Find the course page".
 - **Dashboard:** rebuilt from zero (Overview: headline cards that compare with the intake before, target ring, funnel, week by week, sources, universities, partners, speed, losses, intake against intake, money). The other four tabs (Decisions, Marketing and sources, Universities and partners, Intake plan) are unchanged.
 - **Workspaces:** Admin, Manager, Application Team, Mock Team, Follow-up Team and each Branch have their own Today (own tiles, own work lists, own buttons) and menu, and a team sees its own sheet columns highlighted (`Teams.kindOf` in `shared/teams.js`).
+
+## See your real data on your own computer
+
+The students you see in `scripts/local-demo.js` are made up. To look at your real data without touching the live server: download a backup from the
+live server (Admin, Restore, or the daily backup), then run `node scripts/local-live.js <the downloaded file>` and open http://localhost:8090. The copy
+is private to your computer (folder `live-data/`, never in git) and changes made there never reach the live server. Delete `live-data/` when you finish.

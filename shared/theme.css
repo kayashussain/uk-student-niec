@@ -669,7 +669,7 @@ th, .p-table th, .stat-card .stat-label, .stat-group-title, .p-card h3, .p-dialo
 .stat-group-title { display: none; }
 input[type="file"]::file-selector-button { margin-right: 12px; padding: 9px 18px; border: 0; border-radius: 999px; background: color-mix(in srgb, var(--ink) 8%, transparent); color: var(--ink); font: inherit; font-weight: 600; cursor: pointer; }
 input[type="file"]::file-selector-button:hover { background: color-mix(in srgb, var(--ink) 14%, transparent); }
-input[type="date"] { min-height: 44px; border-radius: var(--r-sm); border: 1px solid var(--border-strong); background: var(--edit-bg); padding: 8px 12px; font: inherit; }
+input[type="date"]:not(.date-input) { min-height: 44px; border-radius: var(--r-sm); border: 1px solid var(--border-strong); background: var(--edit-bg); padding: 8px 12px; font: inherit; }
 .p-table-wrap { box-shadow: none; }
 .page-head h1 + p, .p-head h1 + p, .t-hello h1 + p { margin-top: 10px; max-width: 72ch; }
 #editor h3 { margin-top: 28px; padding-top: 18px; border-top: 1px solid var(--border); }
