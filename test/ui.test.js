@@ -622,13 +622,14 @@ test('screens: log in, edit, delete, search, team rules, Fact File', { timeout: 
     await page.close();
   });
 
-  await t.test('the Manager sees every student but can change nothing, and goes to the Dashboard', async () => {
+  await t.test('the Manager sees every student but can change nothing, and lands on Today', async () => {
     const made = await admin.request.post('/api/users', { data: { username: 'mgr', name: 'Manager Test', email: '', manager: true, departments: [] } });
     const manager = await browser.newContext({ baseURL: base });
     assert.ok((await manager.request.post('/api/login', { data: { username: 'mgr', password: (await made.json()).temporaryPassword } })).ok());
     assert.ok((await manager.request.post('/api/login/new-password', { data: { password: 'Manager-Strong-2026' } })).ok());
     const landing = await open(manager, '/');
-    await landing.waitForURL('**/dashboard');
+    await landing.waitForURL('**/today');
+    await landing.waitForSelector('.t-card');
     await landing.close();
     const page = await open(manager, '/students');
     await page.waitForSelector('#body tr:not(.pad-row)');

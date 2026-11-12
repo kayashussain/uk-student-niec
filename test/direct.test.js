@@ -144,7 +144,7 @@ test('only Admin can open the page or read and change the list on the real serve
     await them('POST', '/api/login/new-password', { password: 'Another-Long-Pass-2026' });
     const page = await them('GET', '/partner-universities');
     assert.strictEqual(page.status, 302, `${role} is sent away from the page`);
-    assert.ok(/^\/(students|dashboard)/.test(page.location), `${role} goes home`);
+    assert.ok(/^\/(students|dashboard|today)/.test(page.location), `${role} goes home`);
     assert.strictEqual((await them('GET', '/api/direct')).status, 403, `${role} cannot read the list`);
     assert.strictEqual((await them('GET', `/api/direct/${id}`)).status, 403);
     assert.strictEqual((await them('POST', '/api/direct', { name: 'Y University' })).status, 403);

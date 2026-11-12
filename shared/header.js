@@ -12,7 +12,7 @@
   const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
   header.innerHTML = `
-    <a class="niec-brand" href="/students" title="Home" id="niecHome">
+    <a class="niec-brand" href="/today" title="Home" id="niecHome">
       <svg class="niec-logo-full" viewBox="0 0 244 130" role="img" aria-label="Fly"><defs><linearGradient id="hfgw" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#2f6bff"/><stop offset="1" stop-color="#8a4dff"/></linearGradient><linearGradient id="hfgl" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#2f6bff" stop-opacity="0"/><stop offset="1" stop-color="#6a58ff"/></linearGradient></defs><g transform="translate(12 50) scale(1.3)" fill="none" stroke="currentColor" stroke-width="7.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6V38M4 6H23M4 20.5H20"/><path d="M33 2.5V38"/><path d="M43 17L54 38"/><path d="M65 17L49 49"/></g><path d="M100 86C132 86 164 72 186 48" fill="none" stroke="url(#hfgl)" stroke-width="3.8" stroke-linecap="round" stroke-dasharray="1 7"/><g transform="translate(200 36) rotate(-34) scale(1.5)"><path d="M26 -2L-18 -14L-6 2z" fill="url(#hfgw)"/><path d="M26 -2L-6 2L-12 14z" fill="url(#hfgw)" opacity=".6"/></g></svg>
       <span class="niec-mark" aria-hidden="true"><svg viewBox="0 0 64 64" aria-hidden="true"><defs><linearGradient id="higw" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#2f6bff"/><stop offset="1" stop-color="#8a4dff"/></linearGradient><linearGradient id="higl" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#2f6bff" stop-opacity="0"/><stop offset="1" stop-color="#6a58ff"/></linearGradient></defs><rect width="64" height="64" rx="16" fill="url(#higw)"/><g transform="translate(30 33) rotate(-34) scale(1.0)"><path d="M26 -2L-18 -14L-6 2z" fill="#fff"/><path d="M26 -2L-6 2L-12 14z" fill="#fff" opacity=".66"/></g></svg></span></span>
     </a>
@@ -67,6 +67,7 @@
   try { if (localStorage.getItem('niecNav') === 'folded') document.documentElement.setAttribute('data-nav', 'folded'); } catch (e) { /* open */ }
   const svg = (d) => `<svg viewBox="0 0 24 24" aria-hidden="true">${d}</svg>`;
   const ICONS = {
+    today: svg('<circle cx="12" cy="12" r="4"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M19.1 4.9l-1.8 1.8M6.7 17.3l-1.8 1.8"/>'),
     dashboard: svg('<rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/>'),
     sheet: svg('<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M3 15h18M9 4v16"/>'),
     direct: svg('<path d="M3 9l9-5 9 5-9 5-9-5z"/><path d="M7 11.5V16c0 1.4 2.2 3 5 3s5-1.6 5-3v-4.5"/>'),
@@ -76,10 +77,10 @@
     factfile: svg('<path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2V5z"/><path d="M4 19a2 2 0 0 1 2-2h13"/>'),
   };
   const LINKS = {
-    admin: [['dashboard', '/dashboard', 'Dashboard'], ['sheet', '/students', 'Student Details'],
+    admin: [['today', '/today', 'Today'], ['dashboard', '/dashboard', 'Dashboard'], ['sheet', '/students', 'Student Details'],
       ['direct', '/partner-universities', 'Partner Universities'], ['events', '/events', 'Events and marketing'], ['b2b', '/b2b-partners', 'B2B Partners'], ['agents', '/agents', 'Agents'], ['factfile', '/fact-file', 'Fact File']],
-    manager: [['dashboard', '/dashboard', 'Dashboard'], ['sheet', '/students', 'Student Details'], ['events', '/events', 'Events and marketing'], ['factfile', '/fact-file', 'Fact File']],
-    staff: [['sheet', '/students', 'Student Details'], ['factfile', '/fact-file', 'Fact File']],
+    manager: [['today', '/today', 'Today'], ['dashboard', '/dashboard', 'Dashboard'], ['sheet', '/students', 'Student Details'], ['events', '/events', 'Events and marketing'], ['factfile', '/fact-file', 'Fact File']],
+    staff: [['today', '/today', 'Today'], ['sheet', '/students', 'Student Details'], ['factfile', '/fact-file', 'Fact File']],
   };
 
   // Admin's own pages (people and the record of what happened) are in the account menu, not in the top menu.
@@ -109,7 +110,7 @@
     const here = nav.querySelector('[aria-current="page"]');
     if (here) nav.scrollLeft = Math.max(0, here.getBoundingClientRect().left - nav.getBoundingClientRect().left + nav.scrollLeft - (nav.clientWidth - here.offsetWidth) / 2);
     // The logo goes home: the dashboard for the Manager, Student Details for everyone else.
-    header.querySelector('#niecHome').setAttribute('href', me.role === 'manager' ? '/dashboard' : '/students');
+    header.querySelector('#niecHome').setAttribute('href', '/today');
     const initials = String(me.name || '?').split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase();
     const account = header.querySelector('.niec-account');
     account.innerHTML = `

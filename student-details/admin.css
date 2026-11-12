@@ -2,9 +2,9 @@
    (fixed column widths, one-line cells) don't apply here. */
 :root {
   --blue: #00adef;
-  --blue-text: #0077a8;
+  --blue-text: #0058b0;
   --blue-tint: #e8f7fe;
-  --orange: #fc6e1f;
+  --orange: #ff9f0a;
   --orange-tint: #fff0e5;
   --bg: #f3f6fa;
   --panel: #ffffff;

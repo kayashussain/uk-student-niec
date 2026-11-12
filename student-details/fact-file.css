@@ -1,7 +1,7 @@
 /* The Fact File pages (fact-file.html: the list, fact-university.html: one university's page). The page
    of a university is laid out like a document so it prints (or saves as a PDF) cleanly. */
 :root {
-  --blue: #00adef; --blue-text: #0077a8; --blue-tint: #e8f7fe; --orange: #fc6e1f; --orange-tint: #fff0e5;
+  --blue: #00adef; --blue-text: #0058b0; --blue-tint: #e8f7fe; --orange: #ff9f0a; --orange-tint: #fff0e5;
   --bg: #f3f6fa; --panel: #ffffff; --border: #dfe3e8; --border-strong: #c7ccd4; --text: #1c2126; --dim: #5b6472; --danger: #dc2626;
 }
 @media (prefers-color-scheme: dark) {

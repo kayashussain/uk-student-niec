@@ -55,6 +55,9 @@
       }) : [el('div', 'p-empty', 'No student matches.')]));
     };
     tools.append(h('button', { class: 'btn btn-sm', type: 'button', onclick: () => { visible().slice(0, 150).forEach((s) => chosen.add(s.id)); draw(); } }, 'Tick all shown (up to 150)'), h('button', { class: 'btn btn-sm', type: 'button', onclick: () => { chosen.clear(); draw(); } }, 'Clear'));
+    const q = new URLSearchParams(location.search);
+    if (q.get('stage') && lists.stages.includes(q.get('stage'))) stage.input.value = q.get('stage');
+    if (q.get('sheet')) intake.input.value = q.get('sheet');
     [intake, stage, search].forEach((x) => x.input.addEventListener('input', draw));
     who.append(info, tools, listBox);
     wrap.append(who);

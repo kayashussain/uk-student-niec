@@ -548,6 +548,14 @@ test('on the real server: cards follow the rules of the sheet, messages are reco
   assert.strictEqual(tagged.event.name, 'UK Education Fair');
   assert.strictEqual(tagged.student.source, 'Events');
 
+  // Today: what needs attention, for the students the account sees.
+  const todayAdmin = (await admin('GET', '/api/today')).json;
+  assert.deepStrictEqual(todayAdmin.sections.map((x) => x.key), ['inquiries', 'apply', 'mock', 'offers', 'cas']);
+  assert.ok(todayAdmin.sections.find((x) => x.key === 'inquiries').students.some((x) => x.id === hari.json.id), 'a new inquiry with no contact is listed');
+  const todayApp = (await app('GET', '/api/today')).json;
+  assert.ok(!todayApp.sections.some((x) => x.students.some((y) => y.id === hari.json.id)), 'a team sees only the students of its own stages');
+  assert.strictEqual((await app('GET', '/today')).status, 200, 'the Today page opens for every account');
+
   // Everything is written to the Activity record, and the backup holds the cards.
   const activity = (await admin('GET', '/api/activity?limit=200')).json.events;
   assert.ok(activity.some((e) => e.action === 'Edited student card' && e.changes.some((c) => /added a note/.test(c))));

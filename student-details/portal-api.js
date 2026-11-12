@@ -239,6 +239,49 @@ function createPortalApi({
     return out.status === 200 ? { ok: true } : { error: out.body.error === 'conflict' ? 'The sheet changed at the same moment. Please try again.' : out.body.error, status: out.status };
   }
 
+  // ---- Today: what needs a person's attention now, for the students this account sees ----
+  function todayFor(user) {
+    const all = cards.all();
+    const today = cards.today();
+    const dayNo = (iso) => Math.floor(Date.parse(iso + 'T00:00:00Z') / 86400000);
+    const now = dayNo(today);
+    const sections = [
+      { key: 'inquiries', title: 'Inquiries to follow up', hint: 'No contact in the last 3 days', stage: 'Inquiry', rows: [] },
+      { key: 'apply', title: 'Applications to submit', hint: 'At Application Stage, not submitted yet', stage: 'Application Stage', rows: [] },
+      { key: 'mock', title: 'Mock interviews to schedule', hint: 'At Mock Stage with no mock date', stage: 'Mock Stage', rows: [] },
+      { key: 'offers', title: 'Offers waiting for the deposit', hint: 'Offer received, payment not made', stage: '', rows: [] },
+      { key: 'cas', title: 'CAS received, visa not lodged', hint: 'The next step is the visa application', stage: '', rows: [] },
+    ];
+    const by = Object.fromEntries(sections.map((x) => [x.key, x]));
+    const totals = { active: 0, applied: 0, visas: 0 };
+    const dateOf = (v) => { const t = text(v); const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(t); if (m) return t; const u = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(t); return u ? `${u[3]}-${u[1].padStart(2, '0')}-${u[2].padStart(2, '0')}` : ''; };
+    for (const { sheet, row } of visibleStudents(user)) {
+      const stage = text(row[STATUS]);
+      const gone = ['Withdrawn', 'Hold', 'Defer', 'Visa Rejected'].includes(stage);
+      if (gone) continue;
+      const visa = stage === 'Visa Issued' || text(row['VISA RECEIVED DATE']);
+      if (visa) { totals.visas += 1; continue; }
+      totals.active += 1;
+      if (text(row['APPLICATION SUBMISSION DATE'])) totals.applied += 1;
+      const card = all[row._id] || { notes: [], messages: [] };
+      const last = [...(card.notes || []).map((n) => n.at), ...(card.messages || []).map((m) => m.at)].filter(Boolean).sort().pop();
+      const lastDay = last ? dayNo(last.slice(0, 10)) : null;
+      const created = dateOf(row['APPLICATION SUBMISSION DATE']);
+      const add = (key, detail, waited) => by[key].rows.push({ id: row._id, name: nameOf(row), stage, intake: sheet.name, detail, waited });
+      if (stage === 'Inquiry' && (lastDay === null || now - lastDay >= 3)) add('inquiries', lastDay === null ? 'No contact recorded' : `Last contact ${now - lastDay} days ago`, lastDay === null ? 999 : now - lastDay);
+      if (stage === 'Application Stage' && !created) add('apply', text(row['UNIVERSITY NAME']) || 'No university chosen yet', 0);
+      if (stage === 'Mock Stage' && ![1, 2, 3, 4].some((n) => text(row[`MOCK SCHEDULE ${n}`]))) add('mock', text(row['UNIVERSITY NAME']) || 'No university', 0);
+      const offer = dateOf(row['OFFER RECEIVED DATE']);
+      if (offer && !text(row['PAYMENT DATE'])) add('offers', `Offer received ${Math.max(0, now - dayNo(offer))} days ago`, Math.max(0, now - dayNo(offer)));
+      const cas = dateOf(row['CAS RECEIVED DATE']);
+      if (cas && !text(row['VISA LODGE DATE'])) add('cas', `CAS received ${Math.max(0, now - dayNo(cas))} days ago`, Math.max(0, now - dayNo(cas)));
+    }
+    return {
+      today, name: user.name, totals,
+      sections: sections.map((x) => ({ key: x.key, title: x.title, hint: x.hint, stage: x.stage, count: x.rows.length, students: x.rows.sort((a, b) => b.waited - a.waited).slice(0, 6) })),
+    };
+  }
+
   // ---- events and marketing: what was run to find students, and what each brought ----
   // The tag on a student ("where exactly") names the event or the marketing; it matches an activity by its name (with or without the date).
   const eventOf = (detail) => {
@@ -747,6 +790,7 @@ function createPortalApi({
   async function handle(req, res, urlPath) {
     if (!urlPath.startsWith('/api/')) return false;
     const query = () => new URL(req.url, 'http://x').searchParams;
+    if (urlPath === '/api/today' && req.method === 'GET') { sendJSON(res, 200, todayFor(req.user)); return true; }
     if (urlPath === '/api/activities' && req.method === 'GET') {
       if (!managers(req, res, 'Events and marketing')) return true;
       sendJSON(res, 200, { activities: activities(req.user), types: EVENT_TYPES, marketingTypes: MARKETING_TYPES, canEdit: Teams.isAdmin(req.user) });

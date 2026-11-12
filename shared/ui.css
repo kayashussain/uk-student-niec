@@ -2,7 +2,7 @@
    keyboard focus, gentle motion, loading placeholders and empty states. Self-contained, with its own
    colours, so it works the same on every page and in dark mode. */
 :root {
-  --ui-blue: #0077a8;
+  --ui-blue: #0058b0;
   --ui-orange: #cc4a0a;
   --ui-orange-dark: #b54008;
   --ui-text: #1c2126;

@@ -2,9 +2,9 @@
   /* NIEC brand, from the official logo and niec.edu.np: light blue, orange and grey. --niec-blue-text
      is the same blue a few shades deeper, for text on white (the logo blue itself is too light to read). */
   --niec-blue: #00adef;
-  --niec-blue-text: #0077a8;
+  --niec-blue-text: #0058b0;
   --niec-blue-tint: #e8f7fe;
-  --niec-orange: #fc6e1f;
+  --niec-orange: #ff9f0a;
   --niec-grey: #9d9d9d;
   --bg: #f3f6fa;
   --panel: #ffffff;
@@ -12,11 +12,11 @@
   --border-strong: #c7ccd4;
   --text: #1c2126;
   --text-dim: #5b6472;
-  --accent: #fc6e1f;
+  --accent: #ff9f0a;
   --primary: #cc4a0a; /* orange for buttons with white text: readable (4.6:1), unlike the bright brand orange */
   --primary-hover: #b54008;
   --accent-dim: #fff0e5;
-  --orange: #fc6e1f;
+  --orange: #ff9f0a;
   --focus: #0284c7;
   --focus-dim: #e6f4fb;
   --focus-strong: #cbe9f8;
@@ -622,7 +622,7 @@ tr.defer-warning-row td { background-color: var(--red-bg) !important; }
 .stat-group-title { color: var(--niec-blue-text); }
 .stat-card { border-left: 3px solid var(--niec-blue); box-shadow: 0 1px 2px rgba(0, 119, 168, 0.08); }
 .stat-card .stat-value { color: var(--niec-blue-text); }
-.stat-card.stat-total { background: #0077a8; border-color: #0077a8; }
+.stat-card.stat-total { background: #0058b0; border-color: #0058b0; }
 .stat-card.stat-total .stat-value { color: #fff; }
 .stat-card.stat-total .stat-label { color: #fff; }
 .stat-card.stat-rate { border-left-color: var(--niec-orange); }
@@ -647,7 +647,7 @@ thead .filter-btn.active { color: var(--niec-orange); }
 
 @media (prefers-color-scheme: dark) {
   :root { --niec-blue-text: #6fd0f7; --niec-blue-tint: #10283a; }
-  .stat-card.stat-total { background: #0077a8; border-color: #0077a8; }
+  .stat-card.stat-total { background: #0058b0; border-color: #0058b0; }
   .stat-card.stat-rate .stat-value { color: #ff9a5c; }
   .stat-card .stat-visa { color: #6fd894; }
   thead th, thead th.col-idx { background: #12303f; color: #bfe9fb; border-right-color: #1d4153; }

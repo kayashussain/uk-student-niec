@@ -34,15 +34,14 @@
     head.append(title, h('a', { class: 'btn', href: `/student?id=${encodeURIComponent(id)}#message` }, 'Back to the student'));
     wrap.append(head);
 
-    const cols = el('div', 'p-cols');
-    cols.style.gridTemplateColumns = 'minmax(0, 1.5fr) minmax(0, 1fr)';
+    const cols = el('div', 'p-cols p-cols-compose');
     const left = el('section', 'p-card');
     const right = el('section', 'p-card');
 
     // the email as it will look, large
     left.append(el('h2', '', 'The email'));
     const frame = el('iframe', 'p-preview');
-    frame.style.height = '720px';
+    frame.classList.add('p-preview-tall');
     frame.setAttribute('sandbox', '');
     frame.title = 'The email as the student sees it';
     left.append(frame);

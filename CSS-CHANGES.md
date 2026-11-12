@@ -9,6 +9,17 @@ Format: **date · file · what · from → to · why**
 
 ---
 
+## 2026-11-12 · `shared/theme.css`, `student-details/portal.css`, `style.css`, `dashboard.css`, `fact-file.css`, `admin.css`, `shared/ui.css`, `shared/header.css` · the final design pass: Today screen, one design system, motion, empty states, small screens
+
+- **Today (new first screen, `portal.css`):** a large greeting, three big numbers, and five cards (inquiries to follow up, applications to submit, mock interviews to schedule, offers waiting for the deposit, CAS received with the visa not lodged). Each student is a row with initials and a stage tag, a click away from their card. A card with nothing to do shows a green "All clear". Rounded 24px cards, soft shadows, one blue count badge.
+- **One design system (`theme.css`):** a spacing scale in steps of 4px; chart colours and the orange accent now come from the same tokens; every leftover hard-coded old colour in the page stylesheets (old orange `#fc6e1f`, old blues `#0077a8`, `#066a97`, `#2a78d6`) was replaced by the new accent orange `#ff9f0a` and blue `#0058b0` / `#0071e3`.
+- **Motion:** pages rise in softly (8px, 0.38s), loading boxes shimmer, messages and dialogs pop in, the dim behind a dialog is blurred. All of it stops for people who have asked their device for less motion.
+- **Empty states:** an empty list shows a soft blue round mark with a short message, not a bare line.
+- **Small screens:** nothing scrolls sideways at tablet or phone width (the message page stacks into one column, wide tables scroll inside their card, the top menu scrolls inside itself). Checked on desktop, tablet and phone, in light and dark mode, as Admin, a team member and the Manager.
+- **Menu:** a new first item, Today (a sun icon); the logo now goes to Today.
+
+---
+
 ## 2026-11-12 · `shared/header.js`, `shared/header.css`, `shared/login.html` · the real Fly logo in the menu and on the login page
 
 The owner noticed the logo on screen was not the final logo. It was only the small plane square next to the typed word "Fly".

@@ -62,6 +62,9 @@
   --bad-bg: var(--red-bg); --bad: var(--red-fg);
 
   --r-sm: 12px; --r-md: 18px; --r-lg: 24px;
+  /* spacing scale, in steps of 4px: use these for gaps and padding */
+  --s-1: 4px; --s-2: 8px; --s-3: 12px; --s-4: 16px; --s-5: 24px; --s-6: 32px; --s-7: 48px;
+  --orange: #ff9f0a; --niec-orange: #ff9f0a; --s1: #0071e3; --s2: #ff9f0a; --s3: #30b66b;
   --sh-1: 0 1px 2px rgba(0, 0, 0, .04);
   --sh-2: 0 2px 6px rgba(0, 0, 0, .04), 0 14px 34px -14px rgba(0, 0, 0, .14);
   --sh-3: 0 4px 12px rgba(0, 0, 0, .06), 0 28px 70px -24px rgba(0, 0, 0, .28);
@@ -320,4 +323,30 @@ p.count:empty { display: none; }
   .page-head h1 { font-size: 28px; }
   .wrap { padding: 6px 14px 40px; }
   .top { margin: 0 -14px 10px !important; padding: 18px 14px 4px !important; }
+}
+
+/* ---------- 8. Motion, loading and empty states ---------- */
+.page, .wrap, .app-main, .p-page { animation: fly-rise .38s var(--ease) both; }
+@keyframes fly-rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+.ui-skeleton { display: block; border-radius: 12px; background: linear-gradient(100deg, var(--soft) 30%, color-mix(in srgb, var(--soft) 40%, var(--panel)) 50%, var(--soft) 70%); background-size: 220% 100%; animation: fly-shimmer 1.3s linear infinite; }
+@keyframes fly-shimmer { from { background-position: 120% 0; } to { background-position: -120% 0; } }
+.p-empty, .empty { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 38px 20px; text-align: center; color: var(--text-dim); }
+.p-empty b, .empty b { color: var(--ink); font-size: 15px; font-weight: 650; }
+.p-empty::before, .empty::before { content: ""; width: 46px; height: 46px; margin-bottom: 6px; border-radius: 50%; background: var(--focus-dim) radial-gradient(circle at 50% 50%, var(--gold) 0 4px, transparent 5px); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--gold) 25%, transparent); }
+.ui-toast { border-radius: 16px; box-shadow: var(--sh-3); animation: fly-pop .28s var(--ease) both; }
+@keyframes fly-pop { from { opacity: 0; transform: translateY(10px) scale(.98); } to { opacity: 1; transform: none; } }
+dialog.p-dialog, .ui-dialog { animation: fly-pop .24s var(--ease) both; }
+dialog::backdrop { background: rgba(0, 0, 0, .32); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
+a { transition: color .15s ease; }
+@media (prefers-reduced-motion: reduce) { .page, .wrap, .app-main, .p-page, .ui-toast, .ui-skeleton, dialog.p-dialog, .ui-dialog { animation: none !important; } }
+
+/* ---------- 9. Small screens: nothing scrolls sideways, wide tables scroll inside their card ---------- */
+.p-cols-compose { grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); }
+.p-preview-tall { height: 720px; }
+@media (max-width: 900px) {
+  .p-cols-compose { grid-template-columns: 1fr; }
+  .p-preview-tall { height: 520px; }
+  html:not(:has(#sheet)), body:not(:has(#sheet)) { overflow-x: hidden; }
+  .niec-nav { min-width: 0; max-width: calc(100vw - 110px); }
+  .page .card, .p-card, .table-card { overflow-x: auto; }
 }
