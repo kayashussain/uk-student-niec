@@ -24,7 +24,7 @@
     const drawDetail = () => {
       const g = source.input.value;
       const wrap = el('div');
-      if (!g) { detailBox.replaceChildren(el('span', 'p-label', 'Which one'), Object.assign(el('input'), { disabled: true })); detailInput = null; remarkBox.replaceChildren(); remarksInput = null; return; }
+      if (!g) { detailBox.replaceChildren(); detailInput = null; remarkBox.replaceChildren(); remarksInput = null; return; }
       const label = g === 'Events' ? 'Which event or marketing that was run' : (lists.sourceLabels && lists.sourceLabels[g]) || F.SOURCE_DETAIL_LABEL[g] || 'Which one';
       const choices = options(g);
       // What the form already holds is kept the first time round (a branch is held as "Chitwan Branch", the rest as the detail).

@@ -16,7 +16,8 @@
       <span class="niec-name"><b>ISR</b></span>
       <span class="niec-mark" aria-hidden="true">ISR</span>
     </a>
-    <nav class="niec-nav" aria-label="Pages"></nav>
+    <button type="button" class="niec-burger" aria-expanded="false" aria-controls="niecNav"><span class="niec-burger-ico" aria-hidden="true"></span><span class="niec-burger-lbl">Menu</span></button>
+    <nav class="niec-nav" id="niecNav" aria-label="Pages"></nav>
     <div class="niec-account"></div>`;
 
 
@@ -111,6 +112,9 @@
       // Admin's own pages are in the menu too, under their own heading (Users, Activity, Message templates, Incentive).
       + ((MENU_LINKS[me.role] || []).length ? `<div class="niec-sep" role="presentation"><span>Admin only</span></div>` + (MENU_LINKS[me.role] || []).map(([id, href, label]) => `<a href="${href}" title="${label}"${id === page ? ' aria-current="page"' : ''}><span class="niec-ico" aria-hidden="true">${ICONS[id] || ''}</span><span class="niec-lbl">${label}</span></a>`).join('') : '')
       + '<button type="button" class="niec-fold" aria-label="Fold or open the menu" title="Fold or open the menu"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg><span>Fold the menu</span></button>';
+    const burger = header.querySelector('.niec-burger');
+    burger.addEventListener('click', () => { const open = !header.classList.contains('menu-open'); header.classList.toggle('menu-open', open); burger.setAttribute('aria-expanded', String(open)); });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && header.classList.contains('menu-open')) { header.classList.remove('menu-open'); burger.setAttribute('aria-expanded', 'false'); burger.focus(); } });
     const fold = header.querySelector('.niec-fold');
     fold.addEventListener('click', () => {
       const folded = document.documentElement.getAttribute('data-nav') !== 'folded';

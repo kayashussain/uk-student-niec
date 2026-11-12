@@ -16,7 +16,7 @@
   let ins = null;
   let seq = 0;
   let timer = null;
-  const hidden = new Set(); // trend lines switched off
+  const hidden = new Set(['inquiry', 'offer']); // trend lines switched off (two lines to start with, the others with one click)
   let channelMetric = 'students';
 
   // ---- small helpers ----

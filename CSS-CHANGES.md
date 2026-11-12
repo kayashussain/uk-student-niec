@@ -7,6 +7,10 @@ To find every marked change in the code, search the project for `CSS CHANGED`.
 
 Format: **date · file · what · from → to · why**
 
+- **2026-11-13 · shared/theme.css · order of the phone menu bar · from: your account button dropped below the open menu list → to: it stays on the bar at the right of the Menu button, and the list opens under the bar · why: found while checking the new phone menu.**
+
+- **2026-11-13 · shared/theme.css (also the phone menu in shared/header.js) · design polish from the designer review · from: the phone menu was a cloud of links; empty Today cards took a whole tile each; many small headings in capital letters; plain browser file and date boxes; a scroll shadow on tables that did not scroll; editor sections with no space between; a small pop-up close X; Dashboard cards of different heights and a washed-out ring; the printed Fact File top shown on screen → to: a tidy phone bar with a Menu button that opens the page list; one quiet line per empty card; sentence-case headings; pill file button and date boxes that match; no stray shadow; more space under titles and between editor sections; a 40px close button; equal Dashboard card heights; a clearer ring; the printed top only when printing · why: the owner asked for the best front end.**
+
 - **2026-11-13 · shared/header.css, shared/header.js, shared/login.html, mailer · the name | from: "International Student Recruitment" with PORTAL under it everywhere → to: just "ISR" in the menu (tight space); the full name International Student Recruitment, without the word Portal, on the login page, in emails and on printed pages · why: the owner said to use ISR where space is short and the full name where there is room.**
 
 - **2026-11-13 · shared/login.html · the title in the login box · from: the long name repeated ("International Student Recruitment") → to: "Staff login", because the name is already large on the left · why: the name no longer needs to be said twice.**

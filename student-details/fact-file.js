@@ -47,7 +47,7 @@
       a.append(chips);
     }
     if (!u.city && !u.intakes.length && !(u.matches && u.matches.length)) a.append(el('div', 'city', 'Details not added yet'));
-    a.append(el('div', 'updated', u.updatedAt ? 'Updated ' + when(u.updatedAt) : ''));
+    a.append(el('div', 'updated', u.updatedAt && (Date.now() - new Date(u.updatedAt).getTime()) > 90 * 86400000 ? 'Last updated ' + when(u.updatedAt) + ', check it' : ''));
     return a;
   }
 

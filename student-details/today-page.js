@@ -76,7 +76,14 @@
     const tiles = el('div', 't-tiles');
     d.tiles.forEach((t) => tiles.append(tile(t.label, t.value)));
     const grid = el('div', 't-grid');
-    d.sections.forEach((x) => grid.append(section(x)));
+    // Cards with work come first; the ones with nothing to do are one quiet line each, so an empty card does not take a whole tile.
+    d.sections.filter((x) => x.count > 0).forEach((x) => grid.append(section(x)));
+    const clear = d.sections.filter((x) => x.count === 0);
+    if (clear.length) {
+      const quiet = el('section', 't-clear');
+      clear.forEach((x) => { const row = el('div', 't-clear-row'); row.append(el('span', 't-clear-tick', '\u2713'), el('b', '', x.title), el('span', 't-clear-hint', 'Nothing waiting')); quiet.append(row); });
+      grid.append(quiet);
+    }
     page.append(head, tiles, grid);
     view.replaceChildren(page);
   }).catch((e) => view.replaceChildren(el('div', 'p-card', e.message)));

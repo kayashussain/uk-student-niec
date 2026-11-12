@@ -621,12 +621,19 @@ html:has(#sheet) { overflow-y: auto; }
   body:has(#sheet) .stat-card .stat-label { min-height: 0; width: auto; }
   body:has(#sheet) .status-summary { padding-bottom: 4px; }
 }
-/* 🔴 CSS CHANGED (2026-11-13): the top menu on narrow screens and zoomed-in browsers | from: below 900px the menu was one strip that scrolled sideways with no bar, so B2B Partners, Agents, Fact File and all Admin pages were hidden | to: the menu wraps onto as many lines as it needs so every page is always visible */
+/* 🔴 CSS CHANGED (2026-11-13): the menu on narrow screens and zoomed-in browsers | from: a wrapped cloud of links across the top | to: one tidy bar (ISR tile, a Menu button, your account) and the Menu button opens a clear list of every page under it */
+.niec-burger { display: none; }
 @media (max-width: 900px) {
-  .niec-nav { flex-wrap: wrap; overflow: visible; max-width: none; height: auto; }
-  .niec-nav a { flex: 0 0 auto; }
+  .niec-header { flex-wrap: wrap; }
+  .niec-burger { display: inline-flex; align-items: center; gap: 8px; flex: 1; justify-content: flex-start; min-height: 44px; padding: 0 14px; border: 0; border-radius: 12px; background: color-mix(in srgb, var(--ink) 6%, transparent); color: var(--ink); font: inherit; font-size: 16px; font-weight: 650; cursor: pointer; }
+  .niec-burger-ico { width: 18px; height: 2px; border-radius: 2px; background: currentColor; box-shadow: 0 -6px 0 currentColor, 0 6px 0 currentColor; }
+  .niec-nav { display: none; flex: 0 0 100%; flex-direction: column; overflow: visible; max-width: none; height: auto; margin: 4px 0 0; padding: 6px; border-radius: 16px; background: var(--panel); box-shadow: var(--sh-2); }
+  .niec-header.menu-open .niec-nav { display: flex; }
+  .niec-nav a { padding: 12px 14px; font-size: 16px; }
+  .niec-lbl { font-size: 16px; }
+  .niec-ico { display: grid; }
   .niec-fold { display: none; }
-  .niec-sep { display: block; flex: 0 0 100%; margin: 6px 4px 0; padding-top: 6px; }
+  .niec-sep { display: block; margin: 6px 8px 2px; padding-top: 8px; }
 }
 /* 🔴 CSS CHANGED (2026-11-13): Add student and other pop-up forms on short screens | from: the Cancel and Add buttons sat below the visible part of the pop-up, reachable only by scrolling inside the form | to: the buttons stay fixed at the bottom of the pop-up and the fields scroll above them */
 dialog.p-dialog { max-height: 94vh; overflow: auto; }
@@ -654,3 +661,27 @@ nav.toc { flex-wrap: wrap; overflow: visible; }
   .p-tabs { flex-wrap: wrap; overflow: visible; }
 }
 .p-table-wrap td, .p-table-wrap th { overflow-wrap: break-word; word-break: normal; }
+/* 🔴 CSS CHANGED (2026-11-13): design polish from the designer review | from: (1) empty Today cards took a whole tile each; (2) many small headings in capital letters (table headings, tile labels, form sections); (3) the plain browser "Choose File" button and date boxes that did not match the pills and selects; (4) a scroll shadow on tables that did not scroll; (5) page titles close to their intro line; (6) editor sections with no space between them; (7) the pop-up close X small; (8) Dashboard cards of different heights and a washed-out target ring; (9) the printed top of the Fact File shown on screen | to: (1) one quiet line per empty card, cards with work first; (2) sentence case, with capitals only for the Admin heading in the menu; (3) a pill file button and date boxes with the same height and rounding as the selects; (4) no shadow; (5) more space and a readable line length under every title; (6) a rule and 28px above each section; (7) a larger 40px close button; (8) equal card heights, graphs at the bottom and a clearer ring; (9) shown only when printing */
+.t-clear { grid-column: 1 / -1; display: grid; gap: 6px; padding: 14px 18px; border: 1px solid var(--border); border-radius: var(--r-md); background: var(--panel); }
+.t-clear-row { display: flex; align-items: center; gap: 12px; min-height: 40px; font-size: 15px; }
+.t-clear-tick { display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; background: var(--green-bg); color: var(--green-fg); font-weight: 800; }
+.t-clear-hint { margin-left: auto; color: var(--text-dim); }
+th, .p-table th, .stat-card .stat-label, .stat-group-title, .p-card h3, .p-dialog-body h3, .th-label { text-transform: none; letter-spacing: 0; }
+.stat-card .stat-label { min-height: 0; white-space: nowrap; font-weight: 600; }
+.stat-group-title { display: none; }
+input[type="file"]::file-selector-button { margin-right: 12px; padding: 9px 18px; border: 0; border-radius: 999px; background: color-mix(in srgb, var(--ink) 8%, transparent); color: var(--ink); font: inherit; font-weight: 600; cursor: pointer; }
+input[type="file"]::file-selector-button:hover { background: color-mix(in srgb, var(--ink) 14%, transparent); }
+input[type="date"] { min-height: 44px; border-radius: var(--r-sm); border: 1px solid var(--border-strong); background: var(--edit-bg); padding: 8px 12px; font: inherit; }
+.p-table-wrap { box-shadow: none; }
+.page-head h1 + p, .p-head h1 + p, .t-hello h1 + p { margin-top: 10px; max-width: 72ch; }
+#editor h3 { margin-top: 28px; padding-top: 18px; border-top: 1px solid var(--border); }
+.p-form .btn-sm.btn-danger { justify-self: start; width: auto; }
+.p-x { width: 40px; height: 40px; font-size: 26px; border-radius: 50%; }
+.ov-row { align-items: start; }
+.ov-kpi { min-height: 188px; }
+.ov-kpi .ov-spark { margin-top: auto; }
+.ov { --ov-track: #d3d9e2; }
+.doc-top { display: none; }
+@media print { .doc-top { display: flex; } }
+/* 🔴 CSS CHANGED (2026-11-13): order of the phone menu bar | from: your account button dropped below the open menu list | to: the account button stays on the bar, at the right of the Menu button, and the list opens under the bar */
+@media (max-width: 900px) { .niec-nav { order: 5; } .niec-account { order: 3; margin-left: auto; } .niec-burger { order: 2; } .niec-brand { order: 1; } }

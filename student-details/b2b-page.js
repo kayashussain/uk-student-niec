@@ -45,7 +45,7 @@
       const name = el('td'); name.append(h('button', { class: 'p-link', type: 'button', onclick: () => edit(p.id) }, p.name), p.city ? el('div', 'p-muted p-small', p.city) : '');
       const pill = el('span', `p-pill p-pill-${p.status === 'Active' ? 'green' : p.status === 'Ended' ? 'red' : 'amber'}`, p.status);
       const st1 = el('td'); st1.append(pill);
-      tr.append(name, st1, el('td', '', p.agreementEnd || 'None yet'), commissionCell(p), el('td', '', p.contact.name || 'None yet'), el('td', '', p.contact.phone || ''), el('td', 'num', number(st.visas)));
+      tr.append(name, st1, el('td', '', p.agreementEnd || '-'), commissionCell(p), el('td', '', p.contact.name || '-'), el('td', '', p.contact.phone || ''), el('td', 'num', number(st.visas)));
       return tr;
     }));
   }
