@@ -1226,7 +1226,8 @@
         const iso = v && DATE_COLS.has(c) && toISODate(v);
         return (iso ? v + ' ' + displayDate(iso) + ' ' + iso : v).toLowerCase();
       };
-      indices = indices.filter((i) => columns.some((c) => cellText(rows[i], c).includes(q)));
+      const words = q.split(/\s+/).filter(Boolean);
+      indices = indices.filter((i) => columns.some((c) => cellText(rows[i], c).includes(q)) || (words.length > 1 && (() => { const all = columns.map((c) => cellText(rows[i], c)).join(' \n '); return words.every((w) => all.includes(w)); })()));
     }
     Object.keys(columnFilters).forEach((col) => {
       const allowed = columnFilters[col];

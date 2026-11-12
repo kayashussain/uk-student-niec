@@ -8,10 +8,36 @@
   let lists = null;
   let rows = [];
 
+  // Splits one line at commas, semicolons or tabs, keeping "quoted, parts" together.
+  function splitLine(line) {
+    const out = []; let cur = ''; let q = false;
+    for (const ch of line) {
+      if (ch === '"') { q = !q; continue; }
+      if (!q && (ch === ',' || ch === ';' || ch === '\t')) { out.push(cur); cur = ''; continue; }
+      cur += ch;
+    }
+    out.push(cur);
+    return out;
+  }
+  const EMAIL_OK = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  // What is wrong with a line, if anything: { skip, note }. Skipped lines are not added.
+  function checkRows(list) {
+    const seen = new Set();
+    return list.map((r) => {
+      const name = `${r.first} ${r.last}`.trim();
+      if (!name) return { skip: true, note: 'No name, skipped' };
+      if (r.email && !EMAIL_OK.test(r.email)) return { skip: true, note: 'The email does not look right, skipped' };
+      const key = `${name.toLowerCase()}|${(r.email || '').toLowerCase()}|${(r.phone || '').replace(/\D/g, '')}`;
+      if (seen.has(key)) return { skip: true, note: 'Same as an earlier line, skipped' };
+      seen.add(key);
+      if (!r.email && !r.phone) return { skip: false, note: 'No email or phone yet' };
+      return { skip: false, note: '' };
+    });
+  }
   // One line to a student: full name (or first and last name), email, phone, in any order.
   function parse(text) {
     return text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean).slice(0, 200).map((line) => {
-      const parts = line.split(/\t|,|;/).map((p) => p.trim()).filter(Boolean);
+      const parts = splitLine(line).map((p) => p.trim()).filter(Boolean);
       const email = parts.find((p) => /@/.test(p)) || '';
       const phone = parts.find((p) => /^[+\d][\d\s()-]{6,}$/.test(p)) || '';
       const names = parts.filter((p) => p !== email && p !== phone);
@@ -41,7 +67,7 @@
   }
   // A file the person chose: .xlsx is read with the Excel library (downloaded once, as for Export Excel), .csv as text.
   async function readFile(file) {
-    if (/\.csv$/i.test(file.name)) return fromGrid((await file.text()).split(/\r?\n/).filter(Boolean).map((l) => l.split(/\t|,|;/)));
+    if (/\.csv$/i.test(file.name)) return fromGrid((await file.text()).split(/\r?\n/).filter(Boolean).map((l) => splitLine(l)));
     const ExcelJS = await window.NiecSession.loadExcel();
     const wb = new ExcelJS.Workbook();
     await wb.xlsx.load(await file.arrayBuffer());
@@ -105,14 +131,16 @@
     wrap.append(paste);
 
     const showRows = () => {
-      const bad = rows.filter((r) => !r.first && !r.last);
-      out.replaceChildren(el('p', '', `${rows.length} students found${bad.length ? `, ${bad.length} with no name (they will be skipped)` : ''}.`));
+      const checks = checkRows(rows);
+      const ready = checks.filter((c) => !c.skip).length;
+      const skipped = checks.length - ready;
+      out.replaceChildren(el('p', '', `${rows.length} ${rows.length === 1 ? 'line' : 'lines'} found: ${ready} will be added${skipped ? `, ${skipped} will be skipped` : ''}.`));
       const t = el('table', 'p-table');
-      t.append(h('thead', {}, h('tr', {}, ...['Name', 'Email', 'Phone'].map((x) => el('th', '', x)))));
+      t.append(h('thead', {}, h('tr', {}, ...['Name', 'Email', 'Phone', 'Check'].map((x) => el('th', '', x)))));
       const tb = el('tbody');
-      rows.slice(0, 200).forEach((r) => tb.append(h('tr', {}, el('td', '', `${r.first} ${r.last}`.trim() || '(no name)'), el('td', '', r.email), el('td', '', r.phone))));
+      rows.slice(0, 200).forEach((r, i) => tb.append(h('tr', {}, el('td', '', `${r.first} ${r.last}`.trim() || '(no name)'), el('td', '', r.email), el('td', '', r.phone), el('td', checks[i].skip ? 'p-bad' : 'p-muted', checks[i].note))));
       t.append(tb); out.append(t);
-      go.disabled = !rows.length;
+      go.disabled = !ready;
     };
     check.addEventListener('click', () => { rows = parse(box.value); showRows(); });
     pick.addEventListener('change', async () => {
@@ -121,12 +149,16 @@
       try { rows = await readFile(f); box.value = ''; showRows(); } catch (e) { out.replaceChildren(el('div', 'p-notice bad', 'Could not read the file: ' + e.message)); }
     });
     go.addEventListener('click', async () => {
-      if (!(await window.NiecUI.confirm(`Add ${rows.length} students with the source "${source.input.value}${detail && detail.value ? ': ' + detail.value : ''}"?`, { confirmText: 'Add them' }))) return;
+      const checks = checkRows(rows);
+      const sendRows = rows.filter((_, i) => !checks[i].skip);
+      if (!sendRows.length) return;
+      if (!(await window.NiecUI.confirm(`Add ${sendRows.length} students with the source "${source.input.value}${detail && detail.value ? ': ' + detail.value : ''}"?`, { confirmText: 'Add them' }))) return;
       go.disabled = true;
       try {
-        const r = await api('/api/students/bulk', { rows, sheetId: intake.input.value, stage: stage.input.value, dept: dept ? dept.input.value : undefined, source: source.input.value, sourceDetail: detail ? detail.value : '' });
+        const r = await api('/api/students/bulk', { rows: sendRows, sheetId: intake.input.value, stage: stage.input.value, dept: dept ? dept.input.value : undefined, source: source.input.value, sourceDetail: detail ? detail.value : '' });
         const added = r.results.filter((x) => x.ok).length;
-        out.replaceChildren(el('div', `p-notice ${added === r.results.length ? 'ok' : 'warn'}`, `${added} of ${r.results.length} students added.`), ...r.results.filter((x) => !x.ok).map((x) => el('div', 'p-sent', `${x.name || '(no name)'}: ${x.error}`)));
+        const skippedLines = rows.filter((_, i) => checks[i].skip).map((x, k) => ({ name: `${x.first} ${x.last}`.trim(), note: checks.filter((c) => c.skip)[k].note }));
+        out.replaceChildren(el('div', `p-notice ${added === r.results.length && !skippedLines.length ? 'ok' : 'warn'}`, `${added} of ${rows.length} lines added${skippedLines.length ? `, ${skippedLines.length} skipped` : ''}.`), ...r.results.filter((x) => x.ok).map((x) => el('div', 'p-sent', `Added: ${x.name}`)), ...skippedLines.map((x) => el('div', 'p-sent', `Skipped: ${x.name || '(no name)'}: ${x.note}`)), ...r.results.filter((x) => !x.ok).map((x) => el('div', 'p-sent', `${x.name || '(no name)'}: ${x.error}`)));
         say(`${added} students added`);
         box.value = ''; rows = [];
       } catch (e) { out.replaceChildren(el('div', 'p-notice bad', e.message)); go.disabled = false; }

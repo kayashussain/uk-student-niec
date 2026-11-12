@@ -532,10 +532,12 @@ test('on the real server: cards follow the rules of the sheet, messages are reco
   const fair = (await admin('POST', '/api/planning/events', { name: 'UK Education Fair', type: 'Education fair', date: '2026-08-08', endDate: '2026-08-10', place: 'Kathmandu', cost: 240000 })).json;
   assert.ok(fair.id || (fair.entry && fair.entry.id), JSON.stringify(fair));
   const fairId = fair.id || fair.entry.id;
-  const ad = (await admin('POST', '/api/planning/events', { name: 'Facebook scholarship ad', type: 'Facebook or Instagram advert', date: '2026-09-01', endDate: '2026-08-01', cost: 50000 })).json;
+  assert.strictEqual((await admin('POST', '/api/planning/events', { name: 'Backwards', type: 'Webinar', date: '2026-09-01', endDate: '2026-08-01' })).status, 400, 'an end date before the start is refused');
+  assert.strictEqual((await admin('POST', '/api/planning/events', { name: 'Bad cost', type: 'Webinar', date: '2026-09-01', cost: 'abc' })).status, 400, 'a cost that is not a number is refused');
+  const ad = (await admin('POST', '/api/planning/events', { name: 'Facebook scholarship ad', type: 'Facebook or Instagram advert', date: '2026-09-01', cost: 50000 })).json;
   const adEntry = (await admin('GET', '/api/activities')).json.activities.find((a) => a.name === 'Facebook scholarship ad');
   assert.strictEqual(adEntry.kind, 'Marketing');
-  assert.strictEqual(adEntry.endDate, '', 'an end before the start is dropped');
+  assert.strictEqual(adEntry.endDate, '', 'no end date given means none stored');
   assert.strictEqual((await app('GET', '/api/activities')).status, 403, 'a team does not see the cost of events');
   assert.strictEqual((await manager('GET', '/api/activities')).status, 200);
   const many = (await admin('POST', '/api/students/bulk', { sheetId: wb.sheets[0].id, stage: 'Inquiry', source: 'Events', sourceDetail: 'UK Education Fair, 8 Aug 2026', rows: [{ first: 'Maya', last: 'Rai', email: 'maya@example.com', phone: '9800000011' }, { first: 'Tek', last: 'Gurung' }, { first: '', last: '' }] })).json;

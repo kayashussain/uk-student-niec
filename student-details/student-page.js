@@ -49,13 +49,15 @@
     });
     const bar = el('div', 'p-bar');
     const msg = el('div', 'p-msg');
-    bar.append(h('button', { class: 'btn btn-primary', type: 'button', onclick: async () => {
+    const save = async () => {
       try {
         await api(`/api/cards/${id}/sheet`, { fields: Object.fromEntries(Object.entries(inputs).map(([k, i]) => [k, i.value])) });
         data = await api('/api/cards/' + encodeURIComponent(id));
         editingHero = false; say('Saved on the sheet'); render();
       } catch (e) { msg.textContent = e.message; msg.className = 'p-msg error'; }
-    } }, 'Save'), h('button', { class: 'btn', type: 'button', onclick: () => { editingHero = false; render(); } }, 'Cancel'));
+    };
+    bar.append(h('button', { class: 'btn btn-primary', type: 'button', onclick: save }, 'Save'), h('button', { class: 'btn', type: 'button', onclick: () => { editingHero = false; render(); } }, 'Cancel'));
+    form.addEventListener('keydown', (e) => { if (e.key === 'Enter' && e.target.tagName === 'INPUT') { e.preventDefault(); save(); } });
     c.append(form, bar, msg);
     return c;
   }

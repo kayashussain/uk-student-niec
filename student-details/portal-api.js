@@ -391,6 +391,9 @@ function createPortalApi({
         }
       }
       if ((changes['FIRST NAME'] === '' && !text(found.row['LAST NAME']) && !('LAST NAME' in changes)) || ('FIRST NAME' in changes && changes['FIRST NAME'] === '' && 'LAST NAME' in changes && changes['LAST NAME'] === '')) { sendJSON(res, 400, { error: 'A student needs a name.' }); return true; }
+      const sub = 'APPLICATION SUBMISSION DATE' in changes ? changes['APPLICATION SUBMISSION DATE'] : realDay(found.row['APPLICATION SUBMISSION DATE']) || '';
+      const off = 'OFFER RECEIVED DATE' in changes ? changes['OFFER RECEIVED DATE'] : realDay(found.row['OFFER RECEIVED DATE']) || '';
+      if (sub && off && off < sub && ('APPLICATION SUBMISSION DATE' in changes || 'OFFER RECEIVED DATE' in changes)) { sendJSON(res, 400, { error: 'The offer cannot be received before the application was submitted.' }); return true; }
       if (changes.EMAIL && !mailer.isAddress(changes.EMAIL)) { sendJSON(res, 400, { error: 'That email address does not look right.' }); return true; }
       if (Object.keys(changes).length) {
         const done = setColumns(req, found, changes);

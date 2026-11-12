@@ -101,6 +101,7 @@
     sendEmail.addEventListener('click', async () => {
       const total = files.reduce((n, f) => n + f.size, 0);
       if (total > MAX_TOTAL) { say('The files are too large.', true); return; }
+      if (preview.missing.length && !(await window.NiecUI.confirm('These are not filled in yet: ' + preview.missing.join(', ') + '. The message will read badly without them. Send it anyway?', { confirmText: 'Send anyway' }))) return;
       if (!(await window.NiecUI.confirm(`Send "${preview.subject}" to ${to.input.value || 'the student'}${files.length ? ` with ${files.length} attached file${files.length === 1 ? '' : 's'}` : ''}?`, { confirmText: 'Send email' }))) return;
       sendEmail.disabled = true;
       msg.textContent = 'Sending…'; msg.className = 'p-msg';
@@ -120,6 +121,7 @@
     const waBar = el('div', 'p-bar');
     const waBtn = h('button', { class: 'btn', type: 'button' }, 'Open WhatsApp');
     waBtn.addEventListener('click', async () => {
+      if (preview.missing.length && !(await window.NiecUI.confirm('These are not filled in yet: ' + preview.missing.join(', ') + '. The message will read badly without them. Open WhatsApp anyway?', { confirmText: 'Open anyway' }))) return;
       try {
         await api(`/api/cards/${id}/messages/send`, { channel: 'whatsapp', template: templateKey });
         window.open(`https://wa.me/${preview.whatsapp.number}?text=${encodeURIComponent(preview.whatsapp.text)}`, '_blank', 'noopener');

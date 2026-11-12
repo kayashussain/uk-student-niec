@@ -43,6 +43,11 @@ const LISTS = {
       name: str(x.name, 120), date: isoDay(x.date), endDate: (isoDay(x.endDate) >= isoDay(x.date) ? isoDay(x.endDate) : ''), type: EVENT_TYPES.includes(x.type) ? x.type : 'Other', kind: MARKETING_TYPES.includes(x.type) ? 'Marketing' : 'Event', place: str(x.place, 120),
       cost: amount(x.cost), registered: amount(x.registered, 1e6), attended: amount(x.attended, 1e6), universities: str(x.universities, 300), note: str(x.note, 600),
     }),
+    check: (x) => {
+      if (x.endDate && x.date && isoDay(x.endDate) && isoDay(x.endDate) < isoDay(x.date)) return 'The end date is before the start date.';
+      if (x.cost !== undefined && x.cost !== null && String(x.cost).trim() !== '' && !/^[£$]?\s*\d[\d,\s]*(\.\d+)?$/.test(String(x.cost).trim())) return 'The cost must be a number, for example 25000.';
+      return null;
+    },
     valid: (x) => (x.name && x.date ? null : 'An event or a marketing activity needs a name and a start date.'),
   },
   decisions: {
@@ -122,7 +127,7 @@ function createPlanning(dir, { now = () => new Date() } = {}) {
       if (!spec) return { error: 'No such list.' };
       const data = load();
       const cleaned = spec.clean(input || {});
-      const problem = spec.valid(cleaned);
+      const problem = (spec.check && spec.check(input || {})) || spec.valid(cleaned);
       if (problem) return { error: problem };
       const id = /^[a-f0-9]{12}$/.test(input && input.id) ? input.id : '';
       const stamp = { updatedAt: now().toISOString(), updatedBy: by || '' };
