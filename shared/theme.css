@@ -639,3 +639,20 @@ dialog.p-dialog { max-height: 94vh; overflow: auto; }
 .p-table-wrap { box-shadow: inset -12px 0 10px -10px rgba(0,0,0,.16); }
 .ov-rank-label { white-space: normal; overflow: visible; text-overflow: clip; }
 nav.toc { flex-wrap: wrap; overflow: visible; }
+/* 🔴 CSS CHANGED (2026-11-13): the side menu on short screens, the team note and card tabs on a phone, phone numbers in tables | from: the side menu was cut off at short heights with a hidden scroll bar (Today, Incentive and Log out out of reach); the "Application Team: ..." note ran off the screen on a phone; the student card tabs were cut at the right; phone numbers broke in the middle in tables | to: the menu gets a thin visible scroll bar, tighter spacing on short screens and a Log out area that stays at the bottom; the note and the tabs wrap onto more lines; phone numbers stay whole */
+.niec-header { scrollbar-width: thin; scrollbar-color: rgba(20,30,50,.28) transparent; }
+.niec-header::-webkit-scrollbar { display: block; width: 8px; }
+.niec-header::-webkit-scrollbar-thumb { background: rgba(20,30,50,.28); border-radius: 8px; }
+.niec-account { position: sticky; bottom: 0; background: rgba(233, 236, 240, .96); padding-bottom: 4px; }
+@media (min-width: 901px) and (max-height: 820px) {
+  .niec-header { padding-top: 10px; padding-bottom: 8px; gap: 4px; }
+  .niec-nav a { padding: 6px 12px; }
+  .niec-nav { margin-top: 4px; gap: 1px; }
+  .niec-sep { margin-top: 6px; padding-top: 6px; }
+  .niec-fold { padding: 4px 12px; }
+}
+@media (max-width: 600px) {
+  .team-note, .view-only { white-space: normal; max-width: 100%; }
+  .p-tabs { flex-wrap: wrap; overflow: visible; }
+}
+.p-table-wrap td, .p-table-wrap th { overflow-wrap: break-word; word-break: normal; }

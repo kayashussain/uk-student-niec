@@ -7,6 +7,8 @@ To find every marked change in the code, search the project for `CSS CHANGED`.
 
 Format: **date · file · what · from → to · why**
 
+- **2026-11-13 · shared/theme.css · the side menu on short screens, the team note and card tabs on a phone, phone numbers in tables · from: the menu was cut off at short heights with a hidden scroll bar (Today, Incentive and Log out out of reach); the team note ran off the screen on a phone; the student card tabs were cut at the right; phone numbers broke in the middle → to: a thin visible menu scroll bar, tighter spacing on short screens, Log out stays at the bottom; the note and tabs wrap; phone numbers stay whole · why: the second zoom test.**
+
 - **2026-11-13 · shared/theme.css · zoom fixes found by the zoom tester · (1) the Student Details sheet vanished on short screens (tiles and toolbar used all the height) → the sheet keeps room for about 8 rows, the page scrolls, and the tiles become small one-line chips on short screens; (2) the top menu hid pages below 900px → it wraps so every page shows; (3) pop-up form buttons below the visible part → they stay fixed at the bottom; (4) Events, B2B and Agents tables squeezed into one-word lines, Dashboard labels cut with dots, Fact File chips off the edge → readable width with a scroll shadow, wrapped labels and chips · why: the owner's zoom test.**
 
 - **2026-11-13 · shared/login.html · the title in the login box · from: 24px, the longer name wrapped to two lines → to: 20px, one line · why: the portal is now called International Student Recruitment.**
