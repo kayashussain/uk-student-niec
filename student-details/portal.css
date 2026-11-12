@@ -268,3 +268,5 @@ body.p-embed .p-embed-bar { display: flex; }
   .p-card { box-shadow: none; break-inside: avoid; }
   [role="tabpanel"]:not(.print-me) { display: none !important; }
 }
+/* 🔴 CSS CHANGED (2026-11-12): the picture of initials on a student card sits at the top, beside the name | from: centred in the middle of the card, so in the narrow card window it floated below the name | to: aligned to the top */
+.p-hero { align-items: flex-start; }

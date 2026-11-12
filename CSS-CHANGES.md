@@ -9,7 +9,19 @@ Format: **date · file · what · from → to · why**
 
 ---
 
-## 2026-11-13 · `student-details/style.css` and `app.js` · Open button in each row removed
+## 2026-11-12 · `shared/header.css`, `shared/header.js`, `shared/theme.css`, `student-details/portal.css` · the whole look: a premium portal with a side menu
+
+The owner asked for the system to be changed from zero into a premium, professional recruitment portal, keeping the Google-Sheet-style view of Student Details.
+
+- **`shared/header.css` (rewritten) and `shared/header.js`:** from a white bar across the top with the pages in a row and a blue line under it → to a fixed deep-navy side menu on every page (252px wide, or 78px folded to icons with the Fold the menu button, remembered in the browser), with an icon for each page, the NIEC logo on a white chip, an orange mark on the open page and the account at the bottom. On a window narrower than 900px it goes back to a bar across the top. The card window of a student (a page inside a page) keeps no menu. Why: the owner wanted a real portal with a menu.
+- **`shared/theme.css` colours:** from the warm grey "Mist" (page #e7eaef, panels #f2f4f7, ink #1f2933, row stripe #ecf0f3) → to a clean cool look (page #f3f5fa, panels white, ink #0e1a33, row stripe #fafbfe, borders #e4e8f0, hover #eef4ff); the dark mode follows with navy tones. Green, blue, amber and red tags are a little fresher.
+- **`shared/theme.css` shape:** from corners of 10, 14 and 20px and flat shadows → to 12, 16 and 22px and soft layered shadows that lift a card off the page.
+- **`student-details/portal.css`:** the initials picture on a student card is aligned to the top instead of the middle.
+- Fonts are unchanged (one sans-serif everywhere, the serif only for page titles and big numbers). The Student Details sheet keeps its grid, columns and stat boxes: only their colours and corners follow the new palette.
+
+---
+
+## 2026-11-12 · `student-details/style.css` and `app.js` · Open button in each row removed
 
 From: the row number plus a small blue "Open" button (column 92px wide) → to: the row number only (column 56px wide). Why: the owner does not want an Open button in each row or in the toolbar; a double-click on the student's name or row number opens the card.
 

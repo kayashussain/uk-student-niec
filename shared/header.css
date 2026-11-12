@@ -1,85 +1,91 @@
-/* The header every page shares (shared/header.js fills in the navigation and the account menu).
+/* The side menu every page shares (shared/header.js fills in the navigation and the account menu).
+   🔴 CSS CHANGED (2026-11-12): the whole top bar becomes a deep-navy side menu with icons, the account at the bottom and a button to fold it to icons only | from: a white bar across the top with the pages in a row and a blue line under it | to: a fixed navy column on the left (252px, or 76px folded) for every page; on a phone it goes back to a bar across the top
    Self-contained, so it looks the same on Student Details, Incentive and Users & activity. */
+:root { --side-w: 252px; }
+html[data-nav="folded"] { --side-w: 78px; }
+/* Every page leaves room for the menu (the card window of a student, which shows a page inside another, does not). */
+body:has(> .niec-header) { padding-left: var(--side-w); transition: padding-left .2s ease; }
+body.p-embed { padding-left: 0 !important; }
+
 .niec-header {
-  --h-blue: #00adef;
-  --h-blue-text: #0077a8;
-  --h-text: #1c2126;
-  --h-dim: #5b6472;
-  --h-bg: #ffffff;
-  --h-hover: #eef6fb;
-  --h-border: #dfe3e8;
-  position: sticky;
-  top: 0;
-  z-index: 30;
-  display: flex;
-  align-items: center;
-  gap: 20px;
-  min-height: 52px;
-  padding: 0 18px;
-  background: var(--h-bg);
-  border-bottom: 3px solid var(--h-blue);
-  font: 13px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  color: var(--h-text);
+  --h-text: #e8eefb; --h-dim: #9fb0d0; --h-hover: rgba(255, 255, 255, .07); --h-border: rgba(255, 255, 255, .10); --h-orange: #fc6e1f; --h-blue: #29b6f2;
+  position: fixed; inset: 0 auto 0 0; z-index: 40; width: var(--side-w); height: 100vh;
+  display: flex; flex-direction: column; align-items: stretch; gap: 8px; padding: 18px 14px 16px;
+  background: radial-gradient(120% 60% at 0% 0%, #17306a 0%, rgba(23, 48, 106, 0) 60%), linear-gradient(180deg, #0a1733 0%, #0b1c3f 100%);
+  color: var(--h-text); font: 13px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  border: 0; box-shadow: 1px 0 0 rgba(255, 255, 255, .04), 12px 0 40px -24px rgba(8, 18, 45, .6);
+  overflow-x: hidden; overflow-y: auto; scrollbar-width: none; transition: width .2s ease;
 }
-@media (prefers-color-scheme: dark) {
-  .niec-header { --h-text: #e5e7eb; --h-dim: #9ca3af; --h-bg: #161c26; --h-hover: #1f2a38; --h-border: #2b3544; --h-blue-text: #6fd0f7; }
-}
-.niec-brand { display: flex; align-items: center; gap: 10px; text-decoration: none; color: inherit; flex: 0 0 auto; }
-.niec-logo { display: block; height: 38px; width: auto; }
-.niec-brand-text { padding-left: 12px; border-left: 1px solid var(--h-border); line-height: 1.2; }
-.niec-brand-name { display: block; font-weight: 700; font-size: 15px; color: var(--h-text); }
-/* 🔴 CSS CHANGED (2026-11-06): the two smallest texts in the top bar on every page | from: company name under the logo 11px, account role under the name 11px | to: both 12px (same colour) */
+.niec-header::-webkit-scrollbar { display: none; }
+.niec-header::after { content: none; }
+
+.niec-brand { display: flex; flex-direction: column; gap: 10px; align-items: flex-start; text-decoration: none; color: inherit; padding: 2px 4px 14px; border-bottom: 1px solid var(--h-border); }
+.niec-logo { display: block; height: 40px; width: auto; padding: 6px 10px; background: #fff; border-radius: 12px; box-shadow: 0 6px 18px -10px rgba(0, 0, 0, .6); }
+.niec-brand-text { padding: 0 2px; border: 0; line-height: 1.25; }
+.niec-brand-name { display: block; font-weight: 650; font-size: 15px; letter-spacing: -.01em; color: #fff; }
 .niec-brand-sub { display: block; font-size: 12px; color: var(--h-dim); }
 
-.niec-nav { display: flex; align-items: stretch; gap: 2px; align-self: stretch; min-width: 0; }
+.niec-nav { display: flex; flex-direction: column; align-items: stretch; align-self: stretch; gap: 3px; margin: 10px 0 0; min-width: 0; }
 .niec-nav a {
-  display: flex; align-items: center; padding: 0 12px; margin-bottom: -3px;
-  color: var(--h-dim); text-decoration: none; font-weight: 600; white-space: nowrap;
-  border-bottom: 3px solid transparent;
+  position: relative; display: flex; align-items: center; gap: 12px; padding: 10px 12px; margin: 0; border: 0; border-radius: 12px;
+  color: var(--h-dim); text-decoration: none; font-weight: 550; font-size: 13.5px; white-space: nowrap;
+  transition: background-color .15s ease, color .15s ease;
 }
-.niec-nav a:hover { color: var(--h-text); background: var(--h-hover); }
-.niec-nav a[aria-current="page"] { color: var(--h-blue-text); border-bottom-color: #fc6e1f; }
+.niec-nav a:hover { color: #fff; background: var(--h-hover); }
+.niec-nav a[aria-current="page"] { color: #fff; background: linear-gradient(90deg, rgba(41, 182, 242, .22), rgba(41, 182, 242, .06)); box-shadow: inset 0 0 0 1px rgba(41, 182, 242, .25); }
+.niec-nav a[aria-current="page"]::before { content: ""; position: absolute; left: -14px; top: 9px; bottom: 9px; width: 4px; border-radius: 0 4px 4px 0; background: var(--h-orange); }
+.niec-ico { display: grid; place-items: center; flex: 0 0 22px; width: 22px; height: 22px; }
+.niec-ico svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
 
-.niec-account { margin-left: auto; position: relative; flex: 0 0 auto; padding-left: 6px; }
-.niec-account-btn {
-  display: flex; align-items: center; gap: 8px; padding: 4px 8px 4px 4px; border: 1px solid transparent;
-  border-radius: 999px; background: none; color: inherit; font: inherit; cursor: pointer;
-}
+.niec-fold { display: flex; align-items: center; gap: 12px; margin-top: 6px; padding: 8px 12px; border: 0; border-radius: 12px; background: none; color: var(--h-dim); font: inherit; font-size: 12.5px; cursor: pointer; }
+.niec-fold:hover { background: var(--h-hover); color: #fff; }
+.niec-fold svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; transition: transform .2s ease; }
+html[data-nav="folded"] .niec-fold svg { transform: rotate(180deg); }
+
+.niec-account { margin-top: auto; position: relative; padding-top: 12px; border-top: 1px solid var(--h-border); }
+.niec-account-btn { display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px; border: 1px solid transparent; border-radius: 14px; background: rgba(255, 255, 255, .05); color: inherit; font: inherit; cursor: pointer; text-align: left; }
 .niec-account-btn:hover, .niec-account-btn[aria-expanded="true"] { background: var(--h-hover); border-color: var(--h-border); }
-.niec-avatar {
-  display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%;
-  background: #fff0e5; color: #c2410c; font-weight: 700; font-size: 12px;
-}
-.niec-account-text { display: flex; flex-direction: column; align-items: flex-start; line-height: 1.15; }
-.niec-account-name { font-weight: 600; white-space: nowrap; }
+.niec-avatar { display: grid; place-items: center; flex: 0 0 34px; width: 34px; height: 34px; border-radius: 50%; background: linear-gradient(135deg, #fc6e1f, #ff9a57); color: #fff; font-weight: 700; font-size: 12px; }
+.niec-account-text { display: flex; flex-direction: column; align-items: flex-start; line-height: 1.2; min-width: 0; }
+.niec-account-name { font-weight: 600; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 130px; }
 .niec-account-role { font-size: 12px; color: var(--h-dim); white-space: nowrap; }
-/* 🔴 CSS CHANGED (2026-11-06): small text raised to 12px | from: header arrow 10px | to: 12px (same colours) */
-.niec-caret { color: var(--h-dim); font-size: 12px; }
-.niec-menu {
-  position: absolute; right: 0; top: calc(100% + 6px); min-width: 220px; padding: 6px;
-  background: var(--h-bg); border: 1px solid var(--h-border); border-radius: 10px;
-  box-shadow: 0 12px 32px rgba(15, 23, 42, .16);
-}
+.niec-caret { margin-left: auto; color: var(--h-dim); font-size: 12px; }
+.niec-menu { position: absolute; left: 0; right: 0; bottom: calc(100% + 8px); top: auto; min-width: 0; padding: 6px; background: #fff; color: #0e1a33; border: 1px solid #e4e8f0; border-radius: 14px; box-shadow: 0 18px 40px -12px rgba(8, 18, 45, .45); }
 .niec-menu[hidden] { display: none; }
-.niec-menu-head { padding: 8px 10px 10px; border-bottom: 1px solid var(--h-border); margin-bottom: 4px; }
+.niec-menu-head { padding: 8px 10px 10px; border-bottom: 1px solid #e4e8f0; margin-bottom: 4px; }
 .niec-menu-head b { display: block; }
-.niec-menu-head span { font-size: 12px; color: var(--h-dim); }
-.niec-menu a, .niec-menu button {
-  display: block; width: 100%; padding: 8px 10px; border: none; border-radius: 6px; background: none;
-  color: inherit; font: inherit; text-align: left; text-decoration: none; cursor: pointer;
-}
-.niec-menu a:hover, .niec-menu button:hover { background: var(--h-hover); }
-.niec-menu a[aria-current="page"] { font-weight: 600; color: var(--h-blue-text); }
-.niec-menu .niec-logout { color: #dc2626; border-top: 1px solid var(--h-border); border-radius: 0 0 6px 6px; margin-top: 4px; padding-top: 10px; }
+.niec-menu-head span { font-size: 12px; color: #5a6781; }
+.niec-menu a, .niec-menu button { display: block; width: 100%; padding: 8px 10px; border: none; border-radius: 8px; background: none; color: inherit; font: inherit; text-align: left; text-decoration: none; cursor: pointer; }
+.niec-menu a:hover, .niec-menu button:hover { background: #eef1f8; }
+.niec-menu a[aria-current="page"] { font-weight: 600; color: #0a84c6; }
+.niec-menu .niec-logout { color: #c0392b; border-top: 1px solid #e4e8f0; border-radius: 0 0 8px 8px; margin-top: 4px; padding-top: 10px; }
 
-/* Phones: the company line and the account text make way; navigation scrolls if it must. */
-@media (max-width: 760px) {
-  .niec-header { gap: 10px; padding: 0 10px; min-height: 48px; }
-  .niec-brand-sub, .niec-account-text, .niec-caret { display: none; }
-  .niec-brand-name { font-size: 14px; }
-  .niec-logo { height: 32px; }
-  .niec-nav { overflow-x: auto; scrollbar-width: none; }
-  .niec-nav:not(.at-end) { -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 26px), transparent); mask-image: linear-gradient(90deg, #000 calc(100% - 26px), transparent); }
-  .niec-nav a { padding: 0 8px; font-size: 12px; }
+/* Folded: icons only (on a wide window; a phone always has the bar across the top). */
+@media (min-width: 901px) {
+html[data-nav="folded"] .niec-brand-text, html[data-nav="folded"] .niec-lbl, html[data-nav="folded"] .niec-fold span, html[data-nav="folded"] .niec-account-text, html[data-nav="folded"] .niec-caret { display: none; }
+html[data-nav="folded"] .niec-header { padding-left: 11px; padding-right: 11px; }
+html[data-nav="folded"] .niec-logo { height: 34px; padding: 5px 6px; width: 52px; object-fit: contain; }
+html[data-nav="folded"] .niec-nav a, html[data-nav="folded"] .niec-fold { justify-content: center; padding-left: 0; padding-right: 0; }
+html[data-nav="folded"] .niec-nav a[aria-current="page"]::before { left: -11px; }
+html[data-nav="folded"] .niec-account-btn { justify-content: center; padding: 6px; }
+html[data-nav="folded"] .niec-menu { left: 0; right: auto; width: 220px; }
 }
-@media (max-width: 520px) { .niec-brand-text { display: none; } }
+
+/* Phones and small windows: the menu goes back to a bar across the top. */
+@media (max-width: 900px) {
+  :root, html[data-nav="folded"] { --side-w: 0px; }
+  body:has(> .niec-header) { padding-left: 0; }
+  .niec-header { position: sticky; top: 0; inset: auto; width: auto; height: auto; flex-direction: row; align-items: center; gap: 10px; padding: 8px 12px; overflow: visible; }
+  .niec-brand { flex-direction: row; align-items: center; padding: 0; border: 0; }
+  .niec-logo { height: 32px; }
+  .niec-brand-text, .niec-account-text, .niec-caret, .niec-fold { display: none; }
+  .niec-nav { flex-direction: row; margin: 0; overflow-x: auto; scrollbar-width: none; flex: 1; }
+  .niec-nav a { padding: 8px 10px; }
+  .niec-nav a[aria-current="page"]::before { content: none; }
+  .niec-lbl { font-size: 12.5px; }
+  .niec-ico { display: none; }
+  .niec-account { margin: 0; padding: 0; border: 0; }
+  .niec-account-btn { width: auto; padding: 3px; }
+  .niec-menu { left: auto; right: 0; bottom: auto; top: calc(100% + 6px); min-width: 220px; }
+}
+@media print { .niec-header { display: none !important; } body:has(> .niec-header) { padding-left: 0; } }

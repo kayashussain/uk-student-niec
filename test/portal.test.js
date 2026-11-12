@@ -519,6 +519,15 @@ test('on the real server: cards follow the rules of the sheet, messages are reco
   assert.deepStrictEqual((await app('GET', '/api/card-lists')).json.partners, ['Gorkha Agents'], 'the Agent choice on a student card lists the agents');
   assert.strictEqual((await admin('GET', '/api/b2b')).json.partners.length, 1, 'B2B partners do not mix with agents');
 
+  // The details of the sheet can be changed from the card, with the rules of the sheet.
+  assert.strictEqual((await admin('POST', `/api/cards/${sitaId}/sheet`, { fields: { EMAIL: 'not an address' } })).status, 400);
+  assert.strictEqual((await admin('POST', `/api/cards/${sitaId}/sheet`, { fields: { 'APPLICATION SUBMISSION DATE': '2026-02-30x' } })).status, 400);
+  assert.strictEqual((await admin('POST', `/api/cards/${sitaId}/sheet`, { fields: { 'FIRST NAME': 'Sitaa', EMAIL: 'Sita.New@Example.com', 'APPLICATION SUBMISSION DATE': '2026-11-02', 'GROSS FEE': '1' } })).status, 200);
+  const edited = (await admin('GET', '/api/data')).json.sheets[0].rows.find((r) => r._id === sitaId);
+  assert.deepStrictEqual([edited['FIRST NAME'], edited.EMAIL, edited['APPLICATION SUBMISSION DATE']], ['Sitaa', 'sita.new@example.com', '2026-11-02']);
+  assert.notStrictEqual(edited['GROSS FEE'], '1', 'only the details of the card can be changed from it');
+  assert.strictEqual((await manager('POST', `/api/cards/${sitaId}/sheet`, { fields: { 'FIRST NAME': 'X' } })).status, 403, 'the Manager only views');
+
   // Everything is written to the Activity record, and the backup holds the cards.
   const activity = (await admin('GET', '/api/activity?limit=200')).json.events;
   assert.ok(activity.some((e) => e.action === 'Edited student card' && e.changes.some((c) => /added a note/.test(c))));

@@ -90,6 +90,10 @@
   // and the notes (what Remarks held) are on the student's card, which opens with a double-click on the student's name. The data of
   // these two columns stays in the file and keeps working (branch students, the Dashboard, Incentive): the sheet just does not show them.
   const CARD_COLUMNS = new Set(['REMARKS', 'STUDENT SOURCE']);
+  // Only columns whose values are a short list of choices get a filter. Dates, numbers, ids, names, emails and feedback do not.
+  const FILTER_COLUMNS = new Set(['APPLICATION STATUS', 'UNIVERSITY NAME', 'COURSE NAME', 'RECEIVING PARTNER', 'UNIVERSITY PARTNER', 'NOC', 'MEDICAL REPORT', 'E-VISA']);
+  // A double-click on any of these opens the student card (Enter or F2 still types in the cell).
+  const CARD_OPEN_COLUMNS = new Set(['FIRST NAME', 'LAST NAME', 'EMAIL', 'CONTACT NUMBER', 'APPLICATION SUBMISSION DATE', 'OFFER RECEIVED DATE', 'UNIVERSITY NAME', 'COURSE NAME']);
   const visibleColumns = (sheet) => {
     const hidden = new Set(HIDDEN_COLUMNS_BY_SHEET.filter((h) => h.matches(sheet.name || '')).flatMap((h) => h.columns));
     return sheet.columns.filter((c) => !CARD_COLUMNS.has(c) && (!hidden.has(c) || (isTeam() && canEditCol(c))));
@@ -977,7 +981,7 @@
   // Every column has a set width that doesn't depend on what's typed in it (wide enough for its title
   // and its kind of cell). Besides keeping the sheet tidy, it lets the browser lay the table out
   // without measuring every cell, which keeps typing and moving around a long sheet smooth.
-  // 🔴 CSS CHANGED (2026-11-13): width of the S.N column | from: 92px | to: 56px (as it was before the Open button) | why: the owner does not want the Open button in each row
+  // 🔴 CSS CHANGED (2026-11-12): width of the S.N column | from: 92px | to: 56px (as it was before the Open button) | why: the owner does not want the Open button in each row
   const COL_IDX_WIDTH = 56; // room for a 4-digit row number
   let measureCtx = null;
   function textWidth(text, font) {
@@ -1074,6 +1078,7 @@
       });
       th.appendChild(label);
 
+      if (!FILTER_COLUMNS.has(col)) { headerRow.appendChild(th); return; }
       const filterBtn = document.createElement('span');
       filterBtn.className = 'filter-btn';
       filterBtn.textContent = '▾';
@@ -2715,9 +2720,9 @@
     const td = e.target.closest('td');
     // A double-click on the row number opens that student's card.
     if (td && body.contains(td) && td.classList.contains('col-idx') && !td.parentElement.classList.contains('pad-row')) { openCardOfRow(Number(td.parentElement.dataset.rowIdx)); return; }
-    // A double-click on the student's name (first or last) opens the card too; Enter or F2 still edits the name.
+    // A double-click on the name, email, number, dates, university or course opens the card too; Enter or F2 still edits the cell.
     if (td && body.contains(td) && !td.parentElement.classList.contains('pad-row') && !e.target.closest('select, input')
-      && ['FIRST NAME', 'LAST NAME'].includes(columns[Number(td.dataset.colIndex)])) { openCardOfRow(Number(td.parentElement.dataset.rowIdx)); return; }
+      && CARD_OPEN_COLUMNS.has(columns[Number(td.dataset.colIndex)])) { openCardOfRow(Number(td.parentElement.dataset.rowIdx)); return; }
     if (!td || !body.contains(td) || td.classList.contains('col-idx') || e.target.closest('select, input')
       || td.parentElement.classList.contains('pad-row')) return;
     const rowIdx = Number(td.parentElement.dataset.rowIdx);

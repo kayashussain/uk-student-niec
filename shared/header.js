@@ -19,6 +19,17 @@
     <nav class="niec-nav" aria-label="Pages"></nav>
     <div class="niec-account"></div>`;
 
+  // The menu is folded or open as the person left it.
+  try { if (localStorage.getItem('niecNav') === 'folded') document.documentElement.setAttribute('data-nav', 'folded'); } catch (e) { /* open */ }
+  const svg = (d) => `<svg viewBox="0 0 24 24" aria-hidden="true">${d}</svg>`;
+  const ICONS = {
+    dashboard: svg('<rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/>'),
+    sheet: svg('<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M3 15h18M9 4v16"/>'),
+    direct: svg('<path d="M3 9l9-5 9 5-9 5-9-5z"/><path d="M7 11.5V16c0 1.4 2.2 3 5 3s5-1.6 5-3v-4.5"/>'),
+    b2b: svg('<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>'),
+    agents: svg('<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.5-3.5 3.2-5.5 6.5-5.5s6 2 6.5 5.5"/><path d="M16 5a3.5 3.5 0 0 1 0 7M18.5 15c1.8.8 3 2.4 3.3 5"/>'),
+    factfile: svg('<path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2V5z"/><path d="M4 19a2 2 0 0 1 2-2h13"/>'),
+  };
   const LINKS = {
     admin: [['dashboard', '/dashboard', 'Dashboard'], ['sheet', '/students', 'Student Details'],
       ['direct', '/partner-universities', 'Partner Universities'], ['b2b', '/b2b-partners', 'B2B Partners'], ['agents', '/agents', 'Agents'], ['factfile', '/fact-file', 'Fact File']],
@@ -34,7 +45,14 @@
   function render(me) {
     const links = LINKS[me.role] || [];
     header.querySelector('.niec-nav').innerHTML = links
-      .map(([id, href, label]) => `<a href="${href}"${id === page ? ' aria-current="page"' : ''}>${label}</a>`).join('');
+      .map(([id, href, label]) => `<a href="${href}" title="${label}"${id === page ? ' aria-current="page"' : ''}><span class="niec-ico" aria-hidden="true">${ICONS[id] || ''}</span><span class="niec-lbl">${label}</span></a>`).join('')
+      + '<button type="button" class="niec-fold" aria-label="Fold or open the menu" title="Fold or open the menu"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg><span>Fold the menu</span></button>';
+    const fold = header.querySelector('.niec-fold');
+    fold.addEventListener('click', () => {
+      const folded = document.documentElement.getAttribute('data-nav') !== 'folded';
+      document.documentElement.setAttribute('data-nav', folded ? 'folded' : 'open');
+      try { localStorage.setItem('niecNav', folded ? 'folded' : 'open'); } catch (e) { /* the menu simply opens as usual next time */ }
+    });
     // On a phone the menu may not fit: its right edge fades until it is scrolled to the end, as a hint to swipe.
     const nav = header.querySelector('.niec-nav');
     const edge = () => nav.classList.toggle('at-end', nav.scrollLeft + nav.clientWidth >= nav.scrollWidth - 2);

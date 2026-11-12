@@ -209,22 +209,39 @@ function createPortalApi({
   // sheet: Admin any time; a team only while it is blank on a student its own team added (shared/teams.js).
   function setSource(req, found, value) {
     if (value && !Object.keys(Fields.SOURCE_DETAILS).includes(value)) return { error: 'That is not one of the sources.', status: 400 };
-    if (!Teams.canEdit(req.user, 'STUDENT SOURCE', found.row)) return { error: "This student's source cannot be changed from your account.", status: 403 };
+    const done = setColumns(req, found, { 'STUDENT SOURCE': value });
+    return done.error ? done : { source: value };
+  }
+
+  // Columns of the sheet that can be changed from the student card, and how each is kept.
+  const CARD_EDITABLE = {
+    'FIRST NAME': (v) => text(v).slice(0, 80), 'LAST NAME': (v) => text(v).slice(0, 80), EMAIL: (v) => text(v).toLowerCase().slice(0, 120),
+    'CONTACT NUMBER': (v) => text(v).slice(0, 40), 'UNIVERSITY NAME': (v) => text(v).slice(0, 160), 'COURSE NAME': (v) => text(v).slice(0, 240),
+    'APPLICATION SUBMISSION DATE': (v) => { const t = text(v); return t === '' || /^\d{4}-\d{2}-\d{2}$/.test(t) ? t : null; },
+    'OFFER RECEIVED DATE': (v) => { const t = text(v); return t === '' || /^\d{4}-\d{2}-\d{2}$/.test(t) ? t : null; },
+  };
+  // Changes columns of one student with the rules of the sheet: Admin any time; a team only the columns it may edit on a student it sees.
+  function setColumns(req, found, changes) {
     const wb = getWorkbook();
+    for (const col of Object.keys(changes)) {
+      if (col !== 'STUDENT SOURCE' && !CARD_EDITABLE[col]) return { error: 'That detail cannot be changed here.', status: 400 };
+      if (!Teams.canEdit(req.user, col, found.row)) return { error: col === 'STUDENT SOURCE' ? "This student's source cannot be changed from your account." : `${col} cannot be changed from your account.`, status: 403 };
+    }
+    const apply = (rows) => rows.map((r) => (r._id === found.row._id ? { ...r, ...changes } : r));
     if (Teams.isAdmin(req.user)) {
-      const next = { ...wb, revision: wb.revision + 1, sheets: wb.sheets.map((sh) => (sh.id !== found.sheet.id ? sh : { ...sh, rows: sh.rows.map((r) => (r._id === found.row._id ? { ...r, 'STUDENT SOURCE': value } : r)) })) };
+      const next = { ...wb, revision: wb.revision + 1, sheets: wb.sheets.map((sh) => (sh.id !== found.sheet.id ? sh : { ...sh, rows: apply(sh.rows) })) };
       writeWorkbook(next);
       recordChanges(req, wb, next);
-      return { source: value };
+      return { ok: true };
     }
     const view = Teams.viewFor(req.user, wb);
-    const out = teamSave(req, { baseRevision: wb.revision, sheets: view.sheets.map((sh) => (sh.id !== found.sheet.id ? sh : { ...sh, rows: sh.rows.map((r) => (r._id === found.row._id ? { ...r, 'STUDENT SOURCE': value } : r)) })) });
-    return out.status === 200 ? { source: value } : { error: out.body.error === 'conflict' ? 'The sheet changed at the same moment. Please try again.' : out.body.error, status: out.status };
+    const out = teamSave(req, { baseRevision: wb.revision, sheets: view.sheets.map((sh) => (sh.id !== found.sheet.id ? sh : { ...sh, rows: apply(sh.rows) })) });
+    return out.status === 200 ? { ok: true } : { error: out.body.error === 'conflict' ? 'The sheet changed at the same moment. Please try again.' : out.body.error, status: out.status };
   }
 
   // ---- one student's card ----
   async function handleCard(req, res, urlPath) {
-    const m = /^\/api\/cards\/([\w-]{1,64})(?:\/(profile|notes|options|messages|source)(?:\/([a-f0-9]{12}|preview|send))?(\/delete)?)?$/.exec(urlPath);
+    const m = /^\/api\/cards\/([\w-]{1,64})(?:\/(profile|notes|options|messages|source|sheet)(?:\/([a-f0-9]{12}|preview|send))?(\/delete)?)?$/.exec(urlPath);
     if (!m) return false;
     const [, rowId, part, sub, del] = m;
     const found = rowIndex().get(rowId);
@@ -276,6 +293,23 @@ function createPortalApi({
     } else if (part === 'notes' && !sub) {
       out = cards.addNote(rowId, body, by(req));
       if (!out.error) note(req, [`${who}: added a note`]);
+    } else if (part === 'sheet') {
+      const changes = {};
+      for (const [col, clean] of Object.entries(CARD_EDITABLE)) {
+        if (body.fields && Object.prototype.hasOwnProperty.call(body.fields, col)) {
+          const v = clean(body.fields[col]);
+          if (v === null) { sendJSON(res, 400, { error: `${col} is not a real date.` }); return true; }
+          if (v !== text(found.row[col])) changes[col] = v;
+        }
+      }
+      if ((changes['FIRST NAME'] === '' && !text(found.row['LAST NAME']) && !('LAST NAME' in changes)) || ('FIRST NAME' in changes && changes['FIRST NAME'] === '' && 'LAST NAME' in changes && changes['LAST NAME'] === '')) { sendJSON(res, 400, { error: 'A student needs a name.' }); return true; }
+      if (changes.EMAIL && !mailer.isAddress(changes.EMAIL)) { sendJSON(res, 400, { error: 'That email address does not look right.' }); return true; }
+      if (Object.keys(changes).length) {
+        const done = setColumns(req, found, changes);
+        if (done.error) { sendJSON(res, done.status, { error: done.error }); return true; }
+      }
+      sendJSON(res, 200, { ok: true, changed: Object.keys(changes) });
+      return true;
     } else if (part === 'source') {
       const done = setSource(req, found, text(body.source).slice(0, 60));
       if (done.error) { sendJSON(res, done.status, { error: done.error }); return true; }

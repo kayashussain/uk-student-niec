@@ -31,9 +31,39 @@
     } catch (e) { say(e.message, true); throw e; }
   }
 
+  // ---- the details of the sheet (name, email, number, university, course, dates): shown, and changed only after pressing Edit ----
+  let editingHero = false;
+  const HERO_FIELDS = [['FIRST NAME', 'First name'], ['LAST NAME', 'Last name'], ['EMAIL', 'Email'], ['CONTACT NUMBER', 'Contact number'], ['UNIVERSITY NAME', 'University'], ['COURSE NAME', 'Course'], ['APPLICATION SUBMISSION DATE', 'Application submitted', 'date'], ['OFFER RECEIVED DATE', 'Offer received', 'date']];
+  function heroEdit() {
+    const c = el('section', 'p-card');
+    c.append(el('h2', '', 'Change the details'));
+    c.append(el('p', 'p-muted p-small', 'These are the columns of the Student Details sheet. A change here is a change on the sheet.'));
+    const form = el('div', 'p-form');
+    const inputs = {};
+    HERO_FIELDS.forEach(([col, label, kind]) => {
+      const raw = String(data.student.row[col] || '');
+      const iso = kind === 'date' ? (/^\d{4}-\d{2}-\d{2}$/.test(raw) ? raw : (/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.test(raw) ? raw.replace(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/, (m, a, b, y) => `${y}-${a.padStart(2, '0')}-${b.padStart(2, '0')}`) : '')) : raw;
+      const f = field(label, { value: iso, kind: kind === 'date' ? 'date' : undefined, max: 240 });
+      inputs[col] = f.input;
+      form.append(f.wrap);
+    });
+    const bar = el('div', 'p-bar');
+    const msg = el('div', 'p-msg');
+    bar.append(h('button', { class: 'btn btn-primary', type: 'button', onclick: async () => {
+      try {
+        await api(`/api/cards/${id}/sheet`, { fields: Object.fromEntries(Object.entries(inputs).map(([k, i]) => [k, i.value])) });
+        data = await api('/api/cards/' + encodeURIComponent(id));
+        editingHero = false; say('Saved on the sheet'); render();
+      } catch (e) { msg.textContent = e.message; msg.className = 'p-msg error'; }
+    } }, 'Save'), h('button', { class: 'btn', type: 'button', onclick: () => { editingHero = false; render(); } }, 'Cancel'));
+    c.append(form, bar, msg);
+    return c;
+  }
+
   // ---- the top: name, stage, contact ----
   function hero() {
     const s = data.student;
+    if (editingHero) return heroEdit();
     const c = el('section', 'p-card p-hero');
     c.append(el('div', 'p-avatar', initials(s.name)));
     const mid = el('div');
@@ -53,6 +83,7 @@
     mid.append(facts);
     const act = el('div', 'p-hero-actions');
     act.append(h('button', { class: 'btn btn-primary', type: 'button', onclick: () => select('message') }, 'Send a message'));
+    if (can()) act.append(h('button', { class: 'btn', type: 'button', onclick: () => { editingHero = true; render(); } }, 'Edit details'));
     c.append(mid, act);
     return c;
   }

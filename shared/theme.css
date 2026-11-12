@@ -4,50 +4,49 @@
    blocks, no movement and no blur. NIEC blue appears only where something is active or focused. Loaded last on every
    page, so a value changed here changes every page. */
 :root {
-  --ink: #1f2933;
+  /* 🔴 CSS CHANGED (2026-11-12): the whole palette goes from the warm grey "Mist" to a clean, cool, premium look: soft blue-white page, pure white panels, deep navy ink, NIEC blue for focus and orange for the one accent | from: page #e7eaef, panels #f2f4f7, ink #1f2933, row stripes #ecf0f3 | to: page #f3f5fa, panels #ffffff, ink #0e1a33, row stripes #fafbfe, borders #e4e8f0 */
+  --ink: #0e1a33;
   --niec-blue: #00adef;
-  --niec-blue-text: #066a97; --blue-text: #066a97; --brand-text: #066a97;
-  /* 🔴 CSS CHANGED (2026-11-05): the whole site goes from bright white to the calmer "Mist" off-white, for long days on screen | from: page #f5f6f8, panels and cells #fdfdfe, border #e4e8ed, strong border #d0d7df, soft fill #eef1f5 | to: page #e7eaef, panels and cells #f2f4f7, border #d8dde4, strong border #c3cad3, soft fill #e6e9ee (neutral cool, no yellow; text contrast about 13 to 1) */
-  --bg: #e7eaef;
-  --panel: #f2f4f7;
-  --surface: #f2f4f7;
-  --border: #d8dde4;
-  --border-strong: #c3cad3;
+  --niec-blue-text: #0a6da0; --blue-text: #0a6da0; --brand-text: #0a6da0;
+  --bg: #f3f5fa;
+  --panel: #ffffff;
+  --surface: #ffffff;
+  --border: #e4e8f0;
+  --border-strong: #d3d9e6;
   --text: var(--ink);
-  --text-dim: #4f5b69;
-  --soft: #e6e9ee; /* the quiet fill for hover, the open menu and small tags */
-  --header-bg: #f2f4f7; /* the column headings sit on the same off-white as the data */
-  --head-ink: #3b4757;
-  /* 🔴 CSS CHANGED (2026-11-05): row stripes, hover, the typing cell and the blue tints follow the new off-white | from: stripe #f7f9fb, hover #eff4f9, typing cell #f8fafc, tints #ecf4fb and #d3e7f6 | to: stripe #ecf0f3, hover #e2e9f1, typing cell #f7f9fb, tints #e6eff8 and #cfe2f2 */
-  --row-alt: #ecf0f3;
-  --row-hover: #e2e9f1;
-  --edit-bg: #f7f9fb;
+  --text-dim: #5a6781;
+  --soft: #eef1f8;
+  --header-bg: #f1f4fa;
+  --head-ink: #34425c;
+  --row-alt: #fafbfe;
+  --row-hover: #eef4ff;
+  --edit-bg: #ffffff;
   --focus: #0a84c6;
-  --focus-dim: #e6eff8;
-  --focus-strong: #cfe2f2;
-  /* 🔴 CSS CHANGED (2026-11-05): the question boxes and messages (confirm dialogs) use the same off-white instead of pure white | from: #ffffff | to: the panel colour */
+  --focus-dim: #e7f3fb;
+  --focus-strong: #cfe6f6;
   --ui-panel: var(--panel);
   --range-tint: rgba(10, 132, 198, .10);
-  --accent-strong: #0f5d8c; --accent-strong-hover: #0b4d76; --on-accent: #ffffff; /* NIEC blue, deepened for white text */
-  --primary: #17324d; --primary-hover: #0f2438; --on-primary: #ffffff; /* the main action: deep navy */
-  --green-bg: #d9eedf; --green-fg: #1b5a33;
-  --blue-bg: #d6e6f7; --blue-fg: #1a4a78;
-  --amber-bg: #f8e6bd; --amber-fg: #7a4709;
-  --gray-bg: #e2e8ef; --gray-fg: #46546a;
-  --red-bg: #f8e1de; --red-fg: #8a2b25;
-  --warn-bg: #f8e8c3; --warn: #6f4310; --ok-bg: #dcefe0; --ok: #2d6340; --wait-bg: #f8e8c3; --wait: #6f4310; --bad-bg: #f8e0dc; --bad: #8f352f;
+  --accent-strong: #0b5f93; --accent-strong-hover: #094e7a; --on-accent: #ffffff;
+  --primary: #0b1f44; --primary-hover: #15346b; --on-primary: #ffffff; /* the main action: deep navy */
+  --green-bg: #dff3e6; --green-fg: #17623a;
+  --blue-bg: #e1effb; --blue-fg: #164f86;
+  --amber-bg: #fcefcf; --amber-fg: #7a4709;
+  --gray-bg: #e9edf4; --gray-fg: #46546a;
+  --red-bg: #fbe4e1; --red-fg: #9a2c25;
+  --warn-bg: #fcefcf; --warn: #7a4709; --ok-bg: #dff3e6; --ok: #17623a; --wait-bg: #fcefcf; --wait: #7a4709; --bad-bg: #fbe4e1; --bad: #9a2c25;
   --serif: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
-  --r-sm: 10px; --r-md: 14px; --r-lg: 20px;
-  --sh-1: 0 1px 2px rgba(23, 54, 79, .06);
-  --sh-2: 0 1px 2px rgba(23, 54, 79, .05), 0 8px 20px -14px rgba(23, 54, 79, .20);
-  --sh-3: 0 2px 4px rgba(23, 54, 79, .06), 0 16px 34px -18px rgba(23, 54, 79, .28);
+  /* 🔴 CSS CHANGED (2026-11-12): rounder corners and softer, layered shadows | from: radii 10, 14, 20px and flat shadows | to: radii 12, 16, 22px and shadows that float a card above the page */
+  --r-sm: 12px; --r-md: 16px; --r-lg: 22px;
+  --sh-1: 0 1px 2px rgba(14, 26, 51, .05), 0 1px 1px rgba(14, 26, 51, .03);
+  --sh-2: 0 1px 2px rgba(14, 26, 51, .05), 0 10px 24px -14px rgba(14, 26, 51, .20);
+  --sh-3: 0 2px 4px rgba(14, 26, 51, .06), 0 22px 44px -20px rgba(14, 26, 51, .32);
   --ease: cubic-bezier(.2, .7, .2, 1);
 }
 @media (prefers-color-scheme: dark) {
   :root {
     --niec-blue-text: #7cc4e8; --blue-text: #7cc4e8; --brand-text: #7cc4e8;
-    --ink: #dfe6ee; --bg: #151b22; --panel: #1b222b; --surface: #1b222b; --border: #29323d; --border-strong: #384452;
-    --text: #e1e7ee; --text-dim: #a3afbd; --soft: #25303c; --header-bg: #1b222b; --head-ink: #c3cfdc; --row-alt: #18202a; --row-hover: #243342; --edit-bg: #1f2833;
+    --ink: #e6ecf8; --bg: #0b1226; --panel: #121b33; --surface: #121b33; --border: #223055; --border-strong: #2f4170;
+    --text: #e1e7ee; --text-dim: #a3afbd; --soft: #1a2647; --header-bg: #16213f; --head-ink: #c3cfdc; --row-alt: #18202a; --row-hover: #243342; --edit-bg: #1f2833;
     --focus-dim: #1b2c3b; --focus-strong: #24394a; --range-tint: rgba(110, 170, 220, .14);
     --accent-strong: #8fc0e4; --accent-strong-hover: #a6cdea; --on-accent: #10202c; --primary: #f08a4b; --primary-hover: #f39d68; --on-primary: #1f1308;
     --green-bg: #1b2a22; --green-fg: #86c79a; --blue-bg: #1b2738; --blue-fg: #93b3e0;
@@ -64,20 +63,7 @@ body { background: var(--bg); color: var(--text); letter-spacing: 0; }
 h1, .kpi-value, .hero-value, .stat-card .stat-value, .summary-title, .summary-row.final .value { font-family: var(--serif); }
 .hero-value { font-weight: 500; letter-spacing: -.035em; }
 
-/* ---- header ---- */
-.niec-header { --h-bg: var(--panel); --h-border: var(--border); --h-hover: var(--soft); min-height: 64px; padding: 0 28px; gap: 28px; box-shadow: none; border-bottom: 1px solid var(--border); background: var(--panel); }
-.niec-header::after { content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 3px; background: linear-gradient(90deg, #00adef 0%, #00adef 62%, #fc6e1f 100%); }
-.niec-brand-name { color: var(--ink); font-weight: 650; letter-spacing: -.015em; font-size: 15px; }
-.niec-brand-sub { letter-spacing: .01em; }
-.niec-nav { gap: 2px; align-items: center; }
-.niec-nav a { margin: 0; padding: 8px 14px; border: 0; border-radius: 999px; font-weight: 500; color: var(--text-dim); transition: color .2s var(--ease), background-color .2s var(--ease); }
-.niec-nav a:hover { background: transparent; color: var(--ink); }
-.niec-nav a[aria-current="page"] { background: var(--soft); color: var(--ink); font-weight: 600; box-shadow: none; }
-.niec-avatar { background: var(--accent-strong); color: var(--on-accent); font-weight: 600; letter-spacing: .02em; }
-.niec-account-btn:hover, .niec-account-btn[aria-expanded="true"] { background: var(--soft); border-color: transparent; }
-.niec-menu { border-radius: var(--r-md); box-shadow: var(--sh-3); border-color: var(--border); }
-@media (max-width: 760px) { .niec-header { min-height: 56px; padding: 0 12px; gap: 8px; } .niec-nav a { padding: 7px 11px; } }
-
+/* ---- header: now the side menu (shared/header.css) ---- */
 /* ---- buttons: a clear outlined pill everywhere; quiet (no outline) only in the toolbars of the sheet and Incentive; one solid action ---- */
 .btn, button.btn, a.btn {
   display: inline-flex; align-items: center; justify-content: center; min-height: 34px; padding: 0 16px; border: 1px solid var(--border-strong); border-radius: 999px;
