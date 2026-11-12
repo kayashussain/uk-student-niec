@@ -1077,10 +1077,13 @@
       th.appendChild(label);
 
       if (!FILTER_COLUMNS.has(col)) { headerRow.appendChild(th); return; }
-      const filterBtn = document.createElement('span');
+      const filterBtn = document.createElement('button');
+      filterBtn.type = 'button';
       filterBtn.className = 'filter-btn';
       filterBtn.textContent = '▾';
       filterBtn.title = 'Filter';
+      filterBtn.setAttribute('aria-label', 'Filter ' + columnLabel(col));
+      filterBtn.setAttribute('aria-haspopup', 'true');
       if (columnFilters[col]) filterBtn.classList.add('active');
       filterBtn.addEventListener('click', (e) => {
         e.stopPropagation();
@@ -1095,7 +1098,9 @@
 
   function closeFilterMenu() {
     if (openFilterMenu) {
+      const owner = headerRow.querySelector(`th[data-col="${CSS.escape(openFilterMenu.dataset.col || '')}"] .filter-btn`);
       openFilterMenu.remove();
+      if (owner) owner.focus();
       openFilterMenu = null;
       document.removeEventListener('mousedown', onDocMouseDown, true);
     }
@@ -1105,6 +1110,7 @@
     if (openFilterMenu && !openFilterMenu.contains(e.target) && !e.target.closest('.filter-btn')) closeFilterMenu();
   }
 
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && openFilterMenu) { e.preventDefault(); e.stopPropagation(); closeFilterMenu(); } }, true);
   const FILTER_COLLATOR = new Intl.Collator();
   function openFilterMenuFor(col, th) {
     if (openFilterMenu && openFilterMenu.dataset.col === col) { closeFilterMenu(); return; }

@@ -73,7 +73,7 @@
     data = await api('/api/templates');
     $('mailNote').hidden = false;
     $('mailNote').className = data.mail.ready ? 'p-notice ok' : 'p-notice warn';
-    $('mailNote').textContent = data.mail.ready ? `Emails are sent from ${data.mail.from}.` : 'Email is not set up on this server yet, so sending only keeps a preview on the student card. Set it up once with "node scripts/email.js setup" (see DEPLOY.md). Students can only be sent messages from kayas@niecedu.com.np (or the mailbox set up), and WhatsApp messages open from your own phone or WhatsApp Web.';
+    $('mailNote').textContent = data.mail.ready ? `Emails are sent from ${data.mail.from}.` : 'Email is not set up on this server yet, so sending only keeps a preview on the student card. Set it up once with "node scripts/email.js setup" (see DEPLOY.md). Emails to students are sent from the mailbox set up for this system, and WhatsApp messages open from your own phone or WhatsApp Web.';
     list();
     signature();
     const t = data.templates.find((x) => x.key === (key || openKey));

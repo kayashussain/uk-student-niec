@@ -173,8 +173,10 @@
       const kind = el('select', 'p-input');
       F.NOTE_KINDS.forEach((k) => kind.append(h('option', { value: k.key }, k.text)));
       kind.style.width = 'auto';
+      kind.setAttribute('aria-label', 'Kind of note');
       const text = el('textarea', 'p-input');
       text.placeholder = 'Called the student. Documents will come on Friday.';
+      text.setAttribute('aria-label', 'Write a note');
       text.maxLength = 4000;
       const bar = el('div', 'p-bar');
       bar.style.marginTop = '0';
@@ -294,7 +296,7 @@
     inputs.englishTest.addEventListener('change', showScore);
     showScore();
     add('budget', 'Budget for the first year (GBP)', { max: 60, placeholder: '17000' });
-    add('location', 'Where in the UK', { max: 120, placeholder: 'Manchester, Scotland, anywhere' });
+    add('location', 'Where in the UK', { max: 120, placeholder: 'For example Manchester' });
     const intake = field('Intake', { value: data.student.intake, disabled: true });
     form.append(intake.wrap);
     const remarks = el('textarea', 'p-input');

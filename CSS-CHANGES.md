@@ -9,6 +9,22 @@ Format: **date · file · what · from → to · why**
 
 ---
 
+## 2026-11-12 · `shared/theme.css` · fixes from the front-end review (round 10, part 1)
+
+An independent researcher opened every page as Admin, a team member and the Manager at desktop, tablet and phone sizes. Fixed:
+- **Column filter arrow (Student Details):** from a 12px by 18px bit of text with no keyboard access → to a real 30px button with a label, reachable with Tab, and Escape closes the filter menu (also in `app.js`).
+- **Sheet toolbar on a phone:** from overflowing the screen with two-line button labels → to wrapping onto more lines with one-line labels.
+- **Message templates on a phone:** from the editor pushed off the right edge → to stacked under the list (all two-column pages stack on a phone).
+- **Phone menu strip:** from cut mid-word with no cue → to a soft fade at the end that shows there is more.
+- **Dashboard bars:** labels such as "University of Wes..." now wrap instead of being cut.
+- **File buttons:** from the plain browser grey → to a rounded soft pill.
+- **Dialogs and forms:** space between fields, so "Stage" and "Note" no longer touch.
+- **Messages ("Click a row number first..."):** from the bottom middle, covering the sheet tabs → to the top right.
+- **Headings and tables:** every page now has the same 36px heading and 14.5px table text (Events, Templates, Bulk, Compose and Student were smaller).
+- **Student card on a phone:** long pills, emails and the tab strip no longer run past the edge.
+
+---
+
 ## 2026-11-12 · every stylesheet and `shared/login.html` · one light look, comfortable for older eyes
 
 The owner asked for one look only, the light one, and made it comfortable for team members who find bright white hard to look at.

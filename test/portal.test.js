@@ -654,3 +654,11 @@ test('the weekly check warns about a page that is gone, no longer about the cour
   assert.ok(!watch.warnings().some((w) => w.course === 'MSc Cyber Security'), 'a confirmed warning goes quiet');
   assert.strictEqual(watch.summary().noLink, 1);
 });
+
+test('finder reads negations, word numbers and k budgets', () => {
+  const { readStudent } = require('../student-details/eligibility.js');
+  assert.equal(readStudent('no visa refusal').refusal, false);
+  assert.equal(readStudent('three year gap').gapYears, 3);
+  assert.equal(readStudent('no gap').gapYears, 0);
+  assert.equal(readStudent('budget 16k').budget, 16000);
+});

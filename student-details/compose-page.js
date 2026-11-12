@@ -48,7 +48,7 @@
 
     // the words, the address, the files
     right.append(el('h2', '', 'Send'));
-    const to = field('To', { value: first.to, max: 254, placeholder: 'student@example.com' });
+    const to = field('To', { value: first.to, max: 254, placeholder: 'student@example.com', wide: true });
     const subject = field('Subject', { value: first.source.subject, max: 200, wide: true });
     const bodyText = field('Message (the words in curly brackets are filled in from the student)', { kind: 'area', value: first.source.body, max: 8000, wide: true });
     bodyText.input.style.minHeight = '260px';
@@ -59,7 +59,7 @@
     const attach = el('div');
     attach.append(el('h3', '', 'Attachments'));
     const list = el('div');
-    const pick = el('input'); pick.type = 'file'; pick.multiple = true;
+    const pick = el('input'); pick.type = 'file'; pick.multiple = true; pick.setAttribute('aria-label', 'Attach files');
     pick.addEventListener('change', () => {
       [...pick.files].forEach((f) => files.push({ name: f.name, type: f.type, size: f.size, file: f }));
       pick.value = '';

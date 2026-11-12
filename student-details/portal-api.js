@@ -18,7 +18,7 @@ const { eventLabel } = require('./source-options');
 const { ROW_ID } = require('./cards');
 const Messages = require('./messages');
 const { buildIndex, searchCourses, linkKey } = require('./course-index');
-const { hostsOf } = require('./university-websites');
+const { hostsOf, onHosts } = require('./university-websites');
 const { EVENT_TYPES, MARKETING_TYPES, DECISION_STATUS, MARKET_KINDS, LISTS: PLANNING_LISTS } = require('./planning');
 const { MAX_FILE_BYTES, STATUSES: PARTNER_STATUSES } = require('./direct');
 
@@ -214,11 +214,20 @@ function createPortalApi({
   }
 
   // Columns of the sheet that can be changed from the student card, and how each is kept.
+  // A real calendar day as YYYY-MM-DD (or empty); anything else is refused (null).
+  const realDay = (v) => {
+    const t = text(v);
+    if (t === '') return t;
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(t);
+    if (!m) return null;
+    const d = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3]));
+    return d.getUTCFullYear() === +m[1] && d.getUTCMonth() === +m[2] - 1 && d.getUTCDate() === +m[3] ? t : null;
+  };
   const CARD_EDITABLE = {
     'FIRST NAME': (v) => text(v).slice(0, 80), 'LAST NAME': (v) => text(v).slice(0, 80), EMAIL: (v) => text(v).toLowerCase().slice(0, 120),
     'CONTACT NUMBER': (v) => text(v).slice(0, 40), 'UNIVERSITY NAME': (v) => text(v).slice(0, 160), 'COURSE NAME': (v) => text(v).slice(0, 240),
-    'APPLICATION SUBMISSION DATE': (v) => { const t = text(v); return t === '' || /^\d{4}-\d{2}-\d{2}$/.test(t) ? t : null; },
-    'OFFER RECEIVED DATE': (v) => { const t = text(v); return t === '' || /^\d{4}-\d{2}-\d{2}$/.test(t) ? t : null; },
+    'APPLICATION SUBMISSION DATE': (v) => realDay(v),
+    'OFFER RECEIVED DATE': (v) => realDay(v),
   };
   // Changes columns of one student with the rules of the sheet: Admin any time; a team only the columns it may edit on a student it sees.
   function setColumns(req, found, changes) {
@@ -473,7 +482,7 @@ function createPortalApi({
   async function handleBulkStudents(req, res) {
     const body = await bodyOf(req, res, 1024 * 1024);
     if (!body) return true;
-    const lines = (Array.isArray(body.rows) ? body.rows : []).slice(0, 200);
+    const lines = (Array.isArray(body.rows) ? body.rows : []).filter((r) => r && typeof r === 'object').slice(0, 200);
     if (!lines.length) { sendJSON(res, 400, { error: 'Add at least one student.' }); return true; }
     const results = [];
     for (const r of lines) {
@@ -752,6 +761,7 @@ function createPortalApi({
     const cfg = mailConfig();
     const signature = messages.signature();
     const preview = urlPath.endsWith('preview');
+    if (!preview && !text(subject) && !text(emailBody)) { sendJSON(res, 400, { error: 'Write a subject and a message first.' }); return true; }
     const items = [];
     const sendOut = [];
     for (const id of ids) {
@@ -853,6 +863,7 @@ function createPortalApi({
     }
     // The page of a course on the university's website (course-finder.js), remembered once found.
     if (urlPath === '/api/course-link' && req.method === 'POST') {
+      if (Teams.isReadOnly && Teams.isReadOnly(req.user)) { sendJSON(res, 403, { error: 'Your account can only look.' }); return true; }
       const body = await bodyOf(req, res, 16 * 1024);
       if (!body) return true;
       const university = text(body.university).slice(0, 160);
@@ -862,7 +873,7 @@ function createPortalApi({
       if (known) { sendJSON(res, 200, { link: known, remembered: true }); return true; }
       const uni = facts.all().find((u) => u.id === body.universityId);
       const found = courseLinker ? await courseLinker.lookup({ university, course, hosts: uni ? hostsOf(uni) : [] }) : { link: '', error: 'Not available.' };
-      if (found.link) courseLinks.remember(body.universityId, course, found.link);
+      if (found.link && (!uni || !hostsOf(uni).length || onHosts(found.link, hostsOf(uni)))) courseLinks.remember(body.universityId, course, found.link);
       sendJSON(res, 200, found);
       return true;
     }

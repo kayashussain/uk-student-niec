@@ -355,7 +355,7 @@ td.lang-test .date-input::-webkit-calendar-picker-indicator { opacity: .7; }
   font-variant-numeric: tabular-nums;
   padding: 3px 4px;
   cursor: pointer;
-  color-scheme: light dark;
+  color-scheme: light;
 }
 .date-input:focus {
   outline: 2px solid var(--focus);

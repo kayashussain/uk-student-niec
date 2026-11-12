@@ -1,7 +1,7 @@
 /* The dashboard. Chart colours come from a validated palette (blue, orange, aqua in this order; checked
    for colour-blind separation in light and dark), thin marks, hairline grid, text in ink colours. */
 :root {
-  color-scheme: light dark;
+  color-scheme: light;
   --bg: #f3f6fa;
   --surface: #ffffff;
   --ink: #1c2126;

@@ -25,7 +25,7 @@ const NOT_SUBJECT = new Set(['a', 'an', 'the', 'and', 'or', 'of', 'in', 'on', 'f
   'ug', 'pg', 'undergraduate', 'postgraduate', 'masters', 'master', 'bachelor', 'bachelors', 'degree', 'jan', 'january', 'sep', 'sept', 'september', 'may', 'pounds', 'gbp', 'band', 'each',
   'overall', 'score', 'marks', 'got', 'scored', 'with', 'about', 'around', 'upto', 'visa', 'refusal', 'refused', 'moi', 'waiver', 'english', 'test', 'tests', 'top', 'up', 'pre', 'also',
   'then', 'there', 'their', 'this', 'please', 'give', 'show', 'find', 'suggest', 'me', 'my', 'i', 'am', 'be', 'been', 'was', 'were', 'will', 'would', 'should', 'could', 'if', 'so', 'it',
-  'mba', 'msc', 'bsc', 'llm', 'mres', 'foundation', 'pathway', 'nepal', 'nepali']);
+  'near', 'within', 'miles', 'upon', 'passed', 'previous', 'out', 'pass', 'zero', 'none', 'never', 'have', 'having', 'mba', 'msc', 'bsc', 'llm', 'mres', 'foundation', 'pathway', 'nepal', 'nepali']);
 
 // Everything the text says about the student. Anything not mentioned is null.
 function readStudent(request, known = {}) {
@@ -35,23 +35,28 @@ function readStudent(request, known = {}) {
   if (m && num(m[1]) <= 4.5) out.gpa = num(m[1]);
   m = /(\d{2}(?:\.\d+)?)\s*(?:%|percent|per cent)/.exec(t);
   if (m && num(m[1]) <= 100) out.percent = num(m[1]);
-  m = /(\d{1,2})\s*(?:years?|yrs?)\s*(?:of\s*)?(?:study\s*)?gap/.exec(t) || /\bgap\s*(?:of|is|was|:)?\s*(\d{1,2})\s*(?:years?|yrs?)/.exec(t) || /\bgap\s*(?:of|is|was|:)?\s*(\d{1,2})\b/.exec(t);
+  const WORDNUM = { one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8 };
+  const tg = t.replace(/\b(one|two|three|four|five|six|seven|eight)\b(?=[\s-]*(?:years?|yrs?))/g, (w) => WORDNUM[w]).replace(/(\d)-(?=years?|yrs?)/g, '$1 ');
+  m = /(\d{1,2})\s*(?:years?|yrs?)\s*(?:of\s*)?(?:study\s*)?gap/.exec(tg) || /\bgap\s*(?:of|is|was|:)?\s*(\d{1,2})\s*(?:years?|yrs?)/.exec(tg) || /\bgap\s*(?:of|is|was|:)?\s*(\d{1,2})\b(?!\.\d)/.exec(tg);
   if (m) out.gapYears = num(m[1]);
+  else if (/\b(?:no|zero|without(?: any)?)\s+(?:study\s+)?gap\b/.test(t)) out.gapYears = 0;
   m = /(?:passed|completed|graduated|finished)(?:\s*(?:in|the)\s*)?\s*(?:his|her)?\s*(?:\w+\s*)?(?:in\s*)?(20\d{2})/.exec(t);
-  if (m) out.passedYear = num(m[1]);
+  if (m && num(m[1]) <= new Date().getFullYear()) out.passedYear = num(m[1]);
   m = /\bielts[^\d]{0,14}(\d(?:\.\d)?)/.exec(t);
   if (m && num(m[1]) <= 9) out.ielts = num(m[1]);
   m = /(\d(?:\.\d)?)\s*(?:in\s*)?(?:each|every|all)\s*(?:band|skill|section)/.exec(t);
   if (m) out.ieltsBand = num(m[1]);
   m = /\bpte[^\d]{0,14}(\d{2})\b/.exec(t);
   if (m) out.pte = num(m[1]);
-  m = /£\s?(\d[\d,]*)/.exec(t) || /(\d[\d,]*)\s*(?:pounds|gbp)/.exec(t) || /budget[^\d]{0,20}(\d[\d,]*)/.exec(t);
-  if (m) { const b = num(m[1].replace(/,/g, '')); if (b >= 3000 && b < 100000) out.budget = b; }
+  m = /£\s?(\d+)\s*k\b/.exec(t) || /\bbudget[^\d]{0,20}(\d+)\s*k\b/.exec(t);
+  if (m) out.budget = num(m[1]) * 1000;
+  else m = /£\s?(\d[\d,]*)/.exec(t) || /(\d[\d,]*)\s*(?:pounds|gbp)/.exec(t) || /budget[^\d]{0,20}(\d[\d,]*)/.exec(t);
+  if (m && out.budget == null) { const b = num(m[1].replace(/,/g, '')); if (b >= 3000 && b < 100000) out.budget = b; }
   for (const [re, level] of LEVEL_WORDS) if (re.test(t)) { out.level = level; break; }
   m = /\b(jan(?:uary)?|sep(?:t(?:ember)?)?|may|nov(?:ember)?)\b\s*(20\d{2})?/.exec(t);
   if (m && /\bintake\b|\bin\s+(?:jan|sep|may|nov)/.test(t)) out.intake = `${{ jan: 'January', sep: 'September', may: 'May', nov: 'November' }[m[1].slice(0, 3)]}${m[2] ? ' ' + m[2] : ''}`;
   out.noEnglish = /\b(?:no|without)\s+(?:ielts|pte|english)|\bwaiver\b|\bmoi\b|\bnot taken|\bno test/.test(t);
-  out.refusal = /\bvisa refus|\bprevious refus|\brefused\b/.test(t);
+  out.refusal = /\bvisa refus|\bprevious refus|\brefused\b/.test(t) && !/\b(?:no|not|never|without|zero)\s+(?:any\s+)?(?:previous\s+|prior\s+)?(?:visa\s+)?refus|\bnever (?:been )?refused|\bnot (?:been )?refused/.test(t);
   // The form's own boxes win over the words.
   if (known.gpa != null) out.gpa = known.gpa;
   if (known.percent != null) out.percent = known.percent;

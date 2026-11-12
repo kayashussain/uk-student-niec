@@ -90,6 +90,7 @@
     paste.append(el('h2', '', '2. Paste the students'));
     const box = el('textarea', 'p-input');
     box.style.minHeight = '200px';
+    box.setAttribute('aria-label', 'Students, one on each line');
     box.placeholder = 'Sita Sharma, sita@example.com, 9800000001\nRam Thapa\tram@example.com\t9800000002';
     const out = el('div');
     const bar = el('div', 'p-bar');
@@ -97,7 +98,7 @@
     const go = h('button', { class: 'btn btn-primary', type: 'button' }, 'Add them all');
     go.disabled = true;
     bar.append(check, go);
-    const pick = el('input'); pick.type = 'file'; pick.accept = '.xlsx,.csv';
+    const pick = el('input'); pick.type = 'file'; pick.accept = '.xlsx,.csv'; pick.setAttribute('aria-label', 'Upload an Excel or CSV file');
     const fileRow = el('div', 'p-bar');
     fileRow.append(pick, el('span', 'p-muted p-small', 'Or upload an Excel (.xlsx) or CSV file. A first row with headings such as First name, Last name, Email and Phone is used; without headings each row is Name, email, phone.'));
     paste.append(box, fileRow, bar, out);

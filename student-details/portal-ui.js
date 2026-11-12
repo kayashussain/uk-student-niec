@@ -91,7 +91,7 @@
     let input;
     if (kind === 'select') {
       input = el('select');
-      input.append(h('option', { value: '' }, ''));
+      if (!choices.some((c) => (Array.isArray(c) ? c[0] : c) === '')) input.append(h('option', { value: '' }, '')); // a blank choice only when the list has none of its own
       choices.forEach((c) => { const [v, t] = Array.isArray(c) ? c : [c, c]; input.append(h('option', { value: v }, t)); });
       if (value && ![...input.options].some((o) => o.value === value)) input.append(h('option', { value }, value)); // an older value stays selectable
       input.value = value || '';
