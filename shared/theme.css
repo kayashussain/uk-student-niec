@@ -327,7 +327,9 @@ a { transition: color .15s ease; }
 @media (prefers-reduced-motion: reduce) { .page, .wrap, .app-main, .p-page, .ui-toast, .ui-skeleton, dialog.p-dialog, .ui-dialog { animation: none !important; } }
 
 /* ---------- 9. Small screens: nothing scrolls sideways, wide tables scroll inside their card ---------- */
+/* 🔴 CSS CHANGED (2026-11-12): email page layout at laptop width | from: preview and message side by side below 1500px, so the email was clipped | to: stacked below 1500px so the whole email shows */
 .p-cols-compose { grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); }
+@media (max-width: 1500px) { .p-cols-compose { grid-template-columns: 1fr; } }
 .p-preview-tall { height: 720px; }
 @media (max-width: 900px) {
   .p-cols-compose { grid-template-columns: 1fr; }

@@ -7,6 +7,8 @@ To find every marked change in the code, search the project for `CSS CHANGED`.
 
 Format: **date · file · what · from → to · why**
 
+- **2026-11-12 · shared/theme.css · email page layout at laptop width · from: preview and message side by side below 1500px wide, so the email was cut off at 1366px → to: stacked (preview on top, message below) below 1500px so the whole email shows · why: the human tester saw the right edge of the email cut off on a 1366px laptop.**
+
 ---
 
 ## 2026-11-12 · `shared/theme.css` · fixes from the front-end review (round 10, part 1)

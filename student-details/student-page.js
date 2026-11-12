@@ -19,6 +19,7 @@
   if (embedded) {
     document.body.classList.add('p-embed');
     document.getElementById('closeEmbed').addEventListener('click', () => parent.postMessage({ niecCard: 'close' }, location.origin));
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement && document.activeElement.tagName) && !document.querySelector('dialog[open], .p-dialog')) parent.postMessage({ niecCard: 'close' }, location.origin); });
   }
   const can = () => data.can.edit;
   const profile = () => data.card.profile;
