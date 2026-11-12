@@ -290,7 +290,6 @@ th.col-idx, td.col-idx {
 }
 td.col-idx { background: var(--panel); color: var(--text-dim); font-variant-numeric: tabular-nums; }
 tbody tr.alt td.col-idx { background: var(--row-alt); }
-/* 🔴 CSS CHANGED (2026-11-12): removed the small Open button of each row | from: a blue Open button in the S.N cell | to: none, the row number only (double-click the name or the number opens the card) */
 thead th.col-idx { z-index: 4; }
 
 td {
@@ -410,7 +409,6 @@ td.lang-test .date-input::-webkit-calendar-picker-indicator { opacity: .7; }
 .lang-test-flag.expiring { background: var(--amber-bg); color: var(--amber-fg); }
 .lang-test-flag.expired { background: var(--red-bg); color: var(--red-fg); }
 
-/* 🔴 CSS CHANGED (2026-11-06): the calendar icon was missing in date cells on red "Defer" warning rows | from: the red background replaced the cell's whole background, icon included (date cells looked uneditable) | to: only the background colour is red, so the calendar icon stays */
 tr.defer-warning-row td { background-color: var(--red-bg) !important; }
 .defer-warning-flag {
   display: inline-block;
@@ -728,6 +726,5 @@ body:not([data-role="admin"]) .sheet-tab-menu-btn { display: none; }
 .color-menu .swatch.rc-purple { background: var(--rc-purple); }
 .color-menu .swatch.rc-grey { background: var(--rc-grey); }
 
-/* 🔴 CSS CHANGED (2026-11-05): new bar under the status cards that says a search or filter is on, with a "Clear all filters" button | from: none (did not exist) | to: a slim pale blue bar, 13px text, rounded corners, the button on the right; it is hidden while nothing is filtered */
 .filter-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin: 0 24px 8px; padding: 8px 14px; border-radius: 12px; background: var(--focus-dim, #e6eff8); border: 1px solid var(--focus-strong, #cfe2f2); color: var(--text); font-size: 13px; }
 .filter-bar[hidden] { display: none; }

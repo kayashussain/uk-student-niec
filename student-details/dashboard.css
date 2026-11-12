@@ -52,7 +52,6 @@ html { scrollbar-gutter: stable; }
 .hero-label { font-size: 13px; font-weight: 600; color: var(--ink-2); }
 .hero-value { font-size: 64px; font-weight: 700; line-height: 1.05; letter-spacing: -.02em; }
 .hero-sub { font-size: 12px; color: var(--ink-3); margin-top: 4px; }
-/* 🔴 CSS CHANGED (2026-11-05): the Dashboard number cards can be narrower, so the new Head office students card sits in the same row as the other five | from: minmax(150px, 1fr) | to: minmax(124px, 1fr) */
 .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(124px, 1fr)); gap: 12px; }
 .kpi { display: grid; grid-row: span 3; grid-template-rows: subgrid; align-content: start; gap: 2px; padding: 14px 16px; background: var(--surface); border: 1px solid var(--border); border-radius: 14px; box-shadow: var(--shadow); }
 .kpi-label { font-size: 13px; font-weight: 600; color: var(--ink-2); }
@@ -82,7 +81,6 @@ figcaption p { margin: 2px 0 0; font-size: 12px; color: var(--ink-3); }
 
 /* Horizontal bars: thin, rounded at the value end, flat on the baseline, value at the tip */
 .bar-row { display: grid; grid-template-columns: minmax(96px, 38%) 1fr; align-items: center; gap: 10px; padding: 5px 4px; border-radius: 6px; }
-/* 🔴 CSS CHANGED (2026-11-06): keyboard focus on a Dashboard bar row was only a faint background | from: background change only, outline none | to: the same background plus a 2px blue focus outline (hover stays as it was) */
 .bar-row:hover { background: var(--bg); }
 .bar-row:focus-visible { background: var(--bg); outline: 2px solid var(--focus, #0a84c6); outline-offset: 1px; }
 .bar-label { font-size: 13px; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -109,7 +107,6 @@ figcaption p { margin: 2px 0 0; font-size: 12px; color: var(--ink-3); }
 
 /* Tables (the other view of every chart) */
 table.data { width: 100%; border-collapse: collapse; font-size: 13px; }
-/* 🔴 CSS CHANGED (2026-11-06): small text raised to 12px | from: Dashboard table headings 11px | to: 12px (same colours) */
 table.data th { text-align: left; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--ink-3); padding: 6px 8px; border-bottom: 1px solid var(--border); }
 table.data td { padding: 7px 8px; border-bottom: 1px solid var(--grid); }
 table.data td.num, table.data th.num { text-align: right; font-variant-numeric: tabular-nums; }
@@ -149,7 +146,6 @@ details.rates summary { cursor: pointer; color: var(--brand-text); font-weight: 
 #attention table.data td { white-space: normal; }
 
 /* Before the first numbers arrive: grey bars where the charts and tables will be (they fill in on their own). */
-/* 🔴 CSS CHANGED (2026-11-05): the Dashboard loading bars follow the off-white | from: #eaeef3 and #f6f8fb | to: #dde2e9 and #eceff3 */
 .first-load :is(#attention, #speed, #notes, [id^="chart"]):empty {
   min-height: 96px; margin: 4px 18px 18px; border-radius: 8px; background: linear-gradient(90deg, #dde2e9 25%, #eceff3 37%, #dde2e9 63%); background-size: 400% 100%; animation: dash-shimmer 1.4s ease infinite;
 }

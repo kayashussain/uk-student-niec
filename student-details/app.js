@@ -981,7 +981,6 @@
   // Every column has a set width that doesn't depend on what's typed in it (wide enough for its title
   // and its kind of cell). Besides keeping the sheet tidy, it lets the browser lay the table out
   // without measuring every cell, which keeps typing and moving around a long sheet smooth.
-  // 🔴 CSS CHANGED (2026-11-12): width of the S.N column | from: 92px | to: 56px (as it was before the Open button) | why: the owner does not want the Open button in each row
   const COL_IDX_WIDTH = 56; // room for a 4-digit row number
   let measureCtx = null;
   function textWidth(text, font) {
@@ -1031,7 +1030,6 @@
     const header = textWidth(columnLabel(col), `600 12px ${family}`) + HEAD_PAD;
     let cell;
     if (col === LANGUAGE_TEST_COL) cell = 420;
-    // 🔴 CSS CHANGED (2026-11-05): dropdown columns (Student Source, Application Status and so on) are measured with the font they really use, so the longest choice (Language Classes) is no longer cut off | from: measured at 600 11px, plus 64 | to: measured at 500 12px, plus 66
     else if (SELECT_COLS[col]) cell = Math.max(...SELECT_COLS[col].map((o) => textWidth(o, `500 12px ${family}`)), 60) + 66;
     else if (DATE_COLS.has(col)) cell = 150;
     else if (NUM_COLS.has(col)) cell = 124;

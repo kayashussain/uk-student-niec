@@ -179,7 +179,6 @@
     outline: 2px solid var(--focus); outline-offset: -2px; box-shadow: none;
   }
 
-  /* 🔴 CSS CHANGED (2026-11-06): the smallest texts on the Incentive table | from: the green SYNCED badge 9px, the Rs / £ / % dropdown 12px, the column headings 12.5px | to: the badge 11px, the dropdown 13px, the column headings 13px (same colours, same widths for the number columns) */
   .table-card #sheet thead th { font-size: 13px; }
   tbody td.num.flex-cell .unit-select { font-size: 13px; }
   .synced-badge {
@@ -217,14 +216,10 @@
     font-weight: 600; font-variant-numeric: tabular-nums; color: var(--text);
   }
   .adv-input:focus { outline: 2px solid var(--focus); outline-offset: -1px; }
-  /* 🔴 CSS CHANGED (2026-11-04): new Rs / £ / % unit dropdown inside the three flexible incentive cells (Enrollment Incentive, Enrollment Incentive from University, New Partnership Incentive)
-     | from: those cells were just a right-aligned number (132px wide, like every number column), with the unit typed as a symbol
-     | to: a small rounded dropdown sits at the left of the cell and the number stays at the right; these three columns (heading and cells) are 200px wide so the dropdown and a number like Rs 100,000.00 both fit */
   thead th.num.flex-col, tbody td.num.flex-cell { width: 200px; min-width: 200px; max-width: 200px; }
   #sheet tbody td.num.flex-cell { position: relative; padding-left: 78px; }
   tbody td.num.flex-cell .unit-select { position: absolute; left: 8px; top: 50%; transform: translateY(-50%); width: 62px; min-height: 28px; padding: 0 8px; font-size: 12px; border-radius: 999px; }
   tbody td.num.flex-cell .amount { display: inline-block; min-width: 40px; outline: none; }
-  /* 🔴 CSS CHANGED (2026-11-04): new Payments Received card (add form + history list) and a small time note on the exchange rate row | from: none (these did not exist) | to: add form = date, amount and note boxes in one wrapping row with a navy "Add payment" button; each history row = date and note on the left, amount and a quiet "Remove" link on the right. Uses the existing summary-row look, no colour or font changes elsewhere. */
   .rate-row .value { font-weight: 700; }
   .pay-fields { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; align-items: center; }
   .pay-fields .pay-date { width: 150px; text-align: left; }
@@ -239,10 +234,7 @@
   .pay-remove { border: 0; background: none; padding: 2px 4px; color: var(--text-dim); font: inherit; font-size: 12px; text-decoration: underline; cursor: pointer; }
   .pay-remove:hover { color: var(--danger); }
   .pay-empty { padding: 18px 16px; }
-  /* 🔴 CSS CHANGED (2026-11-04): the Company Earnings branch table was taken out again | from: a table with a header row, subtotal rows and a shaded total row | to: simple rows like the rest of the card (name - branch, with the university commission in small grey text, and the amount the branch keeps on the right); no extra styles needed */
-  /* 🔴 CSS CHANGED (2026-11-04): small explanation line at the top of the Payments Received card about the exchange rate | from: none (did not exist) | to: 12px grey text, 12px 16px padding, a thin line under it, same grey as the other hints */
   .pay-rate-note { margin: 0; padding: 12px 16px; font-size: 12px; line-height: 1.5; color: var(--text-dim); border-bottom: 1px solid var(--border); }
-  /* 🔴 CSS CHANGED (2026-11-05): new exchange rate box in the "Add a payment" form | from: none (did not exist) | to: a 160px wide box, same look as the amount box, placed before the date box */
   .pay-fields #payRate { width: 160px; }
 </style>
 <link rel="stylesheet" href="theme.css" />

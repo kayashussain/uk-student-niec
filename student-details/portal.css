@@ -1,4 +1,3 @@
-/* 🔴 CSS CHANGED (2026-11-11): the look of the new portal pages and parts (student card, the card window on the sheet, Add student form, Follow-ups, Message templates, B2B Partners, the option finder in the Fact File, the decision pages of the Dashboard) | from: nothing, these pages did not exist | to: the same Mist palette, fonts and rounded cards as the rest of the site (colours and fonts come from shared/theme.css; nothing here changes an existing page: every class starts with "p-") */
 
 /* ---- the page ---- */
 body.p-body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.5 var(--font); }
@@ -268,5 +267,4 @@ body.p-embed .p-embed-bar { display: flex; }
   .p-card { box-shadow: none; break-inside: avoid; }
   [role="tabpanel"]:not(.print-me) { display: none !important; }
 }
-/* 🔴 CSS CHANGED (2026-11-12): the picture of initials on a student card sits at the top, beside the name | from: centred in the middle of the card, so in the narrow card window it floated below the name | to: aligned to the top */
 .p-hero { align-items: flex-start; }

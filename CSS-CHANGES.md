@@ -9,6 +9,18 @@ Format: **date · file · what · from → to · why**
 
 ---
 
+## 2026-11-12 · `shared/theme.css` (rewritten from zero), `shared/header.css`, `shared/login.html`, `shared/ui.css` · the Fly design system
+
+The owner asked to forget the earlier CSS rules and comments and design the system properly, as a luxury brand.
+
+- **All old "CSS CHANGED" comments were removed from the code.** This file keeps the history.
+- **`shared/theme.css` rewritten from zero:** from the cool blue-white look with NIEC blue → to navy, ivory and a thread of gold. Page ivory (#f6f4ef), white cards with warm hairline borders, navy text (#0c1730), gold accent (#b8924a), navy primary buttons with a soft gold ring on hover, pill-shaped buttons, rounder cards (22px), the serif only for titles and big numbers. Status colours are calmer jewel tones. Dark mode is deep navy with gold buttons. Every old colour name still exists, so no page lost its colours.
+- **`shared/header.css`:** the menu mark is navy with a gold paper plane, the open page has a gold mark, the avatar is gold, the menu background is a deeper navy.
+- **`shared/login.html`:** the same navy and gold.
+- **`shared/ui.css`:** text selection is gold instead of blue.
+
+---
+
 ## 2026-11-12 · `shared/header.css`, `shared/header.js`, `shared/login.html` · Fly name, quick search, premium login
 
 - **Menu top (`shared/header.css`, `header.js`):** from the NIEC logo on a white chip with "UK Student NIEC" → to the Fly mark (a paper plane on a blue square), "Fly" in 22px bold white and, under it in small grey-blue, the name of the consultancy using it. Why: the portal is now a product called Fly that any consultancy can use.

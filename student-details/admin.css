@@ -77,7 +77,6 @@ input:focus, select:focus { outline: 2px solid var(--blue); outline-offset: 1px;
 .notice code { font-size: 17px; font-weight: 700; letter-spacing: .04em; user-select: all; }
 
 table { width: 100%; border-collapse: collapse; font-size: 13px; }
-/* 🔴 CSS CHANGED (2026-11-06): small text raised to 12px | from: Users and Activity table headings 11px | to: 12px (same colours) */
 th { text-align: left; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--dim); padding: 8px 10px; border-bottom: 1px solid var(--border); }
 td { padding: 10px; border-bottom: 1px solid var(--border); vertical-align: middle; }
 tr:last-child td { border-bottom: none; }
@@ -114,7 +113,6 @@ td[data-label="Last login"], td[data-label="Logged in"], td[data-label="Last act
 .activity-entry:last-child { border-bottom: none; }
 .activity-head { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
 .activity-who { font-weight: 700; }
-/* 🔴 CSS CHANGED (2026-11-06): small text raised to 12px | from: Activity action badge 11px | to: 12px (same colours) */
 .activity-action { padding: 1px 8px; border-radius: 999px; font-size: 12px; font-weight: 600; background: var(--bg); }
 .activity-logged { background: var(--blue-tint); color: var(--blue-text); }
 .activity-changed { background: var(--orange-tint); color: #c2410c; }

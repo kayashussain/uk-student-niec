@@ -11,7 +11,6 @@
     --niec-blue: #00adef;
     --niec-blue-text: #0077a8;
     --niec-orange: #fc6e1f;
-    /* 🔴 CSS CHANGED (2026-11-05): the login page uses the same calmer off-white as the rest of the site | from: page #f5f6f8, panel #fdfdfe, left side gradient #fdfdfe to #f0f5fa | to: page #e7eaef, panel #f2f4f7, gradient #f2f4f7 to #e6ecf2 */
     --bg: #e7eaef;
     --panel: #f2f4f7;
     --border: #d0d7df;
@@ -51,10 +50,6 @@
   }
   .hero-logo { align-self: flex-start; }
   .hero-logo img { display: block; height: 52px; width: auto; }
-  /* 🔴 CSS CHANGED (2026-11-04): the login page headline "Welcome back to your team's workspace." | REVERTED to the earlier size at the owner's request (the larger size looked too huge)
-     | font-size from: clamp(44px, 5.2vw, 96px) | to: clamp(30px, 3.4vw, 46px)
-     | max-width from: 16ch | to: 14ch
-     | line-height from: 1.08 | to: 1.1 */
   .hero h2 { margin: 0 0 14px; font-size: clamp(30px, 3.4vw, 46px); line-height: 1.1; letter-spacing: -.03em; font-weight: 500; max-width: 14ch; color: var(--text); }
   .hero p { margin: 0; max-width: 42ch; font-size: 16px; line-height: 1.6; color: var(--text-dim); }
   .hero ul { margin: 28px 0 0; padding: 0; list-style: none; display: grid; gap: 12px; font-size: 14px; color: var(--text); }
@@ -144,11 +139,10 @@
   .pw-toggle { box-shadow: none; }
   @media (prefers-color-scheme: dark) { button { background: #8fc0e4; color: #10202c; } button:hover:not(:disabled) { background: #a6cdea; } }
 
-  /* 🔴 CSS CHANGED (2026-11-12): the login page matches the new premium look | from: a pale grey welcome side and a grey card | to: a deep-navy welcome side with white text and a bright white card on a soft blue-white page */
-  .hero { background: radial-gradient(120% 70% at 0% 0%, #1d3a7c 0%, rgba(29, 58, 124, 0) 60%), linear-gradient(180deg, #0a1733 0%, #0b1c3f 100%) !important; color: #dbe5fa !important; }
+  .hero { background: radial-gradient(120% 70% at 0% 0%, #1b3470 0%, rgba(27, 52, 112, 0) 62%), linear-gradient(180deg, #0a1428 0%, #0b1730 100%) !important; color: #dbe5fa !important; }
   .hero h2 { color: #fff !important; }
   .hero p, .hero small, .hero li { color: #b8c6e3 !important; }
-  .hero ul li::before { background: #fc6e1f !important; }
+  .hero ul li::before { background: #d9b46a !important; }
   .panel { background: #f3f5fa !important; }
   .card { background: #fff !important; border-radius: 22px !important; box-shadow: 0 30px 70px -30px rgba(14, 26, 51, .35) !important; }
   .card input { background: #fff !important; }
@@ -156,7 +150,7 @@
 </head>
 <body>
 <aside class="hero" aria-hidden="true">
-  <div class="hero-logo"><span class="fly-mark" style="display:inline-grid;place-items:center;width:44px;height:44px;border-radius:14px;background:linear-gradient(135deg,#00adef,#0a5fd6)"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11.5 21 3l-6.5 18-3.2-7.3L3 11.5z"/><path d="M11.3 13.7 21 3"/></svg></span> <b style="color:#fff;font-size:22px;letter-spacing:-.02em;vertical-align:middle;margin-left:8px">Fly</b></div>
+  <div class="hero-logo"><span class="fly-mark" style="display:inline-grid;place-items:center;width:44px;height:44px;border-radius:14px;background:linear-gradient(145deg,#1d3770,#0b1730);box-shadow:inset 0 0 0 1px rgba(217,180,106,.55)"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#e6c887" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11.5 21 3l-6.5 18-3.2-7.3L3 11.5z"/><path d="M11.3 13.7 21 3"/></svg></span> <b style="color:#fff;font-size:22px;letter-spacing:-.02em;vertical-align:middle;margin-left:8px">Fly</b></div>
   <div>
     <h2>Welcome back to your team’s workspace.</h2>
     <p>Everything your team needs to guide students from first inquiry to visa, in one place. <span id="heroCompany"></span></p>

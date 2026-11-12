@@ -1,293 +1,216 @@
-/* NIEC design system, made for a full working day. The sheet is read and edited for 9 to 10 hours, so it is tuned
-   for tired eyes before anything else: warm paper instead of glaring white, soft charcoal instead of black text
-   (still well above the readable minimum), a faint stripe on alternate rows to follow a line across, no large dark
-   blocks, no movement and no blur. NIEC blue appears only where something is active or focused. Loaded last on every
-   page, so a value changed here changes every page. */
+/* Fly design system.
+   Navy, ivory and a thread of gold: quiet surfaces, hairline borders, generous space, one serif for titles and big numbers.
+   Every page loads this last, so a value here changes every page. Sections: tokens, base, buttons and fields, the sheet,
+   cards and pages, Incentive, details, small screens. */
+
+/* ---------- 1. Tokens ---------- */
 :root {
-  /* 🔴 CSS CHANGED (2026-11-12): the whole palette goes from the warm grey "Mist" to a clean, cool, premium look: soft blue-white page, pure white panels, deep navy ink, NIEC blue for focus and orange for the one accent | from: page #e7eaef, panels #f2f4f7, ink #1f2933, row stripes #ecf0f3 | to: page #f3f5fa, panels #ffffff, ink #0e1a33, row stripes #fafbfe, borders #e4e8f0 */
-  --ink: #0e1a33;
-  --niec-blue: #00adef;
-  --niec-blue-text: #0a6da0; --blue-text: #0a6da0; --brand-text: #0a6da0;
-  --bg: #f3f5fa;
+  --font: "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, Roboto, "Helvetica Neue", Arial, sans-serif;
+  --serif: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+
+  --navy: #0b1730;
+  --navy-2: #14264d;
+  --gold: #b8924a;
+  --gold-deep: #86621f;
+  --gold-soft: #f5ecd7;
+
+  --ink: #0c1730;
+  --text: var(--ink);
+  --text-dim: #596176;
+  --bg: #f6f4ef;
   --panel: #ffffff;
   --surface: #ffffff;
-  --border: #e4e8f0;
-  --border-strong: #d3d9e6;
-  --text: var(--ink);
-  --text-dim: #5a6781;
-  --soft: #eef1f8;
-  --header-bg: #f1f4fa;
-  --head-ink: #34425c;
-  --row-alt: #fafbfe;
-  --row-hover: #eef4ff;
+  --ui-panel: #ffffff;
+  --soft: #f1eee6;
+  --border: #ebe7dd;
+  --border-strong: #dcd6c7;
+
+  --header-bg: #f4f1ea;
+  --head-ink: #3a4358;
+  --row-alt: #fcfbf8;
+  --row-hover: #f3f0e7;
   --edit-bg: #ffffff;
-  --focus: #0a84c6;
-  --focus-dim: #e7f3fb;
-  --focus-strong: #cfe6f6;
-  --ui-panel: var(--panel);
-  --range-tint: rgba(10, 132, 198, .10);
-  --accent-strong: #0b5f93; --accent-strong-hover: #094e7a; --on-accent: #ffffff;
-  --primary: #0b1f44; --primary-hover: #15346b; --on-primary: #ffffff; /* the main action: deep navy */
-  --green-bg: #dff3e6; --green-fg: #17623a;
-  --blue-bg: #e1effb; --blue-fg: #164f86;
-  --amber-bg: #fcefcf; --amber-fg: #7a4709;
-  --gray-bg: #e9edf4; --gray-fg: #46546a;
-  --red-bg: #fbe4e1; --red-fg: #9a2c25;
-  --warn-bg: #fcefcf; --warn: #7a4709; --ok-bg: #dff3e6; --ok: #17623a; --wait-bg: #fcefcf; --wait: #7a4709; --bad-bg: #fbe4e1; --bad: #9a2c25;
-  --serif: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
-  /* 🔴 CSS CHANGED (2026-11-12): rounder corners and softer, layered shadows | from: radii 10, 14, 20px and flat shadows | to: radii 12, 16, 22px and shadows that float a card above the page */
+
+  --focus: #2b59c3;
+  --focus-dim: #e8eefb;
+  --focus-strong: #cfdcf6;
+  --range-tint: rgba(43, 89, 195, .10);
+
+  /* the brand accent keeps its old variable names, which other stylesheets still use */
+  --niec-blue: var(--gold);
+  --niec-blue-text: var(--gold-deep);
+  --blue-text: var(--gold-deep);
+  --brand-text: var(--gold-deep);
+  --accent: var(--gold);
+  --brand: var(--gold);
+  --blue: var(--gold);
+  --blue-tint: var(--gold-soft);
+  --accent-strong: var(--navy-2);
+  --accent-strong-hover: var(--navy);
+  --on-accent: #ffffff;
+  --primary: var(--navy);
+  --primary-hover: var(--navy-2);
+  --on-primary: #ffffff;
+
+  --green-bg: #e3f1e8; --green-fg: #1c6a43;
+  --blue-bg: #e6edfb;  --blue-fg: #244b99;
+  --amber-bg: #f8ecd0; --amber-fg: #7a5314;
+  --gray-bg: #ecebe6;  --gray-fg: #51555f;
+  --red-bg: #f7e4e0;   --red-fg: #9a2d24;
+  --ok-bg: var(--green-bg); --ok: var(--green-fg);
+  --warn-bg: var(--amber-bg); --warn: var(--amber-fg);
+  --wait-bg: var(--amber-bg); --wait: var(--amber-fg);
+  --bad-bg: var(--red-bg); --bad: var(--red-fg);
+
   --r-sm: 12px; --r-md: 16px; --r-lg: 22px;
-  --sh-1: 0 1px 2px rgba(14, 26, 51, .05), 0 1px 1px rgba(14, 26, 51, .03);
-  --sh-2: 0 1px 2px rgba(14, 26, 51, .05), 0 10px 24px -14px rgba(14, 26, 51, .20);
-  --sh-3: 0 2px 4px rgba(14, 26, 51, .06), 0 22px 44px -20px rgba(14, 26, 51, .32);
+  --sh-1: 0 1px 2px rgba(12, 23, 48, .05);
+  --sh-2: 0 1px 2px rgba(12, 23, 48, .05), 0 12px 26px -16px rgba(12, 23, 48, .22);
+  --sh-3: 0 2px 4px rgba(12, 23, 48, .06), 0 26px 50px -22px rgba(12, 23, 48, .34);
   --ease: cubic-bezier(.2, .7, .2, 1);
 }
+
 @media (prefers-color-scheme: dark) {
   :root {
-    --niec-blue-text: #7cc4e8; --blue-text: #7cc4e8; --brand-text: #7cc4e8;
-    --ink: #e6ecf8; --bg: #0b1226; --panel: #121b33; --surface: #121b33; --border: #223055; --border-strong: #2f4170;
-    --text: #e1e7ee; --text-dim: #a3afbd; --soft: #1a2647; --header-bg: #16213f; --head-ink: #c3cfdc; --row-alt: #18202a; --row-hover: #243342; --edit-bg: #1f2833;
-    --focus-dim: #1b2c3b; --focus-strong: #24394a; --range-tint: rgba(110, 170, 220, .14);
-    --accent-strong: #8fc0e4; --accent-strong-hover: #a6cdea; --on-accent: #10202c; --primary: #f08a4b; --primary-hover: #f39d68; --on-primary: #1f1308;
-    --green-bg: #1b2a22; --green-fg: #86c79a; --blue-bg: #1b2738; --blue-fg: #93b3e0;
-    --warn-bg: #2e2818; --warn: #e2bd6e; --ok-bg: #1b2a22; --ok: #86c79a; --wait-bg: #2e2818; --wait: #e2bd6e; --bad-bg: #2f1f20; --bad: #e6a39d;
-    --amber-bg: #2e2818; --amber-fg: #dcb25a; --gray-bg: #232c37; --gray-fg: #a9b4c2; --red-bg: #2f1f20; --red-fg: #e09a94;
-    --sh-1: 0 1px 2px rgba(0, 0, 0, .35); --sh-2: 0 8px 20px -14px rgba(0, 0, 0, .6); --sh-3: 0 16px 34px -18px rgba(0, 0, 0, .7);
+    --ink: #e9edf8; --text: #e4e9f5; --text-dim: #9aa6c0;
+    --bg: #0a1226; --panel: #111b36; --surface: #111b36; --ui-panel: #111b36; --soft: #19264a;
+    --border: #1f2d52; --border-strong: #2c3e6e;
+    --header-bg: #15213f; --head-ink: #c4cde4; --row-alt: #0f1932; --row-hover: #18274b; --edit-bg: #162448;
+    --focus: #7aa2ff; --focus-dim: #172a55; --focus-strong: #213b78; --range-tint: rgba(122, 162, 255, .16);
+    --gold-deep: #e0bd78; --gold-soft: #2b2415;
+    --accent-strong: #9db8f5; --accent-strong-hover: #b5c9f8; --on-accent: #0a1226;
+    --primary: #d9b46a; --primary-hover: #e6c783; --on-primary: #1b1405;
+    --green-bg: #15281f; --green-fg: #86c79a; --blue-bg: #16264a; --blue-fg: #9db8f5;
+    --amber-bg: #2c2513; --amber-fg: #e0bd78; --gray-bg: #1c2744; --gray-fg: #a6b1c9;
+    --red-bg: #2e1c1d; --red-fg: #e6a39d;
+    --sh-1: 0 1px 2px rgba(0, 0, 0, .35); --sh-2: 0 12px 26px -16px rgba(0, 0, 0, .6); --sh-3: 0 26px 50px -22px rgba(0, 0, 0, .75);
   }
 }
-/* One font for everything you read and type: the system's own (Segoe UI on Windows, San Francisco on a Mac). The serif is
-   only for page titles and the big numbers. Buttons and fields do not take the page font by themselves, so they are told to. */
-:root { --font: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
-html, body, button, input, select, textarea, table, th, td, dialog, a, .niec-header, .niec-header *, .ui-toast, .ui-dialog, .ui-dialog * { font-family: var(--font); }
-body { background: var(--bg); color: var(--text); letter-spacing: 0; }
-h1, .kpi-value, .hero-value, .stat-card .stat-value, .summary-title, .summary-row.final .value { font-family: var(--serif); }
-.hero-value { font-weight: 500; letter-spacing: -.035em; }
 
-/* ---- header: now the side menu (shared/header.css) ---- */
-/* ---- buttons: a clear outlined pill everywhere; quiet (no outline) only in the toolbars of the sheet and Incentive; one solid action ---- */
+/* ---------- 2. Base ---------- */
+html, body, button, input, select, textarea, table, th, td, dialog, a, .ui-toast, .ui-dialog, .ui-dialog * { font-family: var(--font); }
+body { background: var(--bg); color: var(--text); letter-spacing: 0; -webkit-font-smoothing: antialiased; }
+h1, .kpi-value, .hero-value, .stat-card .stat-value, .summary-title, .summary-row.final .value { font-family: var(--serif); }
+h1 { color: var(--ink); font-weight: 500; letter-spacing: -.025em; }
+.hero-value { font-weight: 500; letter-spacing: -.035em; }
+::selection { background: color-mix(in srgb, var(--gold) 28%, transparent); }
+a { color: var(--gold-deep); }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+::-webkit-scrollbar { width: 12px; height: 12px; }
+::-webkit-scrollbar-thumb { background: #cfc8b8; border: 3px solid transparent; background-clip: content-box; border-radius: 99px; }
+::-webkit-scrollbar-thumb:hover { background: #b3ab98; background-clip: content-box; border: 3px solid transparent; }
+@media (prefers-color-scheme: dark) { ::-webkit-scrollbar-thumb { background: #33466f; background-clip: content-box; } }
+.page, .wrap, .app-main { animation: fly-fade .25s ease both; }
+@keyframes fly-fade { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .page, .wrap, .app-main { animation: none; } .kpi:hover, .hero:hover, .uni-card:hover { transform: none !important; } }
+
+/* ---------- 3. Buttons and fields ---------- */
 .btn, button.btn, a.btn {
-  display: inline-flex; align-items: center; justify-content: center; min-height: 34px; padding: 0 16px; border: 1px solid var(--border-strong); border-radius: 999px;
-  background: var(--panel); box-shadow: var(--sh-1); color: var(--ink); font-size: 13px; font-weight: 500; text-decoration: none; cursor: pointer;
-  transition: background-color .18s var(--ease), border-color .18s var(--ease), color .18s var(--ease), box-shadow .2s var(--ease), transform .12s;
+  display: inline-flex; align-items: center; justify-content: center; min-height: 36px; padding: 0 18px;
+  border: 1px solid var(--border-strong); border-radius: 999px; background: var(--panel); color: var(--ink);
+  font-size: 13px; font-weight: 550; text-decoration: none; cursor: pointer; box-shadow: var(--sh-1);
+  transition: background-color .18s var(--ease), border-color .18s var(--ease), box-shadow .2s var(--ease), transform .12s;
 }
-.btn.btn-sm { min-height: 30px; padding: 0 13px; font-size: 12.5px; }
-.btn:hover:not(:disabled) { background: var(--soft); box-shadow: var(--sh-1); }
-.btn:disabled, .btn:disabled:hover { opacity: .4; background: var(--panel); cursor: not-allowed; }
-.btn-danger { color: var(--red-fg); border-color: color-mix(in srgb, var(--red-fg) 40%, var(--border)); }
+.btn.btn-sm { min-height: 30px; padding: 0 14px; font-size: 12.5px; }
+.btn:hover:not(:disabled) { background: var(--soft); border-color: color-mix(in srgb, var(--gold) 45%, var(--border-strong)); }
+.btn:active:not(:disabled) { transform: translateY(1px); }
+.btn:disabled, .btn:disabled:hover { opacity: .42; background: var(--panel); cursor: not-allowed; }
+.btn-danger { color: var(--red-fg); border-color: color-mix(in srgb, var(--red-fg) 38%, var(--border)); }
 .btn-danger:hover:not(:disabled) { background: var(--red-bg); border-color: var(--red-fg); }
+.btn-primary, button.btn-primary, .btn.btn-primary, .topbar .btn-primary {
+  color: var(--on-primary); border-color: var(--primary);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--primary) 86%, #fff) 0%, var(--primary) 100%);
+  box-shadow: 0 8px 18px -10px color-mix(in srgb, var(--primary) 80%, transparent), inset 0 1px 0 rgba(255, 255, 255, .14);
+}
+.btn-primary:hover:not(:disabled), .topbar .btn-primary:hover:not(:disabled) { background: var(--primary-hover); border-color: var(--primary-hover); box-shadow: 0 10px 22px -10px color-mix(in srgb, var(--primary) 85%, transparent), 0 0 0 3px color-mix(in srgb, var(--gold) 28%, transparent); }
 .topbar .btn, .toolbar .btn { border-color: transparent; background: transparent; box-shadow: none; color: var(--text-dim); }
 .topbar .btn:hover:not(:disabled), .toolbar .btn:hover:not(:disabled) { background: var(--soft); color: var(--ink); }
 .topbar .btn:disabled, .toolbar .btn:disabled { background: transparent; }
+.topbar .btn.btn-primary, .toolbar .btn.btn-primary { color: var(--on-primary); border-color: var(--primary); background: linear-gradient(180deg, color-mix(in srgb, var(--primary) 86%, #fff) 0%, var(--primary) 100%); box-shadow: 0 8px 18px -10px color-mix(in srgb, var(--primary) 80%, transparent), inset 0 1px 0 rgba(255, 255, 255, .14); }
+.topbar .btn.btn-primary:hover:not(:disabled), .toolbar .btn.btn-primary:hover:not(:disabled) { background: var(--primary-hover); color: var(--on-primary); }
 .topbar .btn-danger:hover:not(:disabled), .toolbar .btn-danger:hover:not(:disabled) { background: var(--red-bg); color: var(--red-fg); }
-.btn-primary, button.btn-primary, .btn.btn-primary, .topbar .btn-primary { background: var(--primary); border-color: var(--primary); color: var(--on-primary); font-weight: 600; box-shadow: var(--sh-1); }
-.btn-primary:hover:not(:disabled), button.btn-primary:hover:not(:disabled), .topbar .btn-primary:hover:not(:disabled) { background: var(--primary-hover); border-color: var(--primary-hover); color: var(--on-primary); }
-input[type="text"], input[type="search"], input[type="email"], input[type="password"], input[type="date"], input:not([type]), select, textarea, #search, .topbar #search {
-  border: 1px solid var(--border-strong); border-radius: var(--r-sm); background: var(--panel); transition: border-color .18s, box-shadow .18s;
-}
-#search, .topbar #search { height: 38px; width: 280px; padding: 0 16px; border-radius: 999px; font-size: 13px; border-color: var(--border); background: var(--panel); box-shadow: var(--sh-1); }
-input:focus, select:focus, textarea:focus, #search:focus, .topbar #search:focus {
-  outline: none; border-color: var(--niec-blue); box-shadow: 0 0 0 4px rgba(0, 173, 239, .16);
-}
 
-/* ---- the sheet: toolbar, status strip, table ---- */
-.topbar { padding: 12px 24px 6px; gap: 10px 8px; background: var(--bg); border: 0; }
+input[type="text"], input[type="search"], input[type="email"], input[type="password"], input[type="date"], input[type="number"], input:not([type]), select, textarea {
+  border: 1px solid var(--border-strong); border-radius: var(--r-sm); background: var(--panel); color: var(--ink);
+  transition: border-color .18s, box-shadow .18s;
+}
+input:focus, select:focus, textarea:focus { outline: none; border-color: var(--focus); box-shadow: 0 0 0 4px color-mix(in srgb, var(--focus) 18%, transparent); }
+#search, .topbar #search, input.search { height: 40px; width: 280px; padding: 0 18px; border-radius: 999px; border-color: var(--border); background: var(--panel); box-shadow: var(--sh-1); font-size: 13px; }
+input.search { width: 260px; }
+
+/* ---------- 4. The sheet (Student Details) ---------- */
+.topbar { padding: 14px 26px 6px; gap: 10px 8px; background: var(--bg); border: 0; }
 .topbar .toolbar-group { gap: 2px; }
 .topbar .toolbar-group + .toolbar-group { margin-left: 6px; padding-left: 10px; border-left: 1px solid var(--border); }
 .save-status { font-size: 12px; color: var(--text-dim); }
-.status-summary { background: var(--bg); border: 0; padding: 2px 24px 10px; gap: 4px; }
-.stat-group-title { color: var(--text-dim); font-weight: 600; font-size: 10.5px; letter-spacing: .12em; }
-.stat-group-cards { gap: 2px; padding-bottom: 4px; }
+.status-summary { background: var(--bg); border: 0; padding: 2px 26px 12px; gap: 4px; }
+.stat-group-title { color: var(--text-dim); font-weight: 650; font-size: 12px; letter-spacing: .14em; }
+.stat-group-cards { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(70px, 1fr); gap: 8px; width: max(85%, 1120px); max-width: 100%; align-items: stretch; overflow-x: auto; padding: 4px 2px 8px; }
 .stat-card, .stat-card.stat-total {
-  background: transparent; border: 0; border-radius: var(--r-md); box-shadow: none; padding: 4px 11px 4px 10px; min-width: 0;
-  transition: background-color .15s ease;
+  display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 4px; min-width: 0; padding: 11px 4px 10px; text-align: center;
+  background: var(--panel); border: 1px solid var(--border); border-radius: var(--r-md); box-shadow: var(--sh-1);
+  transition: box-shadow .2s ease, border-color .2s ease, transform .2s var(--ease);
 }
-.stat-card .stat-value, .stat-card.stat-total .stat-value { font-size: 26px; font-weight: 500; color: var(--ink); letter-spacing: -.02em; line-height: 1.1; }
-.stat-card .stat-label { font-size: 10.5px; letter-spacing: .05em; color: var(--text-dim); font-weight: 500; }
-.stat-card.stat-total { background: var(--soft); box-shadow: inset 0 -2px 0 var(--niec-blue); }
-.stat-card.stat-total .stat-value { color: var(--ink); }
-.stat-card.stat-total .stat-label { color: var(--text-dim); }
-.stat-card .stat-visa { color: var(--niec-blue-text); }
+.stat-card:hover { border-color: color-mix(in srgb, var(--gold) 55%, var(--border)); box-shadow: var(--sh-2); transform: translateY(-2px); }
+.stat-card .stat-value, .stat-card.stat-total .stat-value { font-size: 23px; font-weight: 500; color: var(--ink); letter-spacing: -.02em; line-height: 1.1; }
+.stat-card .stat-label { display: block; width: 100%; min-height: 2.5em; white-space: normal; line-height: 1.25; font-size: 11px; letter-spacing: .05em; color: var(--text-dim); font-weight: 550; overflow-wrap: anywhere; hyphens: auto; }
+.stat-card.stat-total { background: linear-gradient(180deg, var(--gold-soft), var(--panel)); border-color: color-mix(in srgb, var(--gold) 50%, var(--border)); box-shadow: inset 0 -3px 0 var(--gold), var(--sh-1); }
+.stat-card.stat-total .stat-label { color: var(--gold-deep); }
+.stat-card.stat-rate { box-shadow: inset 0 -3px 0 var(--navy), var(--sh-1); }
+.stat-card .stat-visa { color: var(--gold-deep); }
+@media (max-width: 1100px) { .stat-group-cards { width: 100%; max-width: 100%; } }
 
 .table-wrap { background: var(--panel); border-top: 1px solid var(--border); }
 #sheet thead th {
-  background: var(--header-bg); border-right: 1px solid color-mix(in srgb, var(--head-ink) 14%, transparent); border-bottom: 1px solid var(--border-strong); padding: 12px 12px 11px;
-  font-size: 12.5px; font-weight: 600; letter-spacing: .01em; text-transform: none; color: var(--head-ink);
+  background: var(--header-bg); border-right: 1px solid var(--border); border-bottom: 1px solid var(--border-strong);
+  font-size: 12.5px; font-weight: 650; letter-spacing: .01em; color: var(--head-ink);
 }
-#sheet thead th.col-idx { color: var(--head-ink); }
 #sheet thead th:hover { color: var(--ink); }
-#sheet td { border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); padding: 8px 13px; font-size: 14px; font-weight: 400; line-height: 1.4; color: var(--text); }
+#sheet thead th.col-idx, #sheet th.col-idx { background: var(--header-bg); color: var(--head-ink); }
+#sheet td { border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); padding: 8px 13px; font-size: 14px; font-weight: 400; }
 #sheet td.col-idx { color: var(--text-dim); font-size: 12.5px; font-weight: 500; }
-#sheet th.col-idx { background: var(--panel); }
-/* the invisible spacer rows that stand in for students scrolled out of view must stay empty */
 #sheet tbody tr.pad-row td { padding: 0; border: 0; height: 0; }
 #sheet tbody tr { transition: background-color .15s; }
-/* 🔴 CSS CHANGED (2026-11-07): hovering a selected row | from: the hover grey replaced the blue selection, so a picked row looked unpicked under the mouse | to: a selected row keeps its blue while the mouse is over it (other rows hover grey as before) */
-#sheet tbody tr:not([class*="rc-"]):not(.selected):hover td { background-color: var(--row-hover); } /* colour only: the shorthand would wipe the calendar icon out of the date cells */
-#sheet tbody tr:not([class*="rc-"]):not(.selected):hover td.col-idx { background-color: var(--row-hover); }
+#sheet tbody tr:not([class*="rc-"]):not(.selected):hover td, #sheet tbody tr:not([class*="rc-"]):not(.selected):hover td.col-idx { background-color: var(--row-hover); }
 #sheet td.calculated { background-color: transparent !important; color: var(--text-dim); font-style: normal; }
-#body td.active-cell { outline: 2px solid var(--niec-blue); outline-offset: -2px; border-radius: 3px; }
-.sheet-tabs { background: var(--bg); border-top: 1px solid var(--border); padding: 8px 20px; }
+#body td.active-cell { outline: 2px solid var(--focus); outline-offset: -2px; border-radius: 3px; }
+/* row colours, picked rows and worked-out cells: a coloured or picked row keeps its colour, the fee cells follow the row */
+#sheet td.date { padding-right: 32px; }
+#sheet tbody tr.rc-green td.col-idx { background-color: var(--rc-green); }
+#sheet tbody tr.rc-yellow td.col-idx { background-color: var(--rc-yellow); }
+#sheet tbody tr.rc-orange td.col-idx { background-color: var(--rc-orange); }
+#sheet tbody tr.rc-red td.col-idx { background-color: var(--rc-red); }
+#sheet tbody tr.rc-blue td.col-idx { background-color: var(--rc-blue); }
+#sheet tbody tr.rc-purple td.col-idx { background-color: var(--rc-purple); }
+#sheet tbody tr.rc-grey td.col-idx { background-color: var(--rc-grey); }
+#sheet tbody tr.rc-green { --rc-row: var(--rc-green); }
+#sheet tbody tr.rc-yellow { --rc-row: var(--rc-yellow); }
+#sheet tbody tr.rc-orange { --rc-row: var(--rc-orange); }
+#sheet tbody tr.rc-red { --rc-row: var(--rc-red); }
+#sheet tbody tr.rc-blue { --rc-row: var(--rc-blue); }
+#sheet tbody tr.rc-purple { --rc-row: var(--rc-purple); }
+#sheet tbody tr.rc-grey { --rc-row: var(--rc-grey); }
+#sheet tbody tr[class*="rc-"].selected td:not(.col-idx):not(.calculated):not(.editing) { background-color: var(--rc-row); }
+#sheet tbody tr[class*="rc-"].row-picked td:not(.col-idx):not(.calculated) { background-color: var(--rc-row); box-shadow: inset 0 2px 0 var(--focus), inset 0 -2px 0 var(--focus); }
+#sheet tbody tr.row-picked td.col-idx { background-color: var(--focus); color: #fff; font-weight: 600; }
+#body tr.row-picked td.active-cell:not(.editing) { outline: none; }
+#sheet tbody tr.alt td.calculated { background-color: var(--row-alt) !important; }
+#sheet tbody tr[class*="rc-"] td.calculated { background-color: var(--rc-row) !important; }
+#sheet tbody tr.defer-warning-row td.calculated { background-color: var(--red-bg) !important; }
+#sheet td.col-idx { padding-left: 4px; padding-right: 4px; }
+.sheet-tabs { background: var(--bg); border-top: 1px solid var(--border); padding: 9px 22px; }
 .sheet-tab { border-radius: 999px; border: 0; background: transparent; color: var(--text-dim); }
-.sheet-tab.active { background: var(--panel); color: var(--ink); box-shadow: var(--sh-2); font-weight: 600; }
+.sheet-tab.active { background: var(--panel); color: var(--ink); box-shadow: var(--sh-2); font-weight: 650; }
 .legend, .sheet-tabs + *, #rowCount { color: var(--text-dim); }
-
-/* ---- cards: Dashboard, Users, Activity, Fact File, Incentive ---- */
-.page-head h1 { font-weight: 500; font-size: 34px; letter-spacing: -.025em; }
-.page-head p { font-size: 14.5px; }
-.page { padding-top: 36px; }
-.card, .kpi, .uni-card, .summary-card, .table-card {
-  background: var(--panel); border: 1px solid var(--border); border-radius: var(--r-lg); box-shadow: var(--sh-1);
-  transition: box-shadow .2s ease;
-}
-.kpi { padding: 20px 22px; }
-.kpi-value { font-weight: 500; letter-spacing: -.03em; }
-.kpi-label { letter-spacing: .01em; }
-.uni-card h2 { font-weight: 600; letter-spacing: -.015em; font-size: 17px; }
-.page-head .search { align-self: flex-end; }
-
-/* ---- page entrance and details ---- */
-::selection { background: rgba(0, 173, 239, .2); }
-::-webkit-scrollbar { width: 12px; height: 12px; }
-::-webkit-scrollbar-thumb { background: #c3cfdc; border: 3px solid transparent; background-clip: content-box; border-radius: 99px; }
-::-webkit-scrollbar-thumb:hover { background: #a5b4c6; background-clip: content-box; border: 3px solid transparent; }
-@media (prefers-color-scheme: dark) { ::-webkit-scrollbar-thumb { background: #3a4656; background-clip: content-box; } }
-
-#sheet thead th.col-idx { background: var(--panel); }
-@media (max-width: 760px) {
-  .topbar { padding: 12px 14px 6px; }
-  .topbar .toolbar-group + .toolbar-group { margin-left: 0; padding-left: 0; border-left: 0; }
-  #search, .topbar #search { width: 100%; }
-  .status-summary { padding: 4px 14px 14px; }
-  .page-head h1 { font-size: 28px; }
-}
-
-/* ---- Incentive page ---- */
-.wrap { padding: 8px 28px 56px; }
-.top { margin: 0 -28px 12px !important; padding: 26px 28px 6px !important; background: transparent !important; border: 0 !important; align-items: flex-end; }
-.top .brand h1 { font-family: var(--serif); font-size: 34px !important; font-weight: 500 !important; letter-spacing: -.025em !important; color: var(--ink) !important; }
-.top .subtitle { font-size: 14px !important; color: var(--text-dim); margin-top: 2px; }
-input.search { height: 38px; width: 260px; padding: 0 16px; border-radius: 999px; border-color: var(--border); background: var(--panel); box-shadow: var(--sh-1); }
-input.search:focus { outline: none; border-color: var(--niec-blue); box-shadow: 0 0 0 4px rgba(0, 173, 239, .16); }
-.tab { border-radius: 999px; padding: 7px 16px; font-size: 13px; transition: background-color .18s var(--ease), color .18s; }
-.tab:hover { background: var(--soft); color: var(--ink); }
-.tab.active { background: var(--panel); border-color: transparent; box-shadow: var(--sh-2); color: var(--ink); }
-.banner { border-radius: var(--r-md); border-color: transparent; }
-.table-card th, .table-card td { border-right: 1px solid var(--border); }
-.table-card th:last-child, .table-card td:last-child { border-right: 0; }
-.table-card thead th { background: var(--header-bg); color: var(--head-ink); font-weight: 600; border-bottom: 1px solid var(--border-strong); padding: 12px 12px 11px; }
-.table-card thead th .info { color: var(--text-dim); }
-.table-card td { padding: 7px 12px; font-size: 14px; font-weight: 400; border-bottom: 1px solid var(--border); }
-.table-card tbody tr:hover td { background: var(--row-hover); }
-.summary-title { font-family: var(--serif); font-size: 22px; font-weight: 500; letter-spacing: -.02em; margin: 28px 0 12px; }
-.summary-card { overflow: hidden; }
-.summary-row { padding: 14px 22px; }
-.summary-row.final { background: var(--soft); }
-.summary-row.final .label, .summary-row.final .value { color: var(--ink); }
-.summary-row.final .value { font-family: var(--serif); font-size: 22px; font-weight: 500; letter-spacing: -.02em; }
-.adv-input { border-radius: var(--r-sm); border-color: var(--border-strong); background: var(--panel); }
-.grid-footer { color: var(--text-dim); }
-/* 🔴 CSS CHANGED (2026-11-06): Incentive page and Company Earnings, readable and more premium (the owner found the small notes hard to read) | from: the grey notes beside the labels ("15% of Net Incentives", "fixed since the first payment", "university commission £2,362.50, branch keeps 70%", the exchange rate note) were 10.5px and 11px; the table footer and "synced" text 11px; summary rows 13px with 14px 22px padding; totals 22px | to: notes 13px (never smaller) with a little more room around them; the footer, the legend, "synced" and "Remove" 12.5px to 13px; summary rows 15px labels and 16px figures with 17px 26px padding and a hairline between rows; the key totals (Net Payable, Total received, Total Company Earnings, My Share) have a thin orange mark at the left edge and larger serif figures (26px, My Share 30px); same colours, same fonts, same Mist palette */
-.summary-card .summary-row { padding: 17px 26px; font-size: 15px; }
-.summary-card .summary-row .label { line-height: 1.4; }
-.summary-card .summary-row .value { font-size: 16px; }
-.summary-card .summary-row .hint { font-size: 13px; line-height: 1.4; margin-left: 10px; letter-spacing: .005em; }
-.summary-card .summary-row:not(.final):not(.pay-form):hover { background: var(--row-hover); }
-.summary-card .summary-row.final { box-shadow: inset 3px 0 0 var(--accent); padding-top: 20px; padding-bottom: 20px; }
-.summary-card .summary-row.final .label { font-size: 15.5px; letter-spacing: .005em; }
-.summary-card .summary-row.final .value { font-size: 26px; }
-#earnShare { font-size: 30px; }
-.summary-card .info { font-size: 14px; }
-.pay-rate-note { font-size: 13.5px; line-height: 1.55; padding: 16px 26px; }
-.pay-remove { font-size: 13px; }
-.grid-footer { font-size: 13px; padding: 9px 16px; }
-.grid-footer .grid-key { gap: 16px; }
-.live, #liveText { font-size: 13px; }
-.adv-input { font-size: 14px; }
-/* 🔴 CSS CHANGED (2026-11-06): the smallest texts on Student Details and the Dashboard, found by the independent design review | from: the status card labels 9.5px (they were cut off on a phone), card group titles 10.5px to 11px, the row count / "Saved" text 11px, the "Shortcuts" button 11px, the filter arrow 9px, the "Expired / Expiring" and Defer warning flags 10px, the bottom bar 11px, the sheet list heading 11px, the small note under Dashboard bars about 10.4px | to: the status card labels 11px (the text may wrap to two lines instead of being cut), everything else listed 12px (same colours; the status badges and dropdown text inside the sheet cells are left as they were so the column widths do not move) */
-.stat-group-title { font-size: 12px; }
-.save-status, .help-btn, .footbar, .all-sheets-heading, .filter-btn { font-size: 12px; }
-.lang-test-flag, .defer-warning-flag { font-size: 12px; }
-.bar-value small { font-size: 12px; }
-.stat-card .stat-label { overflow-wrap: anywhere; hyphens: auto; } /* a long word (APPLICATION) breaks with a hyphen on a phone instead of being cut off */
-@media (prefers-color-scheme: dark) { .summary-row.final { background: #1d222b; } }
-@media (max-width: 760px) { .wrap { padding: 6px 14px 40px; } .top { margin: 0 -14px 10px !important; padding: 18px 14px 4px !important; } .top .brand h1 { font-size: 28px !important; } input.search { width: 100%; } }
-.page-head h1 .pill, h1 .pill { font-family: var(--font); font-weight: 600; letter-spacing: 0; }
-.row > .btn { justify-self: start; }
-
-
-/* =====================================================================================================
-   Life and brand: the parts that make it feel like a finished product. Colour comes back where it carries
-   meaning or invites a click (NIEC light blue and orange); cards answer the mouse; nothing moves on its own.
-   ===================================================================================================== */
-
-/* ---- the status strip: every box the same size, the numbers on one line, equal gaps (no zigzag) ---- */
-.stat-group-cards { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(70px, 1fr); gap: 5px; width: max(85%, 1120px); max-width: 100%; align-items: stretch; overflow-x: auto; padding-bottom: 4px; }
-.stat-card, .stat-card.stat-total {
-  display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 4px; min-width: 0; padding: 9px 3px 8px; text-align: center;
-  background: var(--panel); border: 1px solid var(--border); border-radius: var(--r-md); box-shadow: var(--sh-1);
-  transition: box-shadow .2s ease, border-color .2s ease, background-color .2s ease;
-}
-.stat-card:hover { border-color: var(--niec-blue); box-shadow: var(--sh-2); }
-/* 🔴 CSS CHANGED (2026-11-06): the status card labels (Total Students, Inquiry, Application Stage ...) | from: 9.5px | to: 11px, wrapping to two lines where needed (see the block below the Incentive page rules); same colours */
-.stat-card .stat-label { display: block; width: 100%; min-height: 2.5em; white-space: normal; line-height: 1.25; text-align: center; font-size: 11px; letter-spacing: .02em; font-weight: 500; overflow: hidden; text-overflow: clip; }
-.stat-card .stat-value, .stat-card.stat-total .stat-value { font-size: 22px; }
-@media (max-width: 1100px) { .stat-group-cards { width: 100%; max-width: 100%; } }
-.stat-card.stat-total { background: var(--blue-bg); border-color: color-mix(in srgb, var(--niec-blue) 45%, var(--border)); box-shadow: inset 0 -3px 0 var(--niec-blue), var(--sh-1); }
-.stat-card.stat-total .stat-label { color: var(--blue-fg); }
-.stat-card.stat-rate { border-color: color-mix(in srgb, #fc6e1f 40%, var(--border)); box-shadow: inset 0 -3px 0 #fc6e1f, var(--sh-1); }
-
-/* ---- status pills and menus: tidy, even, a little depth ---- */
-.badge, .status-select { font-weight: 500; font-size: 12px; letter-spacing: 0; padding-top: 3px; padding-bottom: 3px; border: 1px solid color-mix(in srgb, currentColor 22%, transparent); }
+.badge, .status-select { font-weight: 550; font-size: 12px; padding-top: 3px; padding-bottom: 3px; border: 1px solid color-mix(in srgb, currentColor 22%, transparent); }
 .status-select { padding-left: 11px; min-height: 26px; transition: box-shadow .15s ease, border-color .15s ease; }
 .status-select:hover { box-shadow: var(--sh-1); border-color: color-mix(in srgb, currentColor 45%, transparent); }
 .filter-menu, .ui-dialog { border-radius: var(--r-md); border: 1px solid var(--border-strong); box-shadow: var(--sh-3); }
+.save-status, .help-btn, .footbar, .all-sheets-heading, .filter-btn, .lang-test-flag, .defer-warning-flag, .bar-value small { font-size: 12px; }
 
-/* ---- cards that answer the mouse (hover only: the page itself stays still) ---- */
-.kpi, .hero, .uni-card { position: relative; transition: transform .25s var(--ease), box-shadow .25s var(--ease), border-color .25s ease; }
-.kpi, .hero { border-radius: 22px; border-color: var(--border); box-shadow: var(--sh-1); transition: transform .28s var(--ease), box-shadow .28s var(--ease), border-color .28s ease, background-image .28s ease; }
-.kpi:hover, .hero:hover {
-  transform: translateY(-5px);
-  border-color: color-mix(in srgb, var(--niec-blue) 38%, var(--border));
-  box-shadow: 0 26px 46px -22px rgba(0, 173, 239, .38), 0 12px 24px -16px rgba(252, 110, 31, .26), 0 2px 6px rgba(23, 54, 79, .06);
-  background-image: linear-gradient(180deg, color-mix(in srgb, var(--blue-bg) 55%, transparent), transparent 55%);
-}
-
-/* ---- Fact File: brand colour, a monogram, a lift on hover ---- */
-.uni-card { border-left: 4px solid var(--niec-blue); border-radius: var(--r-lg); padding: 20px 22px 18px; gap: 8px; }
-.uni-card:hover { transform: translateY(-4px); box-shadow: var(--sh-3); border-left-color: #fc6e1f; }
-.uni-card h2 { padding-right: 46px; font-weight: 600; letter-spacing: -.015em; font-size: 17px; }
-.uni-mono { position: absolute; top: 16px; right: 16px; display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; font-size: 12px; font-weight: 700; letter-spacing: .02em; color: var(--blue-fg); background: var(--blue-bg); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--niec-blue) 35%, transparent); transition: background-color .2s ease, color .2s ease; }
-.uni-card:hover .uni-mono { background: #fde6d6; color: #8a3a08; box-shadow: inset 0 0 0 1px #fc6e1f55; }
-.uni-card .updated:not(:empty)::before { content: ""; display: inline-block; width: 6px; height: 6px; margin-right: 7px; border-radius: 50%; background: #fc6e1f; vertical-align: 1px; }
-.chip { background: var(--blue-bg); color: var(--blue-fg); font-weight: 600; }
-p.count { display: inline-block; padding: 2px 10px; border-radius: 999px; background: var(--blue-bg); color: var(--blue-fg); font-weight: 600; }
-p.count:empty { display: none; }
-.doc { border-radius: var(--r-lg); box-shadow: var(--sh-2); }
-.doc h2::before { content: ""; display: inline-block; width: 4px; height: 16px; margin-right: 10px; border-radius: 2px; background: #fc6e1f; vertical-align: -2px; }
-.toc a { transition: background-color .15s ease, border-color .15s ease, color .15s ease; }
-.toc a:hover, .toc a:focus-visible { background: var(--blue-bg); border-color: var(--niec-blue); color: var(--blue-fg); }
-
-/* ---- a gentle fade when a page opens (opacity only, nothing slides) ---- */
-.page, .wrap, .app-main { animation: t-fade .25s ease both; }
-@keyframes t-fade { from { opacity: 0; } to { opacity: 1; } }
-@media (prefers-reduced-motion: reduce) { .kpi:hover, .hero:hover, .uni-card:hover { transform: none; } .page, .wrap, .app-main { animation: none; } }
-.uni-card:hover { border-color: var(--border-strong); border-left-color: #fc6e1f; }
-
-/* ---- names in lists are normal text, not blue links ---- */
-.open-link { color: var(--text); font-weight: 500; }
-.open-link:hover { color: var(--text); text-decoration: underline; text-decoration-color: var(--niec-blue); text-underline-offset: 3px; }
-
-/* ---- Fact File university page: the NIEC brand kept as a soft tint, in the same family as the rest ---- */
-.doc h2 { color: var(--text); }
-.glance { background: color-mix(in srgb, var(--blue-bg) 60%, var(--panel)); }
-.glance dt { color: var(--blue-fg); }
-.programs th { background: color-mix(in srgb, var(--blue-bg) 60%, var(--panel)); color: var(--head-ink); }
-
-
-/* ---- date cells: room for the calendar icon, the same text position whether resting or open ---- */
+/* ---------- 4b. Menus and dropdowns (filters, sheet menus, selects) ---------- */
+.glance dt { color: var(--gold-deep); }
+.programs th { background: color-mix(in srgb, var(--gold-soft) 70%, var(--panel)); color: var(--head-ink); }
 #sheet td.date { padding-right: 32px; }
-
-/* ---- the filter menu: the same finish as the rest of the sheet ---- */
 .filter-menu { width: 264px; max-height: 380px; border-radius: 16px; border: 1px solid var(--border); background: var(--panel); box-shadow: var(--sh-3); font-size: 13px; overflow: hidden; }
 .filter-menu-title { padding: 12px 16px 2px; font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--text-dim); }
 .filter-menu-search { padding: 8px 12px 10px; border-bottom: 0; }
@@ -301,55 +224,19 @@ p.count:empty { display: none; }
 .filter-menu-footer { padding: 10px 12px; gap: 8px; border-top: 1px solid var(--border); background: color-mix(in srgb, var(--soft) 45%, var(--panel)); }
 .filter-menu-footer .btn { min-height: 32px; padding: 0 16px; font-size: 13px; }
 .sheet-menu, .color-menu { border-radius: 14px; border: 1px solid var(--border); box-shadow: var(--sh-3); background: var(--panel); }
-
-/* a coloured row is coloured all the way across, the S.N cell included (every second row used to show plain grey there) */
-#sheet tbody tr.rc-green td.col-idx { background-color: var(--rc-green); }
-#sheet tbody tr.rc-yellow td.col-idx { background-color: var(--rc-yellow); }
-#sheet tbody tr.rc-orange td.col-idx { background-color: var(--rc-orange); }
-#sheet tbody tr.rc-red td.col-idx { background-color: var(--rc-red); }
-#sheet tbody tr.rc-blue td.col-idx { background-color: var(--rc-blue); }
-#sheet tbody tr.rc-purple td.col-idx { background-color: var(--rc-purple); }
-#sheet tbody tr.rc-grey td.col-idx { background-color: var(--rc-grey); }
-
-/* 🔴 CSS CHANGED (2026-11-07): a coloured row that is also selected | from: the blue selection covered the colour on every cell except S.N, so a row you had just coloured looked uncoloured until you clicked another row; picking rows from S.N also drew a blue box round the first cell | to: the row keeps its colour while selected (a picked row gets a thin blue line top and bottom and a blue S.N, so you can still see it is picked) and no box is drawn on the first cell while whole rows are picked */
-#sheet tbody tr.rc-green { --rc-row: var(--rc-green); }
-#sheet tbody tr.rc-yellow { --rc-row: var(--rc-yellow); }
-#sheet tbody tr.rc-orange { --rc-row: var(--rc-orange); }
-#sheet tbody tr.rc-red { --rc-row: var(--rc-red); }
-#sheet tbody tr.rc-blue { --rc-row: var(--rc-blue); }
-#sheet tbody tr.rc-purple { --rc-row: var(--rc-purple); }
-#sheet tbody tr.rc-grey { --rc-row: var(--rc-grey); }
-#sheet tbody tr[class*="rc-"].selected td:not(.col-idx):not(.calculated):not(.editing) { background-color: var(--rc-row); }
-#sheet tbody tr[class*="rc-"].row-picked td:not(.col-idx):not(.calculated) { background-color: var(--rc-row); box-shadow: inset 0 2px 0 var(--focus), inset 0 -2px 0 var(--focus); }
-#sheet tbody tr.row-picked td.col-idx { background-color: var(--focus); color: #fff; font-weight: 600; }
-#body tr.row-picked td.active-cell:not(.editing) { outline: none; }
-
-/* 🔴 CSS CHANGED (2026-11-07): the worked-out fee cells (Fee After Scholarship, Remaining Tuition Fee) and the S.N cell | from: the fee cells stayed white in coloured, striped and red (Defer warning) rows, leaving holes in the row; row numbers 1000 and up were cut off in S.N | to: the fee cells take the row's colour, stripe or red like every other cell; S.N has 4px side padding so four-digit numbers fit (as style.css always intended) */
-#sheet tbody tr.alt td.calculated { background-color: var(--row-alt) !important; }
-#sheet tbody tr[class*="rc-"] td.calculated { background-color: var(--rc-row) !important; }
-#sheet tbody tr.defer-warning-row td.calculated { background-color: var(--red-bg) !important; }
-#sheet td.col-idx { padding-left: 4px; padding-right: 4px; }
-
-
-/* =====================================================================================================
-   Dropdowns: the closed box and the opened list share the same finish as the rest (rounded, soft, roomy).
-   Browsers that can style the opened list get the full look; others keep their own list, with the same closed box.
-   ===================================================================================================== */
 select:not(.status-select) {
   min-height: 38px; padding: 0 14px; border: 1px solid var(--border-strong); border-radius: 12px; background-color: var(--panel); color: var(--text);
   font-size: 13px; cursor: pointer; transition: border-color .15s ease, box-shadow .15s ease;
 }
 select:not(.status-select):hover { border-color: color-mix(in srgb, var(--niec-blue) 55%, var(--border-strong)); }
 select:not(.status-select):disabled { opacity: .5; cursor: not-allowed; }
-
 @supports (appearance: base-select) {
   select, select::picker(select), select.status-select, select.status-select::picker(select) { appearance: base-select; }
   select:not(.status-select) { display: inline-flex; align-items: center; justify-content: space-between; gap: 10px; }
   select::picker-icon { color: var(--text-dim); font-size: 11px; transition: rotate .2s ease; }
   select:open::picker-icon { rotate: 180deg; }
-  select.status-select::picker-icon { display: none; } /* the status pills draw their own small arrow */
+  select.status-select::picker-icon { display: none; } 
   select::picker(select) {
-    /* 🔴 CSS CHANGED (2026-11-05): the dropdown lists (Application Status and the others) show every choice instead of being cut off after nine, and open upward when there is no room below | from: max-height 340px, row height padding 8px 12px | to: max-height up to 480px (never taller than the window), row padding 6px 12px, flips above the cell when the room below is short */
     box-sizing: border-box; min-width: anchor-size(width); max-height: min(480px, calc(100vh - 24px)); margin-top: 6px; padding: 6px; position-try-fallbacks: flip-block; scrollbar-width: thin;
     border: 1px solid var(--border-strong); border-radius: 14px; background: var(--panel); color: var(--text); font: inherit; font-size: 13px;
     box-shadow: var(--sh-3); overflow: auto;
@@ -357,6 +244,81 @@ select:not(.status-select):disabled { opacity: .5; cursor: not-allowed; }
   select option { display: flex; align-items: center; gap: 10px; padding: 6px 12px; border-radius: 10px; background: transparent; color: var(--text); font-weight: 400; cursor: pointer; transition: background-color .12s ease; }
   select option:hover, select option:focus-visible { background: var(--soft); outline: none; }
   select option:focus { outline: none; }
-  select option:checked { background: color-mix(in srgb, var(--blue-bg) 70%, transparent); color: var(--blue-fg); font-weight: 500; }
+  select option:checked { background: var(--gold-soft); color: var(--gold-deep); font-weight: 500; }
   select option::checkmark { color: var(--niec-blue-text); font-size: 12px; }
+}
+
+/* ---------- 5. Cards and pages (Dashboard, Fact File, Users, Activity, partners) ---------- */
+.page { padding-top: 38px; }
+.page-head h1 { font-size: 36px; }
+.page-head p { font-size: 14.5px; color: var(--text-dim); }
+.page-head .search { align-self: flex-end; }
+.card, .kpi, .uni-card, .summary-card, .table-card, .hero { background: var(--panel); border: 1px solid var(--border); border-radius: var(--r-lg); box-shadow: var(--sh-1); transition: box-shadow .25s var(--ease), transform .25s var(--ease), border-color .25s ease; }
+.kpi { padding: 22px 24px; }
+.kpi-value { font-weight: 500; letter-spacing: -.03em; }
+.kpi-label { letter-spacing: .01em; color: var(--text-dim); }
+.kpi:hover, .hero:hover { transform: translateY(-4px); border-color: color-mix(in srgb, var(--gold) 50%, var(--border)); box-shadow: 0 28px 48px -26px rgba(12, 23, 48, .35), 0 0 0 1px color-mix(in srgb, var(--gold) 22%, transparent); }
+.uni-card { position: relative; border-left: 3px solid var(--gold); padding: 20px 22px 18px; gap: 8px; }
+.uni-card h2 { padding-right: 46px; font-weight: 650; letter-spacing: -.015em; font-size: 17px; }
+.uni-card:hover { transform: translateY(-3px); box-shadow: var(--sh-3); border-color: var(--border-strong); border-left-color: var(--navy); }
+.uni-mono { position: absolute; top: 16px; right: 16px; display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; font-size: 12px; font-weight: 700; letter-spacing: .02em; color: var(--gold-deep); background: var(--gold-soft); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--gold) 45%, transparent); }
+.uni-card:hover .uni-mono { background: var(--navy); color: #fff; box-shadow: none; }
+.uni-card .updated:not(:empty)::before { content: ""; display: inline-block; width: 6px; height: 6px; margin-right: 7px; border-radius: 50%; background: var(--gold); vertical-align: middle; }
+.chip, p.count { display: inline-block; padding: 2px 10px; border-radius: 999px; background: var(--gold-soft); color: var(--gold-deep); font-weight: 650; }
+p.count:empty { display: none; }
+.doc { border-radius: var(--r-lg); box-shadow: var(--sh-2); }
+.doc h2 { color: var(--text); }
+.doc h2::before { content: ""; display: inline-block; width: 4px; height: 16px; margin-right: 10px; border-radius: 2px; background: var(--gold); vertical-align: -2px; }
+.glance { background: color-mix(in srgb, var(--gold-soft) 60%, var(--panel)); }
+.toc a { transition: background-color .15s ease, border-color .15s ease, color .15s ease; }
+.toc a:hover, .toc a:focus-visible { background: var(--gold-soft); border-color: var(--gold); color: var(--gold-deep); }
+.open-link { color: var(--text); font-weight: 550; }
+.open-link:hover { color: var(--text); text-decoration: underline; text-decoration-color: var(--gold); text-underline-offset: 3px; }
+.page-head h1 .pill, h1 .pill { font-family: var(--font); font-weight: 650; letter-spacing: 0; }
+.row > .btn { justify-self: start; }
+
+/* ---------- 6. Incentive ---------- */
+.wrap { padding: 8px 28px 56px; }
+.top { margin: 0 -28px 12px !important; padding: 28px 28px 6px !important; background: transparent !important; border: 0 !important; align-items: flex-end; }
+.top .brand h1 { font-family: var(--serif); font-size: 36px !important; font-weight: 500 !important; letter-spacing: -.025em !important; color: var(--ink) !important; }
+.top .subtitle { font-size: 14px !important; color: var(--text-dim); margin-top: 2px; }
+.tab { border-radius: 999px; padding: 7px 17px; font-size: 13px; transition: background-color .18s var(--ease), color .18s; }
+.tab:hover { background: var(--soft); color: var(--ink); }
+.tab.active { background: var(--panel); border-color: transparent; box-shadow: var(--sh-2); color: var(--ink); }
+.banner { border-radius: var(--r-md); border-color: transparent; }
+.table-card th, .table-card td { border-right: 1px solid var(--border); }
+.table-card th:last-child, .table-card td:last-child { border-right: 0; }
+.table-card thead th { background: var(--header-bg); color: var(--head-ink); font-weight: 650; border-bottom: 1px solid var(--border-strong); padding: 12px 12px 11px; }
+.table-card thead th .info { color: var(--text-dim); }
+.table-card td { padding: 8px 12px; font-size: 14px; font-weight: 400; border-bottom: 1px solid var(--border); }
+.table-card tbody tr:hover td { background: var(--row-hover); }
+.summary-title { font-size: 23px; font-weight: 500; letter-spacing: -.02em; margin: 28px 0 12px; }
+.summary-card { overflow: hidden; }
+.summary-card .summary-row { padding: 17px 26px; font-size: 15px; }
+.summary-card .summary-row .label { line-height: 1.4; }
+.summary-card .summary-row .value { font-size: 16px; }
+.summary-card .summary-row .hint { font-size: 13px; line-height: 1.4; margin-left: 10px; }
+.summary-card .summary-row:not(.final):not(.pay-form):hover { background: var(--row-hover); }
+.summary-row.final { background: var(--soft); box-shadow: inset 3px 0 0 var(--gold); padding-top: 20px; padding-bottom: 20px; }
+.summary-row.final .label, .summary-row.final .value { color: var(--ink); }
+.summary-row.final .label { font-size: 15.5px; }
+.summary-row.final .value { font-size: 26px; font-weight: 500; letter-spacing: -.02em; }
+#earnShare { font-size: 30px; }
+.summary-card .info { font-size: 14px; }
+.pay-rate-note { font-size: 13.5px; line-height: 1.55; padding: 16px 26px; }
+.pay-remove { font-size: 13px; }
+.grid-footer { color: var(--text-dim); font-size: 13px; padding: 9px 16px; }
+.grid-footer .grid-key { gap: 16px; }
+.live, #liveText { font-size: 13px; }
+.adv-input { border-radius: var(--r-sm); border-color: var(--border-strong); background: var(--panel); font-size: 14px; }
+
+/* ---------- 7. Small screens ---------- */
+@media (max-width: 760px) {
+  .topbar { padding: 12px 14px 6px; }
+  .topbar .toolbar-group + .toolbar-group { margin-left: 0; padding-left: 0; border-left: 0; }
+  #search, .topbar #search { width: 100%; }
+  .status-summary { padding: 4px 14px 14px; }
+  .page-head h1 { font-size: 28px; }
+  .wrap { padding: 6px 14px 40px; }
+  .top { margin: 0 -14px 10px !important; padding: 18px 14px 4px !important; }
 }

@@ -18,7 +18,6 @@
   const css = `
     .eg-overlay { position: fixed; inset: 0; z-index: 10000; display: flex; align-items: center; justify-content: center;
       padding: 16px; background: rgba(15, 23, 42, .45); }
-    /* 🔴 CSS CHANGED (2026-11-05): the "Do you really want to make this change?" box and its Cancel button use the calmer off-white (its own copy of white was missed the first time) | from: background #fff | to: the page panel colour (#f2f4f7) */
     .eg-box { width: 100%; max-width: 400px; background: var(--panel, #f2f4f7); color: #1f2937; border-radius: 10px; padding: 20px;
       box-shadow: 0 20px 50px rgba(0, 0, 0, .3); font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
     .eg-box h2 { margin: 0 0 6px; font-size: 16px; }
