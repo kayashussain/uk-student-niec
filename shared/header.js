@@ -12,6 +12,7 @@
   const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
   header.innerHTML = `
+    <button type="button" class="niec-toggle" aria-label="Open or close the menu" aria-expanded="true" title="Open or close the menu"><span class="niec-burger-ico" aria-hidden="true"></span></button>
     <a class="niec-brand" href="/today" title="Home" id="niecHome">
       <span class="niec-name"><b>ISR</b></span>
       <span class="niec-mark" aria-hidden="true">ISR</span>
@@ -65,7 +66,12 @@
   });
 
   // The menu is folded or open as the person left it.
-  try { if (localStorage.getItem('niecNav') === 'folded') document.documentElement.setAttribute('data-nav', 'folded'); } catch (e) { /* open */ }
+  // The menu is open or closed as the person left it; with nothing saved, open on a wide screen and closed on a narrow one.
+  try {
+    const saved = localStorage.getItem('niecNav');
+    const closed = saved ? (saved === 'closed' || saved === 'folded') : innerWidth < 1300;
+    document.documentElement.setAttribute('data-nav', closed ? 'closed' : 'open');
+  } catch (e) { /* open */ }
   const svg = (d) => `<svg viewBox="0 0 24 24" aria-hidden="true">${d}</svg>`;
   const ICONS = {
     today: svg('<circle cx="12" cy="12" r="4"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M19.1 4.9l-1.8 1.8M6.7 17.3l-1.8 1.8"/>'),
@@ -111,16 +117,14 @@
       .map(([id, href, label]) => `<a href="${href}" title="${label}"${id === page ? ' aria-current="page"' : ''}><span class="niec-ico" aria-hidden="true">${ICONS[id] || ''}</span><span class="niec-lbl">${label}</span></a>`).join('')
       // Admin's own pages are in the menu too, under their own heading (Users, Activity, Message templates, Incentive).
       + ((MENU_LINKS[me.role] || []).length ? `<div class="niec-sep" role="presentation"><span>Admin only</span></div>` + (MENU_LINKS[me.role] || []).map(([id, href, label]) => `<a href="${href}" title="${label}"${id === page ? ' aria-current="page"' : ''}><span class="niec-ico" aria-hidden="true">${ICONS[id] || ''}</span><span class="niec-lbl">${label}</span></a>`).join('') : '')
-      + '<button type="button" class="niec-fold" aria-label="Fold or open the menu" title="Fold or open the menu"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg><span>Fold the menu</span></button>';
+      ;
     const burger = header.querySelector('.niec-burger');
     burger.addEventListener('click', () => { const open = !header.classList.contains('menu-open'); header.classList.toggle('menu-open', open); burger.setAttribute('aria-expanded', String(open)); });
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && header.classList.contains('menu-open')) { header.classList.remove('menu-open'); burger.setAttribute('aria-expanded', 'false'); burger.focus(); } });
-    const fold = header.querySelector('.niec-fold');
-    fold.addEventListener('click', () => {
-      const folded = document.documentElement.getAttribute('data-nav') !== 'folded';
-      document.documentElement.setAttribute('data-nav', folded ? 'folded' : 'open');
-      try { localStorage.setItem('niecNav', folded ? 'folded' : 'open'); } catch (e) { /* the menu simply opens as usual next time */ }
-    });
+    const toggle = header.querySelector('.niec-toggle');
+    const setNav = (closed) => { document.documentElement.setAttribute('data-nav', closed ? 'closed' : 'open'); toggle.setAttribute('aria-expanded', String(!closed)); try { localStorage.setItem('niecNav', closed ? 'closed' : 'open'); } catch (e) { /* the menu simply opens as usual next time */ } };
+    toggle.setAttribute('aria-expanded', String(document.documentElement.getAttribute('data-nav') !== 'closed'));
+    toggle.addEventListener('click', () => setNav(document.documentElement.getAttribute('data-nav') !== 'closed'));
     // On a phone the menu may not fit: its right edge fades until it is scrolled to the end, as a hint to swipe.
     const nav = header.querySelector('.niec-nav');
     const edge = () => nav.classList.toggle('at-end', nav.scrollLeft + nav.clientWidth >= nav.scrollWidth - 2);

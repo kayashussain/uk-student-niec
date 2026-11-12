@@ -1,7 +1,6 @@
 /* 🔴 CSS CHANGED (2026-11-13): the logo in the menu and on the login page | from: the "Fly" letters with the paper plane on a dotted path | to: the paper plane icon with the name "ISR" beside it (the logo is a picture, in shared/header.js and shared/login.html) */
-/* The ISR side menu every page shares (shared/header.js fills in the navigation and the account menu): a light frosted column on the left, folded to icons on request, a bar across the top on a phone. */
+/* The ISR side menu every page shares (shared/header.js fills in the navigation and the account menu): a light frosted column on the left that a 3-bar button opens and closes, a bar across the top on a phone. */
 :root { --side-w: 252px; }
-html[data-nav="folded"] { --side-w: 78px; }
 /* Every page leaves room for the menu (the card window of a student, which shows a page inside another, does not). */
 body:has(> .niec-header) { padding-left: var(--side-w); transition: padding-left .2s ease; }
 body.p-embed { padding-left: 0 !important; }
@@ -38,10 +37,6 @@ body.p-embed { padding-left: 0 !important; }
 .niec-ico { display: grid; place-items: center; flex: 0 0 22px; width: 22px; height: 22px; }
 .niec-ico svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
 
-.niec-fold { display: flex; align-items: center; gap: 12px; margin-top: 6px; padding: 8px 12px; border: 0; border-radius: 12px; background: none; color: var(--h-dim); font: inherit; font-size: 12.5px; cursor: pointer; }
-.niec-fold:hover { background: var(--h-hover); color: var(--h-text); }
-.niec-fold svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; transition: transform .2s ease; }
-html[data-nav="folded"] .niec-fold svg { transform: rotate(180deg); }
 
 .niec-account { margin-top: auto; position: relative; padding-top: 12px; border-top: 1px solid var(--h-border); }
 .niec-account-btn { display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px; border: 1px solid transparent; border-radius: 14px; background: rgba(20, 30, 50, .05); color: inherit; font: inherit; cursor: pointer; text-align: left; }
@@ -63,19 +58,11 @@ html[data-nav="folded"] .niec-fold svg { transform: rotate(180deg); }
 
 /* Folded: icons only (on a wide window; a phone always has the bar across the top). */
 @media (min-width: 901px) {
-html[data-nav="folded"] .niec-lbl, html[data-nav="folded"] .niec-fold span, html[data-nav="folded"] .niec-account-text, html[data-nav="folded"] .niec-caret { display: none; }
-html[data-nav="folded"] .niec-header { padding-left: 11px; padding-right: 11px; }
-html[data-nav="folded"] .niec-name { display: none; }
-html[data-nav="folded"] .niec-mark { display: grid; width: 40px; height: 40px; flex-basis: 40px; }
-html[data-nav="folded"] .niec-nav a, html[data-nav="folded"] .niec-fold { justify-content: center; padding-left: 0; padding-right: 0; }
-html[data-nav="folded"] .niec-nav a[aria-current="page"]::before { left: -11px; }
-html[data-nav="folded"] .niec-account-btn { justify-content: center; padding: 6px; }
-html[data-nav="folded"] .niec-menu { left: 0; right: auto; width: 220px; }
 }
 
 /* Phones and small windows: the menu goes back to a bar across the top. */
 @media (max-width: 900px) {
-  :root, html[data-nav="folded"] { --side-w: 0px; }
+  :root { --side-w: 0px; }
   body:has(> .niec-header) { padding-left: 0; }
   .niec-header { position: sticky; top: 0; inset: auto; width: auto; height: auto; flex-direction: row; align-items: center; gap: 10px; padding: 8px 12px; overflow: visible; }
   .niec-brand { flex-direction: row; align-items: center; padding: 0; border: 0; }
