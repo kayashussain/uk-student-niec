@@ -19,7 +19,7 @@
     <div class="page-head">
       <div>
         <h1>Dashboard</h1>
-        <p>How each intake is performing: where students are, how long steps take, where the marketing money goes and what each intake still needs.</p>
+        <p>How the intake is doing, how it compares with the one before, and where it is heading.</p>
       </div>
       <div class="filters" role="group" aria-label="Filter">
         <label>Intake <select id="intake"></select></label>
@@ -28,76 +28,14 @@
     </div>
 
     <div class="p-tabs no-print" id="dashTabs" role="tablist" aria-label="Dashboard pages">
-      <button type="button" role="tab" data-tab="numbers" aria-selected="true">Numbers</button>
+      <button type="button" role="tab" data-tab="overview" aria-selected="true">Overview</button>
       <button type="button" role="tab" data-tab="decisions" aria-selected="false">Decisions</button>
       <button type="button" role="tab" data-tab="channels" aria-selected="false">Marketing and sources</button>
       <button type="button" role="tab" data-tab="universities" aria-selected="false">Universities and partners</button>
       <button type="button" role="tab" data-tab="plan" aria-selected="false">Intake plan</button>
     </div>
     <div id="panel-insights" hidden></div>
-    <div id="panel-numbers">
-    <section class="hero-row" aria-label="Headline numbers">
-      <div class="hero card">
-        <span class="hero-label">Total students</span>
-        <span class="hero-value" id="heroValue">-</span>
-        <span class="hero-sub" id="heroSub"></span>
-      </div>
-      <div class="kpis" id="kpis"></div>
-    </section>
-    <section class="kpis kpis-money" id="kpis2" aria-label="Outcomes"></section>
-
-    <section class="chase-row">
-      <figure class="card" id="cardChase">
-        <figcaption><div><h2>Needs attention</h2><p>Students waiting longer than they should, longest first</p></div></figcaption>
-        <div class="body" id="attention"></div>
-      </figure>
-    </section>
-
-    <section class="grid-2">
-      <figure class="card" id="cardMilestones">
-        <figcaption><div><h2>The student journey</h2><p>Students who reached each step, and how many of the step before went on</p></div><button class="toggle" type="button" aria-label="Show the student journey as a table" data-table="milestones">Table</button></figcaption>
-        <div class="body" id="chartMilestones"></div>
-      </figure>
-      <figure class="card" id="cardStages">
-        <figcaption><div><h2>Where students are now</h2><p>Students at each stage today</p></div><button class="toggle" type="button" aria-label="Show Where students are now as a table" data-table="stages">Table</button></figcaption>
-        <div class="body" id="chartStages"></div>
-      </figure>
-    </section>
-
-    <section class="grid-2">
-      <figure class="card" id="cardSpeed">
-        <figcaption><div><h2>How long each step takes</h2><p>Days between dates entered for the same student</p></div></figcaption>
-        <div class="body" id="speed"></div>
-      </figure>
-      <figure class="card" id="cardSources">
-        <figcaption><div><h2>Where students come from</h2><p>Students by source, and how many paid and got a visa</p></div><button class="toggle" type="button" aria-label="Show Where students come from as a table" data-table="sources">Table</button></figcaption>
-        <div class="body" id="chartSources"></div>
-      </figure>
-    </section>
-
-    <figure class="card" id="cardMonthly">
-      <figcaption><div><h2>Month by month</h2><p>Applications, payments and visas over the last 12 months, by the date entered on each student</p></div><button class="toggle" type="button" aria-label="Show Month by month as a table" data-table="monthly">Table</button></figcaption>
-      <div class="legend" id="legend" role="group" aria-label="Show or hide a line"></div>
-      <div class="body line-body" id="chartMonthly"></div>
-    </figure>
-
-    <section class="grid-3">
-      <figure class="card" id="cardPartners">
-        <figcaption><div><h2>University partners</h2><p>Students by partner</p></div><button class="toggle" type="button" aria-label="Show University partners as a table" data-table="partners">Table</button></figcaption>
-        <div class="body" id="chartPartners"></div>
-      </figure>
-      <figure class="card" id="cardUniversities">
-        <figcaption><div><h2>Universities</h2><p>Where students are placed</p></div><button class="toggle" type="button" aria-label="Show Universities as a table" data-table="universities">Table</button></figcaption>
-        <div class="body" id="chartUniversities"></div>
-      </figure>
-      <figure class="card" id="cardCourses">
-        <figcaption><div><h2>Courses</h2><p>Most chosen courses</p></div><button class="toggle" type="button" aria-label="Show Courses as a table" data-table="courses">Table</button></figcaption>
-        <div class="body" id="chartCourses"></div>
-      </figure>
-    </section>
-
-    <p class="notes" id="notes"></p>
-    </div>
+    <div id="panel-overview"><div class="p-card">Loading…</div></div>
   </main>
 
   <div class="tip" id="tip" role="tooltip" hidden></div>

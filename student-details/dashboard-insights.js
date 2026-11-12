@@ -4,10 +4,10 @@
 (function () {
   const { el, h, api, number, rupees, percent, field, dialog } = window.Portal;
   const tabsBar = document.getElementById('dashTabs');
-  const numbers = document.getElementById('panel-numbers');
+  const numbers = document.getElementById('panel-overview');
   const panel = document.getElementById('panel-insights');
   const headFilters = document.querySelector('.filters');
-  let tab = (location.hash.match(/tab=(\w+)/) || [])[1] || 'numbers';
+  let tab = (location.hash.match(/tab=(\w+)/) || [])[1] || 'overview';
   let intake = '';
   let data = null;
   let plan = null;
@@ -301,20 +301,20 @@
     try {
       [data, plan] = await Promise.all([api('/api/insights?intake=' + encodeURIComponent(intake)), api('/api/planning')]);
       intake = data.selected;
-      if (tab !== 'numbers' && !document.querySelector('.p-proposal')) draw();
+      if (tab !== 'overview' && !document.querySelector('.p-proposal')) draw();
     } catch (e) { panel.replaceChildren(el('div', 'p-notice bad', e.message)); }
-    timer = setTimeout(() => { if (!document.hidden && tab !== 'numbers' && !document.querySelector('.p-proposal') && !document.querySelector('dialog[open]') && !document.activeElement.matches('textarea, input')) load(); }, 45000);
+    timer = setTimeout(() => { if (!document.hidden && tab !== 'overview' && !document.querySelector('.p-proposal') && !document.querySelector('dialog[open]') && !document.activeElement.matches('textarea, input')) load(); }, 45000);
   }
   function show(name) {
     tab = name;
     tabsBar.querySelectorAll('button').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.tab === name)));
-    const isNumbers = name === 'numbers';
+    const isNumbers = name === 'overview';
     numbers.hidden = !isNumbers;
     panel.hidden = isNumbers;
     if (headFilters) headFilters.style.display = isNumbers ? '' : 'none'; // the intake chooser of the Numbers page
     history.replaceState(null, '', isNumbers ? location.pathname + location.search : `#tab=${name}`);
-    if (!isNumbers) { panel.replaceChildren(el('div', 'p-card', 'Loading…')); load(); }
+    if (!isNumbers) { panel.replaceChildren(el('div', 'p-card', 'Loading…')); load(); } else if (window.DashboardOverview) window.DashboardOverview.load();
   }
   tabsBar.addEventListener('click', (e) => { const b = e.target.closest('button[data-tab]'); if (b) show(b.dataset.tab); });
-  if (tab !== 'numbers' && RENDER[tab]) show(tab); else tab = 'numbers';
+  if (tab !== 'overview' && RENDER[tab]) show(tab); else tab = 'overview';
 })();

@@ -7,6 +7,8 @@ To find every marked change in the code, search the project for `CSS CHANGED`.
 
 Format: **date · file · what · from → to · why**
 
+- **2026-11-13 · student-details/dashboard.css, dashboard.html, dashboard.js (code too) · the whole Dashboard Overview · from: the old Numbers page (a hero number, KPI row, bar charts and a table toggle) → to: a new Overview written from zero: six headline cards that compare with the intake before and show a mini trend, a visa target ring with forecast, a funnel with step-to-step rates, a week-by-week chart, a source ranking with a switch (students, visas, reach a visa, cost per student), universities and partners leaderboards, speed of each step, why students are lost as a ring, needs attention, intake against intake, and money · why: the owner asked for the dashboard to be rebuilt from zero, premium, with real statistics and not only tables and diagrams.**
+
 - **2026-11-13 · shared/theme.css · size of the logo in the side menu · from: 170px wide, so the name was tiny → to: 212px wide · why: the new longer name "Recruitment 360" needs more room to read.**
 
 - **2026-11-13 · shared/theme.css · course names in the Fact File · from: plain text lines → to: each course is a link to its page, with a small "Find the course page" button when the page is not known yet · why: the owner asked that a course in the Fact File opens its website page.**
