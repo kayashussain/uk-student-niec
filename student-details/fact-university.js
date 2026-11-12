@@ -124,8 +124,8 @@
     const doc = el('article', 'doc');
     const top = el('div', 'doc-top');
     const logo = el('img');
-    logo.src = 'niec-logo.png';
-    logo.alt = 'NIEC';
+    logo.src = 'fly-logo.png';
+    logo.alt = 'Fly';
     top.append(logo, el('span', 'kind', 'University Fact File'));
     doc.append(top, el('h1', '', uni.name));
 

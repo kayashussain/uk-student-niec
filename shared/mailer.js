@@ -255,7 +255,7 @@ function setupEmail({ name, username, temporaryPassword, access, siteUrl, kind =
   const html = `<!doctype html><html><body style="margin:0;background:#f3f6fa;padding:24px 12px;font-family:Segoe UI,Arial,sans-serif;color:#1c2126">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center">
 <table role="presentation" width="560" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border-radius:12px;border-top:4px solid #00adef">
-<tr><td style="padding:24px 28px 8px"><img src="${escapeHtml(siteUrl.replace(/\/+$/, ''))}/niec-logo.png" alt="NIEC" height="48" style="display:block;border:0"></td></tr>
+<tr><td style="padding:24px 28px 8px"><img src="${escapeHtml(siteUrl.replace(/\/+$/, ''))}/fly-logo.png" alt="Fly" height="56" style="display:block;border:0"></td></tr>
 <tr><td style="padding:8px 28px 4px;font-size:15px;line-height:1.5">
 <p style="margin:0 0 12px">Hello ${escapeHtml(name)},</p>
 <p style="margin:0 0 16px">${escapeHtml(intro)}</p>

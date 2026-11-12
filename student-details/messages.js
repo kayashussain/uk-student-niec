@@ -279,7 +279,7 @@ function renderEmail({ subject, body, values, signature, options = [], documents
   closeList();
   const sig = signatureLines(signature);
   const plain = `${textOut.join('\n').replace(/\n{3,}/g, '\n\n').trim()}\n\nKind regards,\n${sig.join('\n')}\n`;
-  const logo = siteUrl ? `<tr><td style="padding:22px 28px 6px"><img src="${esc(siteUrl.replace(/\/+$/, ''))}/niec-logo.png" alt="" height="44" style="display:block;border:0"></td></tr>` : '';
+  const logo = ''; // a student's email carries the consultancy's own signature picture, not the product logo
   const sigHtml = sig.map((l, i) => (i === 0 && text(signature && signature.name)
     ? `<div style="font-weight:700;color:#17324d;font-size:15px">${esc(l)}</div>` : `<div>${linkify(esc(l))}</div>`)).join('');
   const page = `<!doctype html><html><body style="margin:0;background:#eef1f5;padding:24px 12px;font-family:Segoe UI,Arial,Helvetica,sans-serif;color:#1f2933">

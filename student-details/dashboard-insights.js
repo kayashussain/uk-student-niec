@@ -272,7 +272,7 @@
     const d = data;
     const p = d.plan;
     const view = el('article', 'p-proposal print-me');
-    const top = el('div', 'p-doc-top'); const logo = el('img'); logo.src = 'niec-logo.png'; logo.alt = 'NIEC';
+    const top = el('div', 'p-doc-top'); const logo = el('img'); logo.src = 'fly-logo.png'; logo.alt = 'Fly';
     top.append(el('div'), logo); top.firstChild.append(el('div', 'p-muted p-small', 'UK Recruitment Department'), el('h1', '', `Intake proposal: ${p.intake}`), el('div', 'p-muted p-small', `Prepared ${d.today} from your own records`));
     view.append(top);
     const sec = (title, ...kids) => { view.append(el('h2', '', title)); kids.forEach((k) => view.append(k)); };
