@@ -27,6 +27,7 @@ const { createCards } = require('./cards');
 const { createMessages } = require('./messages');
 const { createCourseLinks } = require('./course-index');
 const { createCourseFinder } = require('./course-finder');
+const { createCourseWatch } = require('./course-watch');
 const { createPlanning } = require('./planning');
 const { createSourceOptions } = require('./source-options');
 const { createB2b } = require('./b2b');
@@ -794,9 +795,12 @@ function servedInsights(user, intake) {
   return json;
 }
 
+const courseFinder = createCourseFinder();
+let portalRef = null;
+const courseWatch = createCourseWatch({ dir: DATA_DIR, getIndex: () => (portalRef ? portalRef.courseIndex() : []), facts, finder: courseFinder, courseLinks });
 const portal = createPortalApi({
   getWorkbook: () => current, writeWorkbook, recordChanges, teamSave,
-  cards, messages, courseLinks, sourceOptions, courseLinker: createCourseFinder(), facts, direct, b2b, agents, planning, accounts, activity,
+  cards, messages, courseLinks, sourceOptions, courseLinker: courseFinder, courseWatch: () => courseWatch, facts, direct, b2b, agents, planning, accounts, activity,
   insights: servedInsights, finder: createFinder(), calculated: CALCULATED_COLUMNS,
 });
 
@@ -1018,6 +1022,15 @@ process.on('uncaughtException', (err) => console.error('[uncaught]', err));
 server.listen(PORT, () => {
   console.log(`UK Student NIEC running at http://localhost:${PORT}`);
 });
+
+// The weekly check of the course pages (course-watch.js): a slice of the courses every six hours, so each is visited about once a week.
+// The first one starts ten minutes after the server does. COURSE_WATCH=off switches it off.
+portalRef = portal;
+if (process.env.COURSE_WATCH !== 'off') {
+  const tick = () => courseWatch.run().then((r) => { if (r && r.checked) console.log(`Course pages checked: ${r.checked}`); }).catch((e) => console.log(`Course page check stopped: ${e.message}`));
+  setTimeout(tick, 10 * 60 * 1000).unref();
+  setInterval(tick, 6 * 60 * 60 * 1000).unref();
+}
 
 // A restart (pm2, cPanel) lets requests in progress finish, closes the live streams and then exits. Saves are written whole
 // before they are answered, so nothing is half written. A forced exit follows after 5 seconds if something hangs on.

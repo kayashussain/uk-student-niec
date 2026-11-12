@@ -573,14 +573,47 @@ test('the course page is looked up on a university address and the best match is
     + '<a class="result__a" href="https://www.example-agency.com/salford-business">Salford business course</a>';
   const results = parseResults(html);
   assert.strictEqual(results.length, 2);
-  const best = pickResult(results, { university: 'University of Salford', course: 'MSc Managing AI in Business' });
+  const best = pickResult(results, { university: 'University of Salford', course: 'MSc Managing AI in Business', hosts: ['salford.ac.uk'] });
   assert.strictEqual(best.link, 'https://www.salford.ac.uk/postgraduate/msc-managing-ai-in-business');
-  assert.strictEqual(pickResult(results.slice(1), { university: 'University of Salford', course: 'MSc Managing AI in Business' }), null, 'a result that is not on a university address is never used');
+  assert.strictEqual(pickResult(results.slice(1), { university: 'University of Salford', course: 'MSc Managing AI in Business', hosts: ['salford.ac.uk'] }), null, 'a result that is not on the university\'s own website is never used');
   let calls = 0;
   const finder = createCourseFinder({ fetchFn: async () => { calls += 1; return { ok: true, text: async () => html }; }, pauseMs: 0 });
-  assert.strictEqual((await finder.lookup({ university: 'University of Salford', course: 'MSc Managing AI in Business' })).link, best.link);
-  await finder.lookup({ university: 'University of Salford', course: 'MSc Managing AI in Business' });
+  assert.strictEqual((await finder.lookup({ university: 'University of Salford', course: 'MSc Managing AI in Business', hosts: ['salford.ac.uk'] })).link, best.link);
+  await finder.lookup({ university: 'University of Salford', course: 'MSc Managing AI in Business', hosts: ['salford.ac.uk'] });
   assert.strictEqual(calls, 1, 'a course is searched once');
   const down = createCourseFinder({ fetchFn: async () => { throw new Error('offline'); }, pauseMs: 0 });
-  assert.match((await down.lookup({ university: 'X', course: 'Y' })).error, /Could not search/);
+  assert.match((await down.lookup({ university: 'X', course: 'Y', hosts: ['x.ac.uk'] })).error, /Could not search/);
+});
+
+test('the weekly check warns about a page that is gone, no longer about the course, or changed, and follows a moved page', async () => {
+  const { createCourseWatch } = require('../student-details/course-watch');
+  const { createCourseLinks, linkKey } = require('../student-details/course-index');
+  const dir = tmp();
+  const uni = { id: 'a02ac3cf82dd', name: 'University of West London' }; // its website is in university-websites.js
+  const entry = (course, link) => ({ universityId: uni.id, university: uni.name, course, link, linkIsCourse: Boolean(link) });
+  const index = [entry('MSc Cyber Security', 'https://www.uwl.ac.uk/a'), entry('MSc Finance', 'https://www.uwl.ac.uk/b'), entry('MSc Nursing Studies', 'https://www.uwl.ac.uk/c'), entry('MSc Data Science', 'https://www.uwl.ac.uk/old'), entry('MSc Law', '')];
+  let fee = '£17,250';
+  const pages = {
+    'https://www.uwl.ac.uk/a': { status: 200, html: `<title>Cyber Security</title><p>MSc Cyber Security. Fee ${fee}. Start September 2027</p>` },
+    'https://www.uwl.ac.uk/b': { status: 404, html: '' },
+    'https://www.uwl.ac.uk/c': { status: 200, html: '<title>Home</title><p>Welcome to our university</p>' },
+    'https://www.uwl.ac.uk/old': { status: 200, url: 'https://www.uwl.ac.uk/new/data-science', html: '<p>MSc Data Science, September 2027</p>' },
+  };
+  const fetchFn = async (url) => { const p = pages[url]; return { ok: p.status === 200, status: p.status, url: p.url || url, text: async () => p.html.replace('Fee £17,250', `Fee ${fee}`) }; };
+  let now = Date.parse('2026-11-12T00:00:00Z');
+  const links = createCourseLinks(dir);
+  const watch = createCourseWatch({ dir, getIndex: () => index, facts: { all: () => [uni] }, finder: { lookup: async () => ({ link: '', error: 'No course page found.' }) }, courseLinks: links, fetchFn, now: () => now, pauseMs: 0 });
+  assert.strictEqual((await watch.run()).checked, 5);
+  const w1 = watch.warnings();
+  assert.deepStrictEqual(w1.map((w) => [w.course, w.status]).sort(), [['MSc Finance', 'inactive'], ['MSc Nursing Studies', 'unclear']]);
+  assert.strictEqual(links.all()[linkKey(uni.id, 'MSc Data Science')], 'https://www.uwl.ac.uk/new/data-science', 'a page that moved on the same website is followed');
+  assert.strictEqual((await watch.run()).checked, 0, 'nothing is checked again before a week has passed');
+  now += 8 * 24 * 3600 * 1000;
+  fee = '£18,500';
+  await watch.run();
+  const changed = watch.warnings().find((w) => w.course === 'MSc Cyber Security');
+  assert.ok(changed && changed.status === 'changed' && /£17,250/.test(changed.note) && /£18,500/.test(changed.note), 'a changed fee is reported with both figures');
+  watch.confirm(changed.key);
+  assert.ok(!watch.warnings().some((w) => w.course === 'MSc Cyber Security'), 'a confirmed warning goes quiet');
+  assert.strictEqual(watch.summary().noLink, 1);
 });

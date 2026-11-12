@@ -119,3 +119,13 @@
   skeletons();
   load();
 })();
+
+// A line under the search box when the weekly check of the course pages has warnings (the details are on each university's page).
+fetch('/api/course-watch', { cache: 'no-store' }).then((r) => r.json()).then((r) => {
+  if (!r.summary || !r.summary.warnings) return;
+  const count = document.getElementById('count');
+  const note = document.createElement('div');
+  note.className = 'p-notice warn';
+  note.textContent = `${r.summary.warnings} course page${r.summary.warnings === 1 ? '' : 's'} need${r.summary.warnings === 1 ? 's' : ''} a look: the weekly check of the university websites found a page that is gone, renamed or changed. Open the university to see which.`;
+  count.parentNode.insertBefore(note, count);
+}).catch(() => {});

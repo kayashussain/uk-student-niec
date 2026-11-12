@@ -440,6 +440,34 @@
       return;
     }
     if (isAdmin && new URLSearchParams(location.search).get('edit')) renderEdit(); else renderView();
+    if (!BACKUP) courseWarnings();
+  }
+
+  // Warnings from the weekly check of this university's course pages (course-watch.js): what was found, for a person to confirm.
+  async function courseWarnings() {
+    try {
+      const r = await (await fetch('/api/course-watch?university=' + encodeURIComponent(id), { cache: 'no-store' })).json();
+      if (!r.warnings || !r.warnings.length) return;
+      const box = document.createElement('section');
+      box.className = 'p-card no-print';
+      const h2 = document.createElement('h2');
+      h2.textContent = `Course page warnings (${r.warnings.length})`;
+      const intro = document.createElement('p');
+      intro.textContent = 'The weekly check of the university website found these. Tell Claude in the chat what you decide, or press Confirm when you have looked at it and it is fine.';
+      box.append(h2, intro);
+      r.warnings.forEach((w) => {
+        const row = document.createElement('div');
+        row.className = 'p-notice warn';
+        const b = document.createElement('b');
+        b.textContent = `${w.course}: ${{ inactive: 'page not found', unclear: 'page no longer matches', changed: 'page changed' }[w.status] || w.status}. `;
+        row.append(b, document.createTextNode(`${w.note} (checked ${String(w.checkedAt).slice(0, 10)}) `));
+        if (w.link) { const a = document.createElement('a'); a.href = w.link; a.target = '_blank'; a.rel = 'noopener'; a.className = 'p-link'; a.textContent = 'Open the page'; row.append(a, ' '); }
+        if (r.admin) { const c = document.createElement('button'); c.type = 'button'; c.className = 'btn btn-sm'; c.textContent = 'Confirm'; c.addEventListener('click', async () => { await fetch('/api/course-watch/confirm', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ key: w.key }) }); row.remove(); }); row.append(c); }
+        box.append(row);
+      });
+      const view = document.getElementById('view');
+      view.parentNode.insertBefore(box, view);
+    } catch (e) { /* the warnings are extra: the page works without them */ }
   }
   if (BACKUP) { const back = document.querySelector('a[href="/fact-file"]'); if (back) back.href = '/fact-file?backup=' + encodeURIComponent(BACKUP); }
   start();

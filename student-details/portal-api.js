@@ -18,6 +18,7 @@ const { eventLabel } = require('./source-options');
 const { ROW_ID } = require('./cards');
 const Messages = require('./messages');
 const { buildIndex, searchCourses, linkKey } = require('./course-index');
+const { hostsOf } = require('./university-websites');
 const { EVENT_TYPES, DECISION_STATUS, MARKET_KINDS, LISTS: PLANNING_LISTS } = require('./planning');
 const { MAX_FILE_BYTES, STATUSES: PARTNER_STATUSES } = require('./direct');
 
@@ -28,7 +29,7 @@ const MAX_CELL_CHARS = 5000;
 const NEW_STUDENT_COLUMNS = ['FIRST NAME', 'LAST NAME', 'EMAIL', 'CONTACT NUMBER', 'STUDENT SOURCE'];
 
 function createPortalApi({
-  getWorkbook, writeWorkbook, recordChanges, teamSave, cards, messages, courseLinks, sourceOptions, courseLinker = null, facts, direct, b2b, agents, planning, accounts, activity,
+  getWorkbook, writeWorkbook, recordChanges, teamSave, cards, messages, courseLinks, sourceOptions, courseLinker = null, courseWatch = () => null, facts, direct, b2b, agents, planning, accounts, activity,
   insights = null, finder = null, calculated = [],
 }) {
   // ---- finding a student, and who may see or change them ----
@@ -689,6 +690,26 @@ function createPortalApi({
       return true;
     }
     // The Fact File assistant: describe a student, get the options they are eligible for (finder.js, eligibility.js).
+    // The weekly check of the course pages: the warnings, and a person confirming one.
+    if (urlPath === '/api/course-watch' && req.method === 'GET') {
+      const w = courseWatch();
+      sendJSON(res, 200, w ? { warnings: w.warnings(text(new URL(req.url, 'http://x').searchParams.get('university'))), summary: w.summary(), running: w.isRunning(), admin: Teams.isAdmin(req.user) } : { warnings: [], summary: {}, running: false });
+      return true;
+    }
+    if (urlPath === '/api/course-watch/confirm' && req.method === 'POST') {
+      if (!adminOnly(req, res, 'Confirming a course page warning')) return true;
+      const body = await bodyOf(req, res, 4096);
+      if (!body) return true;
+      sendJSON(res, 200, { ok: Boolean(courseWatch() && courseWatch().confirm(text(body.key))) });
+      return true;
+    }
+    if (urlPath === '/api/course-watch/run' && req.method === 'POST') {
+      if (!adminOnly(req, res, 'Checking the course pages')) return true;
+      const w = courseWatch();
+      if (w && !w.isRunning()) w.run().catch(() => {});
+      sendJSON(res, 200, { started: Boolean(w && !w.isRunning()) });
+      return true;
+    }
     // The page of a course on the university's website (course-finder.js), remembered once found.
     if (urlPath === '/api/course-link' && req.method === 'POST') {
       const body = await bodyOf(req, res, 16 * 1024);
@@ -698,7 +719,8 @@ function createPortalApi({
       if (!university || !course) { sendJSON(res, 400, { error: 'The university and the course are needed.' }); return true; }
       const known = courseLinks.all()[linkKey(body.universityId, course)];
       if (known) { sendJSON(res, 200, { link: known, remembered: true }); return true; }
-      const found = courseLinker ? await courseLinker.lookup({ university, course }) : { link: '', error: 'Not available.' };
+      const uni = facts.all().find((u) => u.id === body.universityId);
+      const found = courseLinker ? await courseLinker.lookup({ university, course, hosts: uni ? hostsOf(uni) : [] }) : { link: '', error: 'Not available.' };
       if (found.link) courseLinks.remember(body.universityId, course, found.link);
       sendJSON(res, 200, found);
       return true;

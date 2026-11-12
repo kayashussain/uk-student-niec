@@ -10,6 +10,7 @@
 const fs = require('fs');
 const path = require('path');
 const { writeFileAtomic } = require('../shared/server-utils');
+const { websiteOf } = require('./university-websites');
 
 const text = (v) => String(v ?? '').trim();
 const flat = (v) => text(v).split('\n').map((l) => l.replace(/^\s*(?:[-*•]\s+|##\s+)/, '').trim()).filter(Boolean);
@@ -154,7 +155,7 @@ function buildIndex(universities, links = {}) {
         academic: program ? flat(program.academic).join('; ') : '',
         english: program ? flat(program.english).join('; ') : '',
         programName: program ? program.name : '',
-        link: links[linkKey(u.id, entry.course)] || (/^https?:\/\//i.test(text(u.website)) ? text(u.website) : ''),
+        link: links[linkKey(u.id, entry.course)] || websiteOf(u),
         linkIsCourse: Boolean(links[linkKey(u.id, entry.course)]),
       });
     };
