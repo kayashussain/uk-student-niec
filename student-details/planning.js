@@ -22,8 +22,8 @@ const amount = (v, max = 1e12) => {
 const month = (v) => (/^\d{4}-(0[1-9]|1[0-2])$/.test(str(v, 7)) ? str(v, 7) : '');
 
 // What was run to find students: events and marketing. The last six are marketing; the rest are events.
-const MARKETING_TYPES = ['Facebook or Instagram advert', 'TikTok campaign', 'Google or YouTube ads', 'Signboard or hoarding', 'Newspaper, radio or TV', 'Other marketing'];
-const EVENT_TYPES = ['Education fair', 'Seminar or information session', 'Webinar', 'University visit or spot assessment', 'School or college visit', 'Open day at the office', 'Other', 'Facebook or Instagram advert', 'TikTok campaign', 'Google or YouTube ads', 'Signboard or hoarding', 'Newspaper, radio or TV', 'Other marketing'];
+const MARKETING_TYPES = ['Meta campaign (Facebook or Instagram)', 'Campaign on a partner page (another Facebook page)', 'Campus or college campaign (not a school)', 'Community or organisation campaign', 'Facebook or Instagram advert', 'TikTok campaign', 'Google or YouTube ads', 'Signboard or hoarding', 'Newspaper, radio or TV', 'Other marketing'];
+const EVENT_TYPES = ['Education fair', 'Seminar or information session', 'Webinar', 'University visit or spot assessment', 'School or college visit', 'Open day at the office', 'Other', 'Meta campaign (Facebook or Instagram)', 'Campaign on a partner page (another Facebook page)', 'Campus or college campaign (not a school)', 'Community or organisation campaign', 'Facebook or Instagram advert', 'TikTok campaign', 'Google or YouTube ads', 'Signboard or hoarding', 'Newspaper, radio or TV', 'Other marketing'];
 const DECISION_STATUS = ['Open', 'Under way', 'Worked: keep it', 'Changed', 'Stopped'];
 const MARKET_KINDS = ['UK immigration rule', 'Nepal rule', 'University or partner', 'Competitor', 'Market'];
 

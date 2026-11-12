@@ -52,7 +52,7 @@
   }
 
   api('/api/today').then((d) => {
-    document.title = 'Today · Fly';
+    document.title = 'Today · Recruitment 360';
     readOnly = Boolean(d.readOnly);
     const page = el('div');
     const head = el('div', 't-hello');

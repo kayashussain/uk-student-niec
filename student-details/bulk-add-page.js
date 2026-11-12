@@ -91,7 +91,7 @@
     const wrap = el('div');
     const head = el('div', 'p-head');
     const title = el('div');
-    title.append(el('h1', '', 'Add many students'), el('p', '', 'Choose the stage and where the students came from once, paste one student on each line, and they are all added with the same source and event or marketing tag.'));
+    title.append(el('h1', '', 'Add many students'), el('p', '', 'Choose the stage and where the students came from once, upload an Excel or CSV file, and they are all added with the same source.'));
     head.append(title, h('a', { class: 'btn', href: '/students' }, 'Back to Student Details'));
     wrap.append(head);
 
@@ -101,46 +101,30 @@
     const intake = field('Intake', { kind: 'select', choices: lists.intakes.map((i) => [i.id, i.name]), value: lists.intakes.length ? lists.intakes[lists.intakes.length - 1].id : '' });
     const stage = field('Stage', { kind: 'select', choices: lists.stages, value: 'Inquiry' });
     const dept = lists.departments.length > 1 ? field('Team', { kind: 'select', choices: lists.departments.map((d) => [d.id, d.label]), value: lists.departments[0].id }) : null;
-    const sources = Object.keys(F.SOURCE_DETAILS);
-    const source = field('Student source', { kind: 'select', choices: sources, value: 'Events' });
-    const holder = el('div', 'p-field');
-    let detail = null;
-    const draw = () => {
-      const name = source.input.value;
-      const choices = name === 'Agent' ? lists.partners : (lists.sourceOptions[name] || F.SOURCE_DETAILS[name] || []);
-      const label = name === 'Events' ? 'Which event or marketing' : (F.SOURCE_DETAIL_LABEL[name] || (name === 'Agent' ? 'Which agent' : 'Where exactly'));
-      const f2 = choices.length ? field(label, { kind: 'select', choices, value: choices[0] }) : field(label, { max: 120 });
-      holder.replaceChildren(...f2.wrap.childNodes);
-      detail = f2.input;
-    };
-    draw();
-    source.input.addEventListener('change', draw);
+    const branchOnly = lists.departments.length > 0 && lists.departments.every((d) => d.source);
+    const picker = branchOnly ? null : window.SourcePicker.create({ lists });
     const isTeamUser = lists.departments.length > 0;
     if (isTeamUser) { stage.wrap.hidden = true; }
     form.append(intake.wrap, stage.wrap);
     if (dept) form.append(dept.wrap);
-    form.append(source.wrap, holder);
+    if (picker) picker.nodes.forEach((n) => form.append(n));
     set.append(form);
     if (isTeamUser) set.append(el('p', 'p-muted p-small', 'New students start at the first stage of your team: ' + lists.departments.map((d) => d.start).filter(Boolean).join(' or ') + '.'));
     set.append(el('p', 'p-muted p-small', 'The event or marketing list comes from the Events and marketing page. Teams add students at the stage and intake their own rules allow.'));
     wrap.append(set);
 
     const paste = el('section', 'p-card');
-    paste.append(el('h2', '', '2. Paste the students'));
-    const box = el('textarea', 'p-input');
-    box.style.minHeight = '200px';
-    box.setAttribute('aria-label', 'Students, one on each line');
-    box.placeholder = 'Sita Sharma, sita@example.com, 9800000001\nRam Thapa\tram@example.com\t9800000002';
+    paste.append(el('h2', '', '2. Upload the students'));
     const out = el('div');
     const bar = el('div', 'p-bar');
-    const check = h('button', { class: 'btn', type: 'button' }, 'Check the list');
     const go = h('button', { class: 'btn btn-primary', type: 'button' }, 'Add them all');
     go.disabled = true;
-    bar.append(check, go);
+    bar.append(go);
     const pick = el('input'); pick.type = 'file'; pick.accept = '.xlsx,.csv'; pick.setAttribute('aria-label', 'Upload an Excel or CSV file');
     const fileRow = el('div', 'p-bar');
-    fileRow.append(pick, el('span', 'p-muted p-small', 'Or upload an Excel (.xlsx) or CSV file. A first row with headings such as First name, Last name, Email and Phone is used; without headings each row is Name, email, phone.'));
-    paste.append(box, fileRow, bar, out);
+    const sample = h('a', { class: 'p-link', href: 'data:text/csv;charset=utf-8,' + encodeURIComponent('First name,Last name,Email,Phone\nSita,Sharma,sita@example.com,9800000001\nRam,Thapa,ram@example.com,9800000002\n'), download: 'students-example.csv' }, 'Download an example file');
+    fileRow.append(pick, sample);
+    paste.append(el('p', 'p-muted', 'Choose an Excel (.xlsx) or CSV file. The first row holds the headings: First name, Last name, Email and Phone (a single Name column also works). The list is checked first: bad lines and students already on the sheet are skipped, and you see why.'), fileRow, out, bar);
     wrap.append(paste);
 
     // Students who are already on the sheet (same email or phone) are marked so the list says they will be skipped.
@@ -159,25 +143,26 @@
       t.append(tb); out.append(t);
       go.disabled = !ready;
     };
-    check.addEventListener('click', async () => { rows = parse(box.value); await markExisting(); showRows(); });
     pick.addEventListener('change', async () => {
       const f = pick.files && pick.files[0];
       if (!f) return;
-      try { rows = await readFile(f); box.value = ''; await markExisting(); showRows(); } catch (e) { out.replaceChildren(el('div', 'p-notice bad', 'Could not read the file: ' + e.message)); }
+      try { rows = await readFile(f); await markExisting(); showRows(); } catch (e) { out.replaceChildren(el('div', 'p-notice bad', 'Could not read the file: ' + e.message)); }
     });
+    const pickValue = () => (picker ? picker.value() : { source: '', detail: '', remarks: '' });
+    const sourceText = () => { const v = pickValue(); return v.source ? [v.source, v.detail, v.remarks].filter(Boolean).join(': ') : 'your branch'; };
     go.addEventListener('click', async () => {
       const checks = checkRows(rows);
       const sendRows = rows.filter((_, i) => !checks[i].skip);
       if (!sendRows.length) return;
-      if (!(await window.NiecUI.confirm(`Add ${sendRows.length} students with the source "${source.input.value}${detail && detail.value ? ': ' + detail.value : ''}"?`, { confirmText: 'Add them' }))) return;
+      if (!(await window.NiecUI.confirm(`Add ${sendRows.length} students with the source "${sourceText()}"?`, { confirmText: 'Add them' }))) return;
       go.disabled = true;
       try {
-        const r = await api('/api/students/bulk', { rows: sendRows, sheetId: intake.input.value, stage: stage.input.value, dept: dept ? dept.input.value : undefined, source: source.input.value, sourceDetail: detail ? detail.value : '' });
+        const r = await api('/api/students/bulk', { rows: sendRows, sheetId: intake.input.value, stage: stage.input.value, dept: dept ? dept.input.value : undefined, source: pickValue().source, sourceDetail: pickValue().detail, sourceRemarks: pickValue().remarks });
         const added = r.results.filter((x) => x.ok).length;
         const skippedLines = rows.filter((_, i) => checks[i].skip).map((x, k) => ({ name: `${x.first} ${x.last}`.trim(), note: checks.filter((c) => c.skip)[k].note }));
         out.replaceChildren(el('div', `p-notice ${added === r.results.length && !skippedLines.length ? 'ok' : 'warn'}`, `${added} of ${rows.length} lines added${skippedLines.length ? `, ${skippedLines.length} skipped` : ''}.`), ...r.results.filter((x) => x.ok).map((x) => el('div', 'p-sent', `Added: ${x.name}`)), ...skippedLines.map((x) => el('div', 'p-sent', `Skipped: ${x.name || '(no name)'}: ${x.note}`)), ...r.results.filter((x) => !x.ok).map((x) => el('div', 'p-sent', `${x.name || '(no name)'}: ${x.error}`)));
         say(`${added} students added`);
-        box.value = ''; rows = [];
+        rows = [];
       } catch (e) { out.replaceChildren(el('div', 'p-notice bad', e.message)); go.disabled = false; }
     });
     view.replaceChildren(wrap);

@@ -126,38 +126,25 @@
     if (!editingOrigin) {
       const dl = el('dl', 'p-facts');
       const fact = (k, v) => { const d = el('div', 'p-fact'); d.append(el('dt', '', k), el('dd', '', v || 'Not recorded')); dl.append(d); };
-      fact('Student source', s.source);
-      if (p.sourceDetail || (F.SOURCE_DETAILS[s.source] || []).length || s.source === 'Agent') fact(F.SOURCE_DETAIL_LABEL[s.source] || (s.source === 'Agent' ? 'Which agent' : 'Where exactly'), p.sourceDetail);
+      const g = F.sourceGroup(s.source);
+      fact('Student source', g);
+      if (g === 'Branch') fact('Which branch', F.branchName(s.source));
+      else if (p.sourceDetail || (F.SOURCE_DETAILS[g] || []).length || g === 'Agent') fact(F.SOURCE_DETAIL_LABEL[g] || (g === 'Agent' ? 'Which agent' : 'Where exactly'), p.sourceDetail);
+      if (p.sourceRemarks) fact(g === 'Social Media' ? 'Campaign name or remarks' : 'Remarks', p.sourceRemarks);
       box.append(dl);
       return box;
     }
-    const sources = Object.keys(F.SOURCE_DETAILS);
-    if (s.source && !sources.includes(s.source)) sources.push(s.source);
-    const src = field('Student source', { kind: 'select', choices: sources, value: s.source, disabled: !data.can.source });
-    const holder = el('div', 'p-field');
-    let detail = null;
-    let current = p.sourceDetail || '';
-    const draw = () => {
-      const name = src.input.value;
-      const choices = name === 'Agent' ? lists.partners : (lists.sourceOptions[name] || F.SOURCE_DETAILS[name] || []);
-      const label = F.SOURCE_DETAIL_LABEL[name] || (name === 'Agent' ? 'Which agent' : 'Where exactly');
-      if (choices.length && current && !choices.includes(current)) current = ''; // a detail of another source is dropped, never shown
-      const f2 = choices.length ? field(label, { kind: 'select', choices, value: current }) : field(label, { value: current, disabled: !name, max: 120 });
-      holder.replaceChildren(...f2.wrap.childNodes);
-      detail = f2.input;
-      detail.addEventListener('change', () => { current = detail.value; });
-    };
-    draw();
-    src.input.addEventListener('change', () => { current = ''; draw(); });
+    const picker = window.SourcePicker.create({ lists, initial: { source: s.source, detail: p.sourceDetail, remarks: p.sourceRemarks }, disabled: !data.can.source });
     const form = el('div', 'p-form');
-    form.append(src.wrap, holder);
+    picker.nodes.forEach((n) => form.append(n));
     box.append(form);
     if (!data.can.source && s.source) box.append(el('p', 'p-muted p-small', 'The source of this student can only be changed by Admin.'));
     const bar = el('div', 'p-bar');
     bar.append(h('button', { class: 'btn btn-primary', type: 'button', onclick: async () => {
       try {
-        if (data.can.source && src.input.value !== (s.source || '')) { await save('source', { source: src.input.value }); data.student.source = src.input.value; }
-        await save('profile', { sourceDetail: detail ? detail.value : '' }, 'Saved');
+        const v = picker.value();
+        if (data.can.source && v.source !== (s.source || '')) { await save('source', { source: v.source }); data.student.source = v.source; }
+        await save('profile', { sourceDetail: v.detail, sourceRemarks: v.remarks }, 'Saved');
         editingOrigin = false; render();
       } catch (e) { /* shown */ }
     } }, 'Save'), h('button', { class: 'btn', type: 'button', onclick: () => { editingOrigin = false; render(); } }, 'Cancel'));
@@ -405,7 +392,7 @@
     render(template);
   }
   function render(template) {
-    document.title = `${data.student.name} · Student · Fly`;
+    document.title = `${data.student.name} · Student · Recruitment 360`;
     const frag = document.createDocumentFragment();
     frag.append(hero());
     if (!can()) frag.append(el('div', 'p-notice', 'You can read this student but not change them.'));

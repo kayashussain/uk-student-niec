@@ -127,8 +127,8 @@
     const doc = el('article', 'doc');
     const top = el('div', 'doc-top');
     const logo = el('img');
-    logo.src = 'fly-logo.png';
-    logo.alt = 'Fly';
+    logo.src = 'recruitment360-logo.png';
+    logo.alt = 'Recruitment 360';
     top.append(logo, el('span', 'kind', 'University Fact File'));
     doc.append(top, el('h1', '', uni.name));
 
@@ -203,7 +203,7 @@
       view.append(toc);
     }
     view.append(doc);
-    document.title = `${uni.name} · Fact File · Fly`;
+    document.title = `${uni.name} · Fact File · Recruitment 360`;
 
     const bar = $('toolbar');
     bar.replaceChildren();

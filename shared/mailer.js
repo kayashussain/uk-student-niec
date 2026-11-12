@@ -228,8 +228,8 @@ async function sendMail(cfg, { to, subject, text, html, bcc = [], auto = true, a
 function setupEmail({ name, username, temporaryPassword, access, siteUrl, kind = 'new' }) {
   const link = siteUrl.replace(/\/+$/, '') + '/login';
   const intro = kind === 'reset'
-    ? 'Your password for the Fly system has been reset. Use the temporary password below to log in and choose a new one.'
-    : `An account has been created for you on the Fly system (${access}).`;
+    ? 'Your password for the Recruitment 360 system has been reset. Use the temporary password below to log in and choose a new one.'
+    : `An account has been created for you on the Recruitment 360 system (${access}).`;
   const steps = [
     'Open the website and log in with the username and temporary password above.',
     'Choose your own password (at least 10 characters).',
@@ -256,7 +256,7 @@ function setupEmail({ name, username, temporaryPassword, access, siteUrl, kind =
   const html = `<!doctype html><html><body style="margin:0;background:#f3f6fa;padding:24px 12px;font-family:Segoe UI,Arial,sans-serif;color:#1c2126">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center">
 <table role="presentation" width="560" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border-radius:12px;border-top:4px solid #00adef">
-<tr><td style="padding:24px 28px 8px"><img src="${escapeHtml(siteUrl.replace(/\/+$/, ''))}/fly-logo.png" alt="Fly" height="56" style="display:block;border:0"></td></tr>
+<tr><td style="padding:24px 28px 8px"><img src="${escapeHtml(siteUrl.replace(/\/+$/, ''))}/recruitment360-logo.png" alt="Recruitment 360" height="56" style="display:block;border:0"></td></tr>
 <tr><td style="padding:8px 28px 4px;font-size:15px;line-height:1.5">
 <p style="margin:0 0 12px">Hello ${escapeHtml(name)},</p>
 <p style="margin:0 0 16px">${escapeHtml(intro)}</p>
@@ -273,15 +273,15 @@ ${row('Temporary password', escapeHtml(temporaryPassword), true)}
 <tr><td style="padding:14px 28px 22px;border-top:1px solid #e5e7eb;color:#6b7280;font-size:12px">Nepal International Educational Consultancy</td></tr>
 </table></td></tr></table></body></html>`;
 
-  return { subject: kind === 'reset' ? 'Your Fly password was reset' : 'Set up your Fly account', text, html };
+  return { subject: kind === 'reset' ? 'Your Recruitment 360 password was reset' : 'Set up your Recruitment 360 account', text, html };
 }
 
 // The message the "send a test email" button sends.
 function testEmail() {
   return {
-    subject: 'Fly email test',
-    text: 'This is a test message from the Fly system. If you can read it, setup emails will reach people.',
-    html: '<p style="font-family:Segoe UI,Arial,sans-serif">This is a test message from the Fly system. If you can read it, setup emails will reach people.</p>',
+    subject: 'Recruitment 360 email test',
+    text: 'This is a test message from the Recruitment 360 system. If you can read it, setup emails will reach people.',
+    html: '<p style="font-family:Segoe UI,Arial,sans-serif">This is a test message from the Recruitment 360 system. If you can read it, setup emails will reach people.</p>',
   };
 }
 
@@ -298,7 +298,7 @@ function loadConfig(dir, env = process.env) {
     user: env.MAIL_USER || file.user || '',
     pass: env.MAIL_PASSWORD || file.pass || '',
     from: String(env.MAIL_FROM || file.from || '').toLowerCase(),
-    fromName: env.MAIL_FROM_NAME || file.fromName || 'Fly',
+    fromName: env.MAIL_FROM_NAME || file.fromName || 'Recruitment 360',
     siteUrl: String(env.SITE_URL || file.siteUrl || '').replace(/\/+$/, ''),
   };
 }

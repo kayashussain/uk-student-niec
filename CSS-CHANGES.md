@@ -7,6 +7,8 @@ To find every marked change in the code, search the project for `CSS CHANGED`.
 
 Format: **date · file · what · from → to · why**
 
+- **2026-11-13 · shared/header.js, shared/login.html, shared/header.css (marked), brand/ · the logo in the menu, on the login page and in emails · from: the "Fly" letters with the paper plane on a dotted path → to: the paper plane icon with "Recruitment 360" beside it · why: the portal is now called Recruitment 360.**
+
 - **2026-11-12 · shared/theme.css · long tags on the student card on a phone · from: a long event tag ran off the right edge → to: it wraps onto a second line · why: the client's last small finding.**
 
 - **2026-11-12 · shared/theme.css · Partner Universities table at 1440px · from: the table was 40px wider than the screen, so the page scrolled sideways and the last button was cut → to: cells wrap up to 1600px wide screens, and a card scrolls inside itself if still too wide · why: the client saw the clipped button.**

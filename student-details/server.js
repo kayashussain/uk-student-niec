@@ -85,6 +85,7 @@ const serveStatic = createStaticServer(ROOT, {
   '/student-page.js': 'text/javascript; charset=utf-8',
   '/card-drawer.js': 'text/javascript; charset=utf-8',
   '/new-student.js': 'text/javascript; charset=utf-8',
+  '/source-picker.js': 'text/javascript; charset=utf-8',
   '/templates.html': 'text/html; charset=utf-8',
   '/templates-page.js': 'text/javascript; charset=utf-8',
   '/b2b.html': 'text/html; charset=utf-8',
@@ -920,7 +921,7 @@ const server = http.createServer(async (req, res) => {
     // The product name and the company name, for the login page and the menu: nothing private.
     if (urlPath === '/api/brand' && req.method === 'GET') {
       const sig = messages.signature();
-      return sendJSON(res, 200, { product: 'Fly', company: sig.company, short: sig.short });
+      return sendJSON(res, 200, { product: 'Recruitment 360', company: sig.company, short: sig.short });
     }
     if (urlPath === '/favicon.png') return serveStatic(req, res);
     if (PUBLIC_SHARED.has(urlPath)) return serveShared(req, res); // the logo, for the login page
@@ -1031,7 +1032,7 @@ process.on('unhandledRejection', (err) => console.error('[unhandled]', err));
 process.on('uncaughtException', (err) => console.error('[uncaught]', err));
 
 server.listen(PORT, () => {
-  console.log(`Fly running at http://localhost:${PORT}`);
+  console.log(`Recruitment 360 running at http://localhost:${PORT}`);
 });
 
 // The weekly check of the course pages (course-watch.js): a slice of the courses every six hours, so each is visited about once a week.

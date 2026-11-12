@@ -223,7 +223,7 @@ function createPortalApi({
   // The Student Source is a column of the sheet (hidden there: it is chosen on the card). Changed with the same rules as on the
   // sheet: Admin any time; a team only while it is blank on a student its own team added (shared/teams.js).
   function setSource(req, found, value) {
-    if (value && !Object.keys(Fields.SOURCE_DETAILS).includes(value)) return { error: 'That is not one of the sources.', status: 400 };
+    if (value && !Fields.STORED_SOURCES.includes(value) && !Fields.isBranchValue(value)) return { error: 'That is not one of the sources.', status: 400 };
     const done = setColumns(req, found, { 'STUDENT SOURCE': value });
     return done.error ? done : { source: value };
   }
@@ -489,7 +489,7 @@ function createPortalApi({
     // The card: where the student came from and the rest of what the form asked.
     const profile = body.profile && typeof body.profile === 'object' ? body.profile : {};
     // The first inquiry day is the day the student is added.
-    const saved = cards.setProfile(rowId, { sourceDetail: profile.sourceDetail, inquiryDate: cards.today() }, by(req));
+    const saved = cards.setProfile(rowId, { sourceDetail: profile.sourceDetail, sourceRemarks: profile.sourceRemarks || '', inquiryDate: cards.today() }, by(req));
     if (!saved.error && text(body.note)) cards.addNote(rowId, { text: body.note, kind: 'note' }, by(req));
     return { status: 200, json: { ok: true, id: rowId, sheetId: sheet.id, revision: getWorkbook().revision } };
   }
@@ -521,7 +521,7 @@ function createPortalApi({
       if (em) existing.add('e:' + em);
       if (ph.length >= 7) existing.add('p:' + ph);
       const fields = { 'FIRST NAME': text(r.first), 'LAST NAME': text(r.last), EMAIL: text(r.email), 'CONTACT NUMBER': text(r.phone), 'STUDENT SOURCE': text(body.source) };
-      const out = addStudent(req, { fields, profile: { sourceDetail: text(body.sourceDetail) }, stage: body.stage, sheetId: body.sheetId, dept: body.dept });
+      const out = addStudent(req, { fields, profile: { sourceDetail: text(body.sourceDetail), sourceRemarks: text(body.sourceRemarks) }, stage: body.stage, sheetId: body.sheetId, dept: body.dept });
       results.push(out.status === 200 ? { ok: true, id: out.json.id, name: [r.first, r.last].filter(Boolean).join(' ') } : { ok: false, name: [r.first, r.last].filter(Boolean).join(' '), error: out.json.error || 'Could not add.' });
     }
     note(req, [`Added ${results.filter((x) => x.ok).length} students at once${text(body.sourceDetail) ? ` (${text(body.sourceDetail)})` : ''}`], 'Added students');
@@ -716,7 +716,7 @@ function createPortalApi({
   }
   // The Student Sources in use (the sheet's own list, plus anything typed in a sheet), for the spend table.
   function sourceChoices() {
-    const set = new Set(Object.keys(Fields.SOURCE_DETAILS));
+    const set = new Set(Fields.STORED_SOURCES);
     const wb = getWorkbook();
     if (wb) wb.sheets.forEach((s) => s.rows.forEach((r) => { const v = text(r['STUDENT SOURCE']); if (v) set.add(v); }));
     return [...set].sort();

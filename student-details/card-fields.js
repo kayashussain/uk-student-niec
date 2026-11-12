@@ -10,6 +10,16 @@
   // that is missing (a new platform, a new event with its date) and it is then offered to everyone, so every student of the
   // same platform or event is tagged with the very same words (see source-options.js). Events and B2B partners have no
   // starting choices: an event is added with its date, a B2B partner comes from the B2B Partners page.
+  // The branches. To add a branch, add its name here and in the Users page list of branch teams (shared/teams.js reads this list):
+  // the Student Source is then "<name> Branch" (for example "Chitwan Branch"), which is how the incentive sums and the branch
+  // accounts have always recognised a branch student.
+  const BRANCHES = ['Chitwan', 'Pokhara', 'Palpa', 'Butwal'];
+  const branchValue = (name) => `${name} Branch`;
+  const isBranchValue = (v) => /\S\s+branch$/i.test(String(v || '').trim());
+  // The Student Source as the forms show it (Branch is one choice with a second dropdown) and as the sheet keeps it ("Chitwan Branch").
+  const sourceGroup = (stored) => (isBranchValue(stored) ? 'Branch' : String(stored || '').trim());
+  const branchName = (stored) => String(stored || '').trim().replace(/\s+branch$/i, '');
+  const storedSource = (group, detail) => (group === 'Branch' ? (detail ? branchValue(detail) : '') : group);
   const SOURCE_DETAILS = {
     'Social Media': ['Facebook page', 'Facebook or Instagram advert (Meta Ads)', 'Instagram', 'TikTok', 'WhatsApp', 'Messenger', 'YouTube', 'LinkedIn', 'Viber'],
     Visitor: ['Walked in', 'Phone call', 'Website form', 'Google search or Maps', 'Signboard or hoarding', 'Newspaper, radio or TV'],
@@ -17,13 +27,14 @@
     'Language Classes': ['IELTS class', 'PTE class'],
     Events: [],
     Agent: [],
-    'Chitwan Branch': [],
-    'Pokhara Branch': [],
+    Branch: BRANCHES,
   };
   // What the "where exactly" box is called for each source, and the sources a new choice can be added to.
+  // The values the sheet's Student Source column holds: the sources, and one "<name> Branch" for each branch.
+  const STORED_SOURCES = [...Object.keys(SOURCE_DETAILS).filter((k) => k !== 'Branch'), ...BRANCHES.map(branchValue)];
   const SOURCE_DETAIL_LABEL = {
-    'Social Media': 'Which platform', Visitor: 'How they reached us', Reference: 'Who referred them', 'Language Classes': 'Which class',
-    Events: 'Which event or marketing', Agent: 'Which agent', 'Chitwan Branch': 'Detail', 'Pokhara Branch': 'Detail',
+    'Social Media': 'Which platform or page', Visitor: 'How they reached us', Reference: 'Who referred them', 'Language Classes': 'Which class',
+    Events: 'Which event or marketing', Agent: 'Which agent', Branch: 'Which branch',
   };
   const SOURCE_CAN_ADD = ['Social Media', 'Visitor', 'Reference', 'Language Classes', 'Events'];
 
@@ -63,6 +74,7 @@
   // The details kept on the card, with the name shown and how each is typed. `list` names one of the lists above.
   const PROFILE_FIELDS = [
     { key: 'sourceDetail', label: 'Where exactly', max: 120 },
+    { key: 'sourceRemarks', label: 'Campaign or remarks', max: 160 },
     { key: 'inquiryDate', label: 'First inquiry day', type: 'date' },
     { key: 'studyLevel', label: 'Study level', list: 'STUDY_LEVELS' },
     { key: 'qualification', label: 'Highest qualification', list: 'QUALIFICATIONS' },
@@ -111,6 +123,7 @@
   }
 
   return {
+    BRANCHES, STORED_SOURCES, branchValue, isBranchValue, sourceGroup, branchName, storedSource,
     SOURCE_DETAILS, SOURCE_DETAIL_LABEL, SOURCE_CAN_ADD, STUDY_LEVELS, QUALIFICATIONS, ENGLISH_TESTS, LOST_REASONS, LOST_STAGES,
     NOTE_KINDS, DOCUMENTS, documentsFor, PROFILE_FIELDS, SHEET_SECTIONS, columnLabel, whatsappNumber, courseSearchUrl,
   };

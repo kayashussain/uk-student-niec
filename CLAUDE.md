@@ -47,7 +47,7 @@ The owner does not want old versions, copies or rewrites lying around, because a
 - **Always run the complete test suite (`npm test`) before pushing**, not just the browser tests, because rules like the one
   above live in other tests.
 
-- The product is called **Fly**. It is built so that any consultancy can use it: the consultancy's own name is a setting (Admin, Message templates, signature: Company name and Short name), never written into pages or code. The first installation is Nepal International Educational Consultancy ("Educational", never "Education"), and that is only its starting setting.
+- The product is called **Recruitment 360**. It is built so that any consultancy can use it: the consultancy's own name is a setting (Admin, Message templates, signature: Company name and Short name), never written into pages or code. The first installation is Nepal International Educational Consultancy ("Educational", never "Education"), and that is only its starting setting.
 - There is **one look only: a light theme, no dark mode and no alternative themes** (the owner asked). It must be easy on older eyes: no pure white panels (soft off-white on a soft grey canvas), strong dark text, larger type and larger buttons.
 - The login page must not mention incentives or commissions. Incentive is Admin-only and behind its own password.
 - Do not change colours, fonts or layout the owner did not ask about. When a change is needed for a bug fix, say so (Rule 1).

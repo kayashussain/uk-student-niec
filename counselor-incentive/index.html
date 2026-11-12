@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Incentive · Fly</title>
+<title>Incentive · Recruitment 360</title>
 <link rel="icon" type="image/png" href="favicon.png" />
 <link rel="apple-touch-icon" href="apple-touch-icon.png" />
 <link rel="stylesheet" href="header.css" />
@@ -249,7 +249,7 @@
       <span class="grid-key">
         <span><i style="background: var(--edit-bg)"></i>Type here</span>
         <span><em>Grey italic</em> = worked out automatically</span>
-        <span>Everything else comes from Fly</span>
+        <span>Everything else comes from Recruitment 360</span>
       </span>
     </div>
   </div>
@@ -396,7 +396,7 @@ const { num, flywireIncentive, universityCommission, DEFAULT_BASIC_SALARY, DEFAU
 const FLEX_HINT = "Type it the way it was agreed: 40000 (or Rs 40000) for rupees, £500 for pounds, or 15% for a percentage of this student's Commission Amount. A plain number keeps the unit already in the cell.";
 const POLL_MS = 3000; // safety net only: changes normally arrive at once over /api/live
 
-// Student details are synced read-only from Fly; the money columns are edited here.
+// Student details are synced read-only from Recruitment 360; the money columns are edited here.
 const COLUMNS = [
   { key: 'source', label: 'Student Source', width: 20 },
   { key: 'name', label: 'Student Name', width: 24 },
@@ -405,7 +405,7 @@ const COLUMNS = [
   { key: 'agent', label: 'University Partner', width: 24 },
   { key: 'studentId', label: 'Student ID', width: 14 },
   { key: 'tuitionFee', label: 'Total Tuition Fee (£)', width: 18, amount: true,
-    title: 'Synced from Fly: Gross Fee − Scholarship − Early Bird Discount − Additional Discount.' },
+    title: 'Synced from Recruitment 360: Gross Fee − Scholarship − Early Bird Discount − Additional Discount.' },
   { key: 'uniCommissionRate', label: 'Commission %', width: 18, money: true, percent: true,
     title: "The % of the tuition fee the university pays us as commission. Type it in, e.g. 15." },
   { key: 'uniCommissionAmount', label: 'Commission Amount (£)', width: 18, amount: true,
@@ -424,7 +424,7 @@ const COLUMNS = [
 ];
 const FIRST_KEY = COLUMNS[0].key;
 const LAST_KEY = COLUMNS[COLUMNS.length - 1].key;
-const INFO_HINT = 'Student details come from Fly. Change them there.';
+const INFO_HINT = 'Student details come from Recruitment 360. Change them there.';
 const CALC_HINT = 'Commission Amount is worked out from Total Tuition Fee × Commission %. Change the Commission % instead.';
 
 const state = { intakes: [], byIntake: {}, commissions: {}, advances: {}, activeIntake: null, syncOk: true };
@@ -1268,7 +1268,7 @@ $('#payList').addEventListener('click', (ev) => {
 });
 
 // ---------------------------------------------------------------------------------------------
-// Spreadsheet grid, like Google Sheets and the Fly tracker: click a cell, drag or
+// Spreadsheet grid, like Google Sheets and the Recruitment 360 tracker: click a cell, drag or
 // Shift+Click/Shift+Arrow for a range, Ctrl+Click to add cells, Ctrl+A for everything. Type or
 // Enter/F2/double-click to edit an incentive; Delete clears the selection; Ctrl+C/X/V copy, cut and
 // paste. Picking rows from their S.N and pressing Delete clears all of those students' incentives.
@@ -1778,7 +1778,7 @@ $('#exportExcelBtn').addEventListener('click', async () => {
   }
   const students = intakeStudents();
   const wb = new ExcelJS.Workbook();
-  wb.creator = 'Fly';
+  wb.creator = 'Recruitment 360';
   wb.created = new Date();
 
   const sheetName = (state.activeIntake || 'Export').replace(/[\\/*?:[\]]/g, ' ').slice(0, 31) || 'Export';
@@ -1874,7 +1874,7 @@ $('#exportExcelBtn').addEventListener('click', async () => {
   URL.revokeObjectURL(url);
 });
 
-// Pick up changes made over in Fly. Skipped while a cell or field is being typed in or a
+// Pick up changes made over in Recruitment 360. Skipped while a cell or field is being typed in or a
 // range is being dragged, and only redraws when something actually changed.
 function refreshIfIdle() {
   if (editing || dragMode || document.hidden || (window.EditGuard && window.EditGuard.isOpen())) return;

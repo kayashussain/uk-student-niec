@@ -17,6 +17,8 @@
   if (typeof module === 'object' && module.exports) module.exports = factory();
   else root.TeamRules = factory();
 })(typeof self !== 'undefined' ? self : this, () => {
+  // The branches come from the one list in student-details/card-fields.js (a page loads card-fields.js before this file).
+  const BRANCH_LIST = (typeof module === 'object' && module.exports ? require('../student-details/card-fields.js') : self.CardFields).BRANCHES;
   const STATUS = 'APPLICATION STATUS';
   // A row can be coloured (stored on the row as `_color`) so the Follow-up team can flag interested students
   // for Admin. Anyone who can see a student and isn't view only may colour it; it changes no student detail.
@@ -62,9 +64,11 @@
     // A branch works on its own students, whatever their stage: the ones whose Student Source is the branch.
     // They can fill in and change every column (except the Student Source itself, which is what makes the
     // student theirs), and the students they add are tagged with the branch.
-    chitwan: { label: 'Chitwan Branch', start: 'Inquiry', statuses: [], editable: new Set(), source: 'Chitwan Branch' },
-    pokhara: { label: 'Pokhara Branch', start: 'Inquiry', statuses: [], editable: new Set(), source: 'Pokhara Branch' },
   };
+  // One branch team for each branch in the list: chitwan, pokhara, palpa, butwal ...
+  BRANCH_LIST.forEach((name) => {
+    DEPARTMENTS[name.toLowerCase().replace(/[^a-z0-9]+/g, '')] = { label: `${name} Branch`, start: 'Inquiry', statuses: [], editable: new Set(), source: `${name} Branch` };
+  });
   const SOURCE = 'STUDENT SOURCE';
 
   // The stage moves a department may make. Follow-up can't move students on.

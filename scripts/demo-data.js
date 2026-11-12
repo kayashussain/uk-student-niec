@@ -40,6 +40,7 @@ const SOURCES = [
   ['Chitwan Branch', 0.05, ['Walked in', 'Facebook page', 'Reference']],
   ['Pokhara Branch', 0.05, ['Walked in', 'TikTok', 'Reference']],
 ];
+const SOCIAL_CAMPAIGNS = ['Nepal Bandha awareness campaign', 'UK scholarship video ad', 'Study in the UK reels', 'Partner page share (college)', 'IELTS free class promotion'];
 // How likely a student of each source is to go all the way, so the channels differ the way they do in real life.
 const SOURCE_STRENGTH = { 'Social Media': 0.75, Reference: 1.35, Visitor: 1.1, Events: 1.0, Agent: 1.15, 'Language Classes': 1.25, 'Chitwan Branch': 0.95, 'Pokhara Branch': 0.95 };
 const EVENTS = [
@@ -157,6 +158,7 @@ function buildDemo({ today = '2026-11-11', seed = 20261111 } = {}) {
           if (source === 'Events') profile.sourceDetail = pick(EVENTS).name;
           else if (source === 'Agent') profile.sourceDetail = pick(PARTNERS);
           else profile.sourceDetail = pick(details);
+          if (source === 'Social Media') profile.sourceRemarks = SOCIAL_CAMPAIGNS[profile.sourceDetail.length % SOCIAL_CAMPAIGNS.length];
         }
         if (know()) profile.inquiryDate = iso(dates.inquiry);
         if (know()) profile.studyLevel = level === 'MBA' ? 'MBA' : level;

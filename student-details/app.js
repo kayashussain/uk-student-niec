@@ -23,7 +23,9 @@
   const BOTTOM_STATUSES = new Set(['Inquiry']);
   const isBottomRow = (row) => BOTTOM_STATUSES.has(row['APPLICATION STATUS']);
   const SOURCE_COL = 'STUDENT SOURCE';
-  const SOURCE_OPTIONS = ['Visitor', 'Reference', 'Chitwan Branch', 'Pokhara Branch', 'Agent', 'Events', 'Social Media', 'Language Classes'];
+  // The branches are one group in the dropdown (Branch > Chitwan Branch, Pokhara Branch ...); the cell keeps the full name, as it always has.
+  const BRANCH_SOURCES = window.CardFields.BRANCHES.map((b) => window.CardFields.branchValue(b));
+  const SOURCE_OPTIONS = ['Visitor', 'Reference', 'Agent', 'Events', 'Social Media', 'Language Classes', ...BRANCH_SOURCES];
   const SELECT_COLS = {
     'APPLICATION STATUS': [
       'Inquiry', 'Application Stage', 'Mock Stage', 'Payment Stage',
@@ -1483,12 +1485,16 @@
         // A value that isn't one of the choices (e.g. imported from a spreadsheet) is still shown, not hidden.
         const addOptions = (list) => {
           select.textContent = '';
+          let branchGroup = null;
           ['', ...list].forEach((opt) => {
             const o = document.createElement('option');
             o.value = opt;
             o.textContent = opt || 'Select';
             if (opt === val) o.selected = true;
-            select.appendChild(o);
+            if (col === SOURCE_COL && opt && window.CardFields.isBranchValue(opt)) {
+              if (!branchGroup) { branchGroup = document.createElement('optgroup'); branchGroup.label = 'Branch'; select.appendChild(branchGroup); }
+              branchGroup.appendChild(o);
+            } else select.appendChild(o);
           });
         };
         addOptions(val ? [val] : []);
@@ -2433,7 +2439,7 @@
     const safeSheetName = sheetName.replace(/[\\/*?:[\]]/g, ' ').slice(0, 31) || 'Export';
 
     const wb = new ExcelJS.Workbook();
-    wb.creator = 'Fly';
+    wb.creator = 'Recruitment 360';
     wb.created = new Date();
 
     const ws = wb.addWorksheet(safeSheetName, { views: [{ state: 'frozen', ySplit: 1 }] });
