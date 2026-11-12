@@ -44,6 +44,15 @@ function createPortalApi({
     }
     return indexed.map;
   }
+  // The student already on the sheet with this email or phone number (any intake), or null.
+  function existingStudent(email, phone) {
+    const em = text(email).toLowerCase(); const ph = text(phone).replace(/\D/g, '');
+    if (!em && ph.length < 7) return null;
+    for (const { row } of rowIndex().values()) {
+      if ((em && text(row.EMAIL).toLowerCase() === em) || (ph.length >= 7 && text(row['CONTACT NUMBER']).replace(/\D/g, '') === ph)) return row;
+    }
+    return null;
+  }
   const currentIntake = () => { const wb = getWorkbook(); return wb ? Teams.newestSheet(wb.sheets.filter((s) => !s.hidden)) : null; };
   function canSee(user, found) {
     if (!found) return false;
@@ -441,6 +450,10 @@ function createPortalApi({
     if (!fields['FIRST NAME'] && !fields['LAST NAME']) { return { status: 400, json: { error: "Please enter the student's name." } }; }
     if (fields.EMAIL && !mailer.isAddress(fields.EMAIL)) { return { status: 400, json: { error: 'That email address does not look right.' } }; }
     if (fields['CONTACT NUMBER'] && !phoneOk(fields['CONTACT NUMBER'])) { return { status: 400, json: { error: 'That phone number does not look right. Use digits, for example 9800000001 or +977 9800000001.' } }; }
+    if (!body.allowDuplicate) {
+      const dup = existingStudent(fields.EMAIL, fields['CONTACT NUMBER']);
+      if (dup) return { status: 409, json: { error: `${(Teams.isAdmin(req.user) && [dup['FIRST NAME'], dup['LAST NAME']].filter(Boolean).join(' ')) || 'A student'} is already on the sheet with this email or phone number, so nobody was added.` } };
+    }
     const rowId = 'row-' + Date.now().toString(36) + require('crypto').randomBytes(4).toString('hex');
     let sheet;
     if (Teams.isAdmin(req.user)) {
@@ -500,7 +513,7 @@ function createPortalApi({
     }
     for (const r of lines) {
       const em = text(r.email).toLowerCase(); const ph = text(r.phone).replace(/\D/g, '');
-      if ((em && existing.has('e:' + em)) || (ph.length >= 7 && existing.has('p:' + ph))) { results.push({ ok: false, name: [r.first, r.last].filter(Boolean).join(' '), error: 'Already on the sheet (same email or phone), not added again.' }); continue; }
+      if (existingStudent(r.email, r.phone) || (em && existing.has('e:' + em)) || (ph.length >= 7 && existing.has('p:' + ph))) { results.push({ ok: false, name: [r.first, r.last].filter(Boolean).join(' '), error: 'Already on the sheet (same email or phone), not added again.' }); continue; }
       if (em) existing.add('e:' + em);
       if (ph.length >= 7) existing.add('p:' + ph);
       const fields = { 'FIRST NAME': text(r.first), 'LAST NAME': text(r.last), EMAIL: text(r.email), 'CONTACT NUMBER': text(r.phone), 'STUDENT SOURCE': text(body.source) };
@@ -817,7 +830,7 @@ function createPortalApi({
   async function handle(req, res, urlPath) {
     if (!urlPath.startsWith('/api/')) return false;
     const query = () => new URL(req.url, 'http://x').searchParams;
-    if (urlPath === '/api/today' && req.method === 'GET') { sendJSON(res, 200, todayFor(req.user)); return true; }
+    if (urlPath === '/api/today' && req.method === 'GET') { sendJSON(res, 200, { ...todayFor(req.user), readOnly: Teams.isReadOnly(req.user) }); return true; }
     if (urlPath === '/api/activities' && req.method === 'GET') {
       if (!managers(req, res, 'Events and marketing')) return true;
       sendJSON(res, 200, { activities: activities(req.user), types: EVENT_TYPES, marketingTypes: MARKETING_TYPES, canEdit: Teams.isAdmin(req.user) });
@@ -827,6 +840,13 @@ function createPortalApi({
     if (urlPath === '/api/students/search' && req.method === 'GET') { sendJSON(res, 200, { students: searchStudents(req.user, (query().get('q') || '').slice(0, 100)) }); return true; }
     if (urlPath === '/api/students/new' && req.method === 'POST') return handleNewStudent(req, res);
     if (urlPath === '/api/students/bulk' && req.method === 'POST') return handleBulkStudents(req, res);
+    if (urlPath === '/api/students/check' && req.method === 'POST') {
+      const body = await bodyOf(req, res, 256 * 1024);
+      if (!body) return true;
+      const list = (Array.isArray(body.rows) ? body.rows : []).slice(0, 200).map((r) => { const d = r && typeof r === 'object' ? existingStudent(r.email, r.phone) : null; return d ? { exists: true, name: Teams.isAdmin(req.user) ? [d['FIRST NAME'], d['LAST NAME']].filter(Boolean).join(' ') : ' ' } : { exists: false }; });
+      sendJSON(res, 200, { results: list });
+      return true;
+    }
     // A missing platform, class or event (with its day) is added once and offered to everyone, so students are tagged the same way.
     if (urlPath === '/api/source-options' && req.method === 'POST') {
       if (Teams.isReadOnly(req.user)) { sendJSON(res, 403, { error: 'Your account can only view students.' }); return true; }

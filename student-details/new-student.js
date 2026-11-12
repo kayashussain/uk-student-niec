@@ -82,8 +82,9 @@
         try {
           const r = await api('/api/students/new', { fields, profile: { sourceDetail: detailInput ? detailInput.value : '' }, stage: v('stage'), sheetId: activeSheetId, dept: v('dept'), note: v('note') });
           close(r);
-        } catch (e) { msg.textContent = e.message; msg.className = 'p-msg error'; ok.disabled = false; }
+        } catch (e) { msg.textContent = e.message; msg.className = 'p-msg error'; ok.disabled = false; ok.focus(); }
       });
+      form.addEventListener('input', () => { if (msg.classList.contains('error')) { msg.textContent = ''; msg.className = 'p-msg'; } });
       setTimeout(() => inputs['FIRST NAME'].focus(), 30);
     });
   }

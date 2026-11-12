@@ -656,7 +656,7 @@
         if (BACKUP) document.body.dataset.backup = '1';
         document.body.dataset.role = me.role;
         $('#viewOnly').hidden = !Teams.isReadOnly(me);
-        { const many = document.getElementById('bulkAdd'); if (many) many.hidden = Teams.isReadOnly(me); }
+        { const many = document.getElementById('bulkAdd'); if (many) many.hidden = Teams.isReadOnly(me); const bs = document.getElementById('bulkSend'); if (bs) bs.hidden = Teams.isReadOnly(me); }
         document.body.toggleAttribute('data-viewonly', Teams.isReadOnly(me));
         document.body.toggleAttribute('data-candelete', Teams.canDelete(me));
       }
@@ -1849,6 +1849,12 @@
     td.removeAttribute('contenteditable');
     td.classList.remove('editing');
     const newVal = normaliseTyped(col, td.textContent.trim());
+    if (col === 'CONTACT NUMBER' && newVal && !(/^\+?[\d\s()-]{6,25}$/.test(newVal) && newVal.replace(/\D/g, '').length >= 6)) {
+      NiecUI.toast('That phone number does not look right. Use digits, for example 9800000001.', { type: 'error' });
+      restoreCell(td, rowIdx, col, original);
+      if (move) moveActiveCell(move[0], move[1]); else if (refocus) focusActiveCell({ scroll: false });
+      return;
+    }
     if (rows[rowIdx] && newVal !== original) {
       const row = rows[rowIdx];
       const save = (value) => confirmChange(() => {

@@ -951,7 +951,7 @@ const server = http.createServer(async (req, res) => {
       if (page) {
         // Every account opens the sheet, a student card and the compose page (each shows only the students the account sees);
         // the Dashboard is for Admin and the Manager; the rest is Admin's.
-        const allowed = ['/students', '/student', '/compose', '/bulk', '/bulk-add', '/today'].includes(urlPath) || (['/dashboard', '/events'].includes(urlPath) ? (isAdmin(req.user) || isManager(req.user)) : isAdmin(req.user));
+        const allowed = ['/students', '/student', '/today'].includes(urlPath) || (['/compose', '/bulk', '/bulk-add'].includes(urlPath) && !isReadOnly(req.user)) || (['/dashboard', '/events'].includes(urlPath) ? (isAdmin(req.user) || isManager(req.user)) : isAdmin(req.user));
         if (!allowed) return send(res, 302, '', { Location: home + (String(home).includes('?') ? '&' : '?') + 'notice=admin' });
         req.url = '/' + page;
         return serveStatic(req, res);

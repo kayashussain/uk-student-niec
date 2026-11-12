@@ -89,6 +89,9 @@
       try {
         preview = await api(`/api/cards/${id}/messages/preview`, { template: templateKey, subject: subject.input.value, body: bodyText.input.value, to: to.input.value });
         frame.srcdoc = preview.html;
+        const gaps = preview.missing.length > 0;
+        sendEmail.disabled = gaps || !mail.ready; copyBtn.disabled = gaps; if (typeof waBtn !== 'undefined') waBtn.disabled = gaps;
+        [sendEmail, copyBtn].concat(typeof waBtn !== 'undefined' ? [waBtn] : []).forEach((b) => { b.title = gaps ? 'Fill in what is missing on the student first' : ''; });
         notes.replaceChildren();
         if (preview.missing.length) notes.append(el('div', 'p-notice warn', 'Check before sending: this student has no ' + preview.missing.join(' and no ') + ' yet, so the message below has gaps. Fill them in on the student card first, or write the message yourself.'));
         if (!mail.ready) notes.append(el('div', 'p-notice', 'Email cannot be sent from this computer yet because the office mailbox is not set up (this is normal on a test computer). On the real server, Send email works and adds your signature picture. You can copy the text meanwhile.'));
@@ -114,7 +117,8 @@
       } catch (e) { msg.textContent = e.message; msg.className = 'p-msg error'; }
       sendEmail.disabled = false;
     });
-    bar.append(sendEmail, h('button', { class: 'btn', type: 'button', onclick: async () => say((await copy(`${preview.subject}\n\n${preview.text}`)) ? 'Email text copied' : 'Could not copy', false) }, 'Copy email text'));
+    const copyBtn = h('button', { class: 'btn', type: 'button', onclick: async () => say((await copy(`${preview.subject}\n\n${preview.text}`)) ? 'Email text copied' : 'Could not copy', false) }, 'Copy email text');
+    bar.append(sendEmail, copyBtn);
     right.append(el('h3', '', 'WhatsApp'));
     const wa = el('pre', 'p-wa-preview');
     right.append(wa);
@@ -129,7 +133,7 @@
     });
     waBar.append(waBtn);
     right.append(waBar);
-    const showWa = () => { wa.textContent = preview ? preview.whatsapp.text : ''; waBtn.disabled = !(preview && preview.whatsapp.number); if (preview && !preview.whatsapp.number) wa.textContent += '\n\n(This student has no WhatsApp number on the sheet.)'; };
+    const showWa = () => { wa.textContent = preview ? preview.whatsapp.text : ''; waBtn.disabled = !(preview && preview.whatsapp.number) || Boolean(preview && preview.missing.length); if (preview && !preview.whatsapp.number) wa.textContent += '\n\n(This student has no WhatsApp number on the sheet.)'; };
     const oldRefresh = refresh;
     cols.append(left, right);
     wrap.append(cols);

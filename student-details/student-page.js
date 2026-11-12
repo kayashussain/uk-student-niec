@@ -87,7 +87,7 @@
     fact('Offer received', s.row['OFFER RECEIVED DATE'] ? day(s.row['OFFER RECEIVED DATE']) : '');
     mid.append(facts);
     const act = el('div', 'p-hero-actions');
-    act.append(h('button', { class: 'btn btn-primary', type: 'button', onclick: () => select('message') }, 'Send a message'));
+    if (can()) act.append(h('button', { class: 'btn btn-primary', type: 'button', onclick: () => select('message') }, 'Send a message'));
     if (can()) act.append(h('button', { class: 'btn', type: 'button', onclick: () => { editingHero = true; render(); } }, 'Edit details'));
     c.append(mid, act);
     return c;
@@ -412,7 +412,8 @@
     const tabs = el('div', 'p-tabs');
     tabs.style.marginTop = '16px';
     tabs.setAttribute('role', 'tablist');
-    TABS.forEach(([key, text]) => {
+    if (tab === 'message' && !can()) tab = 'details';
+    TABS.filter(([key]) => key !== 'message' || can()).forEach(([key, text]) => {
       const b = el('button');
       b.type = 'button';
       b.setAttribute('role', 'tab');

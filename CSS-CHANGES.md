@@ -7,6 +7,8 @@ To find every marked change in the code, search the project for `CSS CHANGED`.
 
 Format: **date · file · what · from → to · why**
 
+- **2026-11-12 · shared/theme.css · small text on the portal pages · from: labels, hints, table headings, chips and captions at 12px → to: 14px for labels and hints, 13px for chips, table headings and captions · why: the client said the small grey text is hard for older eyes.**
+
 - **2026-11-12 · shared/theme.css · "Admin only" label beside page titles · from: tiny grey text on B2B and Agents, yellow pill on Partner Universities → to: the same clear small label on all three · why: the client saw three different looks for the same thing.**
 
 - **2026-11-12 · shared/theme.css · hidden buttons · from: some buttons stayed visible when hidden, so a view-only Manager saw Add many and Add an event → to: hidden always means hidden · why: the client found buttons that only say "not allowed" after you press them.**

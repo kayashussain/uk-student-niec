@@ -277,7 +277,11 @@
   bind('first-admin', () => post('/api/login/first-admin', {
     name: $('fa-name').value, username: $('fa-username').value, setupCode: $('fa-setup').value,
   }));
-  bind('password', () => post('/api/login', { username: $('username').value, password: $('password').value }));
+  bind('password', () => {
+    if (!$('username').value.trim()) throw new Error('Enter your username.');
+    if (!$('password').value) throw new Error('Enter your password.');
+    return post('/api/login', { username: $('username').value, password: $('password').value });
+  });
   bind('new-password', () => {
     if ($('new-password').value !== $('new-password-2').value) throw new Error("The two passwords don't match.");
     return post('/api/login/new-password', { password: $('new-password').value });

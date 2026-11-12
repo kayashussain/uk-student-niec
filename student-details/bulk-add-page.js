@@ -25,7 +25,8 @@
     const seen = new Set();
     return list.map((r) => {
       const name = `${r.first} ${r.last}`.trim();
-      if (r.badBit) return { skip: true, note: `"${r.badBit}" is not a name, email or phone number, skipped` };
+      if (r.exists) return { skip: true, note: `Already on the sheet${r.exists.trim() ? ' (' + r.exists + ')' : ''}, will be skipped` };
+      if (r.badBit) return { skip: true, note: `"${r.badBit}" does not look like a name, an email or a phone number, skipped` };
       if (!name) return { skip: true, note: 'No name, skipped' };
       if (r.phone && r.phone.replace(/\D/g, '').length < 6) return { skip: true, note: 'The phone number looks too short, skipped' };
       if (r.email && !EMAIL_OK.test(r.email)) return { skip: true, note: 'The email does not look right, skipped' };
@@ -136,6 +137,10 @@
     paste.append(box, fileRow, bar, out);
     wrap.append(paste);
 
+    // Students who are already on the sheet (same email or phone) are marked so the list says they will be skipped.
+    const markExisting = async () => {
+      try { const r = await api('/api/students/check', { rows: rows.map((x) => ({ email: x.email, phone: x.phone })) }); rows.forEach((x, i) => { x.exists = r.results[i] && r.results[i].exists ? r.results[i].name : ''; }); } catch (e) { /* the server still skips them when adding */ }
+    };
     const showRows = () => {
       const checks = checkRows(rows);
       const ready = checks.filter((c) => !c.skip).length;
@@ -148,11 +153,11 @@
       t.append(tb); out.append(t);
       go.disabled = !ready;
     };
-    check.addEventListener('click', () => { rows = parse(box.value); showRows(); });
+    check.addEventListener('click', async () => { rows = parse(box.value); await markExisting(); showRows(); });
     pick.addEventListener('change', async () => {
       const f = pick.files && pick.files[0];
       if (!f) return;
-      try { rows = await readFile(f); box.value = ''; showRows(); } catch (e) { out.replaceChildren(el('div', 'p-notice bad', 'Could not read the file: ' + e.message)); }
+      try { rows = await readFile(f); box.value = ''; await markExisting(); showRows(); } catch (e) { out.replaceChildren(el('div', 'p-notice bad', 'Could not read the file: ' + e.message)); }
     });
     go.addEventListener('click', async () => {
       const checks = checkRows(rows);

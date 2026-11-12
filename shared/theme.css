@@ -380,3 +380,8 @@ dialog .p-field, .ui-dialog .p-field, .p-form .p-field { margin-bottom: 12px; }
 
 /* 🔴 CSS CHANGED (2026-11-12): the "Admin only" label next to page titles | from: tiny squeezed grey text on B2B and Agents, a yellow pill on Partner Universities | to: one clear small label, same on every page */
 h1 .p-chip, h1 .pill, h1 #adminOnly { font-family: var(--font); font-size: 12px; font-weight: 650; letter-spacing: .02em; line-height: 1; padding: 6px 10px; margin-left: 10px; vertical-align: middle; white-space: nowrap; border-radius: 999px; }
+
+/* 🔴 CSS CHANGED (2026-11-12): small text on the portal pages | from: labels, hints, table headings, chips and captions at 12px | to: 14px (hints and labels) and 13px (chips, table headings, small captions) so older eyes can read them */
+.p-label, .p-hint, .p-fact dt, .p-sheet-grid dt, .p-kpi small, .p-finding .p-area, .p-small, .p-muted.p-small { font-size: 14px; }
+.p-table th, .p-card h3, .p-dialog-body h3, .p-pill, .p-chip, .p-prio, .p-count, .p-month b, .save-status, .stat-card .stat-label, .stat-group-title { font-size: 13px; }
+h1 .p-chip, h1 .pill, h1 #adminOnly { font-size: 13px; }

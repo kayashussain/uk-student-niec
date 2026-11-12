@@ -18,6 +18,7 @@
 
   function tile(label, value) { const t = el('div', 't-tile'); t.append(el('b', '', String(value)), el('span', '', label)); return t; }
 
+  let readOnly = false;
   function section(x) {
     const c = el('section', 't-card');
     const head = el('header', 't-head');
@@ -45,19 +46,21 @@
     c.append(list);
     const foot = el('footer', 't-foot');
     if (x.count > x.students.length) foot.append(el('span', '', `and ${x.count - x.students.length} more`));
-    if (x.stage) foot.append(h('a', { class: 'btn btn-sm', href: '/bulk?stage=' + encodeURIComponent(x.stage) }, 'Follow up these'));
+    if (x.stage && !readOnly) foot.append(h('a', { class: 'btn btn-sm', href: '/bulk?stage=' + encodeURIComponent(x.stage) }, 'Follow up these'));
     if (foot.childNodes.length) c.append(foot);
     return c;
   }
 
   api('/api/today').then((d) => {
     document.title = 'Today · Fly';
+    readOnly = Boolean(d.readOnly);
     const page = el('div');
     const head = el('div', 't-hello');
     const first = String(d.name || '').split(/\s+/)[0] || '';
     head.append(el('h1', '', `${greeting()}${first ? ', ' + first : ''}`), el('p', '', new Date(d.today + 'T12:00:00').toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) + '. Here is what needs you today.'));
     const actions = el('div', 't-actions');
-    actions.append(h('a', { class: 'btn btn-primary', href: '/students' }, 'Open Student Details'), h('a', { class: 'btn', href: '/bulk-add' }, 'Add many students'), h('a', { class: 'btn', href: '/bulk' }, 'Bulk follow-up'));
+    actions.append(h('a', { class: 'btn btn-primary', href: '/students' }, 'Open Student Details'));
+    if (!d.readOnly) actions.append(h('a', { class: 'btn', href: '/bulk-add' }, 'Add many students'), h('a', { class: 'btn', href: '/bulk' }, 'Bulk follow-up'));
     head.append(actions);
     const tiles = el('div', 't-tiles');
     tiles.append(tile('Students in progress', d.totals.active), tile('Applications submitted', d.totals.applied), tile('Visas issued', d.totals.visas));
