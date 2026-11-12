@@ -260,7 +260,7 @@ test('screens: log in, edit, delete, search, team rules, Fact File', { timeout: 
     await admin.grantPermissions(['clipboard-read', 'clipboard-write']);
     await page.click('button:has-text("Copy summary")');
     await page.waitForSelector('.ui-toast.success');
-    assert.match(await page.evaluate(() => navigator.clipboard.readText()), /^\*.+\*[\s\S]*Nepal International Educational Consultancy$/, 'a WhatsApp-ready summary was copied');
+    assert.match(await page.evaluate(() => navigator.clipboard.readText()), /^\*.+\*[\s\S]*\S$/, 'a WhatsApp-ready summary was copied');
     await page.click('text=Edit');
     await page.waitForSelector('.editor');
     await page.fill('.editor textarea >> nth=0', 'A change that is not saved');

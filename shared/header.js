@@ -13,8 +13,8 @@
 
   header.innerHTML = `
     <a class="niec-brand" href="/students" title="Home" id="niecHome">
-      <span class="niec-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M1 18.5C8 18.5 15.5 14 22 2c.7 7.5-2.2 15-11.5 18.2 1.6-2.6 1.1-4.4-1.3-5.4C6.500 16.300 3.800 17.800 1 18.500z" fill="currentColor" stroke="none"/><path d="M8 15.500C12 14 16.500 10.500 19.500 5.500" fill="none" stroke="#123a2e" stroke-width="1.100" stroke-linecap="round" opacity=".6"/></svg></span>
-      <span class="niec-brand-text"><span class="niec-brand-name">Fly</span><span class="niec-brand-sub" id="niecCompany"></span></span>
+      <span class="niec-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M2.5 20.5C7 18 13 12.5 21.5 4C19.5 12 13 18.5 2.5 20.5Z"/><path d="M2.5 20.5C8 20.5 15 18 22.5 12.5C20 19 12.5 23 2.5 20.5Z" opacity=".72"/><path d="M2.5 20.5C5.5 14 9 8.5 13.5 3C14.5 10 10.5 16.5 2.5 20.5Z" opacity=".5"/></svg></span>
+      <span class="niec-brand-text"><span class="niec-brand-name">Fly</span></span>
     </a>
     <nav class="niec-nav" aria-label="Pages"></nav>
     <div class="niec-account"></div>`;
@@ -132,8 +132,6 @@
     account.querySelector('.niec-logout').addEventListener('click', () => window.NiecSession.logout());
   }
 
-  // The name of the consultancy that uses this installation (a setting of Admin), under the product name.
-  fetch('/api/brand').then((r) => r.json()).then((b) => { const c = document.getElementById('niecCompany'); if (c) c.textContent = b.company || ''; }).catch(() => {});
   fetch('/api/me', { cache: 'no-store' })
     .then((res) => (res.ok ? res.json() : null))
     .then((me) => { if (me) render(me); })

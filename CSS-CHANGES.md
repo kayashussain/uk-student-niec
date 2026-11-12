@@ -9,6 +9,17 @@ Format: **date · file · what · from → to · why**
 
 ---
 
+## 2026-11-12 · `shared/theme.css`, `shared/header.css`, `shared/header.js`, `shared/login.html` · a bold black-and-white brand with one electric accent
+
+The owner found the ivory and green look dull and yellow, and asked for a brand feel like Apple, Nike or Google, built on how people respond to a screen.
+
+- **Colours:** from warm ivory with forest green and brass → to a light grey page (`#f5f5f7`) with white cards, near-black text (`#0b0b0f`), a black menu, black main buttons and one electric blue (`#2f6bff`) for selection, focus, links and the open page. Status tags are clearer: green, blue, amber, grey, red. Dark mode is true black with the same blue.
+- **Type:** from a serif for titles and big numbers → to one heavy, tight sans (titles 40px, weight 800; numbers 800 with even digits) for a confident, Apple-like look.
+- **Logo:** from a leaf-like shape on a green square → to a three-feather wing in white on a blue-to-violet rounded square, with "Fly" in heavy white type. The consultancy's name is no longer shown in the menu or on the login page.
+- **Login page:** black welcome side with the same mark, white card.
+
+---
+
 ## 2026-11-12 · `shared/theme.css`, `shared/header.css`, `shared/header.js`, `shared/login.html` · ivory and forest green with brass, the Fly wing mark
 
 The owner did not like the navy look, the logo or the colours, and chose warm ivory and forest green with a wing mark.

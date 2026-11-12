@@ -1,5 +1,5 @@
 // Add many students at once, all with the same stage, source and event or marketing tag. Paste one student a line:
-// "Name, email, phone" (a tab between the parts works too, so a copy from Excel can be pasted as it is).
+// "Name, email, phone" (a tab between the parts works too, so a copy from Excel can be pasted as it is), or upload an Excel (.xlsx) or CSV file.
 (function () {
   const { el, h, api, field } = window.Portal;
   const F = window.CardFields;
@@ -20,6 +20,35 @@
       if (!last && /\s/.test(first)) { const w = first.split(/\s+/); first = w[0]; last = w.slice(1).join(' '); }
       return { first, last, email, phone };
     });
+  }
+
+
+  // Rows of a spreadsheet (arrays of cells) to students. A first row with headings (First name, Last name, Name, Email, Phone ...) names the
+  // columns; without headings each row is read like a pasted line.
+  function fromGrid(grid) {
+    const cells = grid.map((r) => r.map((c) => String(c === null || c === undefined ? '' : (c.text || c.result || c)).trim()));
+    const head = (cells[0] || []).map((c) => c.toLowerCase());
+    const find = (re) => head.findIndex((c) => re.test(c));
+    const col = { first: find(/first\s*name|given/), last: find(/last\s*name|surname|family/), name: find(/^(full\s*)?name$|student/), email: find(/e-?mail/), phone: find(/phone|mobile|contact|whatsapp|number/) };
+    const hasHead = Object.values(col).some((i) => i >= 0);
+    return (hasHead ? cells.slice(1) : cells).filter((r) => r.some(Boolean)).slice(0, 200).map((r) => {
+      if (!hasHead) return parse(r.filter(Boolean).join('\t'))[0] || { first: '', last: '', email: '', phone: '' };
+      let first = col.first >= 0 ? r[col.first] : '';
+      let last = col.last >= 0 ? r[col.last] : '';
+      if (!first && !last && col.name >= 0) { const w = (r[col.name] || '').split(/\s+/); first = w[0] || ''; last = w.slice(1).join(' '); }
+      return { first, last, email: col.email >= 0 ? r[col.email] : '', phone: col.phone >= 0 ? r[col.phone] : '' };
+    });
+  }
+  // A file the person chose: .xlsx is read with the Excel library (downloaded once, as for Export Excel), .csv as text.
+  async function readFile(file) {
+    if (/\.csv$/i.test(file.name)) return fromGrid((await file.text()).split(/\r?\n/).filter(Boolean).map((l) => l.split(/\t|,|;/)));
+    const ExcelJS = await window.NiecSession.loadExcel();
+    const wb = new ExcelJS.Workbook();
+    await wb.xlsx.load(await file.arrayBuffer());
+    const sheet = wb.worksheets[0];
+    const grid = [];
+    sheet.eachRow({ includeEmpty: false }, (row) => { grid.push(row.values.slice(1)); });
+    return fromGrid(grid);
   }
 
   function render() {
@@ -68,11 +97,13 @@
     const go = h('button', { class: 'btn btn-primary', type: 'button' }, 'Add them all');
     go.disabled = true;
     bar.append(check, go);
-    paste.append(box, bar, out);
+    const pick = el('input'); pick.type = 'file'; pick.accept = '.xlsx,.csv';
+    const fileRow = el('div', 'p-bar');
+    fileRow.append(pick, el('span', 'p-muted p-small', 'Or upload an Excel (.xlsx) or CSV file. A first row with headings such as First name, Last name, Email and Phone is used; without headings each row is Name, email, phone.'));
+    paste.append(box, fileRow, bar, out);
     wrap.append(paste);
 
-    check.addEventListener('click', () => {
-      rows = parse(box.value);
+    const showRows = () => {
       const bad = rows.filter((r) => !r.first && !r.last);
       out.replaceChildren(el('p', '', `${rows.length} students found${bad.length ? `, ${bad.length} with no name (they will be skipped)` : ''}.`));
       const t = el('table', 'p-table');
@@ -81,6 +112,12 @@
       rows.slice(0, 200).forEach((r) => tb.append(h('tr', {}, el('td', '', `${r.first} ${r.last}`.trim() || '(no name)'), el('td', '', r.email), el('td', '', r.phone))));
       t.append(tb); out.append(t);
       go.disabled = !rows.length;
+    };
+    check.addEventListener('click', () => { rows = parse(box.value); showRows(); });
+    pick.addEventListener('change', async () => {
+      const f = pick.files && pick.files[0];
+      if (!f) return;
+      try { rows = await readFile(f); box.value = ''; showRows(); } catch (e) { out.replaceChildren(el('div', 'p-notice bad', 'Could not read the file: ' + e.message)); }
     });
     go.addEventListener('click', async () => {
       if (!(await window.NiecUI.confirm(`Add ${rows.length} students with the source "${source.input.value}${detail && detail.value ? ': ' + detail.value : ''}"?`, { confirmText: 'Add them' }))) return;
