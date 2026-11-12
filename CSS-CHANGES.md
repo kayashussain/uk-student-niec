@@ -9,6 +9,14 @@ Format: **date · file · what · from → to · why**
 
 ---
 
+## 2026-11-12 · `shared/header.css`, `shared/header.js`, `shared/login.html` · Fly name, quick search, premium login
+
+- **Menu top (`shared/header.css`, `header.js`):** from the NIEC logo on a white chip with "UK Student NIEC" → to the Fly mark (a paper plane on a blue square), "Fly" in 22px bold white and, under it in small grey-blue, the name of the consultancy using it. Why: the portal is now a product called Fly that any consultancy can use.
+- **Quick search (`shared/header.css`):** new. A Search button in the menu and a search box in the middle of the screen (Ctrl+K), white with a soft shadow, for jumping to a student or a page. Why: speed.
+- **Login page (`shared/login.html`):** from a pale grey welcome side and a grey card → to a deep-navy welcome side with white text and a bright white card. Why: the same premium look as the portal.
+
+---
+
 ## 2026-11-12 · `shared/header.css`, `shared/header.js`, `shared/theme.css`, `student-details/portal.css` · the whole look: a premium portal with a side menu
 
 The owner asked for the system to be changed from zero into a premium, professional recruitment portal, keeping the Google-Sheet-style view of Student Details.

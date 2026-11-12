@@ -26,7 +26,7 @@
   async function build(templates) {
     const first = await api(`/api/cards/${id}/messages/preview`, { template: templateKey });
     const tmpl = templates.find((t) => t.key === templateKey) || (templateKey === 'custom' ? { name: 'Write my own message' } : null);
-    document.title = `${tmpl ? tmpl.name : 'Message'} · ${student.name} · UK Student NIEC`;
+    document.title = `${tmpl ? tmpl.name : 'Message'} · ${student.name} · Fly`;
     const wrap = el('div');
     const head = el('div', 'p-head');
     const title = el('div');

@@ -114,10 +114,10 @@
     f.status = el('select'); STATUSES.forEach((s) => { const o = el('option', '', s); o.value = s; f.status.append(o); }); f.status.value = uni.status;
     f.agreementEnd = text(uni.agreementEnd, 40, 'e.g. 31 Aug 2027');
     f.agreementStart = text(uni.agreementStart, 40, 'e.g. 1 Sep 2025');
-    // How NIEC holds this university: its own agreement, or through a B2B partner (named in the next box).
+    // How you hold this university: its own agreement, or through a B2B partner (named in the next box).
     f.type = el('select'); ['Direct', 'Through a B2B partner'].forEach((s) => { const o = el('option', '', s); o.value = s; f.type.append(o); }); f.type.value = uni.type || 'Direct';
     f.via = text(uni.via, 120, 'e.g. Adventus');
-    basics.append(field('University name', f.name), field('Status', f.status), field('How NIEC holds it', f.type), field('Through which B2B partner', f.via), field('Agreement starts', f.agreementStart), field('Agreement ends', f.agreementEnd));
+    basics.append(field('University name', f.name), field('Status', f.status), field('How you hold it', f.type), field('Through which B2B partner', f.via), field('Agreement starts', f.agreementStart), field('Agreement ends', f.agreementEnd));
     form.append(basics);
 
     const campuses = repeater('Campus locations', '', [['name', 'Campus', 'text', 'e.g. London Campus'], ['city', 'City', 'text']], uni.campuses, 'Add a campus');

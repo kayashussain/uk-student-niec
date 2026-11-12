@@ -1,4 +1,4 @@
-// The messages NIEC sends to a student from the student card: ready-made templates for each step of the journey
+// The messages your consultancy sends to a student from the student card: ready-made templates for each step of the journey
 // (university options and documents, application submitted, offer, mock interview, deferred), filled in with the
 // student's own details, sent by email from the office mailbox with the signature, or opened in WhatsApp.
 //
@@ -18,13 +18,16 @@ const { writeFileAtomic, localDate } = require('../shared/server-utils');
 const Fields = require('./card-fields');
 const { isoDate } = require('./dashboard-stats');
 
+// The company name of this installation is a setting (the signature, set by Admin); this is only what an installation starts with.
 const COMPANY = 'Nepal International Educational Consultancy';
+const initialsOf = (name) => String(name || '').split(/\s+/).filter((w) => /^[A-Za-z]/.test(w) && !/^(of|and|the|\(.*\))$/i.test(w)).map((w) => w[0].toUpperCase()).join('').slice(0, 8);
 const LIMITS = { name: 80, subject: 200, body: 8000, whatsapp: 3000, templates: 80, short: 200 };
 
 // The words that can be used in a template, and what each stands for.
 const FIELDS = [
   ['first_name', "The student's first name"], ['last_name', "The student's last name"], ['full_name', "The student's full name"],
   ['university', 'University name (from the sheet)'], ['course', 'Course name (from the sheet)'], ['intake', 'The intake (the name of the sheet)'],
+  ['company_name', 'The name of your consultancy'], ['company_short', 'The short name of your consultancy'],
   ['stage', 'The stage the student is at'], ['counselor', "The student's counselor (the sender when none is set)"], ['sender_name', 'The person sending the message'],
   ['application_date', 'Application submitted day'], ['offer_date', 'Offer received day'], ['mock_date', 'The latest mock interview day'],
   ['payment_date', 'Payment day'], ['cas_date', 'CAS received day'], ['visa_date', 'Visa received day'],
@@ -41,7 +44,7 @@ const BLOCK_FIELDS = new Set(['options_table', 'documents_list']);
 const DEFAULTS = [
   {
     key: 'options', name: 'University options and documents needed', stages: ['Inquiry', 'Application Stage'],
-    subject: 'Your UK university options from NIEC',
+    subject: 'Your UK university options from {company_short}',
     body: [
       'Dear {first_name},',
       'Thank you for your interest in studying in the UK. Based on your academic background and what you are looking for, these are the options we recommend for you:',
@@ -51,7 +54,7 @@ const DEFAULTS = [
       '{documents_list}',
       'Please tell us which options you like, and send us the documents above. We can submit your application as soon as we have them.',
     ].join('\n\n'),
-    whatsapp: 'Namaste {first_name}, here are your UK university options from NIEC:\n\n{options_table}\n\nDocuments needed to apply:\n{documents_list}\n\nPlease tell us which option you like. - {sender_name}, NIEC',
+    whatsapp: 'Namaste {first_name}, here are your UK university options from {company_short}:\n\n{options_table}\n\nDocuments needed to apply:\n{documents_list}\n\nPlease tell us which option you like. - {sender_name}, {company_short}',
   },
   {
     key: 'documents_needed', name: 'Documents needed for the application', stages: ['Application Stage'],
@@ -62,7 +65,7 @@ const DEFAULTS = [
       '{documents_list}',
       'Please send them by replying to this email or on WhatsApp. If any document is not ready yet, tell us and we will advise you.',
     ].join('\n\n'),
-    whatsapp: 'Namaste {first_name}, to submit your application we need these documents:\n{documents_list}\n\nPlease send clear scans or photos here. - {sender_name}, NIEC',
+    whatsapp: 'Namaste {first_name}, to submit your application we need these documents:\n{documents_list}\n\nPlease send clear scans or photos here. - {sender_name}, {company_short}',
   },
   {
     key: 'application_submitted', name: 'Application submitted', stages: ['Application Stage'],
@@ -77,7 +80,7 @@ const DEFAULTS = [
       '- Start preparing for the credibility interview that most universities hold after the offer',
       'If you have any question, simply reply to this email.',
     ].join('\n\n').replace(/\n\n- /g, '\n- '),
-    whatsapp: 'Namaste {first_name}, your application for {course} at {university} has been submitted. The decision usually takes one to three weeks. Please tell us if the university emails you. - {sender_name}, NIEC',
+    whatsapp: 'Namaste {first_name}, your application for {course} at {university} has been submitted. The decision usually takes one to three weeks. Please tell us if the university emails you. - {sender_name}, {company_short}',
   },
   {
     key: 'offer_received', name: 'Offer received', stages: ['Application Stage', 'Mock Stage'],
@@ -92,11 +95,11 @@ const DEFAULTS = [
       '- Start arranging your funds for the tuition deposit and the bank balance needed for the visa',
       'We will guide you at every step. Please confirm that you have received this email.',
     ].join('\n\n').replace(/\n\n- /g, '\n- '),
-    whatsapp: 'Congratulations {first_name}! {university} has offered you a place on {course}. Next: check the offer conditions, prepare for the credibility interview (we will hold mock interviews with you) and start arranging your funds. - {sender_name}, NIEC',
+    whatsapp: 'Congratulations {first_name}! {university} has offered you a place on {course}. Next: check the offer conditions, prepare for the credibility interview (we will hold mock interviews with you) and start arranging your funds. - {sender_name}, {company_short}',
   },
   {
     key: 'mock_interview', name: 'Mock interview schedule', stages: ['Mock Stage'],
-    subject: 'Your mock interview with NIEC{mock_date_phrase}',
+    subject: 'Your mock interview with {company_short}{mock_date_phrase}',
     body: [
       'Dear {first_name},',
       'Your mock interview for {university} is scheduled{mock_date_phrase}. It prepares you for the credibility interview that the university holds before it issues your CAS.',
@@ -108,7 +111,7 @@ const DEFAULTS = [
       'Join from a quiet place with a good internet connection, and keep your passport and offer letter with you.',
       'If the time does not suit you, tell us today so that we can change it.',
     ].join('\n\n').replace(/\n\n- /g, '\n- '),
-    whatsapp: 'Namaste {first_name}, your mock interview for {university} is scheduled{mock_date_phrase}. Please prepare: why this course and university, your modules, fees and funding, and your career plan. Join from a quiet place with good internet. - {sender_name}, NIEC',
+    whatsapp: 'Namaste {first_name}, your mock interview for {university} is scheduled{mock_date_phrase}. Please prepare: why this course and university, your modules, fees and funding, and your career plan. Join from a quiet place with good internet. - {sender_name}, {company_short}',
   },
   {
     key: 'defer', name: 'Deferred to the next intake', stages: ['Defer'],
@@ -122,7 +125,7 @@ const DEFAULTS = [
       '- Telling us if you would like to look at other universities or courses',
       'We will contact you when applications for the next intake open. You can also write to us at any time.',
     ].join('\n\n').replace(/\n\n- /g, '\n- '),
-    whatsapp: 'Namaste {first_name}, your UK plan is moved to the next intake. To be ready early, please complete any missing document or English test and keep your funds ready. We will contact you when applications open. - {sender_name}, NIEC',
+    whatsapp: 'Namaste {first_name}, your UK plan is moved to the next intake. To be ready early, please complete any missing document or English test and keep your funds ready. We will contact you when applications open. - {sender_name}, {company_short}',
   },
 ];
 
@@ -141,11 +144,12 @@ function longDate(v) {
 const money = (v) => { const s = text(v); return !s ? '' : (/^[\d,.\s]+$/.test(s) ? `£${s}` : s); };
 
 // The values of every {word} for one student. `row`: the student's row of the sheet; `card`: the student card.
-function valuesFor({ row = {}, sheetName = '', card = {}, sender = '', today = new Date() }) {
+function valuesFor({ row = {}, sheetName = '', card = {}, sender = '', today = new Date(), company = COMPANY, short = '' }) {
   const first = text(row['FIRST NAME']);
   const last = text(row['LAST NAME']);
   const mock = [4, 3, 2, 1].map((n) => longDate(row[`MOCK SCHEDULE ${n}`])).find(Boolean) || '';
   const v = {
+    company_name: company, company_short: short || initialsOf(company),
     first_name: first || last, last_name: last, full_name: [first, last].filter(Boolean).join(' '),
     university: text(row['UNIVERSITY NAME']), course: text(row['COURSE NAME']), intake: text(sheetName),
     stage: text(row['APPLICATION STATUS']), counselor: text(card.profile && card.profile.counselor) || text(sender), sender_name: text(sender),
@@ -275,7 +279,7 @@ function renderEmail({ subject, body, values, signature, options = [], documents
   closeList();
   const sig = signatureLines(signature);
   const plain = `${textOut.join('\n').replace(/\n{3,}/g, '\n\n').trim()}\n\nKind regards,\n${sig.join('\n')}\n`;
-  const logo = siteUrl ? `<tr><td style="padding:22px 28px 6px"><img src="${esc(siteUrl.replace(/\/+$/, ''))}/niec-logo.png" alt="NIEC" height="44" style="display:block;border:0"></td></tr>` : '';
+  const logo = siteUrl ? `<tr><td style="padding:22px 28px 6px"><img src="${esc(siteUrl.replace(/\/+$/, ''))}/niec-logo.png" alt="" height="44" style="display:block;border:0"></td></tr>` : '';
   const sigHtml = sig.map((l, i) => (i === 0 && text(signature && signature.name)
     ? `<div style="font-weight:700;color:#17324d;font-size:15px">${esc(l)}</div>` : `<div>${linkify(esc(l))}</div>`)).join('');
   const page = `<!doctype html><html><body style="margin:0;background:#eef1f5;padding:24px 12px;font-family:Segoe UI,Arial,Helvetica,sans-serif;color:#1f2933">
@@ -318,7 +322,7 @@ function cleanTemplate(input, old = {}) {
 function cleanSignature(input, old = {}) {
   const pick = (k) => (input && Object.prototype.hasOwnProperty.call(input, k) ? str(input[k], LIMITS.short).trim() : (old[k] || ''));
   return {
-    name: pick('name'), title: pick('title'), company: pick('company') || COMPANY, phone: pick('phone'), whatsapp: pick('whatsapp'),
+    name: pick('name'), title: pick('title'), company: pick('company') || COMPANY, short: pick('short') || initialsOf(pick('company') || COMPANY), phone: pick('phone'), whatsapp: pick('whatsapp'),
     email: pick('email'), website: pick('website'), address: pick('address'),
     // A copy of every email also goes to the office mailbox (so it is found there with the student's replies) unless switched off.
     copyToOffice: input && Object.prototype.hasOwnProperty.call(input, 'copyToOffice') ? Boolean(input.copyToOffice) : (old.copyToOffice !== false),

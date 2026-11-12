@@ -117,7 +117,7 @@ function createPortalApi({
   function messageContext(req, found, card, optionIds) {
     const picked = Array.isArray(optionIds) && optionIds.length ? card.options.filter((o) => optionIds.includes(o.id)) : card.options;
     return {
-      values: Messages.valuesFor({ row: found.row, sheetName: found.sheet.name, card, sender: req.user.name }),
+      values: Messages.valuesFor({ row: found.row, sheetName: found.sheet.name, card, sender: req.user.name, company: messages.signature().company, short: messages.signature().short }),
       options: picked,
       ...Messages.documentLists(card),
     };
@@ -432,7 +432,7 @@ function createPortalApi({
   }
   // What each partner has brought: the students of a B2B partner (Student Source Agent, and the partner named on the card) and the
   // students applied for through a B2B platform (the sheet's University Partner column). Matched by name, ignoring capitals.
-  // What each partner has brought, by intake: visas first (that is what pays), and the students. B2B partners are the businesses NIEC sends
+  // What each partner has brought, by intake: visas first (that is what pays), and the students. B2B partners are the businesses you send
   // applications to (the sheet's University Partner column); Agents are the ones that send students (Student Source "Agent", and the agent named
   // on the student card). Matched by name, ignoring capitals.
   function partnerPerformance(kind) {
@@ -455,7 +455,7 @@ function createPortalApi({
     }));
     return out;
   }
-  // B2B Partners (the businesses NIEC sends applications to) and Agents (the businesses that send NIEC their students): the same kind of record.
+  // B2B Partners (the businesses you send applications to) and Agents (the businesses that send you their students): the same kind of record.
   async function handleB2b(req, res, urlPath) { return handlePartnerStore(req, res, urlPath, { store: b2b, prefix: 'b2b', label: 'B2B Partners', kind: 'b2b' }); }
   async function handleAgents(req, res, urlPath) { return handlePartnerStore(req, res, urlPath, { store: agents, prefix: 'agents', label: 'Agents', kind: 'agents' }); }
   async function handlePartnerStore(req, res, urlPath, { store: b2b, prefix, label, kind }) {

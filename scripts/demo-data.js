@@ -32,7 +32,7 @@ const COURSES = {
 };
 const SOURCES = [
   ['Social Media', 0.3, ['Facebook or Instagram advert (Meta Ads)', 'Facebook or Instagram advert (Meta Ads)', 'TikTok', 'Instagram', 'WhatsApp', 'Facebook page', 'Messenger']],
-  ['Reference', 0.2, ['Current or past NIEC student', 'Friend or family of the student', 'NIEC staff member', 'Teacher or college']],
+  ['Reference', 0.2, ['Current or past student', 'Friend or family of the student', 'Staff member', 'Teacher or college']],
   ['Visitor', 0.14, ['Walked in', 'Phone call', 'Website form', 'Google search or Maps']],
   ['Events', 0.11, []],
   ['Agent', 0.1, []],
@@ -45,7 +45,7 @@ const SOURCE_STRENGTH = { 'Social Media': 0.75, Reference: 1.35, Visitor: 1.1, E
 const EVENTS = [
   { name: 'UK Study Seminar, Pokhara (March 2026)', date: '2026-03-14', type: 'Seminar or information session', place: 'Pokhara', cost: 85000, registered: 140, attended: 82, universities: 'University of West London, Bangor University', note: 'Joint session with two university representatives.' },
   { name: 'UK Education Fair, Kathmandu (August 2026)', date: '2026-08-08', type: 'Education fair', place: 'Kathmandu', cost: 240000, registered: 420, attended: 265, universities: 'UWL, Ulster, Roehampton, Middlesex, York St John', note: 'Held one week after the +2 results.' },
-  { name: 'Spot Assessment Day (October 2026)', date: '2026-10-03', type: 'University visit or spot assessment', place: 'NIEC head office', cost: 60000, registered: 95, attended: 71, universities: 'University of West London, Ulster University', note: 'Offers given on the day to students with complete documents.' },
+  { name: 'Spot Assessment Day (October 2026)', date: '2026-10-03', type: 'University visit or spot assessment', place: 'the head office', cost: 60000, registered: 95, attended: 71, universities: 'University of West London, Ulster University', note: 'Offers given on the day to students with complete documents.' },
 ];
 const PARTNERS = ['Himal Education Hub (demo)', 'Lumbini Study Point (demo)', 'Koshi Career Centre (demo)'];
 const CAMPAIGNS = ['Scholarship advert, January 2027 intake', 'Nursing top-up advert', 'MBA without IELTS advert'];
@@ -205,7 +205,7 @@ function buildDemo({ today = '2026-11-11', seed = 20261111 } = {}) {
   };
   const stamp = new Date(now).toISOString();
   const common = { status: 'Active', agreementStart: '2026-01-01', commissions: [{ intake: 'Jan Intake 2027', link: 'https://example.org/commission-demo', note: 'Demo link' }], notes: '', agreements: [], updatedAt: stamp, updatedBy: 'Demo Admin' };
-  // Agents send NIEC their students; B2B partners are the ones NIEC sends applications to.
+  // Agents send you their students; B2B partners are the ones you send applications to.
   const agents = PARTNERS.map((name, i) => ({ ...common, id: `ag0000000${i}0`.slice(0, 12), name, city: ['Pokhara', 'Butwal', 'Biratnagar'][i], agreementEnd: ['2026-12-31', '2027-06-30', ''][i], contacts: [{ name: `${pick(FIRST)} ${pick(LAST)} (demo)`, email: `agent${i}@example.com`, phone: `98000990${i}0` }] }));
   const b2b = [{ ...common, id: 'b2b000000009', name: 'Adventus', city: 'Online', agreementStart: '2025-06-01', agreementEnd: '2027-01-31', contacts: [{ name: 'Partner manager (demo)', email: 'manager@example.com', phone: '9800099999' }] }];
   return { workbook: { revision: 1, sheets, activeSheetId: sheets[sheets.length - 1].id }, cards, planning, b2b, agents, counselors: COUNSELORS };

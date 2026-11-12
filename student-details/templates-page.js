@@ -59,7 +59,7 @@
     const s = data.signature;
     const f = el('div', 'p-form');
     const fields = {};
-    [['name', 'Name'], ['title', 'Title'], ['company', 'Company'], ['phone', 'Phone'], ['whatsapp', 'WhatsApp'], ['email', 'Email shown'], ['website', 'Website'], ['address', 'Address']].forEach(([k, label]) => { fields[k] = field(label, { value: s[k], max: 200 }); f.append(fields[k].wrap); });
+    [['name', 'Name'], ['title', 'Title'], ['company', 'Company name'], ['short', 'Short name (for messages)'], ['phone', 'Phone'], ['whatsapp', 'WhatsApp'], ['email', 'Email shown'], ['website', 'Website'], ['address', 'Address']].forEach(([k, label]) => { fields[k] = field(label, { value: s[k], max: 200 }); f.append(fields[k].wrap); });
     const copyBox = el('label', 'p-check');
     const c = el('input'); c.type = 'checkbox'; c.checked = s.copyToOffice !== false;
     copyBox.append(c, el('span', '', 'Send the office mailbox a copy of every email (so it is found there with the student\'s replies)'));

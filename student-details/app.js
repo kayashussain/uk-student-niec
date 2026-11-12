@@ -2415,7 +2415,7 @@
     const safeSheetName = sheetName.replace(/[\\/*?:[\]]/g, ' ').slice(0, 31) || 'Export';
 
     const wb = new ExcelJS.Workbook();
-    wb.creator = 'UK Student NIEC';
+    wb.creator = 'Fly';
     wb.created = new Date();
 
     const ws = wb.addWorksheet(safeSheetName, { views: [{ state: 'frozen', ySplit: 1 }] });

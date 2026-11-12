@@ -1,6 +1,6 @@
 // A door for the Claude "Strategy Advisor" project (an MCP connector).
 //
-// It lets Claude READ the live UK Student NIEC sheet (every tab, row and column), the Dashboard numbers,
+// It lets Claude READ the live Fly sheet (every tab, row and column), the Dashboard numbers,
 // the Fact File and the Incentive page (commissions, incentives, company earnings; see
 // counselor-incentive/advisor-tools.js). It can NOT change any student, the Fact File or any incentive.
 //
@@ -24,7 +24,7 @@ const MAX_LIMIT = 1000;
 const TOOLS = [
   {
     name: 'get_overview',
-    description: 'Start here. Lists every tab (intake) of the UK Student NIEC sheet with its id, name, whether it is hidden (an earlier intake), the number of students and the exact column names, plus the sheet revision and the time of this read. Use the tab ids and column names in the other tools.',
+    description: 'Start here. Lists every tab (intake) of the Fly sheet with its id, name, whether it is hidden (an earlier intake), the number of students and the exact column names, plus the sheet revision and the time of this read. Use the tab ids and column names in the other tools.',
     inputSchema: { type: 'object', properties: {}, additionalProperties: false },
   },
   {
@@ -172,7 +172,7 @@ function createAdvisorMcp({ getWorkbook, getDashboard, facts, incentive, token, 
 
   return createMcpEndpoint({
     prefix: PREFIX, token, tokenName: 'NIEC_ADVISOR_TOKEN', tools: incentiveTools ? [...TOOLS, ...incentiveTools.TOOLS] : TOOLS, callTool, serverName: 'niec-advisor', memoryDir, log,
-    instructions: 'Read-only, live access to the UK Student NIEC sheet and Fact File' + (incentiveTools ? ', and to the Incentive page (commissions, incentives and company earnings)' : '') + ', plus a notebook you may write to. Call read_memory first in every conversation, then get_overview' + (incentiveTools ? ' (and get_incentive_overview for anything about incentives, commissions or earnings; University Partner is the agent; tuition and university commission are in GBP, incentives, TDS, advances and salary in NPR)' : '') + '. Save durable preferences and lessons with save_memory (never personal data). Prefer count_by for numbers and get_students with "columns" and "where" for rows' + (incentiveTools ? ', and summarize_incentives_by to compare agents and universities' : '') + '. Always say when the data was pulled (pulledAt).',
+    instructions: 'Read-only, live access to the Fly sheet and Fact File' + (incentiveTools ? ', and to the Incentive page (commissions, incentives and company earnings)' : '') + ', plus a notebook you may write to. Call read_memory first in every conversation, then get_overview' + (incentiveTools ? ' (and get_incentive_overview for anything about incentives, commissions or earnings; University Partner is the agent; tuition and university commission are in GBP, incentives, TDS, advances and salary in NPR)' : '') + '. Save durable preferences and lessons with save_memory (never personal data). Prefer count_by for numbers and get_students with "columns" and "where" for rows' + (incentiveTools ? ', and summarize_incentives_by to compare agents and universities' : '') + '. Always say when the data was pulled (pulledAt).',
   });
 }
 

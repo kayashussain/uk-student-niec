@@ -1,6 +1,6 @@
-# UK Student NIEC
+# Fly
 
-The student visa tracker and counsellor incentive tracker for Nepal International Educational Consultancy.
+Fly is a recruitment portal that any education consultancy can use: the student sheet, student cards, messages, university Fact File, partners and agents, and a Dashboard. The name of the consultancy is a setting. This first installation is for Nepal International Educational Consultancy.
 One login for everyone; each person sees only what their account allows.
 
 | Part | What it is |

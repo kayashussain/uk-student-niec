@@ -1,7 +1,7 @@
 // The Fact File assistant: describe a student and what they want, even an unusual case, and it answers with the options NIEC can offer
 // (university, course, link, fee, scholarship, and the minimum cash deposit when asked), the ones the student is not eligible for and
 // why, and what it understood. It reads the entry rules in the Fact File itself (eligibility.js) and the map of the UK (places.js),
-// so "near Manchester" or "in Scotland" means the universities there. It runs inside NIEC's own server: no outside service and no
+// so "near Manchester" or "in Scotland" means the universities there. It runs inside your own server: no outside service and no
 // key, and nothing about the student leaves the system.
 //
 // The boxes (level, grades, English, budget, where, subject) and the remarks are read together: whatever the remarks say that the boxes

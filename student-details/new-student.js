@@ -54,7 +54,7 @@
         const f = el('div', 'p-form p-form-2'); f.append(name.wrap); if (src === 'Events') f.append(date.wrap);
         b2.append(f, msg, foot);
       }).then((value) => { drawDetail(); if (value && detailInput) detailInput.value = value; });
-      group('How the student found NIEC', source, { wrap: detailBox });
+      group('How the student found us', source, { wrap: detailBox });
       source.input.addEventListener('change', drawDetail);
       drawDetail();
 

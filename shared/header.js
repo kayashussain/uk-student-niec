@@ -1,4 +1,4 @@
-// The header every page shares: the NIEC logo and name, navigation between the pages, and the account
+// The side menu every page shares: the Fly mark and the name of the consultancy using it, navigation between the pages, and the account
 // menu with Log out. A page puts <header class="niec-header" data-page="..."></header> at the top (page
 // is dashboard, sheet, b2b, templates, incentive, users, activity or direct), loads header.css and this file (after
 // session.js), and the header fills itself in.
@@ -13,11 +13,55 @@
 
   header.innerHTML = `
     <a class="niec-brand" href="/students" title="Home" id="niecHome">
-      <img class="niec-logo" src="niec-logo.png" alt="NIEC, Your Future, Our Responsibility" width="79" height="38">
-      <span class="niec-brand-text"><span class="niec-brand-name">UK Student NIEC</span><span class="niec-brand-sub">Nepal International Educational Consultancy</span></span>
+      <span class="niec-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 11.5 21 3l-6.5 18-3.2-7.3L3 11.5z"/><path d="M11.3 13.7 21 3"/></svg></span>
+      <span class="niec-brand-text"><span class="niec-brand-name">Fly</span><span class="niec-brand-sub" id="niecCompany"></span></span>
     </a>
     <nav class="niec-nav" aria-label="Pages"></nav>
     <div class="niec-account"></div>`;
+
+
+  // ---- Quick search (Ctrl+K, or the Search button): jump to a page or a student from anywhere, with the keyboard ----
+  function palette(links) {
+    const back = document.createElement('div');
+    back.className = 'fly-pal-back';
+    back.innerHTML = '<div class="fly-pal" role="dialog" aria-label="Quick search"><input class="fly-pal-input" type="search" placeholder="Search a student or go to a page" autocomplete="off" aria-label="Quick search"><div class="fly-pal-list" role="listbox"></div><div class="fly-pal-foot"><span><kbd>↑</kbd><kbd>↓</kbd> choose</span><span><kbd>Enter</kbd> open</span><span><kbd>Esc</kbd> close</span></div></div>';
+    document.body.append(back);
+    const input = back.querySelector('input');
+    const list = back.querySelector('.fly-pal-list');
+    let items = [];
+    let at = 0;
+    let timer;
+    const close = () => { back.remove(); document.removeEventListener('keydown', onKey, true); };
+    const go = (it) => { if (!it) return; close(); if (it.card && window.CardDrawer) window.CardDrawer.open(it.card); else location.href = it.href; };
+    const draw = () => {
+      list.innerHTML = items.length ? items.map((it, i) => `<button type="button" class="fly-pal-item${i === at ? ' on' : ''}" role="option" data-i="${i}"><span class="fly-pal-kind">${esc(it.kind)}</span><span class="fly-pal-main"><b>${esc(it.title)}</b>${it.sub ? `<small>${esc(it.sub)}</small>` : ''}</span></button>`).join('') : '<div class="fly-pal-empty">Nothing found</div>';
+      const on = list.querySelector('.on'); if (on) on.scrollIntoView({ block: 'nearest' });
+    };
+    const run = async () => {
+      const q = input.value.trim().toLowerCase();
+      const pages = links.filter(([, , label]) => !q || label.toLowerCase().includes(q)).map(([, href, label]) => ({ kind: 'Page', title: label, href }));
+      let people = [];
+      if (q.length >= 2) {
+        try { const r = await (await fetch('/api/students/search?q=' + encodeURIComponent(q), { cache: 'no-store' })).json(); people = (r.students || []).slice(0, 8).map((s) => ({ kind: 'Student', title: s.name, sub: [s.stage, s.intake, s.university].filter(Boolean).join(' · '), card: s.id, href: '/student?id=' + encodeURIComponent(s.id) })); } catch (e) { /* only the pages are shown */ }
+      }
+      items = [...people, ...pages].slice(0, 12); at = 0; draw();
+    };
+    const onKey = (e) => {
+      if (e.key === 'Escape') { e.preventDefault(); close(); }
+      else if (e.key === 'ArrowDown') { e.preventDefault(); at = Math.min(items.length - 1, at + 1); draw(); }
+      else if (e.key === 'ArrowUp') { e.preventDefault(); at = Math.max(0, at - 1); draw(); }
+      else if (e.key === 'Enter') { e.preventDefault(); go(items[at]); }
+    };
+    document.addEventListener('keydown', onKey, true);
+    back.addEventListener('mousedown', (e) => { if (e.target === back) close(); });
+    list.addEventListener('click', (e) => { const b = e.target.closest('.fly-pal-item'); if (b) go(items[Number(b.dataset.i)]); });
+    input.addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(run, 140); });
+    run(); input.focus();
+  }
+  let paletteLinks = [];
+  document.addEventListener('keydown', (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); if (!document.querySelector('.fly-pal-back') && paletteLinks.length) palette(paletteLinks); }
+  });
 
   // The menu is folded or open as the person left it.
   try { if (localStorage.getItem('niecNav') === 'folded') document.documentElement.setAttribute('data-nav', 'folded'); } catch (e) { /* open */ }
@@ -44,9 +88,12 @@
 
   function render(me) {
     const links = LINKS[me.role] || [];
+    paletteLinks = [...links, ...(MENU_LINKS[me.role] || [])];
     header.querySelector('.niec-nav').innerHTML = links
       .map(([id, href, label]) => `<a href="${href}" title="${label}"${id === page ? ' aria-current="page"' : ''}><span class="niec-ico" aria-hidden="true">${ICONS[id] || ''}</span><span class="niec-lbl">${label}</span></a>`).join('')
+      + '<button type="button" class="niec-search" aria-label="Quick search" title="Quick search (Ctrl+K)"><span class="niec-ico"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.2-4.2"/></svg></span><span class="niec-lbl">Search</span><kbd>Ctrl K</kbd></button>'
       + '<button type="button" class="niec-fold" aria-label="Fold or open the menu" title="Fold or open the menu"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg><span>Fold the menu</span></button>';
+    header.querySelector('.niec-search').addEventListener('click', () => { if (!document.querySelector('.fly-pal-back')) palette(paletteLinks); });
     const fold = header.querySelector('.niec-fold');
     fold.addEventListener('click', () => {
       const folded = document.documentElement.getAttribute('data-nav') !== 'folded';
@@ -86,6 +133,8 @@
     account.querySelector('.niec-logout').addEventListener('click', () => window.NiecSession.logout());
   }
 
+  // The name of the consultancy that uses this installation (a setting of Admin), under the product name.
+  fetch('/api/brand').then((r) => r.json()).then((b) => { const c = document.getElementById('niecCompany'); if (c) c.textContent = b.company || ''; }).catch(() => {});
   fetch('/api/me', { cache: 'no-store' })
     .then((res) => (res.ok ? res.json() : null))
     .then((me) => { if (me) render(me); })

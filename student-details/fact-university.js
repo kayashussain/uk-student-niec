@@ -201,7 +201,7 @@
       view.append(toc);
     }
     view.append(doc);
-    document.title = `${uni.name} · Fact File · UK Student NIEC`;
+    document.title = `${uni.name} · Fact File · Fly`;
 
     const bar = $('toolbar');
     bar.replaceChildren();

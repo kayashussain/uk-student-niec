@@ -67,7 +67,7 @@
   function targetCard() {
     const t = data.target;
     if (!t) return card('Target', 'Choose one intake above to see its target.');
-    const c = card(`Visa target: ${data.scope}`, 'The target does not change anything else in the portal. It is used for three things only: comparing it with the forecast below, the weekly pace needed, and "still to find" in the Intake plan. The forecast comes from what happened to NIEC\'s own earlier students at each stage.');
+    const c = card(`Visa target: ${data.scope}`, 'The target does not change anything else in the portal. It is used for three things only: comparing it with the forecast below, the weekly pace needed, and "still to find" in the Intake plan. The forecast comes from what happened to your own earlier students at each stage.');
     const status = { reached: ['Reached', 'green'], 'on-track': ['On track', 'green'], behind: ['Behind', 'red'], missed: ['Missed', 'red'], unknown: ['Not enough history to forecast', 'amber'], none: ['No target set', 'amber'] }[t.status];
     const row = el('div', 'p-kpis');
     row.append(kpi('Target', t.visas || 'none', t.byDate ? `by ${t.byDate}` : ''), kpi('Visas so far', t.visasNow, `${data.summary.paid} have paid`),
@@ -84,7 +84,7 @@
       const by = field('Visas needed by', { kind: 'date', value: t.byDate });
       const st = field('Teaching starts', { kind: 'date', value: t.startGuessed ? '' : t.startDate, hint: t.startGuessed && t.startDate ? `Not set: the plan assumes ${t.startDate}` : '' });
       const note = field('Note', { value: t.note, max: 300 });
-      const worth = field('What one visa is worth to NIEC (Rs, average)', { value: plan.settings.valuePerVisa ? String(plan.settings.valuePerVisa) : '', max: 10, hint: 'Optional. Shows earnings and the return on marketing.' });
+      const worth = field('What one visa is worth to your consultancy (Rs, average)', { value: plan.settings.valuePerVisa ? String(plan.settings.valuePerVisa) : '', max: 10, hint: 'Optional. Shows earnings and the return on marketing.' });
       f.append(v.wrap, by.wrap, st.wrap, note.wrap, worth.wrap);
       const save = h('button', { class: 'btn btn-sm btn-primary', type: 'button' }, 'Save target');
       save.addEventListener('click', async () => { try { await api('/api/planning/targets/' + data.selected, { visas: v.input.value, byDate: by.input.value, startDate: st.input.value, note: note.input.value }); await api('/api/planning/settings', { valuePerVisa: worth.input.value }); say('Saved'); load(); } catch (e) { say(e.message, true); } });
@@ -127,7 +127,7 @@
       k.append(kpi('Earned so far', rupees(m.earned), `${data.summary.visas} visas at Rs ${number(m.valuePerVisa)} each`, 'good'), kpi('Expected when the intake ends', m.expected === null ? 'unknown' : rupees(m.expected), 'from the forecast'),
         kpi('Marketing spent', rupees(m.spend), data.scope), kpi('Earned per rupee spent on marketing', m.returnOnSpend === null ? 'n/a' : 'Rs ' + String(m.returnOnSpend), 'earned per 1 rupee of marketing, so far; visas still to come are not counted', m.returnOnSpend !== null && m.returnOnSpend < 1 ? 'warn' : ''));
       c.append(k, el('p', 'p-muted p-small', 'What a visa is worth is the figure you set under the target (Admin only). It is an assumption for planning, not read from the Incentive page.'));
-    } else if (admin()) c.append(el('p', 'p-muted p-small no-print', 'Set what one visa is worth to NIEC (average commission in rupees) under the target to see earnings and the return on marketing here.'));
+    } else if (admin()) c.append(el('p', 'p-muted p-small no-print', 'Set what one visa is worth to your consultancy (average commission in rupees) under the target to see earnings and the return on marketing here.'));
     return c;
   }
   function funnelCard() {
@@ -243,7 +243,7 @@
     const out = [];
     const lost = data.lost;
     out.push(card('Why students are lost', `${lost.total} students are withdrawn, on hold, deferred or refused. A reason recorded on the card turns each into a lesson.`, lost.reasons.length ? bars(lost.reasons.map((r) => ({ label: r.label, value: r.count, text: `${r.count} (${r.percent}%)` })), { quiet: true }) : el('div', 'p-empty', 'No students lost yet.')));
-    out.push(card('What students wanted that NIEC could not offer', 'Worked out from the cards of lost students: the subject and level they asked for, where the recorded reason was that we had no suitable course, the fee or deposit was too high, or the grades or English score were not accepted. The same request repeating is the sign of a gap in the university list.', lost.wanted.length ? table(['Subject', 'Level', 'Students', 'Why we lost them'], lost.wanted.map((w) => [el('b', '', w.subject), w.level, number(w.count), w.reasons.join(', ')]), { numCols: [2] }) : el('div', 'p-empty', 'Nothing yet. It fills in as lost students get a reason and a subject on their card.')));
+    out.push(card('What students wanted that you could not offer', 'Worked out from the cards of lost students: the subject and level they asked for, where the recorded reason was that we had no suitable course, the fee or deposit was too high, or the grades or English score were not accepted. The same request repeating is the sign of a gap in the university list.', lost.wanted.length ? table(['Subject', 'Level', 'Students', 'Why we lost them'], lost.wanted.map((w) => [el('b', '', w.subject), w.level, number(w.count), w.reasons.join(', ')]), { numCols: [2] }) : el('div', 'p-empty', 'Nothing yet. It fills in as lost students get a reason and a subject on their card.')));
     return out;
   }
 
@@ -255,8 +255,8 @@
     out[1].append(h('button', { class: 'btn btn-primary', type: 'button', onclick: () => proposal() }, 'Print the intake proposal'));
     out[1].style.marginBottom = '14px';
     out.push(card(`Plan for ${p.intake}`, p.startDate ? `Teaching starts about ${p.startDate}${data.target && data.target.startGuessed ? ' (assumed from the intake name: set the day with the target)' : ''}. ${p.comparable ? `Compared with ${p.comparable.label}: ${p.comparable.students} students, ${p.comparable.applied} applications, ${p.comparable.visas} visas.` : 'There is no earlier intake to compare with yet.'}` : 'Choose one intake above.',
-      table(['Step', 'Rate from NIEC\'s own history', 'Students counted'], [['Inquiry to application', p.rates.inquiryToApplication], ['Application to offer', p.rates.applicationToOffer], ['Offer to payment', p.rates.offerToPayment], ['Payment to visa', p.rates.paymentToVisa], ['Application to visa', p.rates.applicationToVisa]].map(([l, r]) => [l, r.percent === null ? 'not enough history yet' : r.percent + '%', number(r.n)]), { numCols: [1, 2] })));
-    out.push(card('What the target needs, what you have, what is still to find', p.needs.length ? 'Working back from the visa target with NIEC\'s own conversion rates. Still to find is what is needed minus what the intake already has.' : 'Set a visa target (on the Decisions page) to see what the intake needs.',
+      table(['Step', 'Rate from your own history', 'Students counted'], [['Inquiry to application', p.rates.inquiryToApplication], ['Application to offer', p.rates.applicationToOffer], ['Offer to payment', p.rates.offerToPayment], ['Payment to visa', p.rates.paymentToVisa], ['Application to visa', p.rates.applicationToVisa]].map(([l, r]) => [l, r.percent === null ? 'not enough history yet' : r.percent + '%', number(r.n)]), { numCols: [1, 2] })));
+    out.push(card('What the target needs, what you have, what is still to find', p.needs.length ? 'Working back from the visa target with your own conversion rates. Still to find is what is needed minus what the intake already has.' : 'Set a visa target (on the Decisions page) to see what the intake needs.',
       p.needs.length ? table(['Step', 'Needed', 'You have', 'Still to find'], p.needs.map((x) => [el('b', '', x.label), x.need === null ? 'not enough history' : number(x.need), number(x.have), x.left === null ? '' : el('b', '', number(x.left))]), { numCols: [1, 2, 3] }) : null,
       p.needs.length ? el('p', 'p-muted p-small', p.weeklyPace.applicationsPerWeek ? `To finish before applications close on ${p.weeklyPace.closes} (${p.weeklyPace.weeksLeft} weeks): about ${number(p.weeklyPace.applicationsPerWeek)} applications and ${p.weeklyPace.inquiriesPerWeek ? number(p.weeklyPace.inquiriesPerWeek) : 'some'} new inquiries every week. Last week: ${p.weeklyPace.applicationsLastWeek} applications.` : 'The weekly pace needs a start day and applications still open.') : null));
     if (p.scenarios.length) out.push(card('What each choice needs', 'Working back from the visas wanted. Every number comes from the rates above; where the history is too thin the cell is empty rather than guessed.',
@@ -264,7 +264,7 @@
     if (p.timeline.length) {
       const ol = el('ol', 'p-steps');
       p.timeline.forEach((t) => { const li = el('li', t.state); li.append(el('b', '', t.from === t.to ? t.from : `${t.from} to ${t.to}`), el('span', '', t.label), el('span', 'p-muted p-small', `${t.weeksBefore} weeks before the start`)); ol.append(li); });
-      out.push(card('Working back from the start day', `A university's own deadline in the Fact File always comes first. The last safe week to apply is ten weeks before the start.${p.ownLatestApply ? ` From NIEC's own journeys (${p.ownJourneyDays} days from application to visa) the latest application day is about ${p.ownLatestApply}.` : ''}`, ol));
+      out.push(card('Working back from the start day', `A university's own deadline in the Fact File always comes first. The last safe week to apply is ten weeks before the start.${p.ownLatestApply ? ` From your own journeys (${p.ownJourneyDays} days from application to visa) the latest application day is about ${p.ownLatestApply}.` : ''}`, ol));
     }
     if (p.channelMix.length) out.push(card('Where the students came from last time', 'The starting point for the lead target of each channel.', table(['Channel', 'Share of students', 'Application rate', 'Student to visa', 'Cost per student'], p.channelMix.map((c) => [c.label, percent(c.share), percent(c.toApplication), percent(c.leadToVisa) + (c.low ? ' *' : ''), c.costPerStudent ? rupees(c.costPerStudent) : '']), { numCols: [1, 2, 3, 4] }), lowNote()));
     if (p.channelPlan.length) out.push(card('Where the missing inquiries should come from, and the budget', 'The inquiries still to find, split by the share each source brought before, with the marketing cost per student it had. A blank budget means no spend was recorded for that source. Check the split before you spend: it repeats the past, it does not know what is new.', table(['Source', 'Inquiries to find', 'Cost per student', 'Budget'], p.channelPlan.map((c) => [c.label + (c.low ? ' *' : ''), number(c.students), c.costPerStudent ? rupees(c.costPerStudent) : '', c.budget ? rupees(c.budget) : '']), { numCols: [1, 2, 3] }), lowNote()));
@@ -276,12 +276,12 @@
     const p = d.plan;
     const view = el('article', 'p-proposal print-me');
     const top = el('div', 'p-doc-top'); const logo = el('img'); logo.src = 'niec-logo.png'; logo.alt = 'NIEC';
-    top.append(el('div'), logo); top.firstChild.append(el('div', 'p-muted p-small', 'UK Recruitment Department'), el('h1', '', `Intake proposal: ${p.intake}`), el('div', 'p-muted p-small', `Prepared ${d.today} from NIEC's own records`));
+    top.append(el('div'), logo); top.firstChild.append(el('div', 'p-muted p-small', 'UK Recruitment Department'), el('h1', '', `Intake proposal: ${p.intake}`), el('div', 'p-muted p-small', `Prepared ${d.today} from your own records`));
     view.append(top);
     const sec = (title, ...kids) => { view.append(el('h2', '', title)); kids.forEach((k) => view.append(k)); };
     const para = (t) => el('p', '', t);
     const s = d.summary;
-    sec('1. Where we stand', para(`${s.students} students are recorded for ${p.intake}: ${s.applied} have applied, ${s.offers} hold an offer, ${s.paid} have paid and ${s.visas} have a visa. ${s.refused} visa${s.refused === 1 ? ' was' : 's were'} refused.${d.target && d.target.forecast ? ` The ${d.target.forecast.counted} students in progress are likely to add about ${d.target.forecast.expected} visas (between ${d.target.forecast.low} and ${d.target.forecast.high}), from NIEC's own past rates.` : ''}`));
+    sec('1. Where we stand', para(`${s.students} students are recorded for ${p.intake}: ${s.applied} have applied, ${s.offers} hold an offer, ${s.paid} have paid and ${s.visas} have a visa. ${s.refused} visa${s.refused === 1 ? ' was' : 's were'} refused.${d.target && d.target.forecast ? ` The ${d.target.forecast.counted} students in progress are likely to add about ${d.target.forecast.expected} visas (between ${d.target.forecast.low} and ${d.target.forecast.high}), from your own past rates.` : ''}`));
     if (d.target && d.target.visas) sec('2. The target', para(`The target is ${d.target.visas} visas${d.target.byDate ? ` by ${d.target.byDate}` : ''}. ${d.target.gap ? `The forecast is about ${d.target.gap} visas short; closing it needs about ${d.target.applicationsNeeded ?? 'an unknown number of'} more applications.` : d.target.status === 'on-track' || d.target.status === 'reached' ? 'The intake is on track or has reached it.' : 'There is not enough history to forecast yet.'}`));
     const ul = el('ul');
     if (d.findings.length) d.findings.slice(0, 6).forEach((f) => { const li = el('li'); li.append(el('b', '', `${f.priority} ${f.title}. `), f.decision); ul.append(li); }); else ul.append(el('li', '', 'No decision is flagged by the figures.'));

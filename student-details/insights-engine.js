@@ -179,7 +179,7 @@ function speed(students) {
   });
 }
 
-// ---- the chance of a visa from each step, from NIEC's own finished students ----
+// ---- the chance of a visa from each step, from your own finished students ----
 // Of the students of every intake whose journey has ended (visa issued, refused, withdrawn, on hold or deferred) and
 // who had reached a step, the share who got the visa. A student still in progress is counted at the chance of the
 // furthest step they have reached.
@@ -375,10 +375,10 @@ function buildInsights({ workbook, cards = {}, planning = {}, partners = [], b2b
     const g = rates(mine.reduce((acc, s) => count(acc, s), newGroup(e.name)));
     return { ...g, id: e.id, date: e.date, type: e.type, place: e.place, cost: e.cost, registered: e.registered, attended: e.attended, costPerStudent: costPer(e.cost, g.students), costPerVisa: costPer(e.cost, g.visas), showUp: pct(e.attended, e.registered) };
   }).sort((a, b) => b.date.localeCompare(a.date));
-  // -- why students are lost, and what they wanted that NIEC could not offer --
+  // -- why students are lost, and what they wanted that you could not offer --
   const gone = students.filter((s) => (s.left && !s.refused) || s.refused || s.lostReason);
   const lostReasons = groupBy(gone, (s) => s.lostReason).map((g) => ({ label: g.label, count: g.students, percent: pct(g.students, gone.length) }));
-  // What lost students were looking for that NIEC could not give, read from their cards: the same subject and level asked for again and again.
+  // What lost students were looking for that you could not give, read from their cards: the same subject and level asked for again and again.
   const unmetReasons = ['Course or university not available with us', 'Fees or deposit too high', 'Grades or study gap not accepted', 'English score not enough'];
   const wantedMap = new Map();
   gone.filter((s) => s.subject && unmetReasons.includes(s.lostReason)).forEach((s) => {
@@ -427,7 +427,7 @@ function buildInsights({ workbook, cards = {}, planning = {}, partners = [], b2b
   const sp = speed(all);
   const wholeJourney = sp.find((x) => x.key === 'applicationToVisa');
   const ownLatestApply = startDate && wholeJourney && wholeJourney.median !== null ? addDays(startDate, -(wholeJourney.median + 21)) : '';
-  // What the target needs, what NIEC already has, and what is still to find (the plan the owner works from every week).
+  // What the target needs, what you already have, and what is still to find (the plan the owner works from every week).
   const needBase = target && target.visas ? workBack(target.visas, pooled) : null;
   const needs = needBase ? [['Inquiries', needBase.inquiries, summary.students], ['Applications', needBase.applications, summary.applied], ['Offers', needBase.offers, summary.offers], ['Paid the deposit', needBase.paid, summary.paid], ['Visas', needBase.visas, summary.visas]]
     .map(([label, need, have]) => ({ label, need, have, left: need === null ? null : Math.max(0, need - have) })) : [];
@@ -465,7 +465,7 @@ function buildInsights({ workbook, cards = {}, planning = {}, partners = [], b2b
   }
   if (targetView && targetView.status === 'behind') {
     add('P1', 'Target', `The intake is forecast to miss its target by about ${plural(targetView.gap, 'visa', 'visas')}`,
-      [`Target: ${targetView.visas} visas. Visas so far: ${targetView.visasNow}.`, `The ${fc.counted} students in progress are likely to add about ${fc.expected} (between ${fc.low} and ${fc.high}), from NIEC's own past rates.`,
+      [`Target: ${targetView.visas} visas. Visas so far: ${targetView.visasNow}.`, `The ${fc.counted} students in progress are likely to add about ${fc.expected} (between ${fc.low} and ${fc.high}), from your own past rates.`,
         ...(targetView.applicationsNeeded !== null ? [`To close the gap about ${targetView.applicationsNeeded} more applications are needed${targetView.perWeek ? `, about ${targetView.perWeek} a week for the ${targetView.weeksLeft} weeks before applications should close (${targetView.applicationsClose})` : ''}.`] : [])],
       'A gap seen now can still be closed with new applications; seen after applications close, it cannot.',
       targetView.weeksLeft === 0 ? 'Applications should already be closed for a safe visa timeline: concentrate on converting every offer and payment in progress, and move the remaining target to the next intake.' : 'Agree this week where the extra applications come from: the offers not yet paid, the warm inquiries with no follow-up, and one extra push on the best channel.',
@@ -478,7 +478,7 @@ function buildInsights({ workbook, cards = {}, planning = {}, partners = [], b2b
   if (uniConcentration.applications.total >= MIN_SAMPLE && uniConcentration.applications.topShare >= 40) {
     add(uniConcentration.applications.topShare >= 60 ? 'P1' : 'P2', 'Universities', `${uniConcentration.applications.topShare}% of applications rest on one university`,
       [`${uniConcentration.applications.top}: ${uniConcentration.applications.topShare}% of ${uniConcentration.applications.total} applications.`, `The top three universities hold ${uniConcentration.applications.top3Share}%. Students are placed at ${uniConcentration.applications.count} universities in all.`],
-      'If that university changes its entry rules, its agents in Nepal or its deposit, most of the intake is hit at once. NIEC cannot control that decision.',
+      'If that university changes its entry rules, its agents in Nepal or its deposit, most of the intake is hit at once. you cannot control that decision.',
       'Keep the partnership strong, and open a second and third option for the same kind of student: pick two universities from the Fact File with similar entry rules and fees, and offer them first in every new counseling this month.',
       'Share of applications at the biggest university, aiming below 40%.', 'High');
   }
@@ -486,13 +486,13 @@ function buildInsights({ workbook, cards = {}, planning = {}, partners = [], b2b
     add('P2', 'Partners', `${partnerConcentration.applications.topShare}% of applications go through one partner`,
       [`${partnerConcentration.applications.top}: ${partnerConcentration.applications.topShare}% of ${partnerConcentration.applications.total} applications with a partner recorded.`],
       'Processing speed, information and commission for most students depend on one company.',
-      'List which of these universities NIEC could hold directly or through a second partner, and start one such agreement before the next intake.',
+      'List which of these universities you could hold directly or through a second partner, and start one such agreement before the next intake.',
       'Share of applications through the biggest partner.', 'Medium');
   }
   const decided = summary.visas + summary.refused;
   if (decided >= MIN_SAMPLE && summary.refused / decided >= 0.1) {
     add('P1', 'Visa', `${pct(summary.refused, decided)}% of visa decisions were refusals`, [`${summary.refused} refused out of ${decided} decided.`],
-      'Universities watch the refusal rate of each agent, because their own licence depends on it. A high rate can cost NIEC a partnership.',
+      'Universities watch the refusal rate of each agent, because their own licence depends on it. A high rate can cost you a partnership.',
       'Review every refusal letter this month, find the common reason (funds, interview, documents), and add that check before the CAS is requested.',
       'Refusals as a share of decisions, aiming below 10%.', 'High');
   }
@@ -522,7 +522,7 @@ function buildInsights({ workbook, cards = {}, planning = {}, partners = [], b2b
     const reason = q('Why the student did not go on');
     if (reason.of >= 5 && reason.percent !== null && reason.percent < 60) {
       add('P2', 'Data', `${reason.of - reason.filled} lost students have no reason recorded`, [`${reason.of} students are withdrawn, on hold, deferred or refused; a reason is recorded for ${reason.filled}.`],
-        'The reasons students leave are the cheapest market research NIEC can get. Without them every fix is a guess.',
+        'The reasons students leave are the cheapest market research you can get. Without them every fix is a guess.',
         'Ask the reason in the last call and pick it on the card before closing a student.', 'Share of lost students with a reason, aiming above 90%.', 'High');
     }
     // Only students who applied seem to be on the sheet: the first step of the funnel is missing.
@@ -563,7 +563,7 @@ function buildInsights({ workbook, cards = {}, planning = {}, partners = [], b2b
   if (topLost && lostKnown >= 5 && topLost.count / lostKnown >= 0.3) {
     const fix = {
       'Chose another consultancy': 'Look at the speed of the first reply and the first offer: call three of these students and ask what the other consultancy did better.',
-      'Applied by themselves': 'Show what NIEC adds that a student cannot do alone (interview preparation, visa file check, scholarship follow-up) in the first counseling and the first email.',
+      'Applied by themselves': 'Show what you add that a student cannot do alone (interview preparation, visa file check, scholarship follow-up) in the first counseling and the first email.',
       'Chose another country': 'Find out which country and why (cost, work rights, visa odds), and answer exactly that point in the counseling.',
       'Fees or deposit too high': 'Lead with the lower-fee universities and the scholarships in the Fact File, and send the options email with fee and scholarship side by side on the first day.',
       'Funds or bank balance not ready': 'Start the funds talk at the first counseling, not after the offer: explain the 28-day rule and the loan route early.',
@@ -581,7 +581,7 @@ function buildInsights({ workbook, cards = {}, planning = {}, partners = [], b2b
       'One reason behind a third or more of the losses is a pattern, not bad luck.', fix, 'Students lost for this reason next intake.', lostKnown >= MIN_SAMPLE ? 'Medium' : 'Low');
   }
   if (wanted.length && wanted[0].count >= 3) {
-    add('P3', 'Universities', `${wanted[0].count} lost students were looking for ${wanted[0].subject}${wanted[0].level ? ` (${wanted[0].level})` : ''}, which NIEC could not give`, wanted.slice(0, 4).map((w) => `${w.count} x ${w.subject}${w.level ? ` (${w.level})` : ''}: ${w.reasons.join(', ').toLowerCase()}`),
+    add('P3', 'Universities', `${wanted[0].count} lost students were looking for ${wanted[0].subject}${wanted[0].level ? ` (${wanted[0].level})` : ''}, which you could not give`, wanted.slice(0, 4).map((w) => `${w.count} x ${w.subject}${w.level ? ` (${w.level})` : ''}: ${w.reasons.join(', ').toLowerCase()}`),
       'Each is a student another consultancy enrolled. Together they show which university or course is missing from the portfolio.',
       'Group these by course, and approach a university (or a B2B partner that has it) for the most asked one.', 'Requests that could not be served, by course.', 'Low');
   }

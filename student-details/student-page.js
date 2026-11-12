@@ -398,7 +398,7 @@
     render(template);
   }
   function render(template) {
-    document.title = `${data.student.name} · Student · UK Student NIEC`;
+    document.title = `${data.student.name} · Student · Fly`;
     const frag = document.createDocumentFragment();
     frag.append(hero());
     if (!can()) frag.append(el('div', 'p-notice', 'You can read this student but not change them.'));

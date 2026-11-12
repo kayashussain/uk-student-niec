@@ -4,7 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <meta name="robots" content="noindex, nofollow" />
-<title>Log in · UK Student NIEC</title>
+<title>Log in · Fly</title>
 <link rel="icon" type="image/png" href="/favicon.png" />
 <style>
   :root {
@@ -143,23 +143,32 @@
   .hero h2 { font-family: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif; font-weight: 500; letter-spacing: -.02em; }
   .pw-toggle { box-shadow: none; }
   @media (prefers-color-scheme: dark) { button { background: #8fc0e4; color: #10202c; } button:hover:not(:disabled) { background: #a6cdea; } }
+
+  /* 🔴 CSS CHANGED (2026-11-12): the login page matches the new premium look | from: a pale grey welcome side and a grey card | to: a deep-navy welcome side with white text and a bright white card on a soft blue-white page */
+  .hero { background: radial-gradient(120% 70% at 0% 0%, #1d3a7c 0%, rgba(29, 58, 124, 0) 60%), linear-gradient(180deg, #0a1733 0%, #0b1c3f 100%) !important; color: #dbe5fa !important; }
+  .hero h2 { color: #fff !important; }
+  .hero p, .hero small, .hero li { color: #b8c6e3 !important; }
+  .hero ul li::before { background: #fc6e1f !important; }
+  .panel { background: #f3f5fa !important; }
+  .card { background: #fff !important; border-radius: 22px !important; box-shadow: 0 30px 70px -30px rgba(14, 26, 51, .35) !important; }
+  .card input { background: #fff !important; }
 </style>
 </head>
 <body>
 <aside class="hero" aria-hidden="true">
-  <div class="hero-logo"><img src="niec-logo.png" alt="" width="84" height="40"></div>
+  <div class="hero-logo"><span class="fly-mark" style="display:inline-grid;place-items:center;width:44px;height:44px;border-radius:14px;background:linear-gradient(135deg,#00adef,#0a5fd6)"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11.5 21 3l-6.5 18-3.2-7.3L3 11.5z"/><path d="M11.3 13.7 21 3"/></svg></span> <b style="color:#fff;font-size:22px;letter-spacing:-.02em;vertical-align:middle;margin-left:8px">Fly</b></div>
   <div>
     <h2>Welcome back to your team’s workspace.</h2>
-    <p>Everything your team needs to guide students from first inquiry to visa, at Nepal International Educational Consultancy.</p>
+    <p>Everything your team needs to guide students from first inquiry to visa, in one place. <span id="heroCompany"></span></p>
     <ul><li>Applications, mock interviews and visas, step by step</li><li>An up-to-date list of university partners and university fact files</li><li>One place for every team</li></ul>
   </div>
-  <small>Your Future. Our Responsibility.</small>
+  <small id="heroTag">Recruitment, made simple.</small>
 </aside>
 <div class="panel">
 <main class="card">
   <div class="brand">
-    <img class="logo" src="niec-logo.png" alt="NIEC, Your Future, Our Responsibility" width="132" height="64">
-    <div><h1>UK Student NIEC</h1><div class="company">Nepal International Educational Consultancy</div></div>
+    
+    <div><h1>Fly</h1><div class="company" id="brandCompany"></div></div>
   </div>
   <p class="sub" id="subtitle">Log in to continue</p>
 
@@ -312,5 +321,6 @@
     .catch(() => { show({ stage: 'password' }); showError('Could not reach the server. Please reload the page.'); });
 })();
 </script>
+<script>fetch('/api/brand').then((r) => r.json()).then((b) => { var c = document.getElementById('brandCompany'); if (c) c.textContent = b.company || ''; var h = document.getElementById('heroCompany'); if (h) h.textContent = b.company ? 'Used by ' + b.company + '.' : ''; }).catch(function () {});</script>
 </body>
 </html>

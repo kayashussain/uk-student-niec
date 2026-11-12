@@ -911,6 +911,11 @@ const server = http.createServer(async (req, res) => {
     }
     // For an uptime monitor: answers without a login and says nothing about the data.
     if (urlPath === '/healthz' && req.method === 'GET') return sendJSON(res, 200, { ok: true });
+    // The product name and the company name, for the login page and the menu: nothing private.
+    if (urlPath === '/api/brand' && req.method === 'GET') {
+      const sig = messages.signature();
+      return sendJSON(res, 200, { product: 'Fly', company: sig.company, short: sig.short });
+    }
     if (urlPath === '/favicon.png') return serveStatic(req, res);
     if (PUBLIC_SHARED.has(urlPath)) return serveShared(req, res); // the logo, for the login page
     // The Advisor connector checks its own secret in the address, so it answers before the login.
@@ -1020,7 +1025,7 @@ process.on('unhandledRejection', (err) => console.error('[unhandled]', err));
 process.on('uncaughtException', (err) => console.error('[uncaught]', err));
 
 server.listen(PORT, () => {
-  console.log(`UK Student NIEC running at http://localhost:${PORT}`);
+  console.log(`Fly running at http://localhost:${PORT}`);
 });
 
 // The weekly check of the course pages (course-watch.js): a slice of the courses every six hours, so each is visited about once a week.

@@ -1,6 +1,6 @@
 // B2B Partners and Agents (Admin only; one page script for both, chosen by data-kind on the body).
-//   B2B Partners: the businesses NIEC sends applications to (they hold the direct agreement with a university).
-//   Agents: the businesses that send NIEC their students.
+//   B2B Partners: the businesses you send applications to (they hold the direct agreement with a university).
+//   Agents: the businesses that send you their students.
 // Each has a contact person and number, the day the agreement ends, the commission structure of each intake (a link, and PDF files to
 // upload) and the visas it has brought, intake by intake.
 (function () {

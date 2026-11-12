@@ -1,5 +1,5 @@
 // Reads a counselor's description of a student ("2.4 GPA, 6 year gap, IELTS 5.5, wants nursing in London under 16,000
-// pounds") and judges it against the entry rules written in the Fact File, course by course. It runs inside NIEC's own
+// pounds") and judges it against the entry rules written in the Fact File, course by course. It runs inside your own
 // server: no outside service, no key, nothing leaves the computer.
 //
 // What it reads from the Fact File text of a course level: the lowest grade accepted (a GPA or a percentage), the study

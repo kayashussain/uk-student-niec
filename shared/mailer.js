@@ -227,8 +227,8 @@ async function sendMail(cfg, { to, subject, text, html, bcc = [], auto = true, a
 function setupEmail({ name, username, temporaryPassword, access, siteUrl, kind = 'new' }) {
   const link = siteUrl.replace(/\/+$/, '') + '/login';
   const intro = kind === 'reset'
-    ? 'Your password for the UK Student NIEC system has been reset. Use the temporary password below to log in and choose a new one.'
-    : `An account has been created for you on the UK Student NIEC system (${access}).`;
+    ? 'Your password for the Fly system has been reset. Use the temporary password below to log in and choose a new one.'
+    : `An account has been created for you on the Fly system (${access}).`;
   const steps = [
     'Open the website and log in with the username and temporary password above.',
     'Choose your own password (at least 10 characters).',
@@ -272,15 +272,15 @@ ${row('Temporary password', escapeHtml(temporaryPassword), true)}
 <tr><td style="padding:14px 28px 22px;border-top:1px solid #e5e7eb;color:#6b7280;font-size:12px">Nepal International Educational Consultancy</td></tr>
 </table></td></tr></table></body></html>`;
 
-  return { subject: kind === 'reset' ? 'Your UK Student NIEC password was reset' : 'Set up your UK Student NIEC account', text, html };
+  return { subject: kind === 'reset' ? 'Your Fly password was reset' : 'Set up your Fly account', text, html };
 }
 
 // The message the "send a test email" button sends.
 function testEmail() {
   return {
-    subject: 'UK Student NIEC email test',
-    text: 'This is a test message from the UK Student NIEC system. If you can read it, setup emails will reach people.',
-    html: '<p style="font-family:Segoe UI,Arial,sans-serif">This is a test message from the UK Student NIEC system. If you can read it, setup emails will reach people.</p>',
+    subject: 'Fly email test',
+    text: 'This is a test message from the Fly system. If you can read it, setup emails will reach people.',
+    html: '<p style="font-family:Segoe UI,Arial,sans-serif">This is a test message from the Fly system. If you can read it, setup emails will reach people.</p>',
   };
 }
 
@@ -297,7 +297,7 @@ function loadConfig(dir, env = process.env) {
     user: env.MAIL_USER || file.user || '',
     pass: env.MAIL_PASSWORD || file.pass || '',
     from: String(env.MAIL_FROM || file.from || '').toLowerCase(),
-    fromName: env.MAIL_FROM_NAME || file.fromName || 'UK Student NIEC',
+    fromName: env.MAIL_FROM_NAME || file.fromName || 'Fly',
     siteUrl: String(env.SITE_URL || file.siteUrl || '').replace(/\/+$/, ''),
   };
 }

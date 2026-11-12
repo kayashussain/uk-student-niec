@@ -13,7 +13,7 @@
   const SOURCE_DETAILS = {
     'Social Media': ['Facebook page', 'Facebook or Instagram advert (Meta Ads)', 'Instagram', 'TikTok', 'WhatsApp', 'Messenger', 'YouTube', 'LinkedIn', 'Viber'],
     Visitor: ['Walked in', 'Phone call', 'Website form', 'Google search or Maps', 'Signboard or hoarding', 'Newspaper, radio or TV'],
-    Reference: ['Current or past NIEC student', 'Friend or family of the student', 'NIEC staff member', 'Teacher or college'],
+    Reference: ['Current or past student', 'Friend or family of the student', 'Staff member', 'Teacher or college'],
     'Language Classes': ['IELTS class', 'PTE class'],
     Events: [],
     Agent: [],

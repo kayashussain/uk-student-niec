@@ -1,3 +1,4 @@
+/* 🔴 CSS CHANGED (2026-11-12): the menu's top shows the Fly mark (a paper plane on a blue square), the name Fly and, below it, the name of the consultancy using it | from: the NIEC logo on a white chip with the text UK Student NIEC | to: the Fly mark, Fly in 22px bold white, the company name in small grey-blue under it; the login page follows */
 /* The side menu every page shares (shared/header.js fills in the navigation and the account menu).
    🔴 CSS CHANGED (2026-11-12): the whole top bar becomes a deep-navy side menu with icons, the account at the bottom and a button to fold it to icons only | from: a white bar across the top with the pages in a row and a blue line under it | to: a fixed navy column on the left (252px, or 76px folded) for every page; on a phone it goes back to a bar across the top
    Self-contained, so it looks the same on Student Details, Incentive and Users & activity. */
@@ -20,9 +21,10 @@ body.p-embed { padding-left: 0 !important; }
 .niec-header::after { content: none; }
 
 .niec-brand { display: flex; flex-direction: column; gap: 10px; align-items: flex-start; text-decoration: none; color: inherit; padding: 2px 4px 14px; border-bottom: 1px solid var(--h-border); }
-.niec-logo { display: block; height: 40px; width: auto; padding: 6px 10px; background: #fff; border-radius: 12px; box-shadow: 0 6px 18px -10px rgba(0, 0, 0, .6); }
+.niec-mark { display: grid; place-items: center; width: 42px; height: 42px; border-radius: 14px; background: linear-gradient(135deg, #00adef, #0a5fd6); box-shadow: 0 8px 20px -8px rgba(0, 173, 239, .7); }
+.niec-mark svg { width: 24px; height: 24px; fill: none; stroke: #fff; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 .niec-brand-text { padding: 0 2px; border: 0; line-height: 1.25; }
-.niec-brand-name { display: block; font-weight: 650; font-size: 15px; letter-spacing: -.01em; color: #fff; }
+.niec-brand-name { display: block; font-weight: 700; font-size: 22px; letter-spacing: -.03em; color: #fff; }
 .niec-brand-sub { display: block; font-size: 12px; color: var(--h-dim); }
 
 .niec-nav { display: flex; flex-direction: column; align-items: stretch; align-self: stretch; gap: 3px; margin: 10px 0 0; min-width: 0; }
@@ -64,7 +66,7 @@ html[data-nav="folded"] .niec-fold svg { transform: rotate(180deg); }
 @media (min-width: 901px) {
 html[data-nav="folded"] .niec-brand-text, html[data-nav="folded"] .niec-lbl, html[data-nav="folded"] .niec-fold span, html[data-nav="folded"] .niec-account-text, html[data-nav="folded"] .niec-caret { display: none; }
 html[data-nav="folded"] .niec-header { padding-left: 11px; padding-right: 11px; }
-html[data-nav="folded"] .niec-logo { height: 34px; padding: 5px 6px; width: 52px; object-fit: contain; }
+html[data-nav="folded"] .niec-mark { width: 40px; height: 40px; }
 html[data-nav="folded"] .niec-nav a, html[data-nav="folded"] .niec-fold { justify-content: center; padding-left: 0; padding-right: 0; }
 html[data-nav="folded"] .niec-nav a[aria-current="page"]::before { left: -11px; }
 html[data-nav="folded"] .niec-account-btn { justify-content: center; padding: 6px; }
@@ -77,7 +79,7 @@ html[data-nav="folded"] .niec-menu { left: 0; right: auto; width: 220px; }
   body:has(> .niec-header) { padding-left: 0; }
   .niec-header { position: sticky; top: 0; inset: auto; width: auto; height: auto; flex-direction: row; align-items: center; gap: 10px; padding: 8px 12px; overflow: visible; }
   .niec-brand { flex-direction: row; align-items: center; padding: 0; border: 0; }
-  .niec-logo { height: 32px; }
+  .niec-mark { width: 34px; height: 34px; }
   .niec-brand-text, .niec-account-text, .niec-caret, .niec-fold { display: none; }
   .niec-nav { flex-direction: row; margin: 0; overflow-x: auto; scrollbar-width: none; flex: 1; }
   .niec-nav a { padding: 8px 10px; }
@@ -89,3 +91,23 @@ html[data-nav="folded"] .niec-menu { left: 0; right: auto; width: 220px; }
   .niec-menu { left: auto; right: 0; bottom: auto; top: calc(100% + 6px); min-width: 220px; }
 }
 @media print { .niec-header { display: none !important; } body:has(> .niec-header) { padding-left: 0; } }
+
+/* 🔴 CSS CHANGED (2026-11-12): quick search (Ctrl+K) | from: no quick search | to: a Search button in the menu and a floating search box in the middle of the screen, white with a soft shadow, listing students and pages */
+.niec-search { display: flex; align-items: center; gap: 12px; padding: 10px 12px; margin-bottom: 6px; border: 1px solid var(--h-border); border-radius: 12px; background: rgba(255, 255, 255, .05); color: var(--h-dim); font: inherit; font-size: 13.5px; cursor: pointer; }
+.niec-search:hover { background: var(--h-hover); color: #fff; }
+.niec-search kbd { margin-left: auto; padding: 1px 6px; border-radius: 6px; border: 1px solid var(--h-border); font: 11px/1.5 inherit; color: var(--h-dim); }
+.niec-search svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; }
+@media (min-width: 901px) { html[data-nav="folded"] .niec-search { justify-content: center; padding-left: 0; padding-right: 0; } html[data-nav="folded"] .niec-search kbd { display: none; } }
+@media (max-width: 900px) { .niec-search { display: none; } }
+.fly-pal-back { position: fixed; inset: 0; z-index: 200; display: grid; align-items: start; justify-items: center; padding-top: 14vh; background: rgba(8, 18, 45, .45); backdrop-filter: blur(4px); }
+.fly-pal { width: min(640px, calc(100vw - 24px)); background: #fff; color: #0e1a33; border-radius: 20px; box-shadow: 0 30px 80px -20px rgba(8, 18, 45, .6); overflow: hidden; font: 14px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+.fly-pal-input { display: block; width: 100%; height: 58px; padding: 0 22px; border: 0; border-bottom: 1px solid #e4e8f0; border-radius: 0; font-size: 17px; outline: none; background: #fff; color: #0e1a33; box-shadow: none; }
+.fly-pal-list { max-height: 360px; overflow: auto; padding: 8px; }
+.fly-pal-item { display: flex; align-items: center; gap: 12px; width: 100%; padding: 10px 12px; border: 0; border-radius: 12px; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.fly-pal-item.on, .fly-pal-item:hover { background: #eef4ff; }
+.fly-pal-kind { flex: 0 0 62px; font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: #5a6781; }
+.fly-pal-main b { display: block; font-weight: 600; }
+.fly-pal-main small { color: #5a6781; }
+.fly-pal-empty { padding: 22px; text-align: center; color: #5a6781; }
+.fly-pal-foot { display: flex; gap: 18px; padding: 10px 18px; border-top: 1px solid #e4e8f0; background: #f8f9fd; font-size: 12px; color: #5a6781; }
+.fly-pal-foot kbd { margin-right: 4px; padding: 1px 6px; border: 1px solid #d3d9e6; border-radius: 6px; background: #fff; font: 11px/1.5 inherit; }

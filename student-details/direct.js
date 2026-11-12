@@ -59,7 +59,7 @@ function clean(input, old = {}) {
     id: old.id,
     name: str(input.name, LIMITS.name).trim() || old.name || '',
     status,
-    // How NIEC holds the partnership: its own agreement with the university, or through a B2B partner (named in `via`).
+    // How you hold the partnership: its own agreement with the university, or through a B2B partner (named in `via`).
     type: TYPES.includes(input.type) ? input.type : (TYPES.includes(old.type) ? old.type : 'Direct'),
     via: str(input.via, LIMITS.name).trim(),
     agreementStart: str(input.agreementStart, 40).trim(),
