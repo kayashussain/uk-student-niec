@@ -7,6 +7,8 @@ To find every marked change in the code, search the project for `CSS CHANGED`.
 
 Format: **date · file · what · from → to · why**
 
+- **2026-11-12 · shared/theme.css · long tags on the student card on a phone · from: a long event tag ran off the right edge → to: it wraps onto a second line · why: the client's last small finding.**
+
 - **2026-11-12 · shared/theme.css · Partner Universities table at 1440px · from: the table was 40px wider than the screen, so the page scrolled sideways and the last button was cut → to: cells wrap up to 1600px wide screens, and a card scrolls inside itself if still too wide · why: the client saw the clipped button.**
 - **2026-11-12 · shared/theme.css · last 13px text and a scroll hint · from: Fact File City and Intakes labels 13.5px, chart numbers and months 13px, no sign that the Fact File fees table scrolls → to: 14px, and a line above the table on narrow screens saying to scroll sideways · why: the client's last blockers.**
 

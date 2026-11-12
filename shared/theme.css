@@ -568,3 +568,5 @@ label span, .p-card label span { font-size: 14px; }
   .page .card td, .table-card td { white-space: normal; overflow-wrap: anywhere; }
   .page .card th, .table-card th { white-space: normal; overflow-wrap: normal; word-break: normal; hyphens: manual; }
 }
+/* 🔴 CSS CHANGED (2026-11-12): long tags on the student card on a phone | from: a long event tag ran off the right edge | to: it wraps onto a second line */
+.p-chip { white-space: normal; max-width: 100%; overflow-wrap: anywhere; }
