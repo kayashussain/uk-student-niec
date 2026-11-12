@@ -19,10 +19,9 @@ body.p-embed { padding-left: 0 !important; }
 .niec-header::after { content: none; }
 
 .niec-brand { display: flex; flex-direction: row; gap: 12px; align-items: center; text-decoration: none; color: inherit; padding: 0 4px 10px; border-bottom: 1px solid var(--h-border); }
-/* 🔴 CSS CHANGED (2026-11-13): the name at the top of the menu | from: a picture logo | to: plain text, "International Student Recruitment" with PORTAL under it; when the menu is folded, a small blue tile with the letters ISR */
-.niec-name { display: grid; gap: 1px; min-width: 0; }
-.niec-name b { display: block; font-size: 17px; font-weight: 780; letter-spacing: -.02em; line-height: 1.15; color: var(--h-text); }
-.niec-name small { display: block; margin-top: 3px; font-size: 13px; font-weight: 700; letter-spacing: .14em; color: var(--h-gold); }
+/* 🔴 CSS CHANGED (2026-11-13): the name at the top of the menu | from: a picture logo, then three lines of text | to: just "ISR" in large bold text (the full name International Student Recruitment is on the login page, in emails and on printed pages); when the menu is folded, a small blue tile with ISR */
+.niec-name { display: block; min-width: 0; }
+.niec-name b { display: block; font-size: 30px; font-weight: 800; letter-spacing: -.03em; line-height: 1.1; color: var(--h-text); }
 .niec-mark { display: none; flex: 0 0 44px; width: 44px; height: 44px; border-radius: 12px; background: var(--h-gold); color: #fff; font-size: 15px; font-weight: 800; letter-spacing: .02em; place-items: center; }
 .niec-brand-name { display: block; font-weight: 700; font-size: 26px; line-height: 1; letter-spacing: -.04em; color: var(--h-text); }
 .niec-brand-sub { display: block; font-size: 12px; color: var(--h-dim); }

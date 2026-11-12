@@ -7,6 +7,8 @@ To find every marked change in the code, search the project for `CSS CHANGED`.
 
 Format: **date · file · what · from → to · why**
 
+- **2026-11-13 · shared/header.css, shared/header.js, shared/login.html, mailer · the name | from: "International Student Recruitment" with PORTAL under it everywhere → to: just "ISR" in the menu (tight space); the full name International Student Recruitment, without the word Portal, on the login page, in emails and on printed pages · why: the owner said to use ISR where space is short and the full name where there is room.**
+
 - **2026-11-13 · shared/login.html · the title in the login box · from: the long name repeated ("International Student Recruitment") → to: "Staff login", because the name is already large on the left · why: the name no longer needs to be said twice.**
 
 - **2026-11-13 · shared/header.css, shared/header.js, shared/login.html, student-details/portal.css, fact-file.css, mailer, favicons · no logo picture any more · from: a globe-and-plane logo picture in the menu, on the login page, in emails and on printed pages → to: the plain text "International Student Recruitment" with PORTAL under it (a small blue ISR tile only when the menu is folded, and as the browser-tab and phone icon) · why: the owner asked for just the name International Student Recruitment portal, with no logo.**

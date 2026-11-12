@@ -13,7 +13,7 @@
 
   header.innerHTML = `
     <a class="niec-brand" href="/today" title="Home" id="niecHome">
-      <span class="niec-name"><b>International</b><b>Student Recruitment</b><small>Portal</small></span>
+      <span class="niec-name"><b>ISR</b></span>
       <span class="niec-mark" aria-hidden="true">ISR</span>
     </a>
     <nav class="niec-nav" aria-label="Pages"></nav>
