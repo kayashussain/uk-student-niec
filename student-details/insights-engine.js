@@ -30,7 +30,7 @@ const MONTHS = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', '
 const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 // "Jan Intake 2027" or "September 2026" -> { month: 0..11, year }, else null.
 function intakeSeason(name) {
-  const m = /\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\b[^\d]*(\d{4})/i.exec(String(name || ''));
+  const m = /\b(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|june?|july?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\b[^\d]*(\d{4})/i.exec(String(name || ''));
   return m ? { month: MONTHS.indexOf(m[1].toLowerCase()), year: Number(m[2]) } : null;
 }
 // The day teaching usually starts for an intake, when Admin has not typed one: late in the intake's month.

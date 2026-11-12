@@ -16,7 +16,7 @@ const newId = () => crypto.randomBytes(6).toString('hex');
 const str = (v, max) => (typeof v === 'string' || typeof v === 'number' ? String(v).replace(/\r\n?/g, '\n').slice(0, max).trim() : '');
 // A whole amount, never negative and never silly: "25,000" and 25000 are both 25000; anything else is 0.
 const amount = (v, max = 1e12) => {
-  const n = Number(String(v ?? '').replace(/[,\s]/g, ''));
+  const n = Number(String(v ?? '').replace(/[£$,\s]/g, ''));
   return Number.isFinite(n) && n >= 0 && n <= max ? Math.round(n) : 0;
 };
 const month = (v) => (/^\d{4}-(0[1-9]|1[0-2])$/.test(str(v, 7)) ? str(v, 7) : '');
