@@ -190,7 +190,10 @@ test('the Fact File assistant reads a description of the student and judges it a
   assert.strictEqual(E.readStudent('62% in bachelor').level, '', 'a bachelor already studied is not the level wanted');
 
   // The rules as the Fact File writes them.
-  assert.deepStrictEqual(E.englishRules('IELTS: 6.0 overall / 5.5 in each band; PTE: 59 overall / 59 in each band; English waiver: N/A'), { ielts: { overall: 6, band: 5.5 }, pte: { overall: 59, band: 59 }, waiver: false });
+  const noWaiver = E.englishRules('IELTS: 6.0 overall / 5.5 in each band; PTE: 59 overall / 59 in each band; English waiver: N/A');
+  assert.deepStrictEqual([noWaiver.ielts, noWaiver.pte, noWaiver.waiver, noWaiver.waiverKind], [{ overall: 6, band: 5.5 }, { overall: 59, band: 59 }, false, 'none']);
+  assert.strictEqual(E.englishRules('IELTS: 6.0 overall; English waiver: UK Affiliated Degrees - 2020 Onwards').waiverKind, 'uk', 'a waiver for UK degrees only does not help a Nepal qualification');
+  assert.strictEqual(E.englishRules('IELTS: 6.0 overall; English waiver: 12th Grade English 60% or above').waiverKind, 'yes');
   assert.deepStrictEqual(E.academicRules('12th Grade: 60% or above / GPA 2.75 or above'), { gpa: [2.75], percent: [60] });
   assert.deepStrictEqual(E.gapRule('Gap: Upto 2 Years of GAP Accepted'), { years: 2, since: null, text: 'Gap: Upto 2 Years of GAP Accepted' });
   assert.strictEqual(E.gapRule('- GAP: 2023 onwards').since, 2023);
@@ -552,4 +555,32 @@ test('the signature picture travels inside the email, shown in the text of the e
   assert.ok(mime.includes(Buffer.from('PNGDATA').toString('base64')));
   const rendered = Messages.renderEmail({ subject: 'S', body: 'Hello', values: {}, signature: { name: 'Kayas' } });
   assert.match(rendered.html, /src="cid:niec-signature"/);
+});
+
+test('a student with an English waiver is only offered universities whose waiver is open to a Nepal qualification', async () => {
+  const { createFacts } = require('../student-details/facts');
+  const { buildIndex } = require('../student-details/course-index');
+  const { createFinder } = require('../student-details/finder');
+  const index = buildIndex(createFacts(tmp()).all(), {});
+  const out = await createFinder()({ body: { level: 'Undergraduate', subject: 'business', grade: '64%', englishTest: 'MOI or waiver', request: '' }, index });
+  assert.ok(out.results.length > 0);
+  assert.ok(!out.results.some((r) => /Portsmouth/.test(r.university)), 'the Portsmouth waiver is for UK affiliated degrees only');
+});
+
+test('the course page is looked up on a university address and the best match is taken', async () => {
+  const { parseResults, pickResult, createCourseFinder } = require('../student-details/course-finder');
+  const html = '<a class="result__a" href="//duckduckgo.com/l/?uddg=https%3A%2F%2Fwww.salford.ac.uk%2Fpostgraduate%2Fmsc-managing-ai-in-business">MSc Managing AI in Business | University of Salford</a>'
+    + '<a class="result__a" href="https://www.example-agency.com/salford-business">Salford business course</a>';
+  const results = parseResults(html);
+  assert.strictEqual(results.length, 2);
+  const best = pickResult(results, { university: 'University of Salford', course: 'MSc Managing AI in Business' });
+  assert.strictEqual(best.link, 'https://www.salford.ac.uk/postgraduate/msc-managing-ai-in-business');
+  assert.strictEqual(pickResult(results.slice(1), { university: 'University of Salford', course: 'MSc Managing AI in Business' }), null, 'a result that is not on a university address is never used');
+  let calls = 0;
+  const finder = createCourseFinder({ fetchFn: async () => { calls += 1; return { ok: true, text: async () => html }; }, pauseMs: 0 });
+  assert.strictEqual((await finder.lookup({ university: 'University of Salford', course: 'MSc Managing AI in Business' })).link, best.link);
+  await finder.lookup({ university: 'University of Salford', course: 'MSc Managing AI in Business' });
+  assert.strictEqual(calls, 1, 'a course is searched once');
+  const down = createCourseFinder({ fetchFn: async () => { throw new Error('offline'); }, pauseMs: 0 });
+  assert.match((await down.lookup({ university: 'X', course: 'Y' })).error, /Could not search/);
 });

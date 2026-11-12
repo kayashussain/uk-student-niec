@@ -92,7 +92,7 @@
         frame.srcdoc = preview.html;
         notes.replaceChildren();
         if (preview.missing.length) notes.append(el('div', 'p-notice warn', 'Not filled in yet, so left out of the message: ' + preview.missing.join(', ') + '.'));
-        if (!mail.ready) notes.append(el('div', 'p-notice', 'This server cannot send email by itself yet (the office mailbox is not set up), so Send email is not available. Use Open in my email program, or copy the text. Attach files there yourself, and your own email signature there is used (the signature picture is added only to emails this server sends).'));
+        if (!mail.ready) notes.append(el('div', 'p-notice', 'Email cannot be sent from this computer yet because the office mailbox is not set up (this is normal on a test computer). On the real server, Send email works and adds your signature picture. You can copy the text meanwhile.'));
       } catch (e) { notes.replaceChildren(el('div', 'p-notice bad', e.message)); }
     };
     [subject, bodyText, to].forEach((x) => x.input.addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(refresh, 350); }));
@@ -114,15 +114,7 @@
       } catch (e) { msg.textContent = e.message; msg.className = 'p-msg error'; }
       sendEmail.disabled = false;
     });
-    const mailto = h('button', { class: `btn${mail.ready ? '' : ' btn-primary'}`, type: 'button' }, 'Open in my email program');
-    mailto.addEventListener('click', async () => {
-      if (!to.input.value.trim()) { say('Type the email address first.', true); return; }
-      try {
-        await api(`/api/cards/${id}/messages/send`, { channel: 'mailto', template: templateKey, subject: subject.input.value, body: bodyText.input.value, to: to.input.value });
-        location.href = `mailto:${encodeURIComponent(to.input.value.trim())}?subject=${encodeURIComponent(preview.subject)}&body=${encodeURIComponent(preview.text)}`;
-      } catch (e) { say(e.message, true); }
-    });
-    bar.append(sendEmail, mailto, h('button', { class: 'btn', type: 'button', onclick: async () => say((await copy(`${preview.subject}\n\n${preview.text}`)) ? 'Email text copied' : 'Could not copy', false) }, 'Copy email text'));
+    bar.append(sendEmail, h('button', { class: 'btn', type: 'button', onclick: async () => say((await copy(`${preview.subject}\n\n${preview.text}`)) ? 'Email text copied' : 'Could not copy', false) }, 'Copy email text'));
     right.append(el('h3', '', 'WhatsApp'));
     const wa = el('pre', 'p-wa-preview');
     right.append(wa);

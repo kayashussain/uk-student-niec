@@ -77,43 +77,55 @@
     return wrap;
   }
 
-  // ---- Where the student came from (the Student Source of the sheet, and the platform, event or agent inside it) ----
+  // ---- Where the student came from: shown as text, and changed only after pressing Edit ----
+  let editingOrigin = false;
   function origin() {
     const p = profile();
     const s = data.student;
     const box = el('section', 'p-card');
-    box.append(el('h2', '', 'Where the student came from'));
+    const head = el('div', 'p-card-head');
+    head.append(el('h2', '', 'Where the student came from'));
+    if (can() && !editingOrigin) head.append(h('button', { class: 'btn btn-sm', type: 'button', onclick: () => { editingOrigin = true; render(); } }, 'Edit'));
+    box.append(head);
+    if (!editingOrigin) {
+      const dl = el('dl', 'p-facts');
+      const fact = (k, v) => { const d = el('div', 'p-fact'); d.append(el('dt', '', k), el('dd', '', v || 'Not recorded')); dl.append(d); };
+      fact('Student source', s.source);
+      fact(F.SOURCE_DETAIL_LABEL[s.source] || (s.source === 'Agent' ? 'Which agent' : 'Where exactly'), p.sourceDetail);
+      box.append(dl);
+      return box;
+    }
     const sources = Object.keys(F.SOURCE_DETAILS);
     if (s.source && !sources.includes(s.source)) sources.push(s.source);
     const src = field('Student source', { kind: 'select', choices: sources, value: s.source, disabled: !data.can.source });
     const holder = el('div', 'p-field');
     let detail = null;
+    let current = p.sourceDetail || '';
     const draw = () => {
       const name = src.input.value;
       const choices = name === 'Agent' ? lists.partners : (lists.sourceOptions[name] || F.SOURCE_DETAILS[name] || []);
       const label = F.SOURCE_DETAIL_LABEL[name] || (name === 'Agent' ? 'Which agent' : 'Where exactly');
-      const current = detail ? detail.value : p.sourceDetail;
-      const f2 = choices.length ? field(label, { kind: 'select', choices: choices.includes(current) || !current ? choices : [...choices, current], value: current, disabled: !can() }) : field(label, { value: current, disabled: !can() || !name, max: 120 });
+      if (choices.length && current && !choices.includes(current)) current = ''; // a detail of another source is dropped, never shown
+      const f2 = choices.length ? field(label, { kind: 'select', choices, value: current }) : field(label, { value: current, disabled: !name, max: 120 });
       holder.replaceChildren(...f2.wrap.childNodes);
       detail = f2.input;
+      detail.addEventListener('change', () => { current = detail.value; });
     };
     draw();
-    src.input.addEventListener('change', () => { detail = null; draw(); });
+    src.input.addEventListener('change', () => { current = ''; draw(); });
     const form = el('div', 'p-form');
     form.append(src.wrap, holder);
     box.append(form);
     if (!data.can.source && s.source) box.append(el('p', 'p-muted p-small', 'The source of this student can only be changed by Admin.'));
-    if (can()) {
-      const bar = el('div', 'p-bar');
-      bar.append(h('button', { class: 'btn btn-primary', type: 'button', onclick: async () => {
-        try {
-          if (data.can.source && src.input.value !== (s.source || '')) { await save('source', { source: src.input.value }); data.student.source = src.input.value; }
-          await save('profile', { sourceDetail: detail ? detail.value : '' }, 'Saved');
-          render();
-        } catch (e) { /* shown */ }
-      } }, 'Save'));
-      box.append(bar);
-    }
+    const bar = el('div', 'p-bar');
+    bar.append(h('button', { class: 'btn btn-primary', type: 'button', onclick: async () => {
+      try {
+        if (data.can.source && src.input.value !== (s.source || '')) { await save('source', { source: src.input.value }); data.student.source = src.input.value; }
+        await save('profile', { sourceDetail: detail ? detail.value : '' }, 'Saved');
+        editingOrigin = false; render();
+      } catch (e) { /* shown */ }
+    } }, 'Save'), h('button', { class: 'btn', type: 'button', onclick: () => { editingOrigin = false; render(); } }, 'Cancel'));
+    box.append(bar);
     return box;
   }
 
@@ -182,7 +194,14 @@
       const sch = field('Scholarship', { value: o.scholarship, disabled: !can(), max: 400 });
       const link = field('Course link', { value: o.link, disabled: !can(), max: 500, placeholder: 'https://…' });
       const note = field('Note for the student', { value: o.note, disabled: !can(), max: 400 });
-      if (!o.link) { const f = el('a', 'p-link p-small', 'Find the course page, then paste it in the link box'); f.href = F.courseSearchUrl(o); f.target = '_blank'; f.rel = 'noopener'; link.wrap.append(f); }
+      if (!o.link && can()) {
+        // No link yet: the server looks the course page up and the link is filled in and kept.
+        window.SendToStudent.lookupLink(o).then(async (found) => {
+          if (!found) { const f = el('a', 'p-link p-small', 'Search for the course page'); f.href = F.courseSearchUrl(o); f.target = '_blank'; f.rel = 'noopener'; link.wrap.append(f); return; }
+          link.input.value = found;
+          try { await save('options/' + o.id, { link: found }); o.link = found; } catch (e) { /* shown */ }
+        });
+      }
       form.append(fee.wrap, dep.wrap, sch.wrap, link.wrap, note.wrap);
       item.append(header, form);
       if (can()) {
@@ -213,7 +232,7 @@
     const w = el('div', 'p-why');
     const addLink = (text, href) => { const a = el('a', 'p-link p-small', text); a.href = href; a.target = '_blank'; a.rel = 'noopener'; if (w.childNodes.length) w.append(' · '); w.append(a); };
     if (o.link) addLink(o.linkIsCourse ? 'Course page' : 'University website', o.link);
-    if (!o.linkIsCourse) addLink('Find the course page', F.courseSearchUrl(o));
+    if (!o.linkIsCourse) addLink('Search for the course page', F.courseSearchUrl(o));
     c.append(w);
     return c;
   }
@@ -236,6 +255,11 @@
     add('passedYear', 'Year passed (the study gap is worked out from it)', { max: 10, placeholder: '2020' });
     add('englishTest', 'English test', { kind: 'select', choices: F.ENGLISH_TESTS });
     add('englishScore', 'English score', { max: 60 });
+    // No score is asked for when the student has no English test (waiver or MOI, or not taken yet).
+    const scoreBox = inputs.englishScore.closest('.p-field') || inputs.englishScore.parentElement;
+    const showScore = () => { const none = /moi|waiver|not taken/i.test(inputs.englishTest.value); scoreBox.hidden = none; if (none) inputs.englishScore.value = ''; };
+    inputs.englishTest.addEventListener('change', showScore);
+    showScore();
     add('budget', 'Budget for the first year (GBP)', { max: 60, placeholder: '17000' });
     add('location', 'Where in the UK', { max: 120, placeholder: 'Manchester, Scotland, anywhere' });
     const intake = field('Intake', { value: data.student.intake, disabled: true });

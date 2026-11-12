@@ -67,7 +67,7 @@
   function targetCard() {
     const t = data.target;
     if (!t) return card('Target', 'Choose one intake above to see its target.');
-    const c = card(`Visa target: ${data.scope}`, 'How many visas this intake is aiming for, what is likely, and what closing a gap needs.');
+    const c = card(`Visa target: ${data.scope}`, 'The target does not change anything else in the portal. It is used for three things only: comparing it with the forecast below, the weekly pace needed, and "still to find" in the Intake plan. The forecast comes from what happened to NIEC\'s own earlier students at each stage.');
     const status = { reached: ['Reached', 'green'], 'on-track': ['On track', 'green'], behind: ['Behind', 'red'], missed: ['Missed', 'red'], unknown: ['Not enough history to forecast', 'amber'], none: ['No target set', 'amber'] }[t.status];
     const row = el('div', 'p-kpis');
     row.append(kpi('Target', t.visas || 'none', t.byDate ? `by ${t.byDate}` : ''), kpi('Visas so far', t.visasNow, `${data.summary.paid} have paid`),
@@ -97,16 +97,17 @@
   function findings() {
     const box = el('div');
     box.append(el('div', 'p-card-head'));
-    box.firstChild.append(el('h2', '', 'What stands out, and what to decide'));
+    box.firstChild.append(el('h2', '', 'What the numbers show'));
+    box.append(el('p', 'p-muted p-small', 'These notes are not made by artificial intelligence and not by a business analyst. They are fixed rules written into the portal: each rule compares your own figures with a limit (for example, one source costing more than twice another for each visa) and shows the figures it used. "Suggested step" is a standard suggestion for that kind of finding. A person has to judge it: the decision is yours.'));
     if (!data.findings.length) { const c = el('section', 'p-card'); c.append(el('p', '', 'Nothing stands out at the moment.')); box.append(c); return box; }
     (allFindings ? data.findings : data.findings.slice(0, 5)).forEach((f) => {
       const c = el('article', `p-finding ${f.priority.toLowerCase()}`);
       c.append(el('span', 'p-prio', f.priority));
-      const head = el('div'); head.append(el('h3', '', f.title), el('span', 'p-area', `${f.area} · ${f.confidence} confidence`));
+      const head = el('div'); head.append(el('h3', '', f.title), el('span', 'p-area', f.area + (f.confidence === 'Low' ? ' · based on few students' : '')));
       c.append(head);
       const dl = el('dl');
       const ev = el('ul'); f.evidence.forEach((e) => ev.append(el('li', '', e)));
-      [['Evidence', ev], ['Why it matters', f.why], ['Decision', f.decision], ['Measure', f.measure]].forEach(([k, v]) => { const dd = el('dd', k === 'Decision' ? 'decision' : '', v.nodeType ? undefined : v); if (v.nodeType) dd.append(v); dl.append(el('dt', '', k), dd); });
+      [['The figures', ev], ['Why it can matter', f.why], ['Suggested step', f.decision], ['Check again with', f.measure]].forEach(([k, v]) => { const dd = el('dd', k === 'Suggested step' ? 'decision' : '', v.nodeType ? undefined : v); if (v.nodeType) dd.append(v); dl.append(el('dt', '', k), dd); });
       c.append(dl);
       box.append(c);
     });

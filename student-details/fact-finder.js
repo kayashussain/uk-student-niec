@@ -88,9 +88,16 @@
     if (options && options.length) await open(options);
   }
 
+  // Looks the course page up on the university's website (the server does the search); resolves to a link or ''.
+  async function lookupLink(o) {
+    try { const r = await api('/api/course-link', { universityId: o.universityId, university: o.university, course: o.course }); return r.link || ''; } catch (e) { return ''; }
+  }
+
   // The assistant's answer as a list: what it understood, the summary, the options it can offer and the ones ruled out with the
   // reason. onAdd(option): when given, each offered option has an Add button (on a student card); without it each has a tick box
   // (on the Fact File page, to send the ticked ones to a student).
+  let lookups = Promise.resolve();
+  const queueLookup = (fn) => { lookups = lookups.then(fn, fn); };
   function drawAnswer(out, results, { onAdd, picks, sendBtn, last }) {
     results.replaceChildren();
     if (out.understood && out.understood.length) {
@@ -135,8 +142,16 @@
         const w = el('div', 'p-why');
         const add = (text, href) => { const a = el('a', 'p-link p-small', text); a.href = href; a.target = '_blank'; a.rel = 'noopener'; if (w.childNodes.length) w.append(' · '); w.append(a); };
         if (o.link) add(o.linkIsCourse ? 'Course page' : 'University website', o.link);
-        if (!o.linkIsCourse) add('Find the course page', F.courseSearchUrl(o));
         c.append(w);
+        if (!o.linkIsCourse) {
+          // The course page is looked up by the server, one course after the other, and shown here when found (and passed on with Add).
+          const wait = el('span', 'p-muted p-small', ' · looking for the course page…');
+          w.append(wait);
+          queueLookup(async () => {
+            const link = await lookupLink(o);
+            if (link) { o.link = link; o.linkIsCourse = true; w.replaceChildren(); add('Course page', link); } else { wait.remove(); add('Search for the course page', F.courseSearchUrl(o)); }
+          });
+        }
       }
       return c;
     };
@@ -154,5 +169,5 @@
     if (!out.results.length && !out.advice) results.append(el('div', 'p-empty', 'Nothing matches. Try fewer words.'));
   }
 
-  root.SendToStudent = { open, sendUniversity, drawAnswer };
+  root.SendToStudent = { open, sendUniversity, drawAnswer, lookupLink };
 })(this);

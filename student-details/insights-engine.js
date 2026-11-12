@@ -519,12 +519,6 @@ function buildInsights({ workbook, cards = {}, planning = {}, partners = [], b2b
         '"Social Media" or "Events" alone cannot be acted on: the money goes to one platform or one event, not to a heading.',
         'Fill in "where exactly" on the card of every student of this intake, and make it part of adding a student.', 'Share of cards with "where exactly", aiming above 90%.', 'High');
     }
-    const inq = q('First inquiry day');
-    if (inq.percent !== null && inq.percent < 60) {
-      add('P3', 'Data', `Only ${inq.percent}% of students have a first inquiry day`, [`${inq.filled} of ${inq.of} cards hold the day the student first contacted NIEC.`],
-        'Without it the busy months, the time from inquiry to application and the effect of an event cannot be measured, so event timing stays a guess.',
-        'The Add student form fills it in by itself from now on; add it for the students already on the sheet where it is known.', 'Share of cards with the inquiry day.', 'High');
-    }
     const reason = q('Why the student did not go on');
     if (reason.of >= 5 && reason.percent !== null && reason.percent < 60) {
       add('P2', 'Data', `${reason.of - reason.filled} lost students have no reason recorded`, [`${reason.of} students are withdrawn, on hold, deferred or refused; a reason is recorded for ${reason.filled}.`],
@@ -559,9 +553,9 @@ function buildInsights({ workbook, cards = {}, planning = {}, partners = [], b2b
         'The same rupee buys more in one channel than in the other.', `Move part of the next budget from ${worst.label} to ${best.label}, as a test for one intake, and compare again.`, `Cost per ${noun} by channel after the next intake.`, 'Medium');
       return true;
     };
-    // By visa where both sides have at least three visas; otherwise by application (five on each side).
-    if (!compareCost(paidFor.filter((s) => s.costPerVisa !== null && s.visas >= 3), 'costPerVisa', 'visas', 'visa')) {
-      compareCost(paidFor.filter((s) => s.costPerApplication !== null && s.applied >= 5), 'costPerApplication', 'applied', 'application');
+    // Compared only where each side has enough to count: five visas, or else fifteen applications. Fewer would only show chance.
+    if (!compareCost(paidFor.filter((s) => s.costPerVisa !== null && s.visas >= 5), 'costPerVisa', 'visas', 'visa')) {
+      compareCost(paidFor.filter((s) => s.costPerApplication !== null && s.applied >= 15), 'costPerApplication', 'applied', 'application');
     }
   }
   const topLost = lostReasons.filter((r) => r.label !== NONE)[0];
@@ -628,7 +622,7 @@ function buildInsights({ workbook, cards = {}, planning = {}, partners = [], b2b
   const headline = [];
   headline.push(`${scopeName}: ${summary.students} students, ${summary.applied} applied (${pct(summary.applied, summary.students) ?? 0}%), ${summary.offers} with an offer, ${summary.paid} paid and ${summary.visas} with a visa.`);
   if (targetView && targetView.visas) headline.push(targetView.status === 'reached' ? `The target of ${targetView.visas} visas is reached.` : targetView.status === 'missed' ? `The intake ended ${targetView.visas - targetView.visasNow} visas short of its target of ${targetView.visas}.` : targetView.expectedTotal !== null ? `The target is ${targetView.visas} visas and the forecast is about ${targetView.expectedTotal}: ${targetView.status === 'behind' ? `about ${targetView.gap} short` : 'on track'}.` : `The target is ${targetView.visas} visas; there is not enough history to forecast yet.`);
-  const bestChannel = [...channels.sources].filter((x) => !x.spendOnly && x.students >= MIN_SAMPLE && x.leadToVisa !== null).sort((a, b) => b.leadToVisa - a.leadToVisa)[0];
+  const bestChannel = [...channels.sources].filter((x) => !x.spendOnly && x.students >= MIN_SAMPLE && x.visas >= 3 && x.leadToVisa !== null).sort((a, b) => b.leadToVisa - a.leadToVisa)[0];
   if (bestChannel) headline.push(`${bestChannel.label} is the strongest source: ${bestChannel.leadToVisa}% of its ${bestChannel.students} students reach a visa.`);
   const value = admin && plan.settings && plan.settings.valuePerVisa ? plan.settings.valuePerVisa : 0;
   const money = value ? {

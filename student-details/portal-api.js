@@ -17,7 +17,7 @@ const Fields = require('./card-fields');
 const { eventLabel } = require('./source-options');
 const { ROW_ID } = require('./cards');
 const Messages = require('./messages');
-const { buildIndex, searchCourses } = require('./course-index');
+const { buildIndex, searchCourses, linkKey } = require('./course-index');
 const { EVENT_TYPES, DECISION_STATUS, MARKET_KINDS, LISTS: PLANNING_LISTS } = require('./planning');
 const { MAX_FILE_BYTES, STATUSES: PARTNER_STATUSES } = require('./direct');
 
@@ -157,14 +157,6 @@ function createPortalApi({
       });
     }
     // Sending.
-    if (body.channel === 'mailto') {
-      // The counselor sends it from their own email program (the card opened it there): only the record is kept.
-      if (!mailer.isAddress(to)) return sendJSON(res, 400, { error: to ? 'That email address does not look right.' : 'This student has no email address on the sheet.' });
-      const kept = cards.logMessage(found.row._id, { channel: 'email', template: template ? template.name : 'Own message', subject: email.subject, to, status: 'opened', text: email.text, options: ctx.options.length }, by(req));
-      if (kept.error) return sendJSON(res, 400, { error: kept.error });
-      note(req, [`Opened an email to ${nameOf(found.row) || 'a student'} in their own email program ("${email.subject}")`], 'Sent message');
-      return sendJSON(res, 200, { status: 'opened', message: kept.message, card: kept.card });
-    }
     const channel = body.channel === 'whatsapp' ? 'whatsapp' : 'email';
     const usesOptions = /\{options_table\}/.test(channel === 'email' ? emailBody : whatsappBody);
     if (usesOptions && !ctx.options.length) return sendJSON(res, 400, { error: 'Add at least one university option to the card first.' });
@@ -697,6 +689,20 @@ function createPortalApi({
       return true;
     }
     // The Fact File assistant: describe a student, get the options they are eligible for (finder.js, eligibility.js).
+    // The page of a course on the university's website (course-finder.js), remembered once found.
+    if (urlPath === '/api/course-link' && req.method === 'POST') {
+      const body = await bodyOf(req, res, 16 * 1024);
+      if (!body) return true;
+      const university = text(body.university).slice(0, 160);
+      const course = text(body.course).slice(0, 240);
+      if (!university || !course) { sendJSON(res, 400, { error: 'The university and the course are needed.' }); return true; }
+      const known = courseLinks.all()[linkKey(body.universityId, course)];
+      if (known) { sendJSON(res, 200, { link: known, remembered: true }); return true; }
+      const found = courseLinker ? await courseLinker.lookup({ university, course }) : { link: '', error: 'Not available.' };
+      if (found.link) courseLinks.remember(body.universityId, course, found.link);
+      sendJSON(res, 200, found);
+      return true;
+    }
     if (urlPath === '/api/finder' && req.method === 'POST') {
       const body = await bodyOf(req, res);
       if (!body) return true;

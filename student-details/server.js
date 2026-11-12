@@ -26,6 +26,7 @@ const {
 const { createCards } = require('./cards');
 const { createMessages } = require('./messages');
 const { createCourseLinks } = require('./course-index');
+const { createCourseFinder } = require('./course-finder');
 const { createPlanning } = require('./planning');
 const { createSourceOptions } = require('./source-options');
 const { createB2b } = require('./b2b');
@@ -795,7 +796,7 @@ function servedInsights(user, intake) {
 
 const portal = createPortalApi({
   getWorkbook: () => current, writeWorkbook, recordChanges, teamSave,
-  cards, messages, courseLinks, sourceOptions, facts, direct, b2b, agents, planning, accounts, activity,
+  cards, messages, courseLinks, sourceOptions, courseLinker: createCourseFinder(), facts, direct, b2b, agents, planning, accounts, activity,
   insights: servedInsights, finder: createFinder(), calculated: CALCULATED_COLUMNS,
 });
 

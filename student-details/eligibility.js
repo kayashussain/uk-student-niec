@@ -128,7 +128,13 @@ function englishRules(english) {
     out[test] = { overall: first, band: rest.length ? Math.min(...rest) : null };
   });
   const all = lines(english).join(' ');
-  out.waiver = /waiver|moi\b|medium of instruction|grade 12|12th/i.test(all) && !/waiver:\s*n\/a|no ielts waiver|no waiver/i.test(all);
+  // The waiver route, read from the lines that mention it: none (n/a, not accepted), only for a UK qualification (our students hold
+  // Nepal qualifications, so it does not help them), or open to them (MOI, a score in Grade 12 ...).
+  const waiverLines = lines(english).filter((l) => /waiver|\bmoi\b|medium of instruction|grade 12|12th/i.test(l));
+  out.waiverText = waiverLines.join('; ').replace(/\s+/g, ' ').slice(0, 160);
+  out.waiverKind = !waiverLines.length ? '' : /n\/a|not accepted|not available|not offered|no (?:ielts |english )?waiver|waiver:\s*(?:no|none)\b/i.test(out.waiverText) ? 'none'
+    : /uk[\s-]*(?:affiliated|degree|based|universit|qualification)|affiliated degree|studied in the uk|from the uk/i.test(out.waiverText) ? 'uk' : 'yes';
+  out.waiver = out.waiverKind === 'yes';
   return out;
 }
 const refusalNotAccepted = (academic) => /refusal[^|;\n]*(?:not accepted|not considered|no)/i.test(String(academic || ''));
@@ -181,8 +187,9 @@ function judge(student, course, now = new Date()) {
     if (checks.length && bad.length === checks.length) bad.forEach((b) => fails.push(b));
     else if (checks.length) passes.push(`English meets ${student.ielts != null && rule.ielts && !bad.some((b) => /IELTS/.test(b)) ? `IELTS ${rule.ielts.overall}` : `PTE ${rule.pte.overall}`}${student.ielts != null && rule.ielts && student.ieltsBand == null && rule.ielts.band != null ? ' (the band scores are not known)' : ''}`);
   } else if (!hasTest && (rule.ielts || rule.pte)) {
-    if (student.noEnglish && rule.waiver) passes.push('no English test: the Fact File mentions a waiver or MOI route for this university');
-    else if (student.noEnglish) fails.push('no English test, and the Fact File mentions no waiver');
+    if (student.noEnglish && rule.waiverKind === 'yes') passes.push(`no English test: the waiver route is open (${rule.waiverText})`);
+    else if (student.noEnglish && rule.waiverKind === 'uk') fails.push(`no English test, and the waiver is only for UK affiliated degrees (${rule.waiverText})`);
+    else if (student.noEnglish) fails.push('no English test, and the Fact File offers no waiver');
     else missing.push('the English test');
   }
   // Nothing readable in the Fact File for this course: no verdict is made up.

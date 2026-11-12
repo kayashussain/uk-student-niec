@@ -1,5 +1,5 @@
-// Send one message to many students: choose the intake and the stage, tick the students, write (or choose) the message, then send the
-// emails in one go (when the office mailbox is set up) or open each student's email or WhatsApp one after the other.
+// Bulk follow-up: choose the intake and the stage, tick the students, choose email or WhatsApp, write (or choose) the message, then send the
+// emails in one go (when the office mailbox is set up) or open each student's WhatsApp chat one after the other.
 (function () {
   const { el, h, api, field } = window.Portal;
   const view = document.getElementById('view');
@@ -23,7 +23,7 @@
     const wrap = el('div');
     const head = el('div', 'p-head');
     const title = el('div');
-    title.append(el('h1', '', 'Send to many students'), el('p', '', 'Choose the students, write the message once and it goes to each of them with their own name and details. The signature is added to every email.'));
+    title.append(el('h1', '', 'Bulk follow-up'), el('p', '', 'Follow up many students at once. Choose the students, choose email or WhatsApp, and write the message once: each student gets it with their own name and details.'));
     head.append(title, h('a', { class: 'btn', href: '/students' }, 'Back to Student Details'));
     wrap.append(head);
 
@@ -60,37 +60,60 @@
     wrap.append(who);
     draw();
 
-    // 2. what
-    const what = el('section', 'p-card');
-    what.append(el('h2', '', '2. Write the message'));
+    // 2. how
+    const how = el('section', 'p-card');
+    how.append(el('h2', '', '2. How to send it'));
+    let channel = 'email';
+    const choice = el('div', 'p-tabs');
+    const eBtn = h('button', { type: 'button', role: 'tab', 'aria-selected': 'true' }, 'By email');
+    const wBtn = h('button', { type: 'button', role: 'tab', 'aria-selected': 'false' }, 'By WhatsApp');
+    choice.append(eBtn, wBtn);
+    how.append(choice);
     const tmpl = field('Start from', { kind: 'select', choices: [['custom', 'Other: my own words'], ...templates.map((t) => [t.key, t.name])], value: 'custom' });
     const subject = field('Subject', { wide: true, max: 200 });
     const body = field('Email text (the words in curly brackets are filled in for each student)', { kind: 'area', max: 8000, wide: true, value: 'Dear {first_name},\n\n' });
     body.input.style.minHeight = '200px';
-    const wa = field('WhatsApp text', { kind: 'area', max: 2000, wide: true, value: 'Hello {first_name}, ' });
+    const wa = field('WhatsApp text (the words in curly brackets are filled in for each student)', { kind: 'area', max: 2000, wide: true, value: 'Hello {first_name}, ' });
     const form = el('div', 'p-form');
     form.append(tmpl.wrap, subject.wrap, body.wrap, wa.wrap);
-    what.append(form);
+    how.append(form);
     tmpl.input.addEventListener('change', () => {
       const t = templates.find((x) => x.key === tmpl.input.value);
       subject.input.value = t ? t.subject : '';
       body.input.value = t ? t.body : 'Dear {first_name},\n\n';
       wa.input.value = t ? t.whatsapp : 'Hello {first_name}, ';
     });
-    wrap.append(what);
+    wrap.append(how);
 
     // 3. send
     const send = el('section', 'p-card');
     send.append(el('h2', '', '3. Check and send'));
+    const note = el('div');
     const out = el('div');
     const actions = el('div', 'p-bar');
     const check = h('button', { class: 'btn', type: 'button' }, 'Check the message for each student');
-    const sendAll = h('button', { class: 'btn btn-primary', type: 'button' }, 'Send all the emails now');
+    const sendAll = h('button', { class: 'btn btn-primary', type: 'button' }, 'Send emails now');
     sendAll.disabled = true;
     actions.append(check, sendAll);
-    if (!mail.ready) send.append(el('div', 'p-notice', 'This server cannot send email by itself yet (the office mailbox is not set up). Check the message, then open each email in your own email program or each WhatsApp chat below. The signature picture is only added to emails the server sends itself.'));
-    send.append(actions, out);
+    send.append(note, actions, out);
     wrap.append(send);
+
+    const setChannel = (c) => {
+      channel = c;
+      eBtn.setAttribute('aria-selected', String(c === 'email'));
+      wBtn.setAttribute('aria-selected', String(c === 'whatsapp'));
+      subject.wrap.hidden = body.wrap.hidden = c !== 'email';
+      wa.wrap.hidden = c !== 'whatsapp';
+      sendAll.hidden = c !== 'email';
+      out.replaceChildren();
+      note.replaceChildren(c === 'email'
+        ? (mail.ready ? el('p', 'p-muted p-small', 'Each student gets their own email from the office mailbox, with your signature picture. Press Check first to see who is ready.') : el('div', 'p-notice warn', 'Emails cannot be sent from this computer: the office mailbox is not set up (normal on a test computer). On the real server, "Send emails now" sends them. Nothing is sent from here.'))
+        : el('p', 'p-muted p-small', 'WhatsApp cannot be sent by a program. Press Check, then press WhatsApp beside each student: their chat opens with the message ready and you press send in WhatsApp.'));
+      check.textContent = c === 'email' ? 'Check the emails' : 'Prepare the WhatsApp chats';
+    };
+    eBtn.addEventListener('click', () => setChannel('email'));
+    wBtn.addEventListener('click', () => setChannel('whatsapp'));
+    setChannel('email');
 
     const payload = () => ({ ids: [...chosen], template: tmpl.input.value, subject: subject.input.value, body: body.input.value, whatsapp: wa.input.value });
     check.addEventListener('click', async () => {
@@ -99,23 +122,27 @@
       try {
         const r = await api('/api/bulk/preview', payload());
         items = r.items;
-        const ok = items.filter((i) => !i.error && !i.problem).length;
-        out.replaceChildren(el('p', '', `${ok} of ${items.length} students are ready for email. The others are shown with the reason.`));
+        const ready = items.filter((i) => !i.error && (channel === 'email' ? !i.problem : i.whatsapp && i.whatsapp.number)).length;
+        out.replaceChildren(el('p', '', `${ready} of ${items.length} students are ready for ${channel === 'email' ? 'email' : 'WhatsApp'}. The others are shown with the reason.`));
         items.forEach((i) => {
           const row = el('div', 'p-sent');
           if (i.error) { row.append(el('b', '', i.id), el('span', 'p-muted', i.error)); out.append(row); return; }
-          row.append(el('b', '', i.name), el('span', 'p-muted p-small', i.problem || i.to));
-          if (i.missing && i.missing.length) row.append(el('span', 'p-chip', 'Missing: ' + i.missing.join(', ')));
-          row.append(h('button', { class: 'p-link', type: 'button', onclick: () => window.NiecUI.alert ? window.NiecUI.alert(i.text, { title: i.subject }) : say(i.subject) }, 'Read'));
-          if (!mail.ready && !i.problem) row.append(h('button', { class: 'btn btn-sm', type: 'button', onclick: () => { location.href = `mailto:${encodeURIComponent(i.to)}?subject=${encodeURIComponent(i.subject)}&body=${encodeURIComponent(i.text)}`; } }, 'Email'));
-          if (i.whatsapp && i.whatsapp.number) row.append(h('button', { class: 'btn btn-sm', type: 'button', onclick: (e) => {
-            window.open(`https://wa.me/${i.whatsapp.number}?text=${encodeURIComponent(i.whatsapp.text)}`, '_blank', 'noopener');
-            api(`/api/cards/${i.id}/messages/send`, { channel: 'whatsapp', template: tmpl.input.value, whatsapp: wa.input.value }).catch(() => {});
-            e.target.textContent = 'WhatsApp opened'; e.target.disabled = true;
-          } }, 'WhatsApp'));
+          row.append(el('b', '', i.name));
+          if (channel === 'email') {
+            row.append(el('span', 'p-muted p-small', i.problem || i.to));
+            if (i.missing && i.missing.length) row.append(el('span', 'p-chip', 'Missing: ' + i.missing.join(', ')));
+            row.append(h('button', { class: 'p-link', type: 'button', onclick: () => window.NiecUI.alert(i.text, { title: i.subject }) }, 'Read'));
+          } else if (i.whatsapp && i.whatsapp.number) {
+            row.append(el('span', 'p-muted p-small', '+' + i.whatsapp.number));
+            row.append(h('button', { class: 'btn btn-sm', type: 'button', onclick: (e) => {
+              window.open(`https://wa.me/${i.whatsapp.number}?text=${encodeURIComponent(i.whatsapp.text)}`, '_blank', 'noopener');
+              api(`/api/cards/${i.id}/messages/send`, { channel: 'whatsapp', template: tmpl.input.value, whatsapp: wa.input.value }).catch(() => {});
+              e.target.textContent = 'WhatsApp opened'; e.target.disabled = true;
+            } }, 'WhatsApp'));
+          } else row.append(el('span', 'p-muted p-small', 'No WhatsApp number.'));
           out.append(row);
         });
-        sendAll.disabled = !(mail.ready && ok);
+        sendAll.disabled = !(mail.ready && channel === 'email' && ready);
       } catch (e) { out.replaceChildren(el('div', 'p-notice bad', e.message)); }
       check.disabled = false;
     });
