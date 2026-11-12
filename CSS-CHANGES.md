@@ -11,9 +11,9 @@ Format: **date · file · what · from → to · why**
 
 ## 2026-11-12 · `shared/header.js`, `shared/header.css`, `shared/login.html`, favicon, `brand/` · the final Fly logo: a paper plane on a dotted path
 
-The owner chose the solid paper plane (the third option) as the final logo.
+The owner chose the skewed two-fold paper plane (number 3 of the paper plane options, Telegram-like) as the final logo.
 
-- **Logo:** from a three-feather wing on a blue-violet square → to a solid paper plane (white on the blue-violet square in the menu and on the login page; blue-violet on white or black in the full logo). The full logo is the word "Fly" with a dotted path rising to the plane.
+- **Logo:** from a three-feather wing on a blue-violet square → to a skewed two-fold paper plane (white on the blue-violet square in the menu and on the login page; blue-violet on white or black in the full logo). The full logo is the word "Fly" with a dotted path rising to the plane.
 - **Browser tab and phone icon:** the same plane on the blue-violet square.
 - **Documents and emails:** the Fact File page, the printed intake proposal and the account emails show the Fly logo instead of the NIEC logo. A student's email shows only the consultancy's own signature picture.
 - **Login page details:** the title "Fly" is heavy sans (not serif), the card's top line and the welcome side's line are blue-to-violet (not blue-to-orange), the Log in button is black and turns blue on hover, and the focus ring is blue.

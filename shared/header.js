@@ -13,7 +13,7 @@
 
   header.innerHTML = `
     <a class="niec-brand" href="/students" title="Home" id="niecHome">
-      <span class="niec-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><g transform="translate(11 12.5) rotate(-34) scale(.5)"><path d="M26 0L-18 -14L-7 0L-18 14z" fill="currentColor" stroke="none"/></g></svg></span>
+      <span class="niec-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><g transform="translate(11 12.5) rotate(-34) scale(.5)"><path d="M26 -2L-18 -14L-6 2z" fill="currentColor" stroke="none"/><path d="M26 -2L-6 2L-12 14z" fill="currentColor" stroke="none" opacity=".62"/></g></svg></span>
       <span class="niec-brand-text"><span class="niec-brand-name">Fly</span></span>
     </a>
     <nav class="niec-nav" aria-label="Pages"></nav>
