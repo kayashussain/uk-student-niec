@@ -1,4 +1,4 @@
-/* The Fly side menu every page shares (shared/header.js fills in the navigation and the account menu): a black column on the left, folded to icons on request, a bar across the top on a phone. */
+/* The Fly side menu every page shares (shared/header.js fills in the navigation and the account menu): a light frosted column on the left, folded to icons on request, a bar across the top on a phone. */
 :root { --side-w: 252px; }
 html[data-nav="folded"] { --side-w: 78px; }
 /* Every page leaves room for the menu (the card window of a student, which shows a page inside another, does not). */
@@ -6,22 +6,22 @@ body:has(> .niec-header) { padding-left: var(--side-w); transition: padding-left
 body.p-embed { padding-left: 0 !important; }
 
 .niec-header {
-  --h-text: #f2f2f6; --h-dim: #9a9aa6; --h-hover: rgba(255, 255, 255, .07); --h-border: rgba(255, 255, 255, .09); --h-gold: #4d83ff;
+  --h-text: #1d1d1f; --h-dim: #6e6e73; --h-hover: rgba(0, 0, 0, .05); --h-border: rgba(0, 0, 0, .08); --h-gold: #0071e3;
   position: fixed; inset: 0 auto 0 0; z-index: 40; width: var(--side-w); height: 100vh;
   display: flex; flex-direction: column; align-items: stretch; gap: 8px; padding: 18px 14px 16px;
-  background: radial-gradient(110% 45% at 0% 0%, rgba(77, 131, 255, .22) 0%, rgba(77, 131, 255, 0) 70%), #0a0a0c;
+  background: rgba(248, 248, 250, .78); -webkit-backdrop-filter: saturate(180%) blur(32px); backdrop-filter: saturate(180%) blur(32px);
   color: var(--h-text); font: 13px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  border: 0; box-shadow: 1px 0 0 rgba(255, 255, 255, .04), 12px 0 40px -24px rgba(8, 18, 45, .6);
+  border: 0; box-shadow: 1px 0 0 rgba(0, 0, 0, .07);
   overflow-x: hidden; overflow-y: auto; scrollbar-width: none; transition: width .2s ease;
 }
 .niec-header::-webkit-scrollbar { display: none; }
 .niec-header::after { content: none; }
 
 .niec-brand { display: flex; flex-direction: row; gap: 12px; align-items: center; text-decoration: none; color: inherit; padding: 2px 4px 14px; border-bottom: 1px solid var(--h-border); }
-.niec-mark { display: grid; place-items: center; flex: 0 0 44px; width: 44px; height: 44px; border-radius: 13px; background: linear-gradient(135deg, #2f6bff 0%, #7a4dff 100%); box-shadow: 0 10px 24px -8px rgba(77, 99, 255, .7); color: #fff; }
+.niec-mark { display: grid; place-items: center; flex: 0 0 42px; width: 42px; height: 42px; border-radius: 12px; background: linear-gradient(135deg, #2f6bff 0%, #7a4dff 100%); box-shadow: 0 8px 20px -8px rgba(77, 99, 255, .55); color: #fff; }
 .niec-mark svg { width: 28px; height: 28px; fill: currentColor; }
 .niec-brand-text { padding: 0 2px; border: 0; line-height: 1.25; }
-.niec-brand-name { display: block; font-weight: 800; font-size: 30px; line-height: 1; letter-spacing: -.05em; color: #fff; }
+.niec-brand-name { display: block; font-weight: 700; font-size: 26px; line-height: 1; letter-spacing: -.04em; color: var(--h-text); }
 .niec-brand-sub { display: block; font-size: 12px; color: var(--h-dim); }
 
 .niec-nav { display: flex; flex-direction: column; align-items: stretch; align-self: stretch; gap: 3px; margin: 10px 0 0; min-width: 0; }
@@ -30,33 +30,33 @@ body.p-embed { padding-left: 0 !important; }
   color: var(--h-dim); text-decoration: none; font-weight: 550; font-size: 13.5px; white-space: nowrap;
   transition: background-color .15s ease, color .15s ease;
 }
-.niec-nav a:hover { color: #fff; background: var(--h-hover); }
-.niec-nav a[aria-current="page"] { color: #fff; background: linear-gradient(90deg, rgba(77, 131, 255, .26), rgba(77, 131, 255, .06)); box-shadow: inset 0 0 0 1px rgba(77, 131, 255, .35); }
-.niec-nav a[aria-current="page"]::before { content: ""; position: absolute; left: -14px; top: 9px; bottom: 9px; width: 4px; border-radius: 0 4px 4px 0; background: var(--h-gold); }
+.niec-nav a:hover { color: var(--h-text); background: var(--h-hover); }
+.niec-nav a[aria-current="page"] { color: #0058b0; background: rgba(0, 113, 227, .12); font-weight: 600; box-shadow: none; }
+.niec-nav a[aria-current="page"]::before { content: none; }
 .niec-ico { display: grid; place-items: center; flex: 0 0 22px; width: 22px; height: 22px; }
 .niec-ico svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
 
 .niec-fold { display: flex; align-items: center; gap: 12px; margin-top: 6px; padding: 8px 12px; border: 0; border-radius: 12px; background: none; color: var(--h-dim); font: inherit; font-size: 12.5px; cursor: pointer; }
-.niec-fold:hover { background: var(--h-hover); color: #fff; }
+.niec-fold:hover { background: var(--h-hover); color: var(--h-text); }
 .niec-fold svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; transition: transform .2s ease; }
 html[data-nav="folded"] .niec-fold svg { transform: rotate(180deg); }
 
 .niec-account { margin-top: auto; position: relative; padding-top: 12px; border-top: 1px solid var(--h-border); }
-.niec-account-btn { display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px; border: 1px solid transparent; border-radius: 14px; background: rgba(255, 255, 255, .05); color: inherit; font: inherit; cursor: pointer; text-align: left; }
+.niec-account-btn { display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px; border: 1px solid transparent; border-radius: 14px; background: rgba(0, 0, 0, .04); color: inherit; font: inherit; cursor: pointer; text-align: left; }
 .niec-account-btn:hover, .niec-account-btn[aria-expanded="true"] { background: var(--h-hover); border-color: var(--h-border); }
 .niec-avatar { display: grid; place-items: center; flex: 0 0 34px; width: 34px; height: 34px; border-radius: 50%; background: linear-gradient(135deg, #2f6bff, #7a4dff); color: #fff; font-weight: 700; font-size: 12px; }
 .niec-account-text { display: flex; flex-direction: column; align-items: flex-start; line-height: 1.2; min-width: 0; }
-.niec-account-name { font-weight: 600; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 130px; }
+.niec-account-name { font-weight: 600; color: var(--h-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 130px; }
 .niec-account-role { font-size: 12px; color: var(--h-dim); white-space: nowrap; }
 .niec-caret { margin-left: auto; color: var(--h-dim); font-size: 12px; }
-.niec-menu { position: absolute; left: 0; right: 0; bottom: calc(100% + 8px); top: auto; min-width: 0; padding: 6px; background: #fff; color: #0e1a33; border: 1px solid #e4e8f0; border-radius: 14px; box-shadow: 0 18px 40px -12px rgba(8, 18, 45, .45); }
+.niec-menu { position: absolute; left: 0; right: 0; bottom: calc(100% + 8px); top: auto; min-width: 0; padding: 6px; background: #fff; color: #0e1a33; border: 1px solid #e4e8f0; border-radius: 14px; box-shadow: 0 4px 12px rgba(0, 0, 0, .08), 0 24px 60px -16px rgba(0, 0, 0, .3); }
 .niec-menu[hidden] { display: none; }
 .niec-menu-head { padding: 8px 10px 10px; border-bottom: 1px solid #e4e8f0; margin-bottom: 4px; }
 .niec-menu-head b { display: block; }
 .niec-menu-head span { font-size: 12px; color: #5a6781; }
 .niec-menu a, .niec-menu button { display: block; width: 100%; padding: 8px 10px; border: none; border-radius: 8px; background: none; color: inherit; font: inherit; text-align: left; text-decoration: none; cursor: pointer; }
 .niec-menu a:hover, .niec-menu button:hover { background: #eef1f8; }
-.niec-menu a[aria-current="page"] { font-weight: 600; color: #1f4fd8; }
+.niec-menu a[aria-current="page"] { font-weight: 600; color: #0058b0; }
 .niec-menu .niec-logout { color: #c0392b; border-top: 1px solid #e4e8f0; border-radius: 0 0 8px 8px; margin-top: 4px; padding-top: 10px; }
 
 /* Folded: icons only (on a wide window; a phone always has the bar across the top). */
@@ -101,3 +101,13 @@ html[data-nav="folded"] .niec-menu { left: 0; right: auto; width: 220px; }
 .fly-pal-empty { padding: 22px; text-align: center; color: #5a6781; }
 .fly-pal-foot { display: flex; gap: 18px; padding: 10px 18px; border-top: 1px solid #e4e8f0; background: #f8f9fd; font-size: 12px; color: #5a6781; }
 .fly-pal-foot kbd { margin-right: 4px; padding: 1px 6px; border: 1px solid #d3d9e6; border-radius: 6px; background: #fff; font: 11px/1.5 inherit; }
+
+@media (prefers-color-scheme: dark) {
+  .niec-header { --h-text: #f5f5f7; --h-dim: #a1a1a8; --h-hover: rgba(255, 255, 255, .08); --h-border: rgba(255, 255, 255, .1); background: rgba(30, 30, 32, .74); box-shadow: 1px 0 0 rgba(255, 255, 255, .06); }
+  .niec-nav a[aria-current="page"] { color: #6cb7ff; background: rgba(41, 151, 255, .18); }
+  .niec-account-btn { background: rgba(255, 255, 255, .06); }
+  .niec-menu { background: #2a2a2d; color: #f5f5f7; border-color: #3a3a3e; }
+  .niec-menu-head { border-color: #3a3a3e; }
+  .niec-menu a:hover, .niec-menu button:hover { background: #38383c; }
+  .niec-menu .niec-logout { border-color: #3a3a3e; }
+}

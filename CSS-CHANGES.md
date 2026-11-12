@@ -9,6 +9,20 @@ Format: **date · file · what · from → to · why**
 
 ---
 
+## 2026-11-12 · `shared/theme.css`, `shared/header.css`, `shared/login.html` · an Apple-grade look: light, airy and precise
+
+The owner asked for the design of a top consumer brand: premium, expensive, calm.
+
+- **Menu:** from a black column → to a light frosted glass column (translucent white with a blur, a hairline edge). The open page is a soft blue pill with blue text. The dark mode is dark frosted glass.
+- **Colours:** from a grey page with black buttons and bright electric blue → to a soft grey canvas (`#f5f5f7`), white surfaces with hairline edges and gentle depth, near-black text (`#1d1d1f`), and one calm Apple-style blue (`#0071e3`) for the main button, the open page and focus. Dark mode is soft graphite with a lighter blue.
+- **Type:** from heavy bold titles and numbers (weight 800) → to refined semibold (titles 650, numbers 600) with tight spacing, on the system's own font (San Francisco on a Mac, Segoe UI on Windows).
+- **Buttons:** from outlined or black pills → to soft grey pills, with the main action in solid blue.
+- **Cards:** from bordered cards with an accent bar → to borderless-feeling white cards with soft layered shadows and 24px corners.
+- **Sheet:** no vertical lines between columns, roomier rows, a lighter heading row.
+- **Login page:** from a black welcome side → to a bright airy page with a soft blue glow, dark text and a blue Log in button.
+
+---
+
 ## 2026-11-12 · `shared/header.js`, `shared/header.css`, `shared/login.html`, favicon, `brand/` · the final Fly logo: a paper plane on a dotted path
 
 The owner chose the skewed two-fold paper plane (number 3 of the paper plane options, Telegram-like) as the final logo.
