@@ -37,7 +37,22 @@ const FIELDS = [
   ['documents_list', 'The checklist of documents needed to apply, on a line of its own'],
 ];
 // The short name of each word, for the note that tells the sender which details are still empty.
+// A message that uses a {word} nobody fills in, or a brace that is not closed, would go to the student as it is: refuse it when saving.
+function badPlaceholder(...texts) {
+  const known = new Set(FIELDS.map(([k]) => k));
+  for (const t of texts) {
+    const s = String(t || '');
+    const opens = (s.match(/\{/g) || []).length; const closes = (s.match(/\}/g) || []).length;
+    if (opens !== closes) return 'A { or } is not closed. Every {word} needs both braces.';
+    for (const m of s.matchAll(/\{([^{}]*)\}/g)) {
+      if (!known.has(m[1].trim())) return `{${m[1]}} is not one of the words that can be filled in. Use the list under the message.`;
+    }
+  }
+  return '';
+}
 const FIELD_LABEL = Object.fromEntries(FIELDS.map(([k, label]) => [k, label.replace(/\s*\(.*\)$/, '')]));
+FIELD_LABEL.options_table = 'university options added on the card';
+FIELD_LABEL.documents_list = 'document checklist';
 const BLOCK_FIELDS = new Set(['options_table', 'documents_list']);
 
 // The built-in templates. `stages`: the stages at which the card offers the template first.
@@ -251,6 +266,7 @@ function renderEmail({ subject, body, values, signature, options = [], documents
     const block = /^\{(options_table|documents_list)\}$/.exec(line);
     if (block) {
       closeList();
+      if (block[1] === 'options_table' && !ctx.options.length) missing.add('options_table');
       textOut.push(...blockText(block[1], ctx));
       html.push(blockHtml(block[1], ctx));
       return;
@@ -284,7 +300,7 @@ function renderEmail({ subject, body, values, signature, options = [], documents
     ? `<div style="font-weight:700;color:#17324d;font-size:15px">${esc(l)}</div>` : `<div>${linkify(esc(l))}</div>`)).join('');
   const page = `<!doctype html><html><body style="margin:0;background:#eef1f5;padding:24px 12px;font-family:Segoe UI,Arial,Helvetica,sans-serif;color:#1f2933">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center">
-<table role="presentation" width="640" cellpadding="0" cellspacing="0" style="max-width:640px;background:#ffffff;border-radius:12px;border-top:4px solid #00adef">
+<table role="presentation" width="640" cellpadding="0" cellspacing="0" style="width:100%;max-width:640px;background:#ffffff;border-radius:12px;border-top:4px solid #00adef">
 ${logo}<tr><td style="padding:${logo ? '12px' : '26px'} 28px 6px;font-size:15px;line-height:1.6">
 ${html.join('\n')}
 ${signatureSrc ? `<p style="margin:22px 0 0"><img src="${esc(signatureSrc)}" alt="${esc(text(signature && signature.name) || COMPANY)}" width="600" style="display:block;border:0;max-width:100%;height:auto"></p>` : `<p style="margin:18px 0 4px">Kind regards,</p><div style="margin:0 0 18px;padding:12px 0 0 14px;border-left:3px solid #fc6e1f;font-size:13px;line-height:1.55;color:#4f5b69">${sigHtml}</div>`}
@@ -301,7 +317,7 @@ function renderWhatsApp({ body, values, options = [], documents = [] }) {
   str(body, LIMITS.whatsapp).split('\n').forEach((raw) => {
     const line = raw.trim();
     const block = /^\{(options_table|documents_list)\}$/.exec(line);
-    if (block) { out.push(...blockText(block[1], ctx)); return; }
+    if (block) { if (block[1] === 'options_table' && !ctx.options.length) missing.add('options_table'); out.push(...blockText(block[1], ctx)); return; }
     out.push(fill(line.replace(/^##\s+/, ''), values, missing));
   });
   return { text: out.join('\n').replace(/\n{3,}/g, '\n\n').trim(), missing: [...missing].map((k) => FIELD_LABEL[k] || k) };
@@ -370,6 +386,7 @@ function createMessages(dir, { now = () => new Date() } = {}) {
       const cleaned = { ...cleanTemplate(input, old), key, updatedAt: now().toISOString(), updatedBy: by || '' };
       if (!cleaned.name) return { error: 'Please give the template a name.' };
       if (!cleaned.subject || !cleaned.body) return { error: 'A template needs a subject and a message.' };
+      { const bad = badPlaceholder(cleaned.subject, cleaned.body, cleaned.whatsapp); if (bad) return { error: bad }; }
       write({ ...stored, templates: [...stored.templates.filter((t) => t.key !== key), cleaned] });
       return { template: cleaned };
     },
@@ -379,6 +396,7 @@ function createMessages(dir, { now = () => new Date() } = {}) {
       const cleaned = cleanTemplate(input, {});
       if (!cleaned.name) return { error: 'Please give the template a name.' };
       if (!cleaned.subject || !cleaned.body) return { error: 'A template needs a subject and a message.' };
+      { const bad = badPlaceholder(cleaned.subject, cleaned.body, cleaned.whatsapp); if (bad) return { error: bad }; }
       if (templates.some((t) => t.name.toLowerCase() === cleaned.name.toLowerCase())) return { error: 'Another template already has that name.' };
       const key = 'own_' + require('crypto').randomBytes(5).toString('hex');
       const made = { ...cleaned, key, updatedAt: now().toISOString(), updatedBy: by || '' };

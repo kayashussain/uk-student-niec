@@ -669,3 +669,14 @@ test('finder reads negations, word numbers and k budgets', () => {
   assert.equal(readStudent('no gap').gapYears, 0);
   assert.equal(readStudent('budget 16k').budget, 16000);
 });
+
+test('a template with an unknown or unclosed placeholder is refused', () => {
+  const os = require('os'); const fsx = require('fs'); const pathx = require('path');
+  const { createMessages } = require('../student-details/messages.js');
+  const dir = fsx.mkdtempSync(pathx.join(os.tmpdir(), 'msg-'));
+  const m = createMessages(dir);
+  const key = m.list()[0].key;
+  assert.match(m.saveTemplate(key, { name: 'x', subject: 'Hi {first_name}', body: 'Hello {nonsense_field}' }, 't').error, /not one of the words/);
+  assert.match(m.saveTemplate(key, { name: 'x', subject: 'Hi', body: 'Hello {first_name' }, 't').error, /not closed/);
+  assert.ok(m.saveTemplate(key, { name: 'x', subject: 'Hi {first_name}', body: 'Hello {full_name}' }, 't').template);
+});

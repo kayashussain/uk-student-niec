@@ -7,6 +7,9 @@ To find every marked change in the code, search the project for `CSS CHANGED`.
 
 Format: **date · file · what · from → to · why**
 
+- **2026-11-12 · shared/theme.css · tables at tablet width · from: wide tables on Users and Partner Universities scrolled sideways, cutting off Edit, Reset password, Remove → to: cells wrap so everything is in view · why: the client could not find the buttons on a tablet.**
+- **2026-11-12 · shared/theme.css · remaining small text (menu name and role, fold button, dialog labels, messages, counts, footer) · from: 12 to 13px → to: 14px · why: the client still found it small for older eyes.**
+
 - **2026-11-12 · shared/theme.css · small text on the portal pages · from: labels, hints, table headings, chips and captions at 12px → to: 14px for labels and hints, 13px for chips, table headings and captions · why: the client said the small grey text is hard for older eyes.**
 
 - **2026-11-12 · shared/theme.css · "Admin only" label beside page titles · from: tiny grey text on B2B and Agents, yellow pill on Partner Universities → to: the same clear small label on all three · why: the client saw three different looks for the same thing.**

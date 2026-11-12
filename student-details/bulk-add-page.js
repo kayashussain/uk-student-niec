@@ -26,13 +26,18 @@
     return list.map((r) => {
       const name = `${r.first} ${r.last}`.trim();
       if (r.exists) return { skip: true, note: `Already on the sheet${r.exists.trim() ? ' (' + r.exists + ')' : ''}, will be skipped` };
+      if (r.badPhone) return { skip: true, note: `The phone number "${r.badPhone}" looks too short, skipped` };
       if (r.badBit) return { skip: true, note: `"${r.badBit}" does not look like a name, an email or a phone number, skipped` };
       if (!name) return { skip: true, note: 'No name, skipped' };
       if (r.phone && r.phone.replace(/\D/g, '').length < 6) return { skip: true, note: 'The phone number looks too short, skipped' };
       if (r.email && !EMAIL_OK.test(r.email)) return { skip: true, note: 'The email does not look right, skipped' };
-      const key = `${name.toLowerCase()}|${(r.email || '').toLowerCase()}|${(r.phone || '').replace(/\D/g, '')}`;
-      if (seen.has(key)) return { skip: true, note: 'Same as an earlier line, skipped' };
-      seen.add(key);
+      const keys = [];
+      if (r.email) keys.push('e:' + r.email.toLowerCase());
+      const digits = (r.phone || '').replace(/\D/g, '');
+      if (digits.length >= 7) keys.push('p:' + digits);
+      if (!keys.length) keys.push('n:' + name.toLowerCase());
+      if (keys.some((k) => seen.has(k))) return { skip: true, note: 'Same email or phone as an earlier line, skipped' };
+      keys.forEach((k) => seen.add(k));
       if (!r.email && !r.phone) return { skip: false, note: 'No email or phone yet' };
       return { skip: false, note: '' };
     });
@@ -43,12 +48,13 @@
       const parts = splitLine(line).map((p) => p.trim()).filter(Boolean);
       const email = parts.find((p) => /@/.test(p)) || '';
       const phone = parts.find((p) => /^[+\d][\d\s()-]{6,}$/.test(p)) || '';
-      const badBit = parts.find((p) => p !== email && p !== phone && (/\d/.test(p) || (/mail/i.test(p) && !/\s/.test(p)))) || '';
-      const names = parts.filter((p) => p !== email && p !== phone && p !== badBit);
+      const badPhone = parts.find((p) => p !== email && p !== phone && /^[+\d][\d\s()-]*$/.test(p)) || '';
+      const badBit = parts.find((p) => p !== email && p !== phone && p !== badPhone && (/\d/.test(p) || (/mail/i.test(p) && !/\s/.test(p)))) || '';
+      const names = parts.filter((p) => p !== email && p !== phone && p !== badBit && p !== badPhone);
       let first = names[0] || '';
       let last = names[1] || '';
       if (!last && /\s/.test(first)) { const w = first.split(/\s+/); first = w[0]; last = w.slice(1).join(' '); }
-      return { first, last, email, phone, badBit };
+      return { first, last, email, phone, badBit, badPhone };
     });
   }
 

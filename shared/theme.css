@@ -385,3 +385,12 @@ h1 .p-chip, h1 .pill, h1 #adminOnly { font-family: var(--font); font-size: 12px;
 .p-label, .p-hint, .p-fact dt, .p-sheet-grid dt, .p-kpi small, .p-finding .p-area, .p-small, .p-muted.p-small { font-size: 14px; }
 .p-table th, .p-card h3, .p-dialog-body h3, .p-pill, .p-chip, .p-prio, .p-count, .p-month b, .save-status, .stat-card .stat-label, .stat-group-title { font-size: 13px; }
 h1 .p-chip, h1 .pill, h1 #adminOnly { font-size: 13px; }
+
+/* 🔴 CSS CHANGED (2026-11-12): tables on Users, Partner Universities and similar pages at tablet width | from: wide tables scrolled sideways inside their card, so Edit, Reset password and Remove were cut off | to: cells wrap, so everything fits and the buttons are in view */
+@media (max-width: 1000px) {
+  .page .card table, .table-card table { width: 100%; min-width: 0; table-layout: auto; }
+  .page .card th, .page .card td, .table-card th, .table-card td { white-space: normal; overflow-wrap: anywhere; padding-left: 8px; padding-right: 8px; }
+  .page .card td:last-child .btn, .table-card td:last-child .btn { margin: 2px 4px 2px 0; }
+}
+/* 🔴 CSS CHANGED (2026-11-12): remaining small text (menu user name, fold button, dialog labels, error and status notes, counts) | from: 12 to 13px | to: 14px */
+.niec-nav .user, .niec-nav .role, .niec-fold, .p-msg, .msg, .error, .p-count, .ui-dialog label, .eg-box label, .footbar, .help-btn { font-size: 14px; }

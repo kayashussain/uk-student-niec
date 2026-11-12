@@ -119,7 +119,11 @@ function createPortalApi({
   // The office signature (the picture the owner supplied) goes at the end of every email: inline in the email that is sent, and as a
   // data address in the preview (the preview window has no login, so it cannot fetch a picture from the server).
   let signaturePicture = null;
-  try { signaturePicture = require('fs').readFileSync(require('path').join(__dirname, 'email-signature.png')); } catch (e) { signaturePicture = null; }
+  // A consultancy's own picture in the data folder wins; the file shipped here is only the first installation's starting picture.
+  for (const dir of [process.env.STUDENT_DETAILS_DATA_DIR, __dirname]) {
+    if (signaturePicture || !dir) continue;
+    try { signaturePicture = require('fs').readFileSync(require('path').join(dir, 'email-signature.png')); } catch (e) { signaturePicture = null; }
+  }
   const inlinePictures = () => (signaturePicture ? [{ cid: 'niec-signature', type: 'image/png', data: signaturePicture }] : []);
   const signatureSrc = (preview) => (signaturePicture ? (preview ? `data:image/png;base64,${signaturePicture.toString('base64')}` : 'cid:niec-signature') : '');
   const mailConfig = () => accounts.emailConfig();
