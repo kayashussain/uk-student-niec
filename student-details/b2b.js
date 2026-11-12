@@ -15,8 +15,10 @@ function cleanPartner(input, old = {}) {
   // The commission structure of each intake: a link to where it is written (the PDF files are uploaded beside it).
   const commissions = (Array.isArray(input.commissions) ? input.commissions : []).slice(0, 40).map((c) => {
     const link = str(c && c.link, 500).trim();
-    return { intake: str(c && c.intake, LIMITS.short).trim(), link: /^https?:\/\/[^\s<>"']+$/i.test(link) ? link : '', note: str(c && c.note, LIMITS.short).trim() };
-  }).filter((c) => c.intake || c.link || c.note);
+    // The PDF of the intake's commission list is one of the files uploaded for the partner (named by its id).
+    const fileId = /^[a-f0-9]{12}$/.test(String(c && c.fileId)) && (old.agreements || []).some((a) => a.id === c.fileId) ? c.fileId : '';
+    return { intake: str(c && c.intake, LIMITS.short).trim(), link: /^https?:\/\/[^\s<>"']+$/i.test(link) ? link : '', fileId, note: str(c && c.note, LIMITS.short).trim() };
+  }).filter((c) => c.intake || c.link || c.fileId || c.note);
   return {
     id: old.id,
     name: str(input.name, LIMITS.name).trim() || old.name || '',
@@ -34,6 +36,7 @@ const summary = (p) => ({
   id: p.id, name: p.name, status: p.status, city: p.city,
   agreementStart: p.agreementStart, agreementEnd: p.agreementEnd, agreementCount: p.agreements.length, updatedAt: p.updatedAt,
   contact: p.contacts[0] || { name: '', email: '', phone: '' }, contactCount: p.contacts.length, commissionCount: (p.commissions || []).length,
+  commissions: (p.commissions || []).map((c) => { const f = (p.agreements || []).find((a) => a.id === c.fileId); return { intake: c.intake, link: c.link || '', fileId: c.fileId || '', fileName: f ? f.name : '' }; }),
 });
 
 const createB2b = (dir, options = {}) => createDirect(dir, {

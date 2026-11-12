@@ -14,21 +14,38 @@
 
   const stats = (name) => data.performance[String(name).toLowerCase()] || { students: 0, visas: 0, intakes: {} };
 
+  // The commission list of the intake that is running: a PDF or a link that opens when clicked. Missing ones are flagged, so the
+  // updated list is asked for every intake. Older intakes are one click away in the editor.
+  const same = (a, b) => String(a || '').trim().toLowerCase() === String(b || '').trim().toLowerCase();
+  const openLink = (text, href) => { const a = el('a', 'p-link', text); a.href = href; a.target = '_blank'; a.rel = 'noopener'; return a; };
+  function commissionCell(p) {
+    const td = el('td');
+    const cur = data.currentIntake;
+    const found = (p.commissions || []).find((c) => same(c.intake, cur) && (c.fileId || c.link));
+    if (found) {
+      td.append(found.fileId ? openLink(`${found.intake}: open the PDF`, `${API}/${p.id}/files/${found.fileId}?open=1`) : openLink(`${found.intake}: open the link`, found.link));
+    } else if (p.status === 'Ended') td.append(el('span', 'p-muted', 'Ended'));
+    else { const miss = el('button', 'p-pill p-pill-amber p-link', `Missing for ${cur || 'this intake'}: add it`); miss.type = 'button'; miss.addEventListener('click', () => edit(p.id)); td.append(miss); }
+    const older = (p.commissions || []).filter((c) => !same(c.intake, cur) && (c.fileId || c.link)).length;
+    if (older) td.append(el('div', 'p-muted p-small', `${older} earlier intake${older === 1 ? '' : 's'}`));
+    return td;
+  }
   function list() {
     const body = $('rows');
     const active = data.partners.filter((p) => p.status === 'Active').length;
     const total = data.partners.reduce((n, p) => n + stats(p.name).visas, 0);
     const tile = (label, v, sub) => { const t = el('div', 'p-kpi'); t.append(el('b', '', String(v)), el('span', '', label), el('small', '', sub || '')); return t; };
-    $('kpis').replaceChildren(tile(`${WORD.title} (active)`, active), tile('Visas through them', total, 'every intake on the sheet'));
+    const missing = data.partners.filter((p) => p.status === 'Active' && !(p.commissions || []).some((c) => same(c.intake, data.currentIntake) && (c.fileId || c.link))).length;
+    $('kpis').replaceChildren(tile(`${WORD.title} (active)`, active), tile('Visas through them', total, 'every intake on the sheet'), tile(`Commission list missing for ${data.currentIntake || 'this intake'}`, missing, missing ? 'ask for the updated list' : 'all in'));
     $('count').textContent = data.partners.length ? `${data.partners.length} in the list` : '';
-    if (!data.partners.length) { body.replaceChildren(h('tr', {}, h('td', { colspan: 6, class: 'p-empty' }, el('b', '', `No ${WORD.one} yet`), `Add the first ${WORD.one}.`))); return; }
+    if (!data.partners.length) { body.replaceChildren(h('tr', {}, h('td', { colspan: 7, class: 'p-empty' }, el('b', '', `No ${WORD.one} yet`), `Add the first ${WORD.one}.`))); return; }
     body.replaceChildren(...data.partners.map((p) => {
       const st = stats(p.name);
       const tr = el('tr');
       const name = el('td'); name.append(h('button', { class: 'p-link', type: 'button', onclick: () => edit(p.id) }, p.name), p.city ? el('div', 'p-muted p-small', p.city) : '');
       const pill = el('span', `p-pill p-pill-${p.status === 'Active' ? 'green' : p.status === 'Ended' ? 'red' : 'amber'}`, p.status);
       const st1 = el('td'); st1.append(pill);
-      tr.append(name, st1, el('td', '', p.agreementEnd || 'None yet'), el('td', '', p.contact.name || 'None yet'), el('td', '', p.contact.phone || ''), el('td', 'num', number(st.visas)));
+      tr.append(name, st1, el('td', '', p.agreementEnd || 'None yet'), commissionCell(p), el('td', '', p.contact.name || 'None yet'), el('td', '', p.contact.phone || ''), el('td', 'num', number(st.visas)));
       return tr;
     }));
   }
@@ -53,6 +70,46 @@
     return { node: sec, values: () => rowsList.map((i) => Object.fromEntries(Object.entries(i).map(([k, x]) => [k, x.value]))) };
   }
 
+  // Commission by intake: for each intake a PDF to upload or a link (either opens when clicked in the list).
+  function commissionEditor(id, p, reload) {
+    const sec = el('div');
+    sec.append(el('h3', '', 'Commission list by intake'), el('p', 'p-muted p-small', 'Every intake has its own commission. Choose the intake, then upload the PDF or paste the link. Ask for the updated list each intake.'));
+    const box = el('div');
+    const rowsList = [];
+    const intakes = data.intakes && data.intakes.length ? data.intakes : [];
+    const add = (item) => {
+      const r = el('div', 'p-form p-form-2');
+      r.style.marginBottom = '12px';
+      const intake = field('Intake', { kind: 'select', choices: intakes, value: item.intake || data.currentIntake || '' });
+      const link = field('Link (optional)', { value: item.link, placeholder: 'https://…', max: 500 });
+      const note = field('Note', { value: item.note, max: 200 });
+      const st = { fileId: item.fileId || '' };
+      const fileLine = el('div', 'p-field');
+      const showFile = () => {
+        const a = (p.agreements || []).find((x) => x.id === st.fileId);
+        fileLine.replaceChildren(el('span', 'p-label', 'PDF'), a ? openLink(a.name, `${API}/${id}/files/${a.id}?open=1`) : el('span', 'p-muted', 'No PDF uploaded for this intake'));
+      };
+      showFile();
+      const pick = el('input'); pick.type = 'file'; pick.accept = '.pdf,.png,.jpg,.jpeg'; pick.setAttribute('aria-label', 'Upload the commission PDF');
+      pick.addEventListener('change', async () => {
+        const f = pick.files && pick.files[0]; if (!f) return;
+        try {
+          const res = await fetch(`${API}/${id}/files?name=${encodeURIComponent(f.name)}`, { method: 'POST', headers: { 'Content-Type': 'application/octet-stream' }, body: f });
+          const j = await res.json().catch(() => ({}));
+          if (!res.ok) throw new Error(j.error || 'Could not upload it.');
+          p.agreements = j.agreements; st.fileId = j.agreements[j.agreements.length - 1].id; showFile(); say('Uploaded. Press Save to keep it for this intake.');
+        } catch (e) { say(e.message, true); }
+      });
+      r.append(intake.wrap, link.wrap, note.wrap, fileLine, pick, h('button', { class: 'btn btn-sm btn-danger', type: 'button', onclick: () => { r.remove(); rowsList.splice(rowsList.indexOf(rec), 1); } }, 'Remove this intake'));
+      const rec = { intake, link, note, st };
+      rowsList.push(rec);
+      box.append(r);
+    };
+    (p.commissions || []).forEach(add);
+    sec.append(box, h('button', { class: 'btn btn-sm', type: 'button', onclick: () => add({}) }, 'Add an intake'));
+    return { node: sec, values: () => rowsList.map((x) => ({ intake: x.intake.input.value, link: x.link.input.value, note: x.note.input.value, fileId: x.st.fileId })) };
+  }
+
   async function edit(id) {
     const p = await api(`${API}/${id}`);
     const ed = $('editor');
@@ -66,7 +123,7 @@
     const form = el('div', 'p-form');
     form.append(name.wrap, status.wrap, city.wrap, start.wrap, end.wrap);
     const contacts = repeater('Contacts', [['name', 'Contact person'], ['phone', 'Contact number'], ['email', 'Email']], p.contacts, 'Add a contact');
-    const commissions = repeater('Commission structure by intake (a link to where it is written)', [['intake', 'Intake', 'Jan Intake 2027'], ['link', 'Link', 'https://…'], ['note', 'Note']], p.commissions || [], 'Add an intake');
+    const commissions = commissionEditor(id, p, () => edit(id));
     const notes = field('Notes', { kind: 'area', value: p.notes, max: 12000, wide: true });
 
     const visas = el('div');

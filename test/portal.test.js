@@ -249,7 +249,7 @@ test('B2B partners keep their commission structure and contacts apart from the P
   assert.deepStrictEqual(b.list(), []);
   const made = b.create('Himal Education Hub', 'Owner').university;
   const saved = b.update(made.id, { city: 'Pokhara', commissions: [{ intake: 'Jan Intake 2027', link: 'https://example.org/rates' }, {}], contacts: [{ name: 'Hari', phone: '9800000001' }], agreementEnd: '2026-12-31' }, 'Owner').university;
-  assert.deepStrictEqual(saved.commissions, [{ intake: 'Jan Intake 2027', link: 'https://example.org/rates', note: '' }]);
+  assert.deepStrictEqual(saved.commissions, [{ intake: 'Jan Intake 2027', link: 'https://example.org/rates', fileId: '', note: '' }]);
   assert.strictEqual(saved.terms, undefined, 'no terms any more');
   assert.strictEqual(b.list()[0].name, 'Himal Education Hub');
   assert.ok(fs.existsSync(path.join(dir, 'b2b-partners.json')) && !fs.existsSync(path.join(dir, 'direct-universities.json')));

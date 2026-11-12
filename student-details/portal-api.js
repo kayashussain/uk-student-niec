@@ -17,7 +17,7 @@ const Fields = require('./card-fields');
 const { eventLabel } = require('./source-options');
 const { ROW_ID } = require('./cards');
 const Messages = require('./messages');
-const { buildIndex, searchCourses, linkKey } = require('./course-index');
+const { buildIndex, searchCourses, linkKey, parseCourses } = require('./course-index');
 const { hostsOf, onHosts } = require('./university-websites');
 const { EVENT_TYPES, MARKETING_TYPES, DECISION_STATUS, MARKET_KINDS, LISTS: PLANNING_LISTS } = require('./planning');
 const { MAX_FILE_BYTES, STATUSES: PARTNER_STATUSES } = require('./direct');
@@ -611,10 +611,13 @@ function createPortalApi({
       if (req.method === 'GET' && fid && !fileMatch[2]) {
         const file = b2b.agreementFile(id, fid);
         if (!file) { sendJSON(res, 404, { error: 'No such file.' }); return true; }
-        record(`Downloaded ${file.name}`);
+        // ?open=1 shows a PDF or a picture in the browser (a commission list opens when it is clicked); anything else is downloaded.
+        const inline = new URL(req.url, 'http://x').searchParams.get('open') === '1' && /^(application\/pdf|image\/(png|jpeg))$/.test(file.type);
+        record(`${inline ? 'Opened' : 'Downloaded'} ${file.name}`);
         send(res, 200, fs.readFileSync(file.path), {
-          'Content-Type': file.type, 'Cache-Control': 'no-store', 'Content-Security-Policy': "sandbox; default-src 'none'",
-          'Content-Disposition': `attachment; filename="agreement${path.extname(file.path)}"; filename*=UTF-8''${encodeURIComponent(file.name)}`,
+          'Content-Type': file.type, 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff',
+          'Content-Security-Policy': inline ? "default-src 'none'; style-src 'unsafe-inline'; img-src 'self' data:" : "sandbox; default-src 'none'",
+          'Content-Disposition': `${inline ? 'inline' : 'attachment'}; filename="agreement${path.extname(file.path)}"; filename*=UTF-8''${encodeURIComponent(file.name)}`,
         });
         return true;
       }
@@ -639,7 +642,7 @@ function createPortalApi({
       return true;
     }
     if (req.method === 'GET') {
-      if (!id) { sendJSON(res, 200, { partners: b2b.list(), statuses: PARTNER_STATUSES, performance: partnerPerformance(kind) }); return true; }
+      if (!id) { sendJSON(res, 200, { partners: b2b.list(), statuses: PARTNER_STATUSES, performance: partnerPerformance(kind), currentIntake: (currentIntake() || {}).name || '', intakes: (() => { const wb = getWorkbook(); return wb ? wb.sheets.filter((x) => !x.hidden || true).map((x) => x.name) : []; })() }); return true; }
       const one = b2b.get(id);
       if (one) sendJSON(res, 200, one); else sendJSON(res, 404, { error: 'No such partner.' });
       return true;
@@ -903,6 +906,17 @@ function createPortalApi({
       return true;
     }
     // The page of a course on the university's website (course-finder.js), remembered once found.
+    // The courses of one university as the Fact File lists them (the general list and each intake), each with the page of the course
+    // when it is known, so a course in the Fact File opens its own page.
+    if (urlPath === '/api/fact-courses' && req.method === 'GET') {
+      const uid = text(new URL(req.url, 'http://x').searchParams.get('university'));
+      const uni = facts.all().find((u) => u.id === uid);
+      if (!uni) { sendJSON(res, 404, { error: 'No such university.' }); return true; }
+      const links = courseLinks.all();
+      const shape = (block) => parseCourses(block).map((c) => ({ course: c.course, group: c.group, link: links[linkKey(uid, c.course)] || '' }));
+      sendJSON(res, 200, { id: uid, general: shape(uni.courses), intakes: Object.fromEntries((uni.intakes || []).map((i) => [i.name, shape(i.courses)])), canFind: !Teams.isReadOnly(req.user) });
+      return true;
+    }
     if (urlPath === '/api/course-link' && req.method === 'POST') {
       if (Teams.isReadOnly && Teams.isReadOnly(req.user)) { sendJSON(res, 403, { error: 'Your account can only look.' }); return true; }
       const body = await bodyOf(req, res, 16 * 1024);

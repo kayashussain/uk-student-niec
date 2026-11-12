@@ -570,3 +570,15 @@ label span, .p-card label span { font-size: 14px; }
 }
 /* 🔴 CSS CHANGED (2026-11-12): long tags on the student card on a phone | from: a long event tag ran off the right edge | to: it wraps onto a second line */
 .p-chip { white-space: normal; max-width: 100%; overflow-wrap: anywhere; }
+
+/* 🔴 CSS CHANGED (2026-11-13): course names in the Fact File | from: plain text lines | to: each course is a link to its page (blue, underlined on hover), with a small "Find the course page" button when the page is not known yet */
+.course-links { list-style: none; margin: 6px 0 14px; padding: 0; }
+.course-links li { margin: 4px 0; font-size: 15px; }
+.course-links .course-group { margin-top: 12px; font-weight: 700; color: var(--text-dim); letter-spacing: .02em; }
+.course-link { color: var(--niec-blue-text); font-weight: 600; text-decoration: none; }
+.course-link[href]:hover { text-decoration: underline; text-underline-offset: 3px; }
+.course-link:not([href]) { color: var(--text); font-weight: 500; }
+.find-link { margin-left: 10px; background: none; border: 1px solid var(--border-strong, #c9d1db); border-radius: 999px; padding: 2px 12px; font: inherit; font-size: 14px; color: var(--niec-blue-text); cursor: pointer; }
+.find-link:hover { background: var(--blue-bg, #e3ecfb); }
+/* 🔴 CSS CHANGED (2026-11-13): size of the logo in the side menu | from: 170px wide, so "Recruitment 360" was tiny | to: 212px wide so the name reads clearly */
+.niec-logo-full { width: 212px; max-width: 100%; }

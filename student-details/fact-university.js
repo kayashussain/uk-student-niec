@@ -121,6 +121,50 @@
     doc.append(s);
   }
 
+  // The courses as links: a course whose page is known opens it in a new tab; one without shows "Find the page", which looks for the
+  // course page on the university's own website, remembers it and opens it.
+  let courseData = null;
+  function courseList(into, intakeName) {
+    const list = intakeName === null ? (courseData && courseData.general) : (courseData && courseData.intakes[intakeName]);
+    if (!list || !list.length) { return false; }
+    const ul = el('ul', 'course-links');
+    let group = null;
+    list.forEach((c) => {
+      if (c.group && c.group !== group) { group = c.group; const hd = el('li', 'course-group', c.group); ul.append(hd); }
+      const li = el('li');
+      const a = el('a', 'course-link', c.course);
+      a.target = '_blank'; a.rel = 'noopener';
+      const show = () => { if (c.link) { a.href = c.link; a.removeAttribute('role'); } };
+      show();
+      li.append(a);
+      if (!c.link && courseData.canFind) {
+        const find = el('button', 'find-link no-print', 'Find the course page');
+        find.type = 'button';
+        find.addEventListener('click', async () => {
+          find.disabled = true; find.textContent = 'Looking...';
+          try {
+            const r = await fetch('/api/course-link', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ universityId: uni.id, university: uni.name, course: c.course }) }).then((x) => x.json());
+            if (r.link) { c.link = r.link; show(); find.remove(); window.open(r.link, '_blank', 'noopener'); } else { find.disabled = false; find.textContent = 'Not found on the website. Try again'; }
+          } catch (e) { find.disabled = false; find.textContent = 'Find the course page'; }
+        });
+        li.append(find);
+        a.addEventListener('click', (e) => { if (!c.link) { e.preventDefault(); find.click(); } });
+        a.style.cursor = 'pointer'; a.tabIndex = 0;
+        a.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !c.link) { e.preventDefault(); find.click(); } });
+      }
+      ul.append(li);
+    });
+    into.append(ul);
+    return true;
+  }
+  function courseLinks(doc, title, text, intakeName) {
+    if (!has(text)) { section(doc, title, text, { force: true, allBullets: true }); return; }
+    const s = el('section');
+    s.append(el('h2', '', title));
+    if (!courseList(s, intakeName)) richText(s, text, { allBullets: true });
+    doc.append(s);
+  }
+
   function renderView() {
     const view = $('view');
     view.replaceChildren();
@@ -149,7 +193,7 @@
     renderPrograms(doc);
     section(doc, 'Entry requirements', uni.entryRequirements, { force: true });
     section(doc, 'Language test', uni.languageTests, { force: true });
-    section(doc, 'Courses available', uni.courses, { force: true, allBullets: true });
+    courseLinks(doc, 'Courses available', uni.courses, null);
 
     if (uni.process.length || isAdmin) {
       const s = el('section');
@@ -180,7 +224,7 @@
         [['Requirements', i.requirements], ['Courses', i.courses], ['Notes', i.notes]].forEach(([label, text]) => {
           if (!has(text)) return;
           box.append(el('div', 'label', label));
-          richText(box, text, { allBullets: label === 'Courses' });
+          if (label === 'Courses') courseList(box, i.name); else richText(box, text);
         });
         s.append(box);
       });
@@ -441,6 +485,7 @@
       say('Could not load this page. Please reload.', true);
       return;
     }
+    if (!BACKUP) { try { const r = await fetch('/api/fact-courses?university=' + encodeURIComponent(id), { cache: 'no-store' }); if (r.ok) courseData = await r.json(); } catch (e) { courseData = null; } }
     if (isAdmin && new URLSearchParams(location.search).get('edit')) renderEdit(); else renderView();
     if (!BACKUP) courseWarnings();
   }

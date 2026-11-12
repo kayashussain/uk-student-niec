@@ -7,6 +7,11 @@ To find every marked change in the code, search the project for `CSS CHANGED`.
 
 Format: **date · file · what · from → to · why**
 
+- **2026-11-13 · shared/theme.css · size of the logo in the side menu · from: 170px wide, so the name was tiny → to: 212px wide · why: the new longer name "Recruitment 360" needs more room to read.**
+
+- **2026-11-13 · shared/theme.css · course names in the Fact File · from: plain text lines → to: each course is a link to its page, with a small "Find the course page" button when the page is not known yet · why: the owner asked that a course in the Fact File opens its website page.**
+- **2026-11-13 · shared/theme.css (b2b page uses existing classes) · Commission column on B2B Partners and Agents · from: no commission column → to: a column that shows the current intake's commission as a link that opens the PDF or the page, or an amber "Missing for this intake" button · why: the owner wants the updated commission list asked for every intake.**
+
 - **2026-11-13 · shared/header.js, shared/login.html, shared/header.css (marked), brand/ · the logo in the menu, on the login page and in emails · from: the "Fly" letters with the paper plane on a dotted path → to: the paper plane icon with "Recruitment 360" beside it · why: the portal is now called Recruitment 360.**
 
 - **2026-11-12 · shared/theme.css · long tags on the student card on a phone · from: a long event tag ran off the right edge → to: it wraps onto a second line · why: the client's last small finding.**
