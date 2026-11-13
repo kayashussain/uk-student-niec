@@ -302,3 +302,17 @@ details.rates summary { cursor: pointer; color: var(--brand-text); font-weight: 
 
 /* 🔴 CSS CHANGED (2026-11-13): the printed proposal | from: the second page ran over to a third page | to: both pages fit one A4 sheet each (slightly smaller print scale, tighter headings) */
 @media print { .prop-page { zoom: .86; } .p-proposal h2 { margin: 14px 0 6px; } .prop-list { font-size: 14px; } }
+
+/* 🔴 CSS CHANGED (2026-11-13): the Dashboard as one calm page | from: five tabs (Overview, Decisions, Marketing and sources, Universities and partners, Intake plan), four or six headline cards, a "Needs a decision" list, a week-by-week chart, the five biggest sources and a "(not recorded)" row in some lists | to: one page, no tabs: five headline cards in one row (Students, Applicants, Applicants from Head Office with a bronze line under it, Payments, Visas issued); "Where applicants came from" (Head Office first in soft navy, then each branch and each agent, with applicants and visas); the visa target ring with "Set the target" for Admin; the student journey; the top universities (no "not recorded" row) */
+.ov-kpis { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+@media (max-width: 1200px) { .ov-kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 700px) { .ov-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.ov-kpi.main { box-shadow: inset 0 -3px 0 var(--brand-bronze, #9a7b4f), 0 1px 2px rgba(20, 27, 41, .04); }
+.ov-from-row { display: grid; grid-template-columns: minmax(0, 1fr) 100px 80px; gap: 10px; align-items: center; padding: 10px 4px; border-top: 1px solid var(--border); }
+.ov-from-row.head { border-top: 0; color: var(--text-dim); font-size: 14px; font-weight: 650; }
+.ov-from-row.main { margin: 0 -8px; padding: 12px; border-radius: 12px; border-top-color: transparent; background: color-mix(in srgb, var(--gold-soft, #e2e7f0) 60%, transparent); }
+.ov-from-row .ov-board-name small { margin-left: 8px; color: var(--text-dim); font-size: 13px; }
+.ov-from-row .num { text-align: right; font-variant-numeric: tabular-nums; }
+.ov-from-row .num.strong { font-weight: 700; color: var(--brand-navy, #1d2f52); }
+.ov-target-set { display: flex; gap: 8px; align-items: center; margin-top: 12px; }
+.ov-target-set input { width: 150px; min-height: 40px; padding: 0 12px; border: 1px solid var(--border); border-radius: 10px; font: inherit; font-size: 15px; }

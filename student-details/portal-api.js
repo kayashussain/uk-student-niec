@@ -1219,6 +1219,38 @@ function createPortalApi({
     if (urlPath === '/api/b2b' || urlPath.startsWith('/api/b2b/')) return handleB2b(req, res, urlPath);
     if (urlPath === '/api/agents' || urlPath.startsWith('/api/agents/')) return handleAgents(req, res, urlPath);
     if (urlPath === '/api/planning' || urlPath.startsWith('/api/planning/')) return handlePlanning(req, res, urlPath);
+    // Where the applicants of an intake came from: the Receiving Partner of each applicant (Head Office, a branch or an agent), with
+    // the applicants and visas of each. An applicant is a student past Inquiry (not Defer, Hold or Withdrawn) or with a submission
+    // date. A student with no Receiving Partner is counted in the totals but not listed (nothing recorded is shown as a row).
+    if (urlPath === '/api/applicants' && req.method === 'GET') {
+      if (!managers(req, res, 'The Dashboard')) return true;
+      const wb = getWorkbook();
+      if (!wb) { sendJSON(res, 500, { error: 'Could not read the data file' }); return true; }
+      const want = query().get('intake') || '';
+      const sheet = wb.sheets.find((sh) => sh.id === want) || currentIntake() || wb.sheets[wb.sheets.length - 1];
+      const groups = new Map();
+      let applicants = 0; let headOffice = 0; let headOfficeVisas = 0; let unrecorded = 0;
+      (sheet ? sheet.rows : []).forEach((row) => {
+        if (!isStudent(row)) return;
+        const stage = text(row[STATUS]);
+        const applied = !['', 'Inquiry', 'Defer', 'Hold', 'Withdrawn'].includes(stage) || Boolean(text(row['APPLICATION SUBMISSION DATE']));
+        if (!applied) return;
+        applicants += 1;
+        const visa = stage === 'Visa Issued' || Boolean(text(row['VISA RECEIVED DATE']));
+        let from = text(row['RECEIVING PARTNER']);
+        if (!from) { unrecorded += 1; return; }
+        const k = squash(from);
+        if (k === squash('Head Office')) from = 'Head Office';
+        else { const b = Fields.BRANCHES.find((x) => k === squash(x) || k === squash(Fields.branchValue(x))); if (b) from = Fields.branchValue(b); }
+        const kind = from === 'Head Office' ? 'office' : Fields.isBranchValue(from) ? 'branch' : 'agent';
+        if (kind === 'office') { headOffice += 1; if (visa) headOfficeVisas += 1; }
+        const g = groups.get(from) || { label: from, kind, applicants: 0, visas: 0 };
+        g.applicants += 1; if (visa) g.visas += 1; groups.set(from, g);
+      });
+      const order = { office: 0, branch: 1, agent: 2 };
+      sendJSON(res, 200, { intake: sheet ? sheet.name : '', applicants, headOffice, headOfficeVisas, unrecorded, list: [...groups.values()].sort((x, y) => order[x.kind] - order[y.kind] || y.applicants - x.applicants) });
+      return true;
+    }
     if (urlPath === '/api/insights' && req.method === 'GET') {
       if (!managers(req, res, 'The Dashboard')) return true;
       if (!getWorkbook()) { sendJSON(res, 500, { error: 'Could not read the data file' }); return true; }

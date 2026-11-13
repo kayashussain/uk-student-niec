@@ -14,6 +14,8 @@
   let selected = (() => { try { return decodeURIComponent(location.hash.slice(1)).replace(/^tab=.*/, ''); } catch (e) { return ''; } })();
   let dash = null;
   let ins = null;
+  let apps = null; // where the applicants came from (/api/applicants)
+  let isAdmin = false; // only Admin sets the visa target
   let seq = 0;
   let timer = null;
   const hidden = new Set(['inquiry', 'offer']); // trend lines switched off (two lines to start with, the others with one click)
@@ -83,15 +85,17 @@
   function kpis() {
     const s = ins.summary;
     const trend = ins.trend || [];
+    const a = apps || { applicants: 0, headOffice: 0, headOfficeVisas: 0 };
     const cards = [
       { label: 'Students', value: num(s.students), color: 'var(--s1)', series: null, hint: `${num(s.active)} still active` },
-      { label: 'Applications', value: num(s.applied), color: COLORS.applied, series: trend.map((t) => t.applied), hint: `${pct(s.toApplication)} of students` },
+      { label: 'Applicants', value: num(a.applicants), color: COLORS.applied, series: trend.map((t) => t.applied), hint: `${pct(s.toApplication)} of students` },
+      { label: 'Applicants from Head Office', value: num(a.headOffice), color: 'var(--s1)', series: null, hint: a.applicants ? `${Math.round((a.headOffice / a.applicants) * 100)}% of applicants \u00b7 ${num(a.headOfficeVisas)} visa${a.headOfficeVisas === 1 ? '' : 's'}` : 'No applicants yet', main: true },
       { label: 'Payments', value: num(s.paid), color: COLORS.paid, series: trend.map((t) => t.paid), hint: `${pct(s.toPayment)} of offers` },
       { label: 'Visas issued', value: num(s.visas), color: COLORS.visa, series: trend.map((t) => t.visa), hint: ins.target && ins.target.visas ? `target ${ins.target.visas}` : `${pct(s.visaSuccess)} of decisions` },
     ];
     const row = el('div', 'ov-kpis');
     cards.forEach((c) => {
-      const k = el('article', 'ov-kpi');
+      const k = el('article', 'ov-kpi' + (c.main ? ' main' : ''));
       k.style.setProperty('--accent', c.color);
       k.append(el('span', 'ov-kpi-label', c.label), el('b', 'ov-kpi-value', c.value), el('span', 'ov-kpi-hint', c.hint));
       if (c.series && c.series.some(Boolean)) k.append(sparkline(c.series, c.color));
@@ -104,10 +108,21 @@
   function targetCard() {
     const t = ins.target;
     const c = card('ov-target', 'Visa target', ins.scope);
+    // The target is set here (the Intake plan page is gone): Admin types the number of visas aimed for and saves.
+    const setter = () => {
+      const row = el('div', 'ov-target-set');
+      const input = el('input'); input.type = 'number'; input.min = '1'; input.max = '9999'; input.placeholder = 'Visas aimed for'; input.value = t && t.visas ? t.visas : '';
+      const save = el('button', 'btn btn-sm', t && t.visas ? 'Change' : 'Set the target'); save.type = 'button';
+      save.addEventListener('click', async () => { try { await api('/api/planning/targets/' + ins.selected, { visas: input.value, byDate: (t && t.byDate) || '', startDate: (t && t.startDate) || '', note: (t && t.note) || '' }); window.NiecUI.toast('Target saved', { type: 'success' }); load(); } catch (e) { window.NiecUI.toast(e.message, { type: 'error' }); } });
+      row.append(input, save);
+      return row;
+    };
     if (!t || !t.visas) {
-      c.append(el('p', 'ov-empty', 'No target is set for this intake. Set one on the Intake plan page and this ring shows how close you are.'));
+      c.append(el('p', 'ov-empty', 'No visa target is set for this intake yet.'));
+      if (isAdmin) c.append(setter());
       return c;
     }
+    c.setter = setter;
     const share = Math.min(1, t.visasNow / t.visas);
     const forecast = Math.min(1, (t.expectedTotal || t.visasNow) / t.visas);
     const R = 62; const C = 2 * Math.PI * R;
@@ -122,6 +137,7 @@
     const stat = T.sayStatus(t);
     const side = el('div', 'ov-target-side');
     side.append(el('span', `p-pill p-pill-${stat[1]}`, stat[0]), el('p', 'ov-target-text', T.targetSentence(t)));
+    if (isAdmin) side.append(setter());
     const wrap = el('div', 'ov-target-body'); wrap.append(ring, side);
     c.append(wrap);
     return c;
@@ -258,15 +274,36 @@
 
 
 
-  // ---- the page ----
+  // ---- where the applicants came from: Head Office, each branch and each agent ----
+  function fromCard() {
+    const c = card('ov-from', 'Where applicants came from', 'By the Receiving Partner of each applicant');
+    const list = (apps && apps.list) || [];
+    if (!list.length) { c.append(el('p', 'ov-empty', 'No applicant has a Receiving Partner yet.')); return c; }
+    const max = Math.max(1, ...list.map((g) => g.applicants));
+    const box = el('div', 'ov-board-list');
+    const head = el('div', 'ov-from-row head'); ['', 'Applicants', 'Visas'].forEach((x) => head.append(el('span', x ? 'num' : '', x)));
+    box.append(head);
+    list.forEach((g) => {
+      const row = el('div', 'ov-from-row' + (g.kind === 'office' ? ' main' : ''));
+      const name = el('span', 'ov-board-name'); name.append(el('b', '', g.label)); if (g.kind === 'agent') name.append(el('small', '', 'Agent'));
+      const bar = el('i', 'ov-board-bar'); bar.style.width = Math.max(3, (g.applicants / max) * 100) + '%'; name.append(bar);
+      row.append(name, el('span', 'num strong', num(g.applicants)), el('span', 'num', num(g.visas)));
+      box.append(row);
+    });
+    c.append(box);
+    return c;
+  }
+
+  // ---- the page: only what the head of the consultancy needs ----
   function draw() {
     if (!ins || !dash || !window.DashText) return;
     const page = el('div', 'ov');
     page.append(kpis());
-    const r1 = el('div', 'ov-row ov-row-2'); r1.append(targetCard(), decisionCard());
-    const r2 = el('div', 'ov-row ov-row-2'); r2.append(funnelCard(), trendCard());
-    const r3 = el('div', 'ov-row ov-row-2'); r3.append(channelsCard(), leaderboard('Universities', 'Where the students are placed', ins.universities.list, ins.universities.concentration, 'university'));
-    page.append(r1, r2, r3);
+    const r1 = el('div', 'ov-row ov-row-2'); r1.append(fromCard(), targetCard());
+    // Universities: only those recorded on the students (a blank University Name is not a row).
+    const unis = (ins.universities.list || []).filter((g) => g.label && !/not recorded/i.test(g.label));
+    const r2 = el('div', 'ov-row ov-row-2'); r2.append(funnelCard(), leaderboard('Universities', 'Where the students are placed', unis, null, 'university'));
+    page.append(r1, r2);
     if (ins.summary.low) page.append(el('p', 'ov-foot', 'This intake has fewer than 10 students, so a rate from it is a hint, not evidence.'));
     root.replaceChildren(page);
   }
@@ -278,6 +315,8 @@
       const [d, i] = await Promise.all([api('/api/dashboard?intake=' + encodeURIComponent(selected)), api('/api/insights?intake=' + encodeURIComponent(selected))]);
       if (my !== seq) return;
       dash = d; ins = i; selected = i.selected || d.selected;
+      try { apps = await api('/api/applicants?intake=' + encodeURIComponent(selected)); } catch (e) { apps = null; }
+      try { isAdmin = (await api('/api/me')).role === 'admin'; } catch (e) { isAdmin = false; }
       picker.replaceChildren(...i.intakes.map((x) => { const o = el('option', '', x.name); o.value = x.id; return o; }));
       picker.value = selected;
       updated.textContent = `Figures as of ${ins.today}. They refresh on their own.`;

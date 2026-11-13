@@ -19,7 +19,7 @@
     <div class="page-head">
       <div>
         <h1>Dashboard</h1>
-        <p>How this intake is doing and where it is heading.</p>
+        <p>The intake at a glance: applicants, where they came from, and visas.</p>
       </div>
       <div class="filters" role="group" aria-label="Filter">
         <label>Intake <select id="intake"></select></label>
@@ -27,12 +27,10 @@
       </div>
     </div>
 
-    <div class="p-tabs no-print" id="dashTabs" role="tablist" aria-label="Dashboard pages">
+    <!-- One page only: the figures the head of the consultancy needs. The other pages (Decisions, Marketing and sources,
+         Universities and partners, Intake plan) are no longer offered. -->
+    <div class="p-tabs no-print" id="dashTabs" role="tablist" aria-label="Dashboard pages" hidden>
       <button type="button" role="tab" data-tab="overview" aria-selected="true">Overview</button>
-      <button type="button" role="tab" data-tab="decisions" aria-selected="false">Decisions</button>
-      <button type="button" role="tab" data-tab="channels" aria-selected="false">Marketing and sources</button>
-      <button type="button" role="tab" data-tab="universities" aria-selected="false">Universities and partners</button>
-      <button type="button" role="tab" data-tab="plan" aria-selected="false">Intake plan</button>
     </div>
     <div id="panel-insights" hidden></div>
     <div id="panel-overview"><div class="p-card">Loading…</div></div>

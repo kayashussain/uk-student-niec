@@ -7,7 +7,7 @@
   const numbers = document.getElementById('panel-overview');
   const panel = document.getElementById('panel-insights');
   const headFilters = document.querySelector('.filters');
-  let tab = (location.hash.match(/tab=(\w+)/) || [])[1] || 'overview';
+  let tab = 'overview'; // the Dashboard is one page now; an old link to another page opens the overview
   let intake = '';
   let data = null;
   let plan = null;

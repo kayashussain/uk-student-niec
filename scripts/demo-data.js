@@ -122,6 +122,8 @@ function buildDemo({ today = '2026-11-11', seed = 20261111 } = {}) {
           row['UNIVERSITY NAME'] = university;
           row['COURSE NAME'] = pick(COURSES[level]);
           row['UNIVERSITY PARTNER'] = partner;
+          // Where the application was received (made up): mostly the head office, then the branch the student came through, sometimes a demo agent.
+          row['RECEIVING PARTNER'] = /Branch$/.test(source) ? source : source === 'Agent' ? pick(PARTNERS) : (rnd() < 0.85 ? 'Head Office' : pick(['Chitwan Branch', 'Pokhara Branch']));
           row['APPLICATION SUBMISSION DATE'] = iso(dates.applied);
           row['LANGUAGE TEST DATE'] = rnd() < 0.2 ? 'Waiver' : iso(dates.applied - between(20, 300) * DAY);
         }
