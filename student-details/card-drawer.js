@@ -1,5 +1,6 @@
 // Opens a student's card over the page the person is on (the sheet, the Fact File ...), so they can look
-// at the student and carry on where they were. window.CardDrawer.open(rowId). Escape or the Close button shuts it.
+// at the student and carry on where they were. window.CardDrawer.open(rowId, { onClose }). Escape or the Close button shuts it;
+// onClose (optional) runs then, so a page can show what was changed on the card (a new note, a new stage).
 (function (root) {
   let current = null;
   function close() {
@@ -9,9 +10,11 @@
     if (current.before && document.contains(current.before)) { try { current.before.focus({ preventScroll: true }); } catch (e) { /* the cell is gone: nothing to go back to */ } }
     document.removeEventListener('keydown', current.onKey);
     window.removeEventListener('message', current.onMessage);
+    const after = current.onClose;
     current = null;
+    if (typeof after === 'function') after();
   }
-  function open(id) {
+  function open(id, { onClose } = {}) {
     close();
     const back = document.createElement('div');
     back.className = 'p-drawer-back';
@@ -35,7 +38,7 @@
     if (before && before.blur) before.blur();
     frame.tabIndex = -1;
     frame.focus({ preventScroll: true });
-    current = { back, drawer, onKey, onMessage, before };
+    current = { back, drawer, onKey, onMessage, before, onClose };
   }
   // Loaded in its own stylesheet-less pages too (the Fact File): make sure the drawer's look is there.
   if (!document.querySelector('link[href^="portal.css"]')) {

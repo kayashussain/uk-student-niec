@@ -81,6 +81,7 @@ const serveStatic = createStaticServer(ROOT, {
   '/bulk.html': 'text/html; charset=utf-8',
   '/bulk-add.html': 'text/html; charset=utf-8',
   '/bulk-add-page.js': 'text/javascript; charset=utf-8',
+  '/student-file.js': 'text/javascript; charset=utf-8',
   '/bulk-page.js': 'text/javascript; charset=utf-8',
   '/compose-page.js': 'text/javascript; charset=utf-8',
   '/student-page.js': 'text/javascript; charset=utf-8',

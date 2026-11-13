@@ -173,6 +173,23 @@
   // The number boxes are hidden each time the page opens; "Show numbers" shows them and "Hide numbers" hides them again.
   let statsOpen = false;
   const statsToggle = $('#toggleStats');
+  // "Came from": show only the students of one event or campaign (from its uploaded list, or picked when the student was added), so the
+  // follow-up team can work through them. The tags come from the server for the students this account sees; not remembered.
+  const cameFromEl = $('#cameFrom');
+  let cameFrom = '';
+  let eventTags = { rows: {}, events: [] };
+  async function loadEventTags() {
+    try {
+      const r = await fetch('/api/event-tags', { cache: 'no-store' });
+      if (!r.ok) return;
+      eventTags = await r.json();
+      const keep = cameFrom;
+      cameFromEl.replaceChildren(new Option('Came from: every source', ''), ...eventTags.events.map((e) => new Option(`${e.label} (${e.count})`, e.label)));
+      cameFromEl.hidden = !eventTags.events.length && !keep;
+      if (keep && !eventTags.events.some((e) => e.label === keep)) cameFromEl.append(new Option(keep, keep));
+      cameFromEl.value = keep;
+    } catch (e) { /* offline for a moment: the filter keeps what it had */ }
+  }
   const undoBtn = $('#undoBtn');
   const redoBtn = $('#redoBtn');
   const conflictBanner = $('#conflictBanner');
@@ -1234,6 +1251,7 @@
     let indices = rows.map((_, i) => i);
     // A team sees only its stage's students (a student it just moved on drops out of its list).
     if (isTeam()) indices = indices.filter((i) => Teams.seesRow(me, rows[i]));
+    if (cameFrom) indices = indices.filter((i) => eventTags.rows[rows[i]._id] === cameFrom);
     if (q) {
       // A date is found as it is stored and as it is shown in its cell ("9/23/2026" is shown as 09/23/2026).
       const cellText = (r, c) => {
@@ -1345,6 +1363,7 @@
   }
   function clearAllFilters() {
     searchEl.value = '';
+    cameFrom = ''; cameFromEl.value = '';
     columnFilters = {};
     saveFilters();
     renderHeader();
@@ -1358,9 +1377,10 @@
     const bar = $('#filterBar');
     const cols = Object.keys(columnFilters);
     const searching = searchEl.value.trim() !== '';
-    bar.hidden = !cols.length && !searching;
+    bar.hidden = !cols.length && !searching && !cameFrom;
     if (bar.hidden) return;
     const parts = [];
+    if (cameFrom) { const ev = eventTags.events.find((e) => e.label === cameFrom); parts.push(`Came from “${cameFrom}”${ev ? ` (${ev.count} in every intake; another intake's students show on its tab)` : ''}`); }
     if (cols.length) parts.push(`Filtered by ${cols.map(columnLabel).join(', ')}`);
     if (searching) parts.push(`searching for “${searchEl.value.trim()}”`);
     const total = rows.filter((r) => !isTeam() || Teams.seesRow(me, r)).length;
@@ -2518,6 +2538,8 @@
   if (redoBtn) redoBtn.addEventListener('click', redo);
   // Redraw once typing pauses rather than on every letter, so the search box never lags behind.
   let searchTimer = null;
+  cameFromEl.addEventListener('change', () => { cameFrom = cameFromEl.value; renderBody(); });
+  cameFromEl.addEventListener('focus', loadEventTags);
   searchEl.addEventListener('input', () => {
     clearTimeout(searchTimer);
     searchTimer = setTimeout(renderBody, 150);
@@ -2944,4 +2966,5 @@
   setInterval(() => { if (JSON.stringify(myPresence()) !== lastSent) syncPresence(); }, 50);
   document.addEventListener('visibilitychange', () => { if (!document.hidden) syncPresence(); });
   loadData();
+  loadEventTags();
 })();

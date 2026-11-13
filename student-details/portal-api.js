@@ -126,13 +126,8 @@ function createPortalApi({
     // Social media campaigns are offered under "Social Media" too (first), so a student who came from one is counted in its cost.
     const campaigns = newest.filter((e) => channelOf(e) === 'Social media').map((e) => eventLabel(e.name, e.date));
     if (campaigns.length && options['Social Media']) { const seen = new Set(campaigns.map((x) => x.toLowerCase())); options['Social Media'] = [...campaigns, ...options['Social Media'].filter((x) => !seen.has(x.toLowerCase()))]; }
-    // Social media campaigns running now or ended in the last 45 days: when "Social Media" is chosen, the form asks whether the
-    // student came from one of them, and does not save until it is answered, so no campaign student is missed in its cost.
-    const today = cards.today();
-    const back = new Date(Date.parse(today + 'T00:00:00Z') - 45 * 86400000).toISOString().slice(0, 10);
-    const recentCampaigns = newest.filter((e) => channelOf(e) === 'Social media' && e.date && e.date <= today && (e.endDate || e.date) >= back).map((e) => eventLabel(e.name, e.date));
     return {
-      sourceOptions: options, recentCampaigns,
+      sourceOptions: options,
       sourceLabels: Fields.SOURCE_DETAIL_LABEL, sourceCanAdd: Fields.SOURCE_CAN_ADD,
       // Only the names: the terms agreed with a partner stay on the Admin-only page.
       partners: agents.list().filter((p) => p.status !== 'Ended').map((p) => p.name),
@@ -601,6 +596,109 @@ function createPortalApi({
     return true;
   }
 
+  // ---- the students of an event or a campaign, uploaded by Admin from its list (Excel or CSV) ----
+  // The list Admin uploads is the truth of who came from it, whatever was picked when the student was added. Each line is:
+  //   new: added to the chosen intake at Inquiry, Student Source "Events", tagged with the event;
+  //   link: already on the sheet (same phone or email, any intake) and in no event yet: tagged with this event, the earlier source is
+  //         kept in the remarks and a note says so on the card (the team may have added the student before the campaign was entered);
+  //   already: already tagged with this event (uploading the same list twice changes nothing);
+  //   other: already tagged with another event: left as it is and listed, so Admin decides on the card (never moved quietly);
+  //   problem: no name, or neither a phone nor an email (a student who cannot be matched later is not added).
+  // { preview: true } only sorts the lines; without it the new and link lines are carried out.
+  const digitsOf = (v) => text(v).replace(/\D/g, '');
+  function eventImport(req, ev, body) {
+    const plan = planning.all();
+    const label = eventLabel(ev.name, ev.date);
+    const all = cards.all();
+    const byPhone = new Map(); const byEmail = new Map();
+    for (const { sheet, row } of rowIndex().values()) {
+      if (!isStudent(row)) continue;
+      const d = digitsOf(row['CONTACT NUMBER']); const em = text(row.EMAIL).toLowerCase();
+      if (d.length >= 7 && !byPhone.has(d.slice(-10))) byPhone.set(d.slice(-10), { sheet, row });
+      if (em && !byEmail.has(em)) byEmail.set(em, { sheet, row });
+    }
+    const seen = new Set();
+    const out = [];
+    const lines = (Array.isArray(body.rows) ? body.rows : []).filter((r) => r && typeof r === 'object').slice(0, 1000);
+    for (const r of lines) {
+      const first = text(r.first).slice(0, 80); const last = text(r.last).slice(0, 80);
+      const email = text(r.email).toLowerCase().slice(0, 120); const phone = text(r.phone).slice(0, 40);
+      const name = [first, last].filter(Boolean).join(' ');
+      const d = digitsOf(phone).slice(-10);
+      const line = { name, first, last, email, phone };
+      if (!name) { out.push({ ...line, action: 'problem', note: 'No name' }); continue; }
+      if (d.length < 7 && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { out.push({ ...line, action: 'problem', note: 'No phone number or email, so the student could not be matched later' }); continue; }
+      const key = d.length >= 7 ? 'p' + d : 'e' + email;
+      if (seen.has(key) || (email && seen.has('e' + email))) { out.push({ ...line, action: 'problem', note: 'The same phone or email is on an earlier line of this file' }); continue; }
+      seen.add(key); if (email) seen.add('e' + email);
+      const found = (d.length >= 7 && byPhone.get(d)) || (email && byEmail.get(email)) || null;
+      if (!found) { out.push({ ...line, action: 'new', note: 'Will be added at Inquiry' }); continue; }
+      const card = all[found.row._id];
+      const tagged = card && eventFor(plan.events, card.profile.sourceDetail);
+      const at = { id: found.row._id, intake: found.sheet.name, stage: text(found.row[STATUS]), name: nameOf(found.row) };
+      if (tagged && tagged.id === ev.id) out.push({ ...line, ...at, action: 'already', note: `Already tagged with this event (${at.intake}, ${at.stage || 'no stage'})` });
+      else if (tagged) out.push({ ...line, ...at, action: 'other', note: `Already tagged with another event: ${tagged.name}. Left as it is; change it on the student's card if this one is right.` });
+      else {
+        const before = [text(found.row['STUDENT SOURCE']), card && card.profile.sourceDetail].filter(Boolean).join(': ');
+        out.push({ ...line, ...at, before, action: 'link', note: `Already on the sheet (${at.intake}, ${at.stage || 'no stage'})${before ? `, source was "${before}"` : ''}: will be tagged with this event` });
+      }
+    }
+    const count = (a) => out.filter((x) => x.action === a).length;
+    if (body.preview) return { status: 200, json: { preview: true, label, rows: out, counts: { new: count('new'), link: count('link'), already: count('already'), other: count('other'), problem: count('problem') } } };
+    // Carry out: add the new ones, tag the ones already on the sheet.
+    let added = 0; let linked = 0; const failed = [];
+    for (const x of out) {
+      if (x.action === 'new') {
+        const r = addStudent(req, { fields: { 'FIRST NAME': x.first, 'LAST NAME': x.last, EMAIL: x.email, 'CONTACT NUMBER': x.phone, 'STUDENT SOURCE': 'Events' }, profile: { sourceDetail: label }, stage: 'Inquiry', sheetId: body.sheetId, note: `Came from ${ev.name} (uploaded from its list).` });
+        if (r.status === 200) { added += 1; x.id = r.json.id; } else failed.push(`${x.name}: ${r.json.error || 'could not be added'}`);
+      } else if (x.action === 'link') {
+        const found = rowIndex().get(x.id);
+        const src = setColumns(req, found, { 'STUDENT SOURCE': 'Events' });
+        if (src.error) { failed.push(`${x.name}: ${src.error}`); continue; }
+        const card = cards.get(x.id);
+        cards.setProfile(x.id, { sourceDetail: label, sourceRemarks: [card.profile.sourceRemarks, x.before ? `Before: ${x.before}` : ''].filter(Boolean).join(' | ').slice(0, 160) }, by(req));
+        cards.addNote(x.id, { kind: 'note', text: `Tagged with ${ev.name}: on the list uploaded for it.${x.before ? ` The source was "${x.before}".` : ''}` }, by(req));
+        linked += 1;
+      }
+    }
+    note(req, [`${ev.name}: uploaded its list (${added} added at Inquiry, ${linked} already on the sheet tagged with it, ${count('already')} already tagged, ${count('other')} in another event left as they were, ${count('problem')} lines skipped)`], 'Uploaded event students');
+    return { status: 200, json: { done: true, added, linked, failed, rows: out, counts: { new: count('new'), link: count('link'), already: count('already'), other: count('other'), problem: count('problem') } } };
+  }
+
+  // Every student of one event, for its page on Events and marketing: who, the phone, the stage, the intake and the latest note, so the
+  // team can work through the list (open the card, call, write the note) without looking through the intakes one by one.
+  function eventStudents(user, ev) {
+    const plan = planning.all();
+    const all = cards.all();
+    const out = [];
+    for (const { sheet, row } of visibleStudents(user)) {
+      const card = all[row._id];
+      const e = card && eventFor(plan.events, card.profile.sourceDetail);
+      if (!e || e.id !== ev.id) continue;
+      const last = card.notes && card.notes.length ? card.notes[card.notes.length - 1] : null;
+      out.push({ id: row._id, name: nameOf(row), phone: text(row['CONTACT NUMBER']), email: text(row.EMAIL), stage: text(row[STATUS]), intake: sheet.name, visa: text(row[STATUS]) === 'Visa Issued' || Boolean(text(row['VISA RECEIVED DATE'])), lastNote: last ? { at: last.at, by: last.by, text: String(last.text).slice(0, 160) } : null });
+    }
+    return out.sort((a, b) => a.name.localeCompare(b.name));
+  }
+
+  // Which event or campaign each student came from, for the "Came from" filter of All Students: only the students the account
+  // sees, and only the event's name and day (no cost).
+  function eventTags(user) {
+    const plan = planning.all();
+    const all = cards.all();
+    const rows = {};
+    const used = new Map();
+    for (const { row } of visibleStudents(user)) {
+      const card = all[row._id];
+      const e = card && eventFor(plan.events, card.profile.sourceDetail);
+      if (!e) continue;
+      const label = eventLabel(e.name, e.date);
+      rows[row._id] = label;
+      used.set(label, { label, name: e.name, date: e.date, count: (used.get(label) || { count: 0 }).count + 1 });
+    }
+    return { rows, events: [...used.values()].sort((a, b) => String(b.date).localeCompare(String(a.date))) };
+  }
+
   // ---- lists across students ----
   function searchStudents(user, q) {
     const words = String(q || '').toLowerCase().split(/\s+/).filter(Boolean).slice(0, 5);
@@ -928,9 +1026,31 @@ function createPortalApi({
     if (urlPath === '/api/activities' && req.method === 'GET') {
       if (!managers(req, res, 'Events and marketing')) return true;
       const { list, unlinkedSocial } = activities(req.user);
-      sendJSON(res, 200, { activities: list, unlinkedSocial, channels: CHANNELS, types: EVENT_TYPES, marketingTypes: MARKETING_TYPES, canEdit: Teams.isAdmin(req.user) });
+      // The intakes new students from an uploaded list can go into: the current one first.
+      const wbNow = getWorkbook(); const cur = currentIntake();
+      const intakes = wbNow ? Teams.viewFor(req.user, wbNow).sheets.map((sh) => ({ id: sh.id, name: sh.name })).sort((x, y) => (cur && x.id === cur.id ? -1 : cur && y.id === cur.id ? 1 : 0)) : [];
+      sendJSON(res, 200, { activities: list, unlinkedSocial, intakes, channels: CHANNELS, types: EVENT_TYPES, marketingTypes: MARKETING_TYPES, canEdit: Teams.isAdmin(req.user) });
       return true;
     }
+    if (urlPath === '/api/event-tags' && req.method === 'GET') { sendJSON(res, 200, eventTags(req.user)); return true; }
+    { const m = /^\/api\/activities\/([a-f0-9]{12})\/students$/.exec(urlPath);
+      if (m && req.method === 'GET') {
+        if (!managers(req, res, 'Events and marketing')) return true;
+        const ev = planning.all().events.find((e) => e.id === m[1]);
+        if (!ev) { sendJSON(res, 404, { error: 'No such event or marketing.' }); return true; }
+        sendJSON(res, 200, { students: eventStudents(req.user, ev) });
+        return true;
+      }
+      if (m && req.method === 'POST') {
+        if (!Teams.isAdmin(req.user)) { sendJSON(res, 403, { error: 'Only Admin can upload the students of an event.' }); return true; }
+        const ev = planning.all().events.find((e) => e.id === m[1]);
+        if (!ev) { sendJSON(res, 404, { error: 'No such event or marketing.' }); return true; }
+        const body = await bodyOf(req, res, 2 * 1024 * 1024);
+        if (!body) return true;
+        const r = eventImport(req, ev, body);
+        sendJSON(res, r.status, r.json);
+        return true;
+      } }
     if (urlPath === '/api/card-lists' && req.method === 'GET') { sendJSON(res, 200, cardLists(req.user)); return true; }
     if (urlPath === '/api/students/search' && req.method === 'GET') { sendJSON(res, 200, { students: searchStudents(req.user, (query().get('q') || '').slice(0, 100)) }); return true; }
     if (urlPath === '/api/students/new' && req.method === 'POST') return handleNewStudent(req, res);
