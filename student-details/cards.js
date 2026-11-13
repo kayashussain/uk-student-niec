@@ -17,7 +17,7 @@ const crypto = require('crypto');
 const { writeFileAtomic, snapshotDaily, localDate } = require('../shared/server-utils');
 const Fields = require('./card-fields');
 
-const LIMITS = { notes: 500, noteText: 4000, options: 40, messages: 400, short: 300, text: 2000, cards: 50000 };
+const LIMITS = { tasks: 200, notes: 500, noteText: 4000, options: 40, messages: 400, short: 300, text: 2000, cards: 50000 };
 const ROW_ID = /^[\w-]{1,64}$/;
 const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -72,7 +72,7 @@ function cleanOption(input, old = {}) {
   };
 }
 
-const emptyCard = () => ({ profile: {}, notes: [], options: [], messages: [] });
+const emptyCard = () => ({ profile: {}, notes: [], options: [], messages: [], tasks: [] });
 
 // A card read from the file, made whole: an older or hand-edited file never breaks a page.
 function normalize(raw) {
@@ -82,6 +82,8 @@ function normalize(raw) {
     notes: (Array.isArray(c.notes) ? c.notes : []).filter((n) => n && n.id && n.text).slice(-LIMITS.notes),
     options: (Array.isArray(c.options) ? c.options : []).filter((o) => o && o.id && (o.university || o.course)).slice(0, LIMITS.options),
     messages: (Array.isArray(c.messages) ? c.messages : []).filter((m) => m && m.id).slice(-LIMITS.messages),
+    // Tasks Admin or the Manager gave a team for this student: { id, team, text, due, by, at, done, doneBy, doneAt }.
+    tasks: (Array.isArray(c.tasks) ? c.tasks : []).filter((t) => t && t.id && t.team && t.text).slice(-LIMITS.tasks),
     createdAt: str(c.createdAt, 40), createdBy: str(c.createdBy, 80), updatedAt: str(c.updatedAt, 40), updatedBy: str(c.updatedBy, 80),
   };
 }
@@ -165,6 +167,39 @@ function createCards(dir, { now = () => new Date() } = {}) {
 
     setProfile(rowId, input, by) {
       return update(rowId, by, (card) => { card.profile = cleanProfile(input, card.profile); });
+    },
+
+    // A task for a team about this student (Admin and the Manager give them; the team marks it complete or not complete).
+    addTask(rowId, input, by) {
+      const text = str(input && input.text, LIMITS.text);
+      const team = str(input && input.team, 40);
+      if (!team) return { error: 'Choose the team.' };
+      if (!text) return { error: 'Write what the team should do.' };
+      const due = isoDay(input && input.due);
+      let task;
+      const out = update(rowId, by, (card, stamp) => {
+        task = { id: newId(), team, text, due, by: by || '', at: stamp, done: false, doneBy: '', doneAt: '' };
+        card.tasks = [...card.tasks, task].slice(-LIMITS.tasks);
+      });
+      return out.error ? out : { ...out, task };
+    },
+    setTask(rowId, taskId, done, by) {
+      let task;
+      const out = update(rowId, by, (card, stamp) => {
+        task = card.tasks.find((t) => t.id === taskId);
+        if (!task) return { error: 'No such task.' };
+        Object.assign(task, done ? { done: true, doneBy: by || '', doneAt: stamp } : { done: false, doneBy: '', doneAt: '' });
+        return null;
+      });
+      return out.error ? out : { ...out, task };
+    },
+    removeTask(rowId, taskId, by) {
+      const out = update(rowId, by, (card) => {
+        if (!card.tasks.some((t) => t.id === taskId)) return { error: 'No such task.' };
+        card.tasks = card.tasks.filter((t) => t.id !== taskId);
+        return null;
+      });
+      return out;
     },
 
     addNote(rowId, input, by) {

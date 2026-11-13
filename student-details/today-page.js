@@ -52,7 +52,40 @@
     return c;
   }
 
-  api('/api/today').then((d) => {
+  // Tasks: a team sees the tasks given to it (open first, then the ones done); Admin and the Manager see every task they gave, and
+  // whether each is done. A tick marks a task complete (or not complete again); the student's name opens the card.
+  let showDone = false;
+  function tasksPanel(t, refresh) {
+    const box = el('section', 't-tasks');
+    const head = el('div', 't-tasks-head');
+    const open = t.tasks.filter((x) => !x.done);
+    const done = t.tasks.filter((x) => x.done);
+    head.append(el('h2', '', t.canAssign ? 'Assigned tasks' : "Today's tasks"), el('span', 't-tasks-count', t.canAssign ? `${open.length} open \u00b7 ${done.length} done` : `${open.length} to do`));
+    const toggle = h('button', { class: 'btn btn-sm', type: 'button' }, showDone ? 'Hide done' : `Show done (${done.length})`);
+    toggle.addEventListener('click', () => { showDone = !showDone; refresh(); });
+    if (done.length) head.append(toggle);
+    box.append(head);
+    const shown = showDone ? t.tasks : open;
+    if (!shown.length) { box.append(el('p', 't-tasks-empty', t.canAssign ? 'No open task. Open a student card and press "Assign a task" to give one to a team.' : 'Nothing assigned to your team. Well done.')); return box; }
+    shown.forEach((x) => {
+      const r = el('div', 't-task' + (x.done ? ' done' : ''));
+      const tick = h('button', { class: 't-task-check', type: 'button', 'aria-pressed': String(x.done), title: x.done ? 'Mark as not complete' : 'Mark as complete' }, x.done ? '\u2713' : '');
+      tick.addEventListener('click', async () => { try { await api(`/api/cards/${encodeURIComponent(x.studentId)}/tasks/${x.id}`, { done: !x.done }); window.NiecUI.toast(x.done ? 'Marked as not complete' : 'Marked as complete', { type: 'success' }); refresh(true); } catch (e) { window.NiecUI.toast(e.message, { type: 'error' }); } });
+      const mid = el('div', 't-task-mid');
+      const who = h('a', { class: 't-task-student', href: '/student?id=' + encodeURIComponent(x.studentId) }, x.student);
+      const overdue = !x.done && x.due && x.due < new Date().toISOString().slice(0, 10);
+      const meta = [t.canAssign ? x.teamLabel : '', x.due ? (overdue ? 'overdue, was due ' : 'by ') + new Date(x.due + 'T12:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : '', `from ${x.by}`, x.done ? `done by ${x.doneBy}` : ''].filter(Boolean).join(' \u00b7 ');
+      const line = el('div', 't-task-top'); line.append(who, stagePill(x.stage));
+      mid.append(line, el('div', 't-task-text', x.text), el('div', 't-task-meta' + (overdue ? ' late' : ''), meta));
+      r.append(tick, mid);
+      box.append(r);
+    });
+    return box;
+  }
+
+  api('/api/today').then(async (d) => {
+    let tasks = { tasks: [], canAssign: false };
+    try { tasks = await api('/api/tasks'); } catch (e) { /* the rest of Today still shows */ }
     document.title = 'Today · ISR';
     readOnly = Boolean(d.readOnly);
     const page = el('div');
@@ -84,7 +117,11 @@
       clear.forEach((x) => { const row = el('div', 't-clear-row'); row.append(el('span', 't-clear-tick', '\u2713'), el('b', '', x.title), el('span', 't-clear-hint', 'Nothing waiting')); quiet.append(row); });
       grid.append(quiet);
     }
-    page.append(head, tiles, grid);
+    const slot = el('div');
+    const refresh = async (reload) => { if (reload) { try { tasks = await api('/api/tasks'); } catch (e) { /* keep */ } } slot.replaceChildren(tasksPanel(tasks, refresh)); };
+    refresh();
+    const workHead = el('h2', 't-section-title', d.kind === 'admin' || d.kind === 'manager' ? 'Needs attention' : 'Your work lists');
+    page.append(head, tiles, slot, workHead, grid);
     view.replaceChildren(page);
   }).catch((e) => view.replaceChildren(el('div', 'p-card', e.message)));
 })();

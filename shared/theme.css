@@ -917,7 +917,7 @@ body:has(.p-embed-bar) .p-template small { display: block; margin-top: 3px; font
 @media (min-width: 761px) {
   body:has(.p-embed-bar) .p-tabs + div:has(.p-note-box) { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 20px; align-items: start; }
   body:has(.p-embed-bar) .p-tabs + div:has(.p-note-box) > .p-card { grid-column: 1; margin: 0; }
-  body:has(.p-embed-bar) .p-tabs + div:has(.p-note-box) > .p-card:has(.p-note-box) { grid-column: 2; grid-row: 1 / span 4; }
+  body:has(.p-embed-bar) .p-tabs + div:has(.p-note-box) > .p-card:has(.p-note-box) { grid-column: 2; grid-row: span 4; }
   body:has(.p-embed-bar) .p-tabs + div:has(.p-note-box) > .p-card:not(:has(.p-note-box)) .p-facts { grid-template-columns: minmax(0, 1fr); }
   body:has(.p-embed-bar) .p-card:not(.p-hero) .p-form { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   body:has(.p-embed-bar) .p-templates { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -1045,3 +1045,27 @@ body:has(#sheet) .topbar .came-from:focus { border-color: var(--lux-ink-2); box-
 .bp-hidden { grid-column: 1 / -1; color: var(--text-dim); font-size: 14.5px; }
 .bp-hidden b { color: var(--text); font-weight: 600; }
 .bp-undo { padding: 0; border: 0; background: none; font: inherit; color: var(--brand-navy); text-decoration: underline; cursor: pointer; }
+
+/* 🔴 CSS CHANGED (2026-11-13): tasks | from: nothing | to: on Today a soft panel "Today's tasks" (a team) or "Assigned tasks" (Admin, Manager) above the work lists, one row per task with a round tick (navy with a white tick when done), the student's name in navy with the stage tag, the task, and a small line (team, by when, from whom, done by; amber when overdue); done tasks greyed; "Show done"; on the student card a "Tasks" panel with the same rows and "Assign a task"; a small "Needs attention" / "Your work lists" heading above the work lists */
+.t-tasks { margin: 0 0 24px; padding: 22px 24px; border: 1px solid var(--border); border-radius: 18px; background: var(--panel); box-shadow: 0 1px 2px rgba(20, 27, 41, .04), 0 16px 34px -30px rgba(29, 47, 82, .45); }
+.t-tasks-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 10px; }
+.t-tasks-head h2 { margin: 0; font-size: 19px; font-weight: 700; color: var(--brand-navy); }
+.t-tasks-count { flex: 1; color: var(--text-dim); font-size: 14.5px; }
+.t-tasks-empty { margin: 6px 0 0; color: var(--text-dim); }
+.t-task, .p-task { display: flex; align-items: flex-start; gap: 14px; padding: 14px 4px; border-top: 1px solid var(--border); }
+.t-task:first-of-type { border-top: 0; }
+.t-task-check, .p-task-check { flex: 0 0 28px; width: 28px; height: 28px; margin-top: 2px; border: 1.5px solid color-mix(in srgb, var(--brand-navy) 45%, var(--border)); border-radius: 50%; background: var(--panel); color: #fff; font-size: 15px; font-weight: 800; line-height: 1; cursor: pointer; }
+.t-task-check:hover, .p-task-check:hover:not(:disabled) { border-color: var(--brand-navy); box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand-navy) 12%, transparent); }
+.t-task-check[aria-pressed="true"], .p-task-check[aria-pressed="true"] { border-color: var(--brand-navy); background: var(--brand-navy); }
+.p-task-check:disabled { cursor: default; opacity: .6; }
+.t-task-mid, .p-task-mid { flex: 1; min-width: 0; }
+.t-task-top { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.t-task-student { color: var(--brand-navy); font-size: 16px; font-weight: 700; text-decoration: none; }
+.t-task-student:hover { text-decoration: underline; text-decoration-color: var(--brand-bronze); text-underline-offset: 4px; }
+.t-task-text, .p-task-text { margin-top: 4px; color: var(--ink); font-size: 15.5px; line-height: 1.5; }
+.t-task-meta, .p-task-meta { margin-top: 4px; color: var(--text-dim); font-size: 14px; }
+.t-task-meta.late { color: var(--amber-fg); font-weight: 600; }
+.t-task.done .t-task-text, .p-task.done .p-task-text { color: var(--text-dim); text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--text-dim) 50%, transparent); }
+.t-section-title { margin: 6px 0 12px; font-size: 17px; font-weight: 700; color: var(--brand-navy); }
+body:has(.p-embed-bar) .p-tasks-wide, body:has(.p-embed-bar) .p-tabs + div > .p-card.p-tasks { grid-column: 1 / -1 !important; grid-row: auto !important; }
+.p-tasks .p-card-head + .p-task { border-top: 0; }

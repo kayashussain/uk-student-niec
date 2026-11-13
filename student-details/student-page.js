@@ -125,14 +125,59 @@
     const act = el('div', 'p-hero-actions');
     if (can()) act.append(h('button', { class: 'btn btn-primary', type: 'button', onclick: () => select('message') }, 'Send a message'));
     if (can()) act.append(h('button', { class: 'btn', type: 'button', onclick: () => { editingHero = true; render(); } }, 'Edit details'));
+    if (data.can.assign) act.append(h('button', { class: 'btn', type: 'button', onclick: assignTask }, 'Assign a task'));
     c.append(mid, act);
     return c;
   }
 
   // ---- Details: only the notes, and why a student did not go on ----
+  // ---- tasks given to a team about this student ----
+  function assignTask() {
+    dialog('Assign a task', (body, close) => {
+      const team = field('Team', { kind: 'select', choices: (data.taskTeams || []).map((t) => [t.id, t.label]) });
+      const text = field('What should they do?', { kind: 'area', max: 2000, wide: true, placeholder: 'e.g. Call the student and book the mock interview for next week.' });
+      const due = field('By (optional)', { kind: 'date' });
+      const msg = el('div', 'p-msg');
+      const foot = el('div', 'p-dialog-foot');
+      const ok = h('button', { class: 'btn btn-primary', type: 'button' }, 'Assign');
+      ok.addEventListener('click', async () => {
+        if (!team.input.value) { msg.textContent = 'Choose the team.'; msg.className = 'p-msg error'; return; }
+        if (!text.input.value.trim()) { msg.textContent = 'Write what the team should do.'; msg.className = 'p-msg error'; return; }
+        try { await save('tasks', { team: team.input.value, text: text.input.value, due: due.input.value }, 'Task assigned'); close(true); } catch (e) { /* shown */ }
+      });
+      foot.append(h('button', { class: 'btn', type: 'button', onclick: () => close() }, 'Cancel'), ok);
+      const g = el('div', 'p-form p-form-2'); g.append(team.wrap, due.wrap, text.wrap);
+      body.append(g, msg, foot);
+    }).then((done) => { if (done) render(); });
+  }
+  function tasksCard() {
+    const tasks = (data.card.tasks || []).slice().sort((a, b) => (a.done - b.done) || String(b.at).localeCompare(String(a.at)));
+    if (!tasks.length && !data.can.assign) return null;
+    const c = el('section', 'p-card p-tasks');
+    const head = el('div', 'p-card-head'); head.append(el('h2', '', 'Tasks'));
+    if (data.can.assign) head.append(h('button', { class: 'btn btn-sm', type: 'button', onclick: assignTask }, 'Assign a task'));
+    c.append(head);
+    if (!tasks.length) { c.append(el('p', 'p-muted', 'No task for this student yet.')); return c; }
+    const label = (id) => ((data.taskTeams || []).find((t) => t.id === id) || { label: id }).label;
+    tasks.forEach((t) => {
+      const r = el('div', 'p-task' + (t.done ? ' done' : ''));
+      const mine = data.can.assign || (data.can.myTeams || []).includes(t.team);
+      const box = h('button', { class: 'p-task-check', type: 'button', 'aria-pressed': String(t.done), title: t.done ? 'Mark as not complete' : 'Mark as complete', disabled: !mine }, t.done ? '\u2713' : '');
+      box.addEventListener('click', async () => { await save(`tasks/${t.id}`, { done: !t.done }, t.done ? 'Marked as not complete' : 'Marked as complete'); render(); });
+      const mid = el('div', 'p-task-mid');
+      mid.append(el('div', 'p-task-text', t.text), el('div', 'p-task-meta', [label(t.team), t.due ? 'by ' + day(t.due) : '', `given by ${t.by}`, t.done ? `done by ${t.doneBy}, ${when(t.doneAt)}` : ''].filter(Boolean).join(' \u00b7 ')));
+      r.append(box, mid);
+      if (data.can.assign) r.append(h('button', { class: 'p-link', type: 'button', onclick: async () => { if (await window.NiecUI.confirm('Remove this task?', { danger: true })) { await save(`tasks/${t.id}/delete`, {}, 'Task removed'); render(); } } }, 'Remove'));
+      c.append(r);
+    });
+    return c;
+  }
+
   function details() {
     const wrap = el('div');
     const s = data.student;
+    const tc = tasksCard();
+    if (tc) wrap.append(tc);
     if (F.LOST_STAGES.includes(s.stage) || profile().lostReason) {
       const kind = el('section', 'p-card');
       kind.append(el('h2', '', 'Why the student did not go on'));

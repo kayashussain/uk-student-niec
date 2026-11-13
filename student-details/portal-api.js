@@ -81,9 +81,18 @@ function createPortalApi({
     return null;
   }
   const currentIntake = () => { const wb = getWorkbook(); return wb ? Teams.newestSheet(wb.sheets.filter((s) => !s.hidden)) : null; };
+  // The teams a person belongs to (department keys); a task given to one of them can be seen and marked by that person.
+  const teamsOf = (user) => (Array.isArray(user && user.departments) ? user.departments : []);
+  const TASK_TEAMS = () => Object.entries(Teams.DEPARTMENTS).map(([id, d]) => ({ id, label: d.label }));
+  const teamLabel = (id) => (Teams.DEPARTMENTS[id] ? Teams.DEPARTMENTS[id].label : id);
+  const canAssign = (user) => Teams.isAdmin(user) || Teams.isManager(user);
+  const hasTaskFor = (user, rowId) => { const mine = teamsOf(user); if (!mine.length) return false; const c = cards.has(rowId) ? cards.get(rowId) : null; const recent = Date.now() - 7 * 86400000; return Boolean(c && (c.tasks || []).some((t) => mine.includes(t.team) && (!t.done || Date.parse(t.doneAt) > recent))); };
   function canSee(user, found) {
     if (!found) return false;
     if (Teams.isAdmin(user) || Teams.isManager(user)) return true;
+    // A team given a task about a student sees that student while the task is open and for 7 days after it is done (to undo a
+    // mistaken tick), wherever the student is.
+    if (hasTaskFor(user, found.row._id)) return true;
     const intake = currentIntake();
     return Boolean(intake) && found.sheet.id === intake.id && Teams.seesRow(user, found.row);
   }
@@ -417,7 +426,7 @@ function createPortalApi({
 
   // ---- one student's card ----
   async function handleCard(req, res, urlPath) {
-    const m = /^\/api\/cards\/([\w-]{1,64})(?:\/(profile|notes|options|messages|source|sheet)(?:\/([a-f0-9]{12}|preview|send))?(\/delete)?)?$/.exec(urlPath);
+    const m = /^\/api\/cards\/([\w-]{1,64})(?:\/(profile|notes|options|messages|source|sheet|tasks)(?:\/([a-f0-9]{12}|preview|send))?(\/delete)?)?$/.exec(urlPath);
     if (!m) return false;
     const [, rowId, part, sub, del] = m;
     const found = rowIndex().get(rowId);
@@ -431,7 +440,8 @@ function createPortalApi({
         sendJSON(res, 200, {
           student: { ...brief(found.sheet, found.row), color: found.row._color || '', remarks: text(found.row.REMARKS), columns: found.sheet.columns, row: Object.fromEntries(found.sheet.columns.map((c) => [c, found.row[c] ?? ''])) },
           card,
-          can: { edit: editable, removeAnyNote: Teams.isAdmin(req.user), source: editable && Teams.canEdit(req.user, 'STUDENT SOURCE', found.row) },
+          can: { edit: editable, removeAnyNote: Teams.isAdmin(req.user), source: editable && Teams.canEdit(req.user, 'STUDENT SOURCE', found.row), assign: canAssign(req.user), myTeams: teamsOf(req.user) },
+          taskTeams: TASK_TEAMS(),
           me: { name: req.user.name },
           event: (() => { const e = eventOf(card.profile.sourceDetail); return e ? { name: e.name, kind: e.kind || 'Event', type: e.type, place: e.place, date: e.date, endDate: e.endDate } : null; })(),
           mail: { ready: Boolean(cfg), from: cfg ? cfg.from : '' },
@@ -451,6 +461,33 @@ function createPortalApi({
       return true;
     }
     if (req.method !== 'POST') { send(res, 405, 'Method not allowed'); return true; }
+    // Tasks: Admin and the Manager give one to a team (and remove it); the team (or Admin and the Manager) marks it complete or not.
+    if (part === 'tasks') {
+      const body = await bodyOf(req, res);
+      if (!body) return true;
+      const who2 = nameOf(found.row) || 'a student';
+      let out;
+      if (!sub) {
+        if (!canAssign(req.user)) { sendJSON(res, 403, { error: 'Only Admin and the Manager give tasks.' }); return true; }
+        if (!Teams.DEPARTMENTS[text(body.team)]) { sendJSON(res, 400, { error: 'Choose the team.' }); return true; }
+        out = cards.addTask(rowId, body, by(req));
+        if (!out.error) note(req, [`${who2}: gave ${teamLabel(out.task.team)} a task: ${out.task.text.slice(0, 120)}`], 'Gave a task');
+      } else {
+        const task = (card.tasks || []).find((t) => t.id === sub);
+        if (!task) { sendJSON(res, 404, { error: 'No such task.' }); return true; }
+        if (del) {
+          if (!canAssign(req.user)) { sendJSON(res, 403, { error: 'Only Admin and the Manager remove tasks.' }); return true; }
+          out = cards.removeTask(rowId, sub, by(req));
+          if (!out.error) note(req, [`${who2}: removed the task for ${teamLabel(task.team)}`], 'Removed a task');
+        } else {
+          if (!canAssign(req.user) && !teamsOf(req.user).includes(task.team)) { sendJSON(res, 403, { error: 'This task is for another team.' }); return true; }
+          out = cards.setTask(rowId, sub, Boolean(body.done), by(req));
+          if (!out.error) note(req, [`${who2}: marked the task for ${teamLabel(task.team)} as ${body.done ? 'complete' : 'not complete'}`], 'Task');
+        }
+      }
+      if (out.error) sendJSON(res, 400, { error: out.error }); else sendJSON(res, 200, { ok: true, card: out.card });
+      return true;
+    }
     if (!editable) { sendJSON(res, 403, { error: Teams.isReadOnly(req.user) ? 'Your account can only view students.' : 'Your team cannot change this student.' }); return true; }
     const who = nameOf(found.row) || 'a student';
 
@@ -1111,6 +1148,21 @@ function createPortalApi({
       const partners = [...new Set([...names(b2b), ...sheetPartners().map((p) => p.name)])].sort((x, y) => x.localeCompare(y));
       const agentNames = [...new Set([...names(agents), ...sheetAgents().map((p) => p.name)])].sort((x, y) => x.localeCompare(y));
       sendJSON(res, 200, { universities: names(direct), partners, offices: OFFICES, agents: agentNames });
+      return true;
+    }
+    // Tasks: a team member gets the open and recently done tasks of their teams; Admin and the Manager get every task they gave.
+    if (urlPath === '/api/tasks' && req.method === 'GET') {
+      const all = cards.all();
+      const mine = teamsOf(req.user);
+      const everyone = canAssign(req.user);
+      const out = [];
+      for (const { sheet, row } of rowIndex().values()) {
+        const c = all[row._id];
+        if (!c || !Array.isArray(c.tasks) || !c.tasks.length) continue;
+        c.tasks.forEach((t) => { if (everyone || mine.includes(t.team)) out.push({ ...t, teamLabel: teamLabel(t.team), studentId: row._id, student: nameOf(row) || 'Student', stage: text(row[STATUS]), intake: sheet.name }); });
+      }
+      out.sort((a, b) => (a.done - b.done) || String(a.due || '9999').localeCompare(String(b.due || '9999')) || String(b.at).localeCompare(String(a.at)));
+      sendJSON(res, 200, { tasks: out.slice(0, 500), canAssign: everyone, teams: TASK_TEAMS() });
       return true;
     }
     if (urlPath === '/api/event-tags' && req.method === 'GET') { sendJSON(res, 200, eventTags(req.user)); return true; }
