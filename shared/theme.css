@@ -1040,3 +1040,8 @@ body:has(#sheet) .topbar .came-from:focus { border-color: var(--lux-ink-2); box-
 .bp-savebar .grow { flex: 1 1 auto; }
 
 /* 🔴 CSS CHANGED (2026-11-13): the University Partner column on All Students is a dropdown | from: a box to type any name | to: the same dropdown as the other choice columns, with the Partner Universities and the B2B Partners in two labelled groups (no new style rule: it uses the dropdown look already there) */
+/* 🔴 CSS CHANGED (2026-11-13): B2B partners named on the sheet but not set up yet | from: not shown (the list was empty until each was added by hand) | to: a card for each, with a dashed border, an amber "Not set up" tag, "Set up" and "Not a partner" buttons; a quiet line at the end lists the names marked as not a partner, each with "show again" */
+.bp-card-new { border-style: dashed; }
+.bp-hidden { grid-column: 1 / -1; color: var(--text-dim); font-size: 14.5px; }
+.bp-hidden b { color: var(--text); font-weight: 600; }
+.bp-undo { padding: 0; border: 0; background: none; font: inherit; color: var(--brand-navy); text-decoration: underline; cursor: pointer; }

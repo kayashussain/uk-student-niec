@@ -93,6 +93,8 @@ function cleanSettings(x, old = {}) {
     valuePerVisa: pick('valuePerVisa', (v) => amount(v, 1e9)) || 0,
     // The cost of a lead above which a channel is flagged, in rupees (0: no flag).
     maxCostPerLead: pick('maxCostPerLead', (v) => amount(v, 1e8)) || 0,
+    // Names in the University Partner column that Admin marked as not a B2B partner (they are not shown on B2B Partners).
+    notPartners: pick('notPartners', (v) => (Array.isArray(v) ? [...new Set(v.map((n) => String(n || '').replace(/\s+/g, ' ').trim().slice(0, 120)).filter(Boolean))].slice(0, 200) : [])) || [],
   };
 }
 

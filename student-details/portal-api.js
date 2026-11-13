@@ -779,7 +779,38 @@ function createPortalApi({
     return out;
   }
   // B2B Partners (the businesses you send applications to) and Agents (the businesses that send you their students): the same kind of record.
-  async function handleB2b(req, res, urlPath) { return handlePartnerStore(req, res, urlPath, { store: b2b, prefix: 'b2b', label: 'B2B Partners', kind: 'b2b' }); }
+  // The B2B partners named in the University Partner column of the sheet that are not set up on B2B Partners yet: every name that is
+  // not a university (the Fact File, Partner Universities, or a name with University or College in it) and that Admin did not mark as
+  // not a partner. They are shown on B2B Partners and offered in the dropdown, so no partner on the sheet is missing.
+  function sheetPartners() {
+    const wb = getWorkbook();
+    const known = new Set((b2b ? b2b.list() : []).map((p) => squash(p.name)));
+    const unis = new Set([...facts.all().map((u) => squash(u.name)), ...direct.all().map((u) => squash(u.name))].filter(Boolean));
+    const hidden = new Set((planning.all().settings.notPartners || []).map(squash));
+    const found = new Map();
+    (wb ? wb.sheets : []).forEach((sh) => sh.rows.forEach((row) => {
+      if (!isStudent(row)) return;
+      const name = text(row['UNIVERSITY PARTNER']).replace(/\s+/g, ' ');
+      const key = squash(name);
+      if (!key || known.has(key) || unis.has(key) || hidden.has(key) || /universit|college/i.test(name)) return;
+      const f = found.get(key) || { name, students: 0 };
+      f.students += 1; found.set(key, f);
+    }));
+    return [...found.values()].sort((x, y) => y.students - x.students || x.name.localeCompare(y.name));
+  }
+  async function handleB2b(req, res, urlPath) {
+    if (urlPath === '/api/b2b/not-partner' && req.method === 'POST') {
+      if (!adminOnly(req, res, 'B2B Partners')) return true;
+      const body = await bodyOf(req, res, 4096);
+      if (!body) return true;
+      const name = text(body.name).slice(0, 120);
+      const now = planning.all().settings.notPartners || [];
+      const next = body.undo ? now.filter((n) => squash(n) !== squash(name)) : [...now, name];
+      planning.saveSettings({ notPartners: next });
+      activity.record(req, req.user, 'Edited partners', { app: 'B2B Partners', changes: [body.undo ? `${name}: shown again as a B2B partner` : `${name}: marked as not a B2B partner`] });
+      sendJSON(res, 200, { notPartners: planning.all().settings.notPartners });
+      return true;
+    } return handlePartnerStore(req, res, urlPath, { store: b2b, prefix: 'b2b', label: 'B2B Partners', kind: 'b2b' }); }
   async function handleAgents(req, res, urlPath) { return handlePartnerStore(req, res, urlPath, { store: agents, prefix: 'agents', label: 'Agents', kind: 'agents' }); }
   async function handlePartnerStore(req, res, urlPath, { store: b2b, prefix, label, kind }) {
     if (!adminOnly(req, res, label)) return true;
@@ -822,7 +853,7 @@ function createPortalApi({
       return true;
     }
     if (req.method === 'GET') {
-      if (!id) { sendJSON(res, 200, { partners: b2b.list(), statuses: PARTNER_STATUSES, performance: partnerPerformance(kind), currentIntake: (currentIntake() || {}).name || '', intakes: (() => { const wb = getWorkbook(); return wb ? wb.sheets.filter((x) => !x.hidden || true).map((x) => x.name) : []; })() }); return true; }
+      if (!id) { sendJSON(res, 200, { partners: b2b.list(), ...(kind === 'b2b' ? { onSheet: sheetPartners(), notPartners: planning.all().settings.notPartners || [] } : {}), statuses: PARTNER_STATUSES, performance: partnerPerformance(kind), currentIntake: (currentIntake() || {}).name || '', intakes: (() => { const wb = getWorkbook(); return wb ? wb.sheets.filter((x) => !x.hidden || true).map((x) => x.name) : []; })() }); return true; }
       const one = b2b.get(id);
       if (one) sendJSON(res, 200, one); else sendJSON(res, 404, { error: 'No such partner.' });
       return true;
@@ -1046,7 +1077,8 @@ function createPortalApi({
     // account that sees the sheet. A new partner is added on B2B Partners first, then it can be picked.
     if (urlPath === '/api/partner-choices' && req.method === 'GET') {
       const names = (store) => (store && store.list ? store.list().filter((x) => x.status !== 'Ended').map((x) => x.name).sort((x, y) => x.localeCompare(y)) : []);
-      sendJSON(res, 200, { universities: names(direct), partners: names(b2b) });
+      const partners = [...new Set([...names(b2b), ...sheetPartners().map((p) => p.name)])].sort((x, y) => x.localeCompare(y));
+      sendJSON(res, 200, { universities: names(direct), partners });
       return true;
     }
     if (urlPath === '/api/event-tags' && req.method === 'GET') { sendJSON(res, 200, eventTags(req.user)); return true; }

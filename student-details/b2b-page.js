@@ -23,17 +23,49 @@
   // ---- the list ----
   function draw() {
     const all = data.partners;
+    const sheet = data.onSheet || []; // named in the University Partner column, not set up yet
     const active = all.filter((p) => p.status === 'Active');
-    const visas = all.reduce((n, p) => n + stats(p.name).visas, 0);
-    const band = [[`Active ${WORD.one}s`, number(active.length)], ['Visas through them', number(visas), 'Every intake on the sheet']];
-    if (KIND === 'b2b') band.splice(2, 0, ['Ready to submit', `${number(active.filter((p) => p.applyPortal || p.applyEmail).length)} of ${number(active.length)}`, 'With a portal or an email']);
+    const visas = all.reduce((n, p) => n + stats(p.name).visas, 0) + sheet.reduce((n, x) => n + stats(x.name).visas, 0);
+    const band = [[`Active ${WORD.one}s`, number(active.length + sheet.length), sheet.length ? `${number(sheet.length)} named on the sheet, not set up yet` : ''], ['Visas through them', number(visas), 'Every intake on the sheet']];
+    if (KIND === 'b2b') band.splice(2, 0, ['Ready to submit', `${number(active.filter((p) => p.applyPortal || p.applyEmail).length)} of ${number(active.length + sheet.length)}`, 'With a portal or an email']);
     $('kpis').replaceChildren(...band.map(([label, v, sub, warn]) => { const d = el('div', warn ? 'warn' : ''); d.append(el('span', '', label), el('b', '', v), el('small', '', sub || '')); return d; }));
     const q = $('search').value.trim().toLowerCase();
-    const shown = q ? all.filter((p) => `${p.name} ${p.city || ''}`.toLowerCase().includes(q)) : all;
-    $('count').textContent = all.length ? (q ? `${shown.length} of ${all.length}` : `${all.length} in the list`) : '';
-    if (!all.length) { $('list').replaceChildren(el('div', 'bp-empty', `No ${WORD.one}s yet. Add the first with "+ New ${WORD.one}".`)); return; }
-    if (!shown.length) { $('list').replaceChildren(el('div', 'bp-empty', 'Nothing matches that search.')); return; }
-    $('list').replaceChildren(...shown.map(card));
+    const hit = (name, city) => !q || `${name} ${city || ''}`.toLowerCase().includes(q);
+    const shown = all.filter((p) => hit(p.name, p.city));
+    const shownSheet = sheet.filter((x) => hit(x.name));
+    const total = all.length + sheet.length;
+    $('count').textContent = total ? (q ? `${shown.length + shownSheet.length} of ${total}` : `${total} in the list`) : '';
+    const hidden = (data.notPartners || []);
+    const hiddenLine = () => {
+      if (!hidden.length) return [];
+      const d = el('div', 'bp-hidden');
+      d.append(el('span', '', 'Not B2B partners: '));
+      hidden.forEach((n, k) => { if (k) d.append(', '); d.append(el('b', '', n), ' ', btn('bp-undo', 'show again', async () => { await api(`${API}/not-partner`, { name: n, undo: true }); load(); })); });
+      return [d];
+    };
+    if (!total) { $('list').replaceChildren(el('div', 'bp-empty', `No ${WORD.one}s yet. Add the first with "+ New ${WORD.one}".`), ...hiddenLine()); return; }
+    if (!shown.length && !shownSheet.length) { $('list').replaceChildren(el('div', 'bp-empty', 'Nothing matches that search.')); return; }
+    $('list').replaceChildren(...shown.map(card), ...shownSheet.map(sheetCard), ...hiddenLine());
+  }
+
+  // A partner named in the University Partner column but not set up yet: set it up (to add how to submit and the commission list),
+  // or mark it as not a B2B partner (it is then hidden here and in the dropdown, and can be shown again).
+  function sheetCard(x) {
+    const st = stats(x.name);
+    const c = el('article', 'bp-card bp-card-new');
+    const head = el('div', 'bp-card-head');
+    const who = el('div');
+    who.append(el('div', 'bp-name', x.name), el('div', 'bp-sub', `${number(st.visas)} visa${st.visas === 1 ? '' : 's'} from ${number(x.students)} student${x.students === 1 ? '' : 's'} on the sheet`));
+    head.append(who, el('span', 'bp-status amber', 'Not set up'));
+    const note = el('div', 'bp-submit');
+    note.append(el('div', 'bp-submit-title', 'Named on the sheet'), el('div', 'bp-none', 'Set it up to add how to submit applications, the contact and the commission list.'));
+    const foot = el('div', 'bp-foot');
+    foot.append(btn('btn', 'Not a partner', async () => {
+      if (!(await window.NiecUI.confirm(`${x.name} is not a B2B partner? It is hidden here and in the University Partner dropdown (the students keep the name). You can show it again.`, { confirmText: 'Not a partner' }))) return;
+      await api(`${API}/not-partner`, { name: x.name }); say(`${x.name} hidden`); load();
+    }), btn('btn btn-primary', 'Set up →', async () => { try { const made = await api(API, { name: x.name }); await load(); edit(made.id); } catch (e) { say(e.message, true); } }));
+    c.append(head, note, foot);
+    return c;
   }
 
   function card(p) {
