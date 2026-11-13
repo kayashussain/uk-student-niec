@@ -124,6 +124,7 @@ function createCards(dir, { now = () => new Date() } = {}) {
     try { fs.renameSync(file, path.join(dir, `cards.damaged-${now().toISOString().replace(/[:.]/g, '-')}.json`)); } catch (e) { /* ignore */ }
     const recovered = recover() || { cards: {} };
     console.error('[cards] cards.json could not be read; carried on from', recovered.cards && Object.keys(recovered.cards).length ? 'the newest daily copy' : 'an empty list');
+    try { if (recovered.cards && Object.keys(recovered.cards).length) { write(recovered); return cache.data; } } catch (e) { /* kept in memory below */ }
     return recovered;
   }
 

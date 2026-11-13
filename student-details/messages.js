@@ -39,7 +39,7 @@ const FIELDS = [
 // The short name of each word, for the note that tells the sender which details are still empty.
 // A message that uses a {word} nobody fills in, or a brace that is not closed, would go to the student as it is: refuse it when saving.
 function badPlaceholder(...texts) {
-  const known = new Set(FIELDS.map(([k]) => k));
+  const known = new Set([...FIELDS.map(([k]) => k), 'options_table', 'documents_list', 'university_phrase', 'application_date_phrase', 'offer_date_phrase', 'mock_date_phrase']);
   for (const t of texts) {
     const s = String(t || '');
     const opens = (s.match(/\{/g) || []).length; const closes = (s.match(/\}/g) || []).length;

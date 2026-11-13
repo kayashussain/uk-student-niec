@@ -46,7 +46,7 @@ function distanceMiles(a, b) {
 
 const NAMES = Object.keys(PLACES).sort((x, y) => y.length - x.length);
 const REGION_KEYS = Object.keys(REGIONS).sort((x, y) => y.length - x.length);
-const pad = (s) => ` ${String(s || '').toLowerCase().replace(/[^a-z\s-]/g, ' ').replace(/\s+/g, ' ')} `;
+const pad = (s) => ` ${String(s || '').toLowerCase().replace(/[^a-z\s]/g, ' ').replace(/\s+/g, ' ')} `;
 
 // Every known town or city named in a text, in the order they appear.
 function placesIn(text) {

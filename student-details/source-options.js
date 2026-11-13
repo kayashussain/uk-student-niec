@@ -82,4 +82,14 @@ function createSourceOptions(dir) {
   };
 }
 
-module.exports = { createSourceOptions, eventLabel };
+// The event a student's "where exactly" tag names. The full label (name and date) picks the exact event, so two events with the
+// same name on different days are not mixed up; a tag with the bare name (or an unknown date) falls to the first event of that name.
+function eventFor(events, detail) {
+  const d = String(detail || '').trim().toLowerCase();
+  if (!d) return null;
+  const exact = events.find((e) => eventLabel(e.name, e.date).toLowerCase() === d);
+  if (exact) return exact;
+  return events.find((e) => { const n = String(e.name).toLowerCase(); return d === n || d.startsWith(n + ','); }) || null;
+}
+
+module.exports = { createSourceOptions, eventLabel, eventFor };

@@ -164,6 +164,23 @@ function migrateWorkbook(parsed) {
       activeSheetId: 'sheet-1',
     };
   if (!Number.isInteger(workbook.revision)) workbook.revision = 0;
+  // Older files may lack sheet ids, the active sheet, or hold empty row entries: make them whole instead of treating the file as damaged.
+  workbook.sheets = workbook.sheets.filter((sh) => sh && typeof sh === 'object');
+  const usedSheetIds = new Set();
+  workbook.sheets.forEach((sh, i) => {
+    if (!Array.isArray(sh.columns)) sh.columns = [];
+    sh.rows = (Array.isArray(sh.rows) ? sh.rows : []).filter((r) => r && typeof r === 'object' && !Array.isArray(r));
+    if (typeof sh.id !== 'string' || !sh.id || usedSheetIds.has(sh.id)) sh.id = `sheet-${i + 1}-${Math.random().toString(36).slice(2, 6)}`;
+    usedSheetIds.add(sh.id);
+  });
+  if (!workbook.sheets.length) workbook.sheets = blankWorkbook().sheets;
+  if (!workbook.sheets.some((sh) => sh.id === workbook.activeSheetId)) workbook.activeSheetId = workbook.sheets[0].id;
+  // A row id used twice would make one student overwrite the other on merge: repeats get a new id.
+  const usedRowIds = new Set();
+  workbook.sheets.forEach((sh) => sh.rows.forEach((r) => {
+    if (r._id && usedRowIds.has(r._id)) r._id = makeRowId();
+    if (r._id) usedRowIds.add(r._id);
+  }));
   return addHiddenFlags(ensureRowIds(addMissingColumns(renameValues(renameColumns(workbook)))));
 }
 

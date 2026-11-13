@@ -85,9 +85,11 @@ function readGrade(v) {
   if (!s) return {};
   let m = /(\d{2}(?:\.\d+)?)\s*%/.exec(s);
   if (m) return { percent: num(m[1]) };
-  m = /(\d(?:\.\d{1,2})?)/.exec(s);
+  m = /(\d+(?:\.\d+)?)\s*(?:percent|per cent)/.exec(s);
+  if (m && num(m[1]) <= 100) return { percent: num(m[1]) };
+  m = /(\d+(?:\.\d+)?)/.exec(s);
   if (m && num(m[1]) <= 4.5) return { gpa: num(m[1]) };
-  if (m && num(m[1]) <= 100 && /\d{2}/.test(s)) return { percent: num(m[1]) };
+  if (m && num(m[1]) >= 10 && num(m[1]) <= 100) return { percent: num(m[1]) };
   return {};
 }
 
@@ -189,8 +191,9 @@ function judge(student, course, now = new Date()) {
     }
     if (student.pte != null && rule.pte) checks.push(student.pte < rule.pte.overall ? `PTE ${student.pte} is below the ${rule.pte.overall} needed` : null);
     const bad = checks.filter(Boolean);
-    if (checks.length && bad.length === checks.length) bad.forEach((b) => fails.push(b));
-    else if (checks.length) passes.push(`English meets ${student.ielts != null && rule.ielts && !bad.some((b) => /IELTS/.test(b)) ? `IELTS ${rule.ielts.overall}` : `PTE ${rule.pte.overall}`}${student.ielts != null && rule.ielts && student.ieltsBand == null && rule.ielts.band != null ? ' (the band scores are not known)' : ''}`);
+    if (!checks.length) missing.push(student.ielts != null ? 'the PTE score' : 'the IELTS score');
+    else if (bad.length === checks.length) bad.forEach((b) => fails.push(b));
+    else passes.push(`English meets ${student.ielts != null && rule.ielts && !bad.some((b) => /IELTS/.test(b)) ? `IELTS ${rule.ielts.overall}` : `PTE ${rule.pte.overall}`}${student.ielts != null && rule.ielts && student.ieltsBand == null && rule.ielts.band != null ? ' (the band scores are not known)' : ''}`);
   } else if (!hasTest && (rule.ielts || rule.pte)) {
     if (student.noEnglish && rule.waiverKind === 'yes') passes.push(`no English test: the waiver route is open (${rule.waiverText})`);
     else if (student.noEnglish && rule.waiverKind === 'uk') fails.push(`no English test, and the waiver is only for UK affiliated degrees (${rule.waiverText})`);

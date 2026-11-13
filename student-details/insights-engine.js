@@ -14,6 +14,7 @@
 const { isoDate, progressOf, LEFT, median } = require('./dashboard-stats');
 const { newestSheet } = require('../shared/teams');
 const { localDate } = require('../shared/server-utils');
+const { eventFor } = require('./source-options');
 
 const MIN_SAMPLE = 10;
 const DAY = 86400000;
@@ -371,7 +372,7 @@ function buildInsights({ workbook, cards = {}, planning = {}, partners = [], b2b
 
   // -- events and campaigns --
   const eventRows = plan.events.map((e) => {
-    const mine = all.filter((s) => { const d = s.detail.toLowerCase(); const n = e.name.toLowerCase(); return d === n || d.startsWith(n + ','); });
+    const mine = all.filter((s) => { const hit = eventFor(plan.events, s.detail); return hit && hit.id === e.id; });
     const g = rates(mine.reduce((acc, s) => count(acc, s), newGroup(e.name)));
     return { ...g, id: e.id, date: e.date, endDate: e.endDate || '', days: e.endDate ? Math.round((dayNumber(e.endDate) - dayNumber(e.date))) + 1 : 1, kind: e.kind || 'Event', type: e.type, place: e.place, cost: e.cost, registered: e.registered, attended: e.attended, costPerStudent: costPer(e.cost, g.students), costPerVisa: costPer(e.cost, g.visas), showUp: pct(e.attended, e.registered) };
   }).sort((a, b) => b.date.localeCompare(a.date));
@@ -600,7 +601,10 @@ function buildInsights({ workbook, cards = {}, planning = {}, partners = [], b2b
   if (admin) {
     const soon = (label, kind, end) => {
       const iso = isoDate(end) || (/^\d{4}-\d{2}-\d{2}$/.test(text(end)) ? text(end) : '');
-      const parsed = iso || (Number.isNaN(Date.parse(text(end))) ? '' : new Date(Date.parse(text(end))).toISOString().slice(0, 10));
+      const dayFirst = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(text(end)); // 31/12/2026: the first number can only be the day
+      const fromDayFirst = dayFirst && Number(dayFirst[1]) > 12 ? isoDate(`${dayFirst[2]}/${dayFirst[1]}/${dayFirst[3]}`) : '';
+      const utc = Date.parse(`${text(end)} UTC`); // read as a calendar day, not in the server's time zone
+      const parsed = iso || fromDayFirst || (Number.isNaN(utc) ? '' : new Date(utc).toISOString().slice(0, 10));
       if (!text(end)) { agreements.push({ label, kind, end: '', days: null, state: 'no-date' }); return; }
       if (!parsed) { agreements.push({ label, kind, end: text(end), days: null, state: 'unread' }); return; }
       const days = Math.round(dayNumber(parsed) - today);

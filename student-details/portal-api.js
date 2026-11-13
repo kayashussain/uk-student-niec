@@ -10,11 +10,12 @@
 
 const fs = require('fs');
 const path = require('path');
-const { sendJSON, send, readJSONBody } = require('../shared/server-utils');
+const { sendJSON, send, readJSONBody, localDate } = require('../shared/server-utils');
+const { isoDate } = require('./dashboard-stats');
 const Teams = require('../shared/teams');
 const mailer = require('../shared/mailer');
 const Fields = require('./card-fields');
-const { eventLabel } = require('./source-options');
+const { eventLabel, eventFor } = require('./source-options');
 const { ROW_ID } = require('./cards');
 const Messages = require('./messages');
 const { buildIndex, searchCourses, linkKey, parseCourses } = require('./course-index');
@@ -300,12 +301,12 @@ function createPortalApi({
     ];
     const by = Object.fromEntries(sections.map((x) => [x.key, x]));
     const totals = { active: 0, applied: 0, visas: 0, atMock: 0, deferred: 0, inquiries: 0 };
-    const dateOf = (v) => { const t = text(v); const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(t); if (m) return t; const u = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(t); return u ? `${u[3]}-${u[1].padStart(2, '0')}-${u[2].padStart(2, '0')}` : ''; };
+    const dateOf = (v) => isoDate(v);
     for (const { sheet, row } of visibleStudents(user)) {
       const stage = text(row[STATUS]);
       const card = all[row._id] || { notes: [], messages: [] };
       const last = [...(card.notes || []).map((n) => n.at), ...(card.messages || []).map((m) => m.at)].filter(Boolean).sort().pop();
-      const lastDay = last ? dayNo(last.slice(0, 10)) : null;
+      const lastDay = last ? dayNo(localDate(new Date(last))) : null;
       const add = (key, detail, waited) => by[key].rows.push({ id: row._id, name: nameOf(row), stage, intake: sheet.name, detail, waited });
       if (stage === 'Defer') {
         totals.deferred += 1;
@@ -349,14 +350,14 @@ function createPortalApi({
   const eventOf = (detail) => {
     const d = text(detail).toLowerCase();
     if (!d) return null;
-    return planning.all().events.find((e) => { const n = e.name.toLowerCase(); return d === n || d.startsWith(n + ','); }) || null;
+    return eventFor(planning.all().events, detail);
   };
   function activities(user) {
     const wb = getWorkbook();
     const plan = planning.all();
     const all = cards.all();
     const list = plan.events.map((e) => ({ ...e, leads: 0, applied: 0, visas: 0, students: [] }));
-    const byName = (detail) => { const d = text(detail).toLowerCase(); return d ? list.find((e) => { const n = e.name.toLowerCase(); return d === n || d.startsWith(n + ','); }) : null; };
+    const byName = (detail) => eventFor(list, detail);
     if (wb) wb.sheets.forEach((sheet) => sheet.rows.forEach((row) => {
       if (!isStudent(row)) return;
       const card = all[row._id];

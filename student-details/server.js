@@ -9,7 +9,7 @@ const {
 const { createAccounts } = require('../shared/accounts');
 const { makePatch, applyPatch } = require('../shared/patch');
 const {
-  isAdmin, isManager, isReadOnly, teamOf, viewKey, viewFor, teamChanges, canEdit, canColor, canDelete, checkMove, newestSheet, STATUS,
+  isAdmin, isManager, isReadOnly, kindOf, teamOf, viewKey, viewFor, teamChanges, canEdit, canColor, canDelete, checkMove, newestSheet, STATUS,
 } = require('../shared/teams');
 const { buildDashboard } = require('./dashboard-stats');
 const { createFacts, viewFacts } = require('./facts');
@@ -30,6 +30,7 @@ const { createCourseFinder } = require('./course-finder');
 const { createCourseWatch } = require('./course-watch');
 const { createPlanning } = require('./planning');
 const { createSourceOptions } = require('./source-options');
+const CardFields = require('./card-fields');
 const { createB2b } = require('./b2b');
 const { createPortalApi } = require('./portal-api');
 const { buildInsights } = require('./insights-engine');
@@ -359,12 +360,19 @@ const CALCULATED_COLUMNS = ['FEE AFTER SCHOLARSHIP', 'REMAINING TUITION FEE'];
 const MAX_CELL_CHARS = 5000;
 
 // A team's cells are plain text (or a number or yes/no), not too long, and in a column the sheet has.
-function cellValueError(cells, sheet) {
+function cellValueError(cells, sheet, user) {
   const columns = new Set((sheet && sheet.columns) || []);
   for (const { col, value } of cells) {
     if (col.startsWith('_')) continue;
     if (!columns.has(col)) return `There is no column called ${col.slice(0, 60)} on this sheet.`;
     if (value !== null && !['string', 'number', 'boolean'].includes(typeof value)) return 'A cell can only hold text.';
+    if (col === 'STUDENT SOURCE' && String(value ?? '').trim()) {
+      // Only a source the portal offers; a branch is only given by a branch team (it decides who sees the student).
+      const v = String(value).trim();
+      const known = CardFields.STORED_SOURCES.find((x) => x.toLowerCase() === v.toLowerCase());
+      if (!known) return 'Please choose the Student Source from the list.';
+      if (CardFields.isBranchValue(known) && user && kindOf(user) !== 'branch') return 'Only a branch can add a student under its own branch.';
+    }
     if (String(value ?? '').length > MAX_CELL_CHARS) return `A cell can hold up to ${MAX_CELL_CHARS} characters.`;
   }
   return null;
@@ -403,7 +411,7 @@ function teamSave(req, parsed) {
   const intake = newestSheet(current.sheets.filter((s) => !s.hidden));
   const inIntake = (sheetId) => Boolean(intake) && sheetId === intake.id;
   const cellError = cellValueError(changes.map((c) => ({ col: c.col, value: c.value }))
-    .concat(adds.flatMap((a) => Object.keys(a.row).map((col) => ({ col, value: a.row[col] })))), intake);
+    .concat(adds.flatMap((a) => Object.keys(a.row).map((col) => ({ col, value: a.row[col] })))), intake, req.user);
   if (cellError) return { status: 400, body: { error: cellError } };
   // The rules were checked against the revision the page had, which may be older. Each change is checked again
   // against the student as the server has them now (someone may have moved them on, or changed their source,
