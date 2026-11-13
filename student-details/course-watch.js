@@ -34,10 +34,19 @@ function createCourseWatch({ dir, getIndex, facts, finder, courseLinks, fetchFn 
   const write = (d) => { fs.mkdirSync(dir, { recursive: true, mode: 0o700 }); writeFileAtomic(file, JSON.stringify(d, null, 1)); };
   let running = false;
 
-  async function openPage(url) {
-    const res = await fetchFn(url, { redirect: 'follow', headers: { 'User-Agent': 'Mozilla/5.0 (compatible; ISR-portal)' }, signal: AbortSignal.timeout(20000) });
+  async function openPage(url, hosts) {
+    // Redirects are followed one by one, and only while they stay on the university's own website.
+    let at = url; let res;
+    for (let hop = 0; hop < 5; hop += 1) {
+      res = await fetchFn(at, { redirect: 'manual', headers: { 'User-Agent': 'Mozilla/5.0 (compatible; ISR-portal)' }, signal: AbortSignal.timeout(20000) });
+      const to = res.status >= 300 && res.status < 400 && res.headers && res.headers.get ? res.headers.get('location') : '';
+      if (!to) break;
+      let next; try { next = new URL(to, at).href; } catch (e) { return { status: res.status, ok: false, finalUrl: at, html: '' }; }
+      if (hosts && hosts.length && !onHosts(next, hosts)) return { status: res.status, ok: false, finalUrl: next, html: '' };
+      at = next;
+    }
     const html = res.ok ? (await res.text()).slice(0, 600000) : '';
-    return { status: res.status, ok: res.ok, finalUrl: res.url || url, html };
+    return { status: res.status, ok: res.ok, finalUrl: res.url || at, html };
   }
 
   // Checks one course; returns its new record.
@@ -55,7 +64,7 @@ function createCourseWatch({ dir, getIndex, facts, finder, courseLinks, fetchFn 
     rec.link = link;
     if (hosts && hosts.length && !onHosts(link, hosts)) return { ...rec, status: 'unreachable', note: 'The saved link is not on the university website.' };
     let page;
-    try { page = await openPage(link); } catch (e) { return { ...rec, status: 'unreachable', note: `The page could not be opened (${e.message}).` }; }
+    try { page = await openPage(link, hosts); } catch (e) { return { ...rec, status: 'unreachable', note: `The page could not be opened (${e.message}).` }; }
     if (page.status === 404 || page.status === 410) return { ...rec, status: 'inactive', confirmed: false, note: `The page is gone (the website answered ${page.status}).` };
     if (!page.ok) return { ...rec, status: 'unreachable', note: `The website answered ${page.status}.` };
     if (page.finalUrl && page.finalUrl !== link && onHosts(page.finalUrl, hosts) && new URL(page.finalUrl).pathname.length > 1) { link = page.finalUrl; rec.link = link; courseLinks.remember(entry.universityId, entry.course, link); rec.movedTo = link; }

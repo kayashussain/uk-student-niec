@@ -296,8 +296,17 @@ function createAccounts({
 
   // A request a page on another website made the browser send. SameSite=Strict already keeps the
   // cookie off those; this refuses them outright as well.
+  // Also refused: a request whose Origin names another website than the one it was sent to (older browsers send no Sec-Fetch-Site).
+  const otherOrigin = (req) => {
+    const origin = String(req.headers.origin || '');
+    if (!origin || origin === 'null') return false;
+    let host = '';
+    try { host = new URL(origin).host.toLowerCase(); } catch (e) { return true; }
+    const own = [req.headers.host, String(req.headers['x-forwarded-host'] || '').split(',')[0]].map((h) => String(h || '').trim().toLowerCase()).filter(Boolean);
+    return !own.includes(host);
+  };
   const crossSite = (req) => req.method !== 'GET' && req.method !== 'HEAD'
-    && String(req.headers['sec-fetch-site'] || '') === 'cross-site';
+    && (String(req.headers['sec-fetch-site'] || '') === 'cross-site' || otherOrigin(req));
 
   // ---- the check every request goes through ----
   function requireAuth(req, res) {

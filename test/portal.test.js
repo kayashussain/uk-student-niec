@@ -463,8 +463,8 @@ test('on the real server: cards follow the rules of the sheet, messages are reco
   const wa = (await app('POST', `/api/cards/${sitaId}/messages/send`, { channel: 'whatsapp', template: 'offer_received' })).json;
   assert.strictEqual(wa.status, 'opened');
   assert.strictEqual((await app('POST', `/api/cards/${sitaId}/messages/send`, { channel: 'email', template: 'offer_received', to: 'not an address' })).status, 400);
-  // The link typed for the course is remembered for the next student.
-  assert.ok((await app('GET', `/api/courses?q=${encodeURIComponent(pick.course)}`)).json.options.some((o) => o.linkIsCourse && o.link === 'https://example.org/course'));
+  // A link typed on a card that is not on the university's own website is not shared with every other student.
+  assert.ok(!(await app('GET', `/api/courses?q=${encodeURIComponent(pick.course)}`)).json.options.some((o) => o.linkIsCourse && o.link === 'https://example.org/course'));
 
   // The Fact File assistant, with the details of the student's card.
   const found = await app('POST', '/api/finder', { request: 'nursing top up', studentId: sitaId });

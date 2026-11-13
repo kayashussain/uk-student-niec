@@ -8,7 +8,7 @@ const path = require('path');
 const crypto = require('crypto');
 const { writeFileAtomic } = require('../shared/server-utils');
 
-const fileName = (v) => String(v || '').replace(/[\\/\u0000-\u001f]/g, '').replace(/^\.+/, '').trim().slice(0, 120);
+const fileName = (v) => String(v || '').replace(/[\\/\u0000-\u001f\u200e\u200f\u202a-\u202e\u2066-\u2069]/g, '').replace(/^\.+/, '').trim().slice(0, 120);
 
 const LIMITS = { name: 120, short: 300, text: 12000, campuses: 40, slabs: 60, contacts: 20, items: 300 };
 const STATUSES = ['Active', 'Pending', 'On hold', 'Ended'];

@@ -200,7 +200,11 @@ function createPortalApi({
     }
     if (total > 15 * 1024 * 1024) return sendJSON(res, 413, { error: 'The files are too large to send together (the limit is 15 MB).' });
     const entry = { channel, template: template ? template.name : 'Own message', subject: email.subject, to, text: email.text, options: usesOptions ? ctx.options.length : 0, attachments: files.map((f) => f.name) };
-    if (usesOptions) ctx.options.forEach((o) => courseLinks.remember(o.universityId, o.course, o.link));
+    if (usesOptions) {
+      // A link typed on a card is only remembered for the Fact File when it is on that university's own website.
+      const unis = facts.all();
+      ctx.options.forEach((o) => { const u = unis.find((x) => x.id === o.universityId); if (u && hostsOf(u).length && onHosts(o.link, hostsOf(u))) courseLinks.remember(o.universityId, o.course, o.link); });
+    }
     if (!cfg) {
       // Email is not set up on this server (always the case on a test computer): nothing leaves, and the card keeps the
       // message as a preview so the whole step can still be checked.
@@ -542,6 +546,7 @@ function createPortalApi({
 
   // Many students at once, all with the same stage, source and event or marketing tag: one line each (name, email, phone).
   async function handleBulkStudents(req, res) {
+    if (Teams.isReadOnly(req.user)) { sendJSON(res, 403, { error: 'Your account can only view students.' }); return true; }
     const body = await bodyOf(req, res, 1024 * 1024);
     if (!body) return true;
     const lines = (Array.isArray(body.rows) ? body.rows : []).filter((r) => r && typeof r === 'object').slice(0, 200);
@@ -839,6 +844,7 @@ function createPortalApi({
       return true;
     }
     if (req.method !== 'POST' || !/^\/api\/bulk\/(preview|send-email)$/.test(urlPath)) { send(res, 404, 'Not found'); return true; }
+    if (urlPath === '/api/bulk/send-email' && Teams.isReadOnly(req.user)) { sendJSON(res, 403, { error: 'Your account can only view students.' }); return true; }
     const body = await bodyOf(req, res, 512 * 1024);
     if (!body) return true;
     const ids = [...new Set(Array.isArray(body.ids) ? body.ids.map(String) : [])].filter((i) => ROW_ID.test(i)).slice(0, 150);

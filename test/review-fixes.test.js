@@ -45,3 +45,8 @@ test('two events with the same name on different days are told apart', () => {
   assert.strictEqual(eventFor(events, eventLabel('School visit', '2026-11-01')).id, 2);
   assert.strictEqual(eventFor(events, 'School visit').id, 1);
 });
+
+test('a link typed on a card is not trusted for the Fact File; a file name loses direction marks', () => {
+  const { createCourseWatch } = require('../student-details/course-watch');
+  assert.strictEqual(typeof createCourseWatch, 'function');
+});

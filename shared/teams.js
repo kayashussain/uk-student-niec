@@ -92,7 +92,7 @@
     'LANGUAGE TEST DATE': 'Language Test', 'PRE CAS INTERVIEW': 'Pre-CAS Interview', 'E-VISA': 'E-Visa',
   };
   const KEEP_CAPS = new Set(['ID', 'NOC', 'CAS', 'UK', 'VFS']);
-  const label = (col) => SHOWN_AS[col] || col.split(' ').map((w) => (KEEP_CAPS.has(w) ? w : w.charAt(0) + w.slice(1).toLowerCase())).join(' ');
+  const label = (col) => (Object.prototype.hasOwnProperty.call(SHOWN_AS, col) ? SHOWN_AS[col] : '') || col.split(' ').map((w) => (KEEP_CAPS.has(w) ? w : w.charAt(0) + w.slice(1).toLowerCase())).join(' ');
 
   // Normalises "who" into { role: 'admin' | 'manager' | 'staff', departments: [known department names] }.
   function who(x) {

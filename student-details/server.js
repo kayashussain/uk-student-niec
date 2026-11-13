@@ -1040,6 +1040,10 @@ const server = http.createServer(async (req, res) => {
 process.on('unhandledRejection', (err) => console.error('[unhandled]', err));
 process.on('uncaughtException', (err) => console.error('[uncaught]', err));
 
+// A connection that sends its request very slowly is closed instead of being held for minutes.
+server.headersTimeout = 15000;
+server.requestTimeout = 60000;
+
 server.listen(PORT, () => {
   console.log(`ISR running at http://localhost:${PORT}`);
 });
