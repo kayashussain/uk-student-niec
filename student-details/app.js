@@ -37,8 +37,12 @@
     'STUDENT SOURCE': SOURCE_OPTIONS,
     // Filled from Partner Universities and B2B Partners when the page opens (loadPartnerChoices); a new partner is added there first.
     'UNIVERSITY PARTNER': [],
+    // Filled the same way: the head office and the branches, then the agents (loadPartnerChoices).
+    'RECEIVING PARTNER': [],
   };
-  const PARTNER_GROUP = new Map(); // name -> 'Partner Universities' or 'B2B Partners'
+  // The group each choice is shown under, per column: 'Partner Universities' / 'B2B Partners', 'Head office and branches' / 'Agents'.
+  const CHOICE_GROUP = { 'UNIVERSITY PARTNER': new Map(), 'RECEIVING PARTNER': new Map() };
+  const PARTNER_GROUP = CHOICE_GROUP['UNIVERSITY PARTNER'];
   // Language test results (IELTS/PTE/etc.) are valid for 2 years. Flag as "expiring soon"
   // once within 3 months of that expiry (21 months elapsed), matching the source sheet's rule.
   const LANGUAGE_TEST_VALID_MONTHS = 24;
@@ -1529,8 +1533,8 @@
             if (col === SOURCE_COL && opt && window.CardFields.isBranchValue(opt)) {
               if (!branchGroup) { branchGroup = document.createElement('optgroup'); branchGroup.label = 'Branch'; select.appendChild(branchGroup); }
               branchGroup.appendChild(o);
-            } else if (col === PARTNER_COL && opt && PARTNER_GROUP.has(opt)) {
-              const label = PARTNER_GROUP.get(opt);
+            } else if (CHOICE_GROUP[col] && opt && CHOICE_GROUP[col].has(opt)) {
+              const label = CHOICE_GROUP[col].get(opt);
               let g = [...select.querySelectorAll('optgroup')].find((x) => x.label === label);
               if (!g) { g = document.createElement('optgroup'); g.label = label; select.appendChild(g); }
               g.appendChild(o);
@@ -1879,7 +1883,7 @@
   }
 
   // Columns where people type the same names again and again, so a slip can be matched against the sheet.
-  const SUGGEST_COLS = new Set(['UNIVERSITY NAME', 'COURSE NAME', 'RECEIVING PARTNER']);
+  const SUGGEST_COLS = new Set(['UNIVERSITY NAME', 'COURSE NAME']);
   // Every value already in this column, across all the sheets this account can see.
   function knownValues(col) {
     return sheets.flatMap((s) => s.rows.map((r) => r[col]));
@@ -2973,7 +2977,7 @@
   setInterval(syncPresence, 5000);
   setInterval(() => { if (JSON.stringify(myPresence()) !== lastSent) syncPresence(); }, 50);
   document.addEventListener('visibilitychange', () => { if (!document.hidden) syncPresence(); });
-  // The University Partner choices: Partner Universities, then B2B Partners.
+  // The University Partner choices (Partner Universities, then B2B Partners) and the Receiving Partner choices (head office and branches, then agents).
   async function loadPartnerChoices() {
     try {
       const r = await fetch('/api/partner-choices', { cache: 'no-store' });
@@ -2983,6 +2987,11 @@
       c.universities.forEach((n) => PARTNER_GROUP.set(n, 'Partner Universities'));
       c.partners.forEach((n) => { if (!PARTNER_GROUP.has(n)) PARTNER_GROUP.set(n, 'B2B Partners'); });
       SELECT_COLS[PARTNER_COL] = [...c.universities, ...c.partners.filter((n) => !c.universities.includes(n))];
+      const recv = CHOICE_GROUP['RECEIVING PARTNER'];
+      recv.clear();
+      (c.offices || []).forEach((n) => recv.set(n, 'Head office and branches'));
+      (c.agents || []).forEach((n) => { if (!recv.has(n)) recv.set(n, 'Agents'); });
+      SELECT_COLS['RECEIVING PARTNER'] = [...(c.offices || []), ...(c.agents || []).filter((n) => !(c.offices || []).includes(n))];
       if (rows.length) renderBody();
     } catch (e) { /* offline for a moment: the cells keep what they hold */ }
   }

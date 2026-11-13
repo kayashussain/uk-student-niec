@@ -39,7 +39,7 @@
     const hiddenLine = () => {
       if (!hidden.length) return [];
       const d = el('div', 'bp-hidden');
-      d.append(el('span', '', 'Not B2B partners: '));
+      d.append(el('span', '', KIND === 'agents' ? 'Not agents: ' : 'Not B2B partners: '));
       hidden.forEach((n, k) => { if (k) d.append(', '); d.append(el('b', '', n), ' ', btn('bp-undo', 'show again', async () => { await api(`${API}/not-partner`, { name: n, undo: true }); load(); })); });
       return [d];
     };
@@ -58,10 +58,11 @@
     who.append(el('div', 'bp-name', x.name), el('div', 'bp-sub', `${number(st.visas)} visa${st.visas === 1 ? '' : 's'} from ${number(x.students)} student${x.students === 1 ? '' : 's'} on the sheet`));
     head.append(who, el('span', 'bp-status amber', 'Not set up'));
     const note = el('div', 'bp-submit');
-    note.append(el('div', 'bp-submit-title', 'Named on the sheet'), el('div', 'bp-none', 'Set it up to add how to submit applications, the contact and the commission list.'));
+    note.append(el('div', 'bp-submit-title', 'Named on the sheet'), el('div', 'bp-none', KIND === 'agents' ? 'Named in the Receiving Partner column. Set it up to add the contact, the agreement and the commission list.' : 'Set it up to add how to submit applications, the contact and the commission list.'));
     const foot = el('div', 'bp-foot');
-    foot.append(btn('btn', 'Not a partner', async () => {
-      if (!(await window.NiecUI.confirm(`${x.name} is not a B2B partner? It is hidden here and in the University Partner dropdown (the students keep the name). You can show it again.`, { confirmText: 'Not a partner' }))) return;
+    const notWord = KIND === 'agents' ? 'Not an agent' : 'Not a partner';
+    foot.append(btn('btn', notWord, async () => {
+      if (!(await window.NiecUI.confirm(`${x.name} is not ${KIND === 'agents' ? 'an agent' : 'a B2B partner'}? It is hidden here and in the ${KIND === 'agents' ? 'Receiving' : 'University'} Partner dropdown (the students keep the name). You can show it again.`, { confirmText: notWord }))) return;
       await api(`${API}/not-partner`, { name: x.name }); say(`${x.name} hidden`); load();
     }), btn('btn btn-primary', 'Set up →', async () => { try { const made = await api(API, { name: x.name }); await load(); edit(made.id); } catch (e) { say(e.message, true); } }));
     c.append(head, note, foot);
