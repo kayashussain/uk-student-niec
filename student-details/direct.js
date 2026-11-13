@@ -34,6 +34,18 @@ const MAX_FILES = 20;
 
 const str = (v, max) => (typeof v === 'string' ? v.replace(/\r\n?/g, '\n').slice(0, max) : '');
 const newId = () => crypto.randomBytes(6).toString('hex');
+// Where applications to the university are sent: a web portal (only a real http or https address is kept, so a link can
+// never run a script; "apply.uni.ac.uk" gets https:// in front) and an email address. Anything else is not kept.
+function cleanPortal(v) {
+  let s = str(v, 600).trim();
+  if (!s) return '';
+  if (!/^[a-z][a-z0-9+.-]*:/i.test(s) && /^[\w-]+(\.[\w-]+)+(:\d+)?([/?#].*)?$/.test(s)) s = 'https://' + s;
+  try { const u = new URL(s); return (u.protocol === 'https:' || u.protocol === 'http:') && u.hostname.includes('.') ? u.href : ''; } catch (e) { return ''; }
+}
+function cleanApplyEmail(v) {
+  const s = str(v, 254).trim();
+  return /^[^\s@<>"']+@[^\s@<>"']+\.[^\s@<>"']+$/.test(s) ? s : '';
+}
 
 // What is kept for a university, whatever was sent: only the known fields, as text, within limits.
 // Only what a consultancy needs day to day: campuses, commission slabs and payment terms, when the agreement ends,
@@ -68,6 +80,9 @@ function clean(input, old = {}) {
     paymentTerms: str(input.paymentTerms, LIMITS.text),
     agreementEnd: str(input.agreementEnd, 40).trim(),
     contacts,
+    // How the team sends an application to this university (both optional; older records have neither).
+    applyPortal: cleanPortal(input.applyPortal),
+    applyEmail: cleanApplyEmail(input.applyEmail),
     notes: str(input.notes, LIMITS.text),
   };
 }
@@ -102,6 +117,7 @@ const summary = (u) => ({
   agreementEnd: u.agreementEnd, agreementCount: u.agreements.length, updatedAt: u.updatedAt,
   // The first contact person is shown in the list; the rest are on the university's page.
   contact: u.contacts[0] || { name: '', email: '', phone: '' }, contactCount: u.contacts.length,
+  applyPortal: u.applyPortal || '', applyEmail: u.applyEmail || '',
 });
 
 
@@ -236,4 +252,4 @@ function createDirect(dir, {
   };
 }
 
-module.exports = { createDirect, viewDirect, clean, STATUSES, TYPES, STARTERS, FILE_TYPES, MAX_FILE_BYTES, LIMITS };
+module.exports = { createDirect, viewDirect, clean, cleanPortal, cleanApplyEmail, STATUSES, TYPES, STARTERS, FILE_TYPES, MAX_FILE_BYTES, LIMITS };

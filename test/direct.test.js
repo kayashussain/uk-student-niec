@@ -37,6 +37,26 @@ test('the list starts empty and keeps campuses, slabs and contacts as plain text
   assert.strictEqual(direct.update(university.id, { status: 'Whatever' }, 'Kayas').university.status, 'Active');
 });
 
+test('where to send applications: a real web link or email is kept, anything else (a script link, a bad address) is not, and old records still read', () => {
+  const { cleanPortal, cleanApplyEmail } = require('../student-details/direct');
+  assert.strictEqual(cleanPortal('https://apply.uni.ac.uk/start?x=1'), 'https://apply.uni.ac.uk/start?x=1');
+  assert.strictEqual(cleanPortal(' apply.uni.ac.uk/portal '), 'https://apply.uni.ac.uk/portal', 'a bare address gets https:// in front');
+  assert.strictEqual(cleanPortal('javascript:alert(1)'), '', 'a script link is never kept');
+  assert.strictEqual(cleanPortal('data:text/html,hi'), '');
+  assert.strictEqual(cleanPortal('not a link'), '');
+  assert.strictEqual(cleanApplyEmail(' admissions@uni.ac.uk '), 'admissions@uni.ac.uk');
+  assert.strictEqual(cleanApplyEmail('admissions at uni'), '');
+  assert.strictEqual(cleanApplyEmail('a@b.c"><script>'), '');
+  const dir = tmp();
+  const direct = createDirect(dir, { starters: [{ name: 'Old University', campuses: [] }] });
+  const old = direct.list()[0];
+  assert.strictEqual(old.applyPortal, '', 'a record saved before these fields existed reads as having none');
+  assert.strictEqual(old.applyEmail, '');
+  const saved = direct.update(old.id, { ...direct.get(old.id), applyPortal: 'portal.old.ac.uk', applyEmail: 'apply@old.ac.uk' }, 'Kayas');
+  assert.strictEqual(saved.university.applyPortal, 'https://portal.old.ac.uk/');
+  assert.strictEqual(direct.list()[0].applyEmail, 'apply@old.ac.uk');
+});
+
 test('a new list starts with the five direct universities, once, and a removed one is not added back', () => {
   const dir = tmp();
   const direct = createDirect(dir);

@@ -32,7 +32,7 @@
       if (!list.length) {
         body.replaceChildren(Object.assign(el('tr'), {}));
         const td = el('td', 'muted', 'No partner universities yet. Add the first one above.');
-        td.colSpan = 9;
+        td.colSpan = 10;
         body.firstChild.append(td);
         return;
       }
@@ -54,10 +54,15 @@
         const person = cell('Contact person', (c.name || '') + (u.contactCount > 1 ? ` +${u.contactCount - 1} more` : '') || '-');
         const phone = cell('Phone', c.phone || '-');
         const email = cell('Email', c.email || '-');
+        // Where applications go: the portal (opens in a new tab) and the email, either or both.
+        const apply = el('td'); apply.dataset.label = 'Send applications';
+        if (u.applyPortal) { const a = el('a', 'apply-link', 'Open portal'); a.href = u.applyPortal; a.target = '_blank'; a.rel = 'noopener noreferrer'; a.title = u.applyPortal; apply.append(a); }
+        if (u.applyEmail) { const a = el('a', 'apply-link', u.applyEmail); a.href = 'mailto:' + u.applyEmail; apply.append(a); }
+        if (!u.applyPortal && !u.applyEmail) apply.textContent = '-';
         const act = el('td');
         const btn = el('button', 'btn btn-sm', 'Open'); btn.type = 'button'; btn.addEventListener('click', () => openEditor(u.id));
         act.append(btn);
-        tr.append(name, campuses, commission, status, end, person, phone, email, act);
+        tr.append(name, campuses, commission, status, end, person, phone, email, apply, act);
         return tr;
       }));
     } catch (e) { say('listMsg', e.message, true); }
@@ -176,6 +181,17 @@
     const contacts = repeater('Contact person', '', [['name', 'Name', 'text'], ['phone', 'Phone', 'text'], ['email', 'Email', 'text']], uni.contacts, 'Add a contact');
     form.append(contacts.node);
 
+    // How applications are sent: the team sees these on each student's card for this university.
+    const applyBox = el('div', 'section');
+    f.applyPortal = text(uni.applyPortal, 600, 'e.g. https://apply.university.ac.uk');
+    f.applyPortal.inputMode = 'url';
+    f.applyEmail = text(uni.applyEmail, 254, 'e.g. admissions@university.ac.uk');
+    f.applyEmail.type = 'email';
+    const applyRow = el('div', 'form');
+    applyRow.append(field('Application portal link', f.applyPortal), field('Application email', f.applyEmail));
+    applyBox.append(el('h3', '', 'How to send applications'), el('p', 'hint', 'The portal link, the email, or both. Your team sees them on the card of every student applying to this university.'), applyRow);
+    form.append(applyBox);
+
     const notes = el('div', 'section'); f.notes = area(uni.notes, 'Anything else to remember.');
     notes.append(el('h3', '', 'Notes'), f.notes);
     form.append(notes);
@@ -201,7 +217,10 @@
       say('editMsg', 'Saving...');
       try {
         uni = await api('/api/direct/' + uni.id, body);
-        window.NiecUI.toast('Saved', { type: 'success' });
+        // A portal link or email that is not a real address is not kept: say so instead of losing it quietly.
+        const lost = [body.applyPortal && body.applyPortal.trim() && !uni.applyPortal ? 'the portal link (it must be a web address, e.g. https://apply.university.ac.uk)' : '', body.applyEmail && body.applyEmail.trim() && !uni.applyEmail ? 'the application email (it must be an email address)' : ''].filter(Boolean);
+        if (lost.length) window.NiecUI.toast(`Saved, but ${lost.join(' and ')} could not be kept. Please check it and save again.`, { type: 'error' });
+        else window.NiecUI.toast('Saved', { type: 'success' });
         buildEditor();
         loadList();
       } catch (err) { say('editMsg', err.message, true); }

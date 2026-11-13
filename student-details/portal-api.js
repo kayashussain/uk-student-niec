@@ -33,6 +33,18 @@ function createPortalApi({
   getWorkbook, writeWorkbook, recordChanges, teamSave, cards, messages, courseLinks, sourceOptions, courseLinker = null, courseWatch = () => null, facts, direct, b2b, agents, planning, accounts, activity,
   insights = null, finder = null, calculated = [],
 }) {
+  // ---- where to send a student's application: the portal link and email saved on Partner Universities ----
+  // The student's university is matched to a partner by name, ignoring case, spaces and punctuation; a partner name with a
+  // delivery partner in brackets ("Ulster University (QA)") also matches the plain name. Only these two fields leave
+  // Partner Universities (never the commission or the agreement), and a partner marked Ended is left out.
+  const squash = (s) => String(s || '').toLowerCase().replace(/\(.*?\)/g, ' ').replace(/[^a-z0-9]+/g, '');
+  function applyRouteFor(university) {
+    const want = squash(university);
+    if (!want || !direct || !direct.all) return null;
+    const hit = direct.all().find((u) => u.status !== 'Ended' && (u.applyPortal || u.applyEmail) && squash(u.name) === want);
+    return hit ? { university: hit.name, portal: hit.applyPortal || '', email: hit.applyEmail || '' } : null;
+  }
+
   // ---- finding a student, and who may see or change them ----
   let indexed = { wb: null, map: new Map() };
   function rowIndex() {
@@ -402,6 +414,7 @@ function createPortalApi({
           me: { name: req.user.name },
           event: (() => { const e = eventOf(card.profile.sourceDetail); return e ? { name: e.name, kind: e.kind || 'Event', type: e.type, place: e.place, date: e.date, endDate: e.endDate } : null; })(),
           mail: { ready: Boolean(cfg), from: cfg ? cfg.from : '' },
+          apply: applyRouteFor(found.row['UNIVERSITY NAME']),
           today: cards.today(),
         });
         return true;
