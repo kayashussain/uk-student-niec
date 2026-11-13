@@ -102,7 +102,7 @@
     const ev = card('Events and marketing', 'What each one cost, how long it ran and how many students and visas it brought. Add and change them on the Events and marketing page.');
     ev.append(h('a', { class: 'btn btn-sm no-print', href: '/events' }, 'Open Events and marketing'));
     const ranText = (e) => (e.endDate && e.endDate !== e.date ? `${e.date} to ${e.endDate}` : e.date);
-    ev.append(data.events.length ? table(['Name', 'Ran', 'Days', 'Cost', 'Students', 'Visas', 'Cost per student', 'Cost per visa'], data.events.map((e) => [el('b', '', e.label), ranText(e), number(e.days), rupees(e.cost), number(e.students), number(e.visas), e.costPerStudent ? rupees(e.costPerStudent) : '', e.costPerVisa ? rupees(e.costPerVisa) : '']), { numCols: [2, 3, 4, 5, 6, 7] }) : el('div', 'p-empty', 'No event or marketing recorded yet.'));
+    ev.append(data.events.length ? table(['Name', 'Ran', 'Days', 'Investment', 'Enquiries', 'Visas', 'Cost per enquiry', 'Cost per visa'], data.events.map((e) => [el('b', '', e.label), ranText(e), number(e.days), rupees(e.cost), number(e.students), number(e.visas), e.costPerStudent ? rupees(e.costPerStudent) : '', e.costPerVisa ? rupees(e.costPerVisa) : '']), { numCols: [2, 3, 4, 5, 6, 7] }) : el('div', 'p-empty', 'No event or marketing recorded yet.'));
     out.push(ev);
     return out;
   }

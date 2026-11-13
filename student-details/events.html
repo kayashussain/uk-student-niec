@@ -11,7 +11,7 @@
 <link rel="stylesheet" href="portal.css" />
 <link rel="stylesheet" href="theme.css" />
 <style>
-  /* 🔴 CSS CHANGED (2026-11-13): Events and marketing, rebuilt again: a ledger, an event page with the upload of its students, and its student list | from: four separate number tiles and a grid of big cards (each with its own figures), with the students of one in a small window | to: one calm summary band (Spent, Students, Visas, Cost per student, Cost per visa) divided by fine lines with serif figures; filter pills; every event as one row of a clean ledger (name in navy with its "where it ran" tag and dates, then Cost, Students, Visas, Cost per student and Cost per visa lined up in columns, and an arrow); a click opens the event as its own view: the name in a large navy serif, its figures in the same kind of band, a soft "Students from this event" panel with "Upload the list (Excel or CSV)", a review of every line in coloured groups (New, Already on the sheet, Already tagged, In another event, Skipped) before anything is saved, and the list of its students (name, phone, stage tag, intake, the latest note) where a click opens the student card; the form keeps the "Where it ran" pills */
+  /* 🔴 CSS CHANGED (2026-11-13): Events and marketing, rebuilt as a ledger with an event page | from: four separate number tiles and a grid of big cards (each with its own figures), with the students of one in a small window | to: one calm summary band (Total investment, Enquiries, Visas, Cost per enquiry, Cost per visa) divided by fine lines with serif figures; filter pills (All, Campaigns, Events); every event as one row of a clean ledger (name in navy with its "where it ran" tag and dates, then Investment, Enquiries, Visas, Per enquiry and Per visa lined up in columns, and an arrow); a click opens the event as its own view: the name in a large navy serif, its figures in the same kind of band, a soft "Upload the enquiry list" panel with a review of every line in coloured groups (New, Match, Linked, Other event, Skipped) before anything is saved, and its enquiries (name, phone, stage tag, intake, the latest note) where a click opens the student card; the form keeps the "Where it ran" pills */
   .ev-page { max-width: 1480px; }
   .ev-band { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); margin: 8px 0 20px; border: 1px solid var(--border); border-radius: 18px; background: var(--panel); box-shadow: 0 1px 2px rgba(20, 27, 41, .04), 0 18px 36px -32px rgba(29, 47, 82, .55); overflow: hidden; }
   .ev-band > div { padding: 18px 22px; min-width: 0; }
@@ -103,16 +103,16 @@
       <div class="p-head">
         <div>
           <h1>Events and marketing</h1>
-          <p>Every event you ran and every campaign you paid for, with what it cost and the students and visas it brought. Open one to upload its list of students: they go into All Students at Inquiry, tagged with it, and students already on the sheet are found and tagged instead of being added twice.</p>
+          <p>Each event and campaign, its investment, and the enquiries and visas it led to.</p>
         </div>
-        <div class="p-actions"><button class="btn btn-primary" type="button" id="add" hidden>+ Add an event or marketing</button></div>
+        <div class="p-actions"><button class="btn btn-primary" type="button" id="add" hidden>+ New event or campaign</button></div>
       </div>
       <div class="ev-band" id="band"></div>
       <div id="note"></div>
       <div class="ev-bar">
         <div class="ev-pills" id="filter" role="group" aria-label="Show">
           <button type="button" data-f="all" class="on" aria-pressed="true">All</button>
-          <button type="button" data-f="Marketing" aria-pressed="false">Marketing</button>
+          <button type="button" data-f="Marketing" aria-pressed="false">Campaigns</button>
           <button type="button" data-f="Event" aria-pressed="false">Events</button>
         </div>
         <span class="p-muted" id="count"></span>

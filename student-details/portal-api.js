@@ -627,20 +627,20 @@ function createPortalApi({
       const d = digitsOf(phone).slice(-10);
       const line = { name, first, last, email, phone };
       if (!name) { out.push({ ...line, action: 'problem', note: 'No name' }); continue; }
-      if (d.length < 7 && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { out.push({ ...line, action: 'problem', note: 'No phone number or email, so the student could not be matched later' }); continue; }
+      if (d.length < 7 && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { out.push({ ...line, action: 'problem', note: 'No phone or email to match the student by' }); continue; }
       const key = d.length >= 7 ? 'p' + d : 'e' + email;
-      if (seen.has(key) || (email && seen.has('e' + email))) { out.push({ ...line, action: 'problem', note: 'The same phone or email is on an earlier line of this file' }); continue; }
+      if (seen.has(key) || (email && seen.has('e' + email))) { out.push({ ...line, action: 'problem', note: 'Same phone or email as an earlier line' }); continue; }
       seen.add(key); if (email) seen.add('e' + email);
       const found = (d.length >= 7 && byPhone.get(d)) || (email && byEmail.get(email)) || null;
       if (!found) { out.push({ ...line, action: 'new', note: 'Will be added at Inquiry' }); continue; }
       const card = all[found.row._id];
       const tagged = card && eventFor(plan.events, card.profile.sourceDetail);
       const at = { id: found.row._id, intake: found.sheet.name, stage: text(found.row[STATUS]), name: nameOf(found.row) };
-      if (tagged && tagged.id === ev.id) out.push({ ...line, ...at, action: 'already', note: `Already tagged with this event (${at.intake}, ${at.stage || 'no stage'})` });
-      else if (tagged) out.push({ ...line, ...at, action: 'other', note: `Already tagged with another event: ${tagged.name}. Left as it is; change it on the student's card if this one is right.` });
+      if (tagged && tagged.id === ev.id) out.push({ ...line, ...at, action: 'already', note: `Already linked to this event (${at.intake}, ${at.stage || 'no stage'})` });
+      else if (tagged) out.push({ ...line, ...at, action: 'other', note: `Already linked to ${tagged.name}. Left as is; change it on the student card if needed.` });
       else {
         const before = [text(found.row['STUDENT SOURCE']), card && card.profile.sourceDetail].filter(Boolean).join(': ');
-        out.push({ ...line, ...at, before, action: 'link', note: `Already on the sheet (${at.intake}, ${at.stage || 'no stage'})${before ? `, source was "${before}"` : ''}: will be tagged with this event` });
+        out.push({ ...line, ...at, before, action: 'link', note: `Already on the sheet (${at.intake}, ${at.stage || 'no stage'})${before ? `, source was "${before}"` : ''}: will be linked to this event` });
       }
     }
     const count = (a) => out.filter((x) => x.action === a).length;
@@ -649,15 +649,15 @@ function createPortalApi({
     let added = 0; let linked = 0; const failed = [];
     for (const x of out) {
       if (x.action === 'new') {
-        const r = addStudent(req, { fields: { 'FIRST NAME': x.first, 'LAST NAME': x.last, EMAIL: x.email, 'CONTACT NUMBER': x.phone, 'STUDENT SOURCE': 'Events' }, profile: { sourceDetail: label }, stage: 'Inquiry', sheetId: body.sheetId, note: `Came from ${ev.name} (uploaded from its list).` });
+        const r = addStudent(req, { fields: { 'FIRST NAME': x.first, 'LAST NAME': x.last, EMAIL: x.email, 'CONTACT NUMBER': x.phone, 'STUDENT SOURCE': 'Events' }, profile: { sourceDetail: label }, stage: 'Inquiry', sheetId: body.sheetId, note: `Enquiry from ${ev.name}, from its enquiry list.` });
         if (r.status === 200) { added += 1; x.id = r.json.id; } else failed.push(`${x.name}: ${r.json.error || 'could not be added'}`);
       } else if (x.action === 'link') {
         const found = rowIndex().get(x.id);
         const src = setColumns(req, found, { 'STUDENT SOURCE': 'Events' });
         if (src.error) { failed.push(`${x.name}: ${src.error}`); continue; }
         const card = cards.get(x.id);
-        cards.setProfile(x.id, { sourceDetail: label, sourceRemarks: [card.profile.sourceRemarks, x.before ? `Before: ${x.before}` : ''].filter(Boolean).join(' | ').slice(0, 160) }, by(req));
-        cards.addNote(x.id, { kind: 'note', text: `Tagged with ${ev.name}: on the list uploaded for it.${x.before ? ` The source was "${x.before}".` : ''}` }, by(req));
+        cards.setProfile(x.id, { sourceDetail: label, sourceRemarks: [card.profile.sourceRemarks, x.before ? `Previous source: ${x.before}` : ''].filter(Boolean).join(' | ').slice(0, 160) }, by(req));
+        cards.addNote(x.id, { kind: 'note', text: `Linked to ${ev.name} from its enquiry list.${x.before ? ` Previous source: ${x.before}.` : ''}` }, by(req));
         linked += 1;
       }
     }
