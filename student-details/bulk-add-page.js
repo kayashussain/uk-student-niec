@@ -153,6 +153,7 @@
     go.addEventListener('click', async () => {
       if (picker && !pickValue().source) { say('Choose where the students came from first.', true); return; }
       if (picker && pickValue().group === 'Branch' && !pickValue().branch) { say('Choose which branch.', true); return; }
+      if (picker && picker.check()) { say(picker.check(), true); return; }
       const checks = checkRows(rows);
       const sendRows = rows.filter((_, i) => !checks[i].skip);
       if (!sendRows.length) return;

@@ -126,8 +126,13 @@ function createPortalApi({
     // Social media campaigns are offered under "Social Media" too (first), so a student who came from one is counted in its cost.
     const campaigns = newest.filter((e) => channelOf(e) === 'Social media').map((e) => eventLabel(e.name, e.date));
     if (campaigns.length && options['Social Media']) { const seen = new Set(campaigns.map((x) => x.toLowerCase())); options['Social Media'] = [...campaigns, ...options['Social Media'].filter((x) => !seen.has(x.toLowerCase()))]; }
+    // Social media campaigns running now or ended in the last 45 days: when "Social Media" is chosen, the form asks whether the
+    // student came from one of them, and does not save until it is answered, so no campaign student is missed in its cost.
+    const today = cards.today();
+    const back = new Date(Date.parse(today + 'T00:00:00Z') - 45 * 86400000).toISOString().slice(0, 10);
+    const recentCampaigns = newest.filter((e) => channelOf(e) === 'Social media' && e.date && e.date <= today && (e.endDate || e.date) >= back).map((e) => eventLabel(e.name, e.date));
     return {
-      sourceOptions: options,
+      sourceOptions: options, recentCampaigns,
       sourceLabels: Fields.SOURCE_DETAIL_LABEL, sourceCanAdd: Fields.SOURCE_CAN_ADD,
       // Only the names: the terms agreed with a partner stay on the Admin-only page.
       partners: agents.list().filter((p) => p.status !== 'Ended').map((p) => p.name),

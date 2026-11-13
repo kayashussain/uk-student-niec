@@ -166,7 +166,7 @@
       fact('Student source', g);
       if (g === 'Branch') fact('Which branch', F.branchName(s.source));
       else if (p.sourceDetail || (F.SOURCE_DETAILS[g] || []).length || g === 'Agent') fact(F.SOURCE_DETAIL_LABEL[g] || (g === 'Agent' ? 'Which agent' : 'Where exactly'), p.sourceDetail);
-      if (p.sourceRemarks) fact(g === 'Social Media' ? 'Campaign name or remarks' : 'Remarks', p.sourceRemarks);
+      if (p.sourceRemarks) fact('Remarks', p.sourceRemarks);
       box.append(dl);
       return box;
     }
@@ -178,6 +178,8 @@
     const bar = el('div', 'p-bar');
     bar.append(h('button', { class: 'btn btn-primary', type: 'button', onclick: async () => {
       try {
+        const missing = picker.check();
+        if (missing) { say(missing, true); return; }
         const v = picker.value();
         if (data.can.source && v.source !== (s.source || '')) { await save('source', { source: v.source }); data.student.source = v.source; }
         await save('profile', { sourceDetail: v.detail, sourceRemarks: v.remarks }, 'Saved');

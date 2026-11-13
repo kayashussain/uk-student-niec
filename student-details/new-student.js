@@ -46,6 +46,9 @@
       ok.addEventListener('click', async () => {
         const v = (k) => (inputs[k] ? inputs[k].value : '');
         if (!v('FIRST NAME').trim() && !v('LAST NAME').trim()) { msg.textContent = "Please enter the student's name."; msg.className = 'p-msg error'; inputs['FIRST NAME'].focus(); return; }
+        // Where the student came from must be complete (the event, or the campaign answer), so the student counts in its cost.
+        const missing = picker ? picker.check() : '';
+        if (missing) { msg.textContent = missing; msg.className = 'p-msg error'; return; }
         ok.disabled = true;
         msg.textContent = 'Adding…';
         msg.className = 'p-msg';

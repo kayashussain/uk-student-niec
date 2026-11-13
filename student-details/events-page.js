@@ -47,6 +47,7 @@
     const fig = (label, v, cls) => { const d = el('div', cls || ''); d.append(el('span', '', label), el('b', '', v)); figs.append(d); };
     fig('Cost', a.cost ? rupees(a.cost) : '-', 'money');
     fig('Cost per student', a.costPerLead ? rupees(a.costPerLead) : '-', 'money cpl');
+    fig('Cost per visa', a.costPerVisa ? rupees(a.costPerVisa) : '-', 'money cpl');
     fig('Students', number(a.leads), 'count');
     fig('Applied', number(a.applied), 'count');
     fig('Visas', number(a.visas), 'count');
