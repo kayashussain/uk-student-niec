@@ -114,5 +114,5 @@ their own); a restore first saves the current data as a "before restore" backup.
 ## See your real data on your own computer
 
 The students you see in `scripts/local-demo.js` are made up. To look at your real data without touching the live server: download a backup from the
-live server (Admin, Restore, or the daily backup), then run `node scripts/local-live.js <the downloaded file>` and open http://localhost:8090. The copy
+live server (Admin, Restore, or the daily backup), then run `node scripts/local-live.js <the downloaded file>` and open http://localhost:8080. It opens straight into the portal as the owner with no login page, and only on that computer (add `--login` for the normal login page). The copy
 is private to your computer (folder `live-data/`, never in git) and changes made there never reach the live server. Delete `live-data/` when you finish.

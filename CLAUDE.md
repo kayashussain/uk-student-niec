@@ -64,7 +64,7 @@ The owner does not want old versions, copies or rewrites lying around, because a
   them as real, and never let the owner think a number from them is real.
 - The owner wants to see and work with the real data before pushing to the live server. Claude cannot reach the live server or the owner's
   browser, so the way is `scripts/local-live.js`: the owner downloads a backup from the live server (Admin, Restore, or the daily backup)
-  and runs `node scripts/local-live.js <the file>` on their own computer. When the owner asks again for live data, give these steps again,
+  and runs `node scripts/local-live.js <the file>` on their own computer, then opens http://localhost:8080 (no login page, this computer only; `--login` brings the login page back). When the owner asks again for live data, give these steps again,
   say plainly what Claude cannot do, and do not invent data.
 - Real data never goes in git, in code, in tests or in screenshots sent anywhere. `live-data/` and the daily backups are ignored by git.
 - Every change must work with the data that already exists on the live server: stored values keep their meaning (for example a
