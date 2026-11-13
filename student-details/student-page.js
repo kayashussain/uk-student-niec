@@ -106,9 +106,9 @@
     // Where to send the application, from Partner Universities (the portal opens in a new tab).
     if (data.apply && (data.apply.portal || data.apply.email)) {
       const d = el('div', 'p-fact p-fact-apply'); const dd = el('dd');
-      if (data.apply.portal) { const a = el('a', 'p-apply-portal', 'Open the application portal'); a.href = data.apply.portal; a.target = '_blank'; a.rel = 'noopener noreferrer'; a.title = data.apply.portal; dd.append(a); }
+      if (data.apply.portal) { const a = el('a', 'p-apply-portal', 'Open portal'); a.href = data.apply.portal; a.target = '_blank'; a.rel = 'noopener noreferrer'; a.title = data.apply.portal; dd.append(a); }
       if (data.apply.email) { const a = el('a', 'p-apply-email', data.apply.email); a.href = 'mailto:' + data.apply.email; dd.append(a); }
-      d.append(el('dt', '', 'Send the application'), dd); facts.append(d);
+      d.append(el('dt', '', 'Application link'), dd); facts.append(d);
     }
     mid.append(facts);
     const act = el('div', 'p-hero-actions');

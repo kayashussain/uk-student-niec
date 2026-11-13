@@ -923,7 +923,7 @@ body:has(.p-embed-bar) .p-template small { display: block; margin-top: 3px; font
   body:has(.p-embed-bar) .p-templates { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
-/* 🔴 CSS CHANGED (2026-11-13): "Send the application" on the student card | from: nothing | to: a full-width line under the student's details with "Open the application portal" as a small navy-outlined button with an arrow (opens in a new tab) and the application email as a link beside it, taken from the student's university on Partner Universities */
+/* 🔴 CSS CHANGED (2026-11-13): "Application link" on the student card | from: nothing | to: a full-width line under the student's details with "Open portal" as a small navy-outlined button with an arrow (opens in a new tab) and the application email as a link beside it, taken from the student's university on Partner Universities */
 body:has(.p-embed-bar) .p-hero .p-fact.p-fact-apply:has(dd) { grid-column: 1 / -1; padding-top: 12px; border-top: 1px dashed var(--lux-line); }
 body:has(.p-embed-bar) .p-hero .p-fact-apply dd { display: flex; align-items: center; gap: 10px 20px; flex-wrap: wrap; margin-top: 6px; }
 body:has(.p-embed-bar) .p-hero .p-fact-apply dd a.p-apply-portal { display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 16px; border: 1px solid var(--lux-ink); border-radius: 10px; color: var(--lux-ink); font-weight: 650; text-decoration: none; }

@@ -23,7 +23,7 @@
   .open-link { background: none; border: 0; padding: 0; color: var(--blue-text); font: inherit; font-weight: 600; cursor: pointer; text-align: left; }
   .open-link:hover { text-decoration: underline; }
   #adminOnly { display: inline-block; margin-left: 8px; }
-  /* 🔴 CSS CHANGED (2026-11-13): the new Send applications column | from: nothing | to: "Open portal" and the application email, each on its own line, in the link colour */
+  /* 🔴 CSS CHANGED (2026-11-13): the new Application link column | from: nothing | to: "Open portal" and the application email, each on its own line, in the link colour */
   .apply-link { display: block; color: var(--blue-text); font-weight: 600; text-decoration: underline; text-underline-offset: 3px; overflow-wrap: anywhere; }
 </style>
 <link rel="stylesheet" href="theme.css" />
@@ -34,7 +34,7 @@
     <div class="page-head">
       <div>
         <h1>Partner Universities <span class="pill pill-wait" id="adminOnly">Admin only</span></h1>
-        <p>The universities you partner with directly: campus locations, commission slabs, payment terms, agreement dates, contacts and where applications are sent (the portal link and email also show on each student's card, for the team). Only the Admin account can see this page.</p>
+        <p>The universities you partner with directly: campus locations, commission slabs, payment terms, agreement dates, contacts and the application link (the portal link and email also show on each student's card, for the team). Only the Admin account can see this page.</p>
       </div>
     </div>
 
@@ -51,7 +51,7 @@
     <div class="card">
       <div class="card-head"><h2>Partner university list <span class="muted" id="count"></span></h2></div>
       <table>
-        <thead><tr><th>University</th><th>Campus locations</th><th>Commission</th><th>Status</th><th>Agreement ends</th><th>Contact person</th><th>Phone</th><th>Email</th><th>Send applications</th><th><span class="sr-only">Open</span></th></tr></thead>
+        <thead><tr><th>University</th><th>Campus locations</th><th>Commission</th><th>Status</th><th>Agreement ends</th><th>Contact person</th><th>Phone</th><th>Email</th><th>Application link</th><th><span class="sr-only">Open</span></th></tr></thead>
         <tbody id="rows"><tr><td class="muted" colspan="10">Loading...</td></tr></tbody>
       </table>
       <div class="msg" id="listMsg" role="status"></div>

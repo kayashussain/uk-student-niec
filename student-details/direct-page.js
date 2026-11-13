@@ -55,7 +55,7 @@
         const phone = cell('Phone', c.phone || '-');
         const email = cell('Email', c.email || '-');
         // Where applications go: the portal (opens in a new tab) and the email, either or both.
-        const apply = el('td'); apply.dataset.label = 'Send applications';
+        const apply = el('td'); apply.dataset.label = 'Application link';
         if (u.applyPortal) { const a = el('a', 'apply-link', 'Open portal'); a.href = u.applyPortal; a.target = '_blank'; a.rel = 'noopener noreferrer'; a.title = u.applyPortal; apply.append(a); }
         if (u.applyEmail) { const a = el('a', 'apply-link', u.applyEmail); a.href = 'mailto:' + u.applyEmail; apply.append(a); }
         if (!u.applyPortal && !u.applyEmail) apply.textContent = '-';
@@ -188,8 +188,8 @@
     f.applyEmail = text(uni.applyEmail, 254, 'e.g. admissions@university.ac.uk');
     f.applyEmail.type = 'email';
     const applyRow = el('div', 'form');
-    applyRow.append(field('Application portal link', f.applyPortal), field('Application email', f.applyEmail));
-    applyBox.append(el('h3', '', 'How to send applications'), el('p', 'hint', 'The portal link, the email, or both. Your team sees them on the card of every student applying to this university.'), applyRow);
+    applyRow.append(field('Portal link', f.applyPortal), field('Email', f.applyEmail));
+    applyBox.append(el('h3', '', 'Application link'), el('p', 'hint', 'The portal link, the email, or both. Your team sees them on the card of every student applying to this university.'), applyRow);
     form.append(applyBox);
 
     const notes = el('div', 'section'); f.notes = area(uni.notes, 'Anything else to remember.');
