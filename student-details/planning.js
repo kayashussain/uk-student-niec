@@ -25,6 +25,19 @@ const month = (v) => (/^\d{4}-(0[1-9]|1[0-2])$/.test(str(v, 7)) ? str(v, 7) : ''
 const MARKETING_TYPES = ['Meta campaign (Facebook or Instagram)', 'Campaign on a partner page (another Facebook page)', 'Campus or college campaign (not a school)', 'Community or organisation campaign', 'Facebook or Instagram advert', 'TikTok campaign', 'Google or YouTube ads', 'Signboard or hoarding', 'Newspaper, radio or TV', 'Other marketing'];
 const EVENT_TYPES = ['Education fair', 'Seminar or information session', 'Webinar', 'University visit or spot assessment', 'School or college visit', 'Open day at the office', 'Other', 'Meta campaign (Facebook or Instagram)', 'Campaign on a partner page (another Facebook page)', 'Campus or college campaign (not a school)', 'Community or organisation campaign', 'Facebook or Instagram advert', 'TikTok campaign', 'Google or YouTube ads', 'Signboard or hoarding', 'Newspaper, radio or TV', 'Other marketing'];
 const DECISION_STATUS = ['Open', 'Under way', 'Worked: keep it', 'Changed', 'Stopped'];
+// Where an event or a piece of marketing ran: the one choice the page asks for (the long list of types above is only read
+// from older entries). Social media campaigns are also offered under "Social Media" when a student is added, so a student
+// who came from the campaign is counted in its cost per student.
+const CHANNELS = ['Social media', 'Our office', 'A college or school', 'Another venue (hall or hotel)', 'Newspaper, radio or TV', 'Online ads (Google, YouTube)', 'Other'];
+const MARKETING_CHANNELS = ['Social media', 'Newspaper, radio or TV', 'Online ads (Google, YouTube)'];
+// An older entry has only its type: where it ran is read from that.
+const CHANNEL_OF_TYPE = {
+  'Meta campaign (Facebook or Instagram)': 'Social media', 'Campaign on a partner page (another Facebook page)': 'Social media', 'Facebook or Instagram advert': 'Social media', 'TikTok campaign': 'Social media',
+  'Google or YouTube ads': 'Online ads (Google, YouTube)', 'Newspaper, radio or TV': 'Newspaper, radio or TV', 'Open day at the office': 'Our office',
+  'School or college visit': 'A college or school', 'Campus or college campaign (not a school)': 'A college or school', 'Education fair': 'Another venue (hall or hotel)',
+  'Seminar or information session': 'Another venue (hall or hotel)', 'University visit or spot assessment': 'Our office',
+};
+const channelOf = (e) => (e && CHANNELS.includes(e.channel) ? e.channel : (e && CHANNEL_OF_TYPE[e.type]) || 'Other');
 const MARKET_KINDS = ['UK immigration rule', 'Nepal rule', 'University or partner', 'Competitor', 'Market'];
 
 // Each list: how one entry is cleaned (only the known fields, as text or numbers, within limits) and what makes it worth keeping.
@@ -40,7 +53,7 @@ const LISTS = {
   events: {
     max: 1000,
     clean: (x) => ({
-      name: str(x.name, 120), date: isoDay(x.date), endDate: (isoDay(x.endDate) >= isoDay(x.date) ? isoDay(x.endDate) : ''), type: EVENT_TYPES.includes(x.type) ? x.type : 'Other', kind: MARKETING_TYPES.includes(x.type) ? 'Marketing' : 'Event', place: str(x.place, 120),
+      name: str(x.name, 120), date: isoDay(x.date), endDate: (isoDay(x.endDate) >= isoDay(x.date) ? isoDay(x.endDate) : ''), type: EVENT_TYPES.includes(x.type) ? x.type : 'Other', channel: channelOf(x), kind: MARKETING_CHANNELS.includes(channelOf(x)) ? 'Marketing' : 'Event', place: str(x.place, 120),
       cost: amount(x.cost), registered: amount(x.registered, 1e6), attended: amount(x.attended, 1e6), universities: str(x.universities, 300), note: str(x.note, 600),
     }),
     check: (x) => {
@@ -184,4 +197,4 @@ function createPlanning(dir, { now = () => new Date() } = {}) {
   };
 }
 
-module.exports = { createPlanning, LISTS, EVENT_TYPES, MARKETING_TYPES, DECISION_STATUS, MARKET_KINDS, cleanTarget, cleanSettings, amount };
+module.exports = { createPlanning, LISTS, EVENT_TYPES, MARKETING_TYPES, CHANNELS, MARKETING_CHANNELS, channelOf, DECISION_STATUS, MARKET_KINDS, cleanTarget, cleanSettings, amount };

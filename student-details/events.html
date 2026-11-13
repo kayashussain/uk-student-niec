@@ -10,20 +10,71 @@
 <link rel="stylesheet" href="ui.css" />
 <link rel="stylesheet" href="portal.css" />
 <link rel="stylesheet" href="theme.css" />
+<style>
+  /* 🔴 CSS CHANGED (2026-11-13): Events and marketing, rebuilt calm and premium | from: four plain number tiles, one wide table (name, ran, days, cost, leads, applied, visas, cost per lead) and a plain list of students under it | to: a calm page: four soft number tiles with serif figures and a bronze line under "Cost per student"; an amber note when social media students are not linked to any campaign; filter pills (All, Marketing, Events); each event or marketing as a soft card with its name in navy, a "where it ran" tag, the dates and days, then a quiet row of serif figures (Cost, Students, Applied, Visas, Cost per student) and Students and Edit buttons; the form with the "Where it ran" choice as a set of pills */
+  .ev-page { max-width: 1480px; }
+  .ev-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; margin: 6px 0 18px; }
+  @media (max-width: 900px) { .ev-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  .ev-kpi { position: relative; padding: 18px 22px 20px; border: 1px solid var(--border); border-radius: 18px; background: var(--panel); box-shadow: 0 1px 2px rgba(20, 27, 41, .04), 0 14px 30px -28px rgba(29, 47, 82, .5); }
+  .ev-kpi span { display: block; color: var(--text-dim); font-size: 14px; font-weight: 600; }
+  .ev-kpi b { display: block; margin-top: 6px; font-family: var(--serif); font-size: 30px; font-weight: 600; line-height: 1.1; color: var(--brand-navy, #1d2f52); }
+  .ev-kpi small { display: block; margin-top: 4px; color: var(--text-dim); font-size: 14px; }
+  .ev-kpi.main::after { content: ""; position: absolute; left: 22px; right: 22px; bottom: 0; height: 3px; border-radius: 3px 3px 0 0; background: var(--brand-bronze, #9a7b4f); }
+  .ev-note { display: flex; gap: 12px; align-items: flex-start; margin: 0 0 18px; padding: 14px 18px; border: 1px solid color-mix(in srgb, var(--amber-fg) 25%, transparent); border-radius: 14px; background: var(--amber-bg); color: var(--amber-fg); font-size: 15px; line-height: 1.5; }
+  .ev-note b { font-weight: 700; }
+  .ev-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin: 4px 0 16px; }
+  .ev-pills { display: inline-flex; gap: 6px; padding: 4px; border: 1px solid var(--border); border-radius: 999px; background: var(--panel); }
+  .ev-pills button { min-height: 38px; padding: 0 16px; border: 0; border-radius: 999px; background: transparent; font: inherit; font-size: 14.5px; font-weight: 600; color: var(--text-dim); cursor: pointer; }
+  .ev-pills button[aria-pressed="true"] { background: var(--brand-navy, #1d2f52); color: var(--brand-ivory, #f6f3ec); }
+  .ev-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(440px, 1fr)); gap: 18px; }
+  @media (max-width: 560px) { .ev-grid { grid-template-columns: minmax(0, 1fr); } }
+  .ev-card { display: flex; flex-direction: column; gap: 14px; padding: 22px 24px; border: 1px solid var(--border); border-radius: 18px; background: var(--panel); box-shadow: 0 1px 2px rgba(20, 27, 41, .04), 0 16px 34px -30px rgba(29, 47, 82, .5); }
+  .ev-card:hover { border-color: color-mix(in srgb, var(--brand-navy, #1d2f52) 30%, var(--border)); }
+  .ev-name { margin: 0; font-size: 19px; font-weight: 700; line-height: 1.3; color: var(--brand-navy, #1d2f52); }
+  .ev-meta { display: flex; align-items: center; gap: 8px 12px; flex-wrap: wrap; color: var(--text-dim); font-size: 14.5px; }
+  .ev-tag { display: inline-block; padding: 3px 12px; border-radius: 999px; background: var(--gold-soft, #e2e7f0); color: var(--brand-navy, #1d2f52); font-size: 14px; font-weight: 650; }
+  .ev-tag.mk { background: transparent; border: 1px solid color-mix(in srgb, var(--brand-bronze, #9a7b4f) 55%, transparent); color: #6f5631; }
+  .ev-figs { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 14px 12px; padding: 14px 0 2px; border-top: 1px solid var(--border); }
+  .ev-figs .money { grid-column: span 3; }
+  .ev-figs .count { grid-column: span 2; }
+  .ev-figs div { min-width: 0; }
+  .ev-figs span { display: block; color: var(--text-dim); font-size: 13.5px; }
+  .ev-figs b { display: block; margin-top: 2px; font-family: var(--serif); font-size: 21px; font-weight: 600; color: var(--brand-navy, #1d2f52); overflow-wrap: anywhere; }
+  .ev-figs .money b { font-size: 24px; }
+  .ev-figs .cpl b { color: #6f5631; }
+  .ev-place { color: var(--text-dim); font-size: 14.5px; }
+  .ev-foot { display: flex; justify-content: flex-end; gap: 8px; margin-top: auto; }
+  .ev-empty { padding: 40px; border: 1px dashed var(--border); border-radius: 18px; text-align: center; color: var(--text-dim); }
+  .ev-choices { display: flex; flex-wrap: wrap; gap: 8px; }
+  .ev-choices button { min-height: 40px; padding: 0 16px; border: 1px solid var(--border); border-radius: 999px; background: var(--panel); font: inherit; font-size: 14.5px; font-weight: 600; color: var(--text); cursor: pointer; }
+  .ev-choices button.on, .ev-choices button.on:hover { border-color: var(--brand-navy, #1d2f52); background: var(--brand-navy, #1d2f52); color: var(--brand-ivory, #f6f3ec); }
+  .ev-where { grid-column: 1 / -1; }
+  .ev-choice-label { display: block; margin-bottom: 8px; color: var(--brand-navy, #1d2f52); font-size: 14px; font-weight: 600; }
+  .ev-students { display: grid; gap: 8px; max-height: 60vh; overflow: auto; }
+  .ev-student { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 14px; border: 1px solid var(--border); border-radius: 12px; }
+</style>
 </head>
 <body class="p-body">
   <header class="niec-header" data-page="events"></header>
-  <main class="p-page">
+  <main class="p-page ev-page">
     <div class="p-head">
       <div>
         <h1>Events and marketing</h1>
-        <p>Every event you ran and every piece of marketing you paid for, to find students. Each one becomes a tag: choose it as the student source when you add a student, and it shows on the student's card. Here you see what each cost, how long it ran and how many students it brought.</p>
+        <p>Every event you ran and every campaign you paid for, to find students. Each becomes a tag: choose it as the student source when you add a student (a social media campaign is also offered under Social Media), and here you see what it cost and how many students it brought.</p>
       </div>
       <div class="p-actions"><button class="btn btn-primary" type="button" id="add" hidden>+ Add an event or marketing</button></div>
     </div>
-    <div class="p-kpis" id="kpis"></div>
-    <section class="p-card"><div class="p-card-head"><h2>All of them</h2><span class="p-muted p-small" id="count"></span></div><div class="p-table-wrap"><table class="p-table"><thead><tr><th>Name</th><th>Ran</th><th class="num">Days</th><th class="num cost">Cost</th><th class="num">Leads</th><th class="num">Applied</th><th class="num">Visas</th><th class="num cost">Cost per lead</th><th></th></tr></thead><tbody id="rows"><tr><td colspan="9" class="p-muted">Loading…</td></tr></tbody></table></div></section>
-    <section class="p-card" id="detail" hidden></section>
+    <div class="ev-kpis" id="kpis"></div>
+    <div id="note"></div>
+    <div class="ev-bar">
+      <div class="ev-pills" id="filter" role="group" aria-label="Show">
+        <button type="button" data-f="all" aria-pressed="true">All</button>
+        <button type="button" data-f="Marketing" aria-pressed="false">Marketing</button>
+        <button type="button" data-f="Event" aria-pressed="false">Events</button>
+      </div>
+      <span class="p-muted" id="count"></span>
+    </div>
+    <div class="ev-grid" id="list"><div class="ev-empty">Loading...</div></div>
   </main>
 <script src="session.js"></script>
 <script src="ui.js"></script>

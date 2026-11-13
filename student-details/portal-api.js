@@ -20,7 +20,7 @@ const { ROW_ID } = require('./cards');
 const Messages = require('./messages');
 const { buildIndex, searchCourses, linkKey, parseCourses } = require('./course-index');
 const { hostsOf, onHosts } = require('./university-websites');
-const { EVENT_TYPES, MARKETING_TYPES, DECISION_STATUS, MARKET_KINDS, LISTS: PLANNING_LISTS } = require('./planning');
+const { EVENT_TYPES, MARKETING_TYPES, CHANNELS, channelOf, DECISION_STATUS, MARKET_KINDS, LISTS: PLANNING_LISTS } = require('./planning');
 const { MAX_FILE_BYTES, STATUSES: PARTNER_STATUSES } = require('./direct');
 
 const text = (v) => String(v ?? '').trim();
@@ -120,9 +120,14 @@ function createPortalApi({
   function cardLists(user) {
     const plan = planning.all();
     // The events Admin recorded on the Dashboard are offered too, with their day, as "Name, 21 Nov 2026".
-    const planned = [...plan.events].sort((a, b) => b.date.localeCompare(a.date)).map((e) => eventLabel(e.name, e.date));
+    const newest = [...plan.events].sort((a, b) => b.date.localeCompare(a.date));
+    const planned = newest.map((e) => eventLabel(e.name, e.date));
+    const options = sourceOptions.all(planned);
+    // Social media campaigns are offered under "Social Media" too (first), so a student who came from one is counted in its cost.
+    const campaigns = newest.filter((e) => channelOf(e) === 'Social media').map((e) => eventLabel(e.name, e.date));
+    if (campaigns.length && options['Social Media']) { const seen = new Set(campaigns.map((x) => x.toLowerCase())); options['Social Media'] = [...campaigns, ...options['Social Media'].filter((x) => !seen.has(x.toLowerCase()))]; }
     return {
-      sourceOptions: sourceOptions.all(planned),
+      sourceOptions: options,
       sourceLabels: Fields.SOURCE_DETAIL_LABEL, sourceCanAdd: Fields.SOURCE_CAN_ADD,
       // Only the names: the terms agreed with a partner stay on the Admin-only page.
       partners: agents.list().filter((p) => p.status !== 'Ended').map((p) => p.name),
@@ -378,11 +383,12 @@ function createPortalApi({
     const all = cards.all();
     const list = plan.events.map((e) => ({ ...e, leads: 0, applied: 0, visas: 0, students: [] }));
     const byName = (detail) => eventFor(list, detail);
+    let unlinkedSocial = 0; // students from social media not tagged with any campaign: in no cost per student
     if (wb) wb.sheets.forEach((sheet) => sheet.rows.forEach((row) => {
       if (!isStudent(row)) return;
       const card = all[row._id];
       const e = card && byName(card.profile.sourceDetail);
-      if (!e) return;
+      if (!e) { if (text(row['STUDENT SOURCE']) === 'Social Media') unlinkedSocial += 1; return; }
       e.leads += 1;
       const stage = text(row[STATUS]);
       if (!['Inquiry', 'Defer', 'Hold', 'Withdrawn'].includes(stage) || text(row['APPLICATION SUBMISSION DATE'])) e.applied += 1;
@@ -390,12 +396,13 @@ function createPortalApi({
       if (e.students.length < 60) e.students.push({ id: row._id, name: nameOf(row), stage, intake: sheet.name });
     }));
     const day = (iso) => Math.round(Date.parse(iso + 'T00:00:00Z') / 86400000);
-    return list.sort((a, b) => b.date.localeCompare(a.date)).map((e) => ({
-      id: e.id, name: e.name, kind: e.kind || 'Event', type: e.type, place: e.place, date: e.date, endDate: e.endDate || '',
+    const shaped = list.sort((a, b) => b.date.localeCompare(a.date)).map((e) => ({
+      id: e.id, name: e.name, kind: e.kind || 'Event', type: e.type, channel: channelOf(e), place: e.place, date: e.date, endDate: e.endDate || '',
       days: e.date ? (e.endDate ? day(e.endDate) - day(e.date) + 1 : 1) : 0, note: e.note, cost: e.cost, leads: e.leads, applied: e.applied, visas: e.visas,
       costPerLead: e.cost > 0 && e.leads > 0 ? Math.round(e.cost / e.leads) : null, costPerVisa: e.cost > 0 && e.visas > 0 ? Math.round(e.cost / e.visas) : null,
       students: e.students, registered: e.registered, attended: e.attended,
     }));
+    return { list: shaped, unlinkedSocial };
   }
 
   // ---- one student's card ----
@@ -915,7 +922,8 @@ function createPortalApi({
     if (urlPath === '/api/today' && req.method === 'GET') { sendJSON(res, 200, { ...todayFor(req.user), readOnly: Teams.isReadOnly(req.user) }); return true; }
     if (urlPath === '/api/activities' && req.method === 'GET') {
       if (!managers(req, res, 'Events and marketing')) return true;
-      sendJSON(res, 200, { activities: activities(req.user), types: EVENT_TYPES, marketingTypes: MARKETING_TYPES, canEdit: Teams.isAdmin(req.user) });
+      const { list, unlinkedSocial } = activities(req.user);
+      sendJSON(res, 200, { activities: list, unlinkedSocial, channels: CHANNELS, types: EVENT_TYPES, marketingTypes: MARKETING_TYPES, canEdit: Teams.isAdmin(req.user) });
       return true;
     }
     if (urlPath === '/api/card-lists' && req.method === 'GET') { sendJSON(res, 200, cardLists(req.user)); return true; }
