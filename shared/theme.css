@@ -701,3 +701,68 @@ input[type="date"]:not(.date-input) { min-height: 44px; border-radius: var(--r-s
 
 /* 🔴 CSS CHANGED (2026-11-13): a warning bar on the demo preview | from: nothing, so made-up students could look real | to: a red bar across the top of every page of the demo that says the students and numbers are made up (it never appears on the live server or on a copy of your real data) */
 .niec-demo { position: sticky; top: 0; z-index: 100; padding: 8px 16px; background: #b3261e; color: #fff; font-size: 15px; font-weight: 700; text-align: center; }
+
+/* 🔴 CSS CHANGED (2026-11-13): the Student Details page, a calmer and more premium look (this page only; the side menu and every other page are unchanged) | from: the page title hidden; search, Undo, Redo and six actions scattered over two rows as plain grey words with a bright blue button; 13 separate number boxes in two uneven rows; a plain grey table heading; small grey intake tabs | to: a large serif title "Student Details" with the save note beside it and the search on the right; one tidy action row of outlined buttons with a deep ink "+ Add student", Undo and Redo at the right; the numbers in one soft panel divided by fine lines, with serif figures (Total and Conversion rate marked by a thin bronze line); a table heading with darker text and a firm line under it; the open intake tab in dark ink with a bronze line under it */
+body:has(#sheet) {
+  --serif: "Palatino Linotype", Palatino, "Book Antiqua", "Iowan Old Style", Georgia, serif;
+  --lux-ink: #141b29;
+  --lux-ink-2: #273246;
+  --lux-bronze: #9a7b4f;
+  --lux-line: #d9dde4;
+}
+/* title row: title and save note on the left, search on the right; then one row of actions */
+body:has(#sheet) .topbar { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 10px; padding: 22px 32px 14px; }
+body:has(#sheet) .topbar::before { content: ""; order: 5; flex-basis: 100%; height: 0; }
+body:has(#sheet) .sheet-title { order: 1; margin: 0 6px 0 0; font-family: var(--serif); font-size: 32px; font-weight: 600; letter-spacing: -.01em; line-height: 1.15; color: var(--lux-ink); }
+body:has(#sheet) .topbar .save-status { order: 2; display: inline-flex; align-items: center; gap: 7px; padding: 4px 12px; border-radius: 999px; background: color-mix(in srgb, var(--green-fg) 9%, transparent); color: var(--green-fg); font-size: 13px; font-weight: 600; }
+body:has(#sheet) .topbar .save-status::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+body:has(#sheet) .topbar .team-note, body:has(#sheet) .topbar #viewOnly { order: 3; }
+body:has(#sheet) .topbar #search { order: 4; margin-left: auto; width: 360px; max-width: 100%; height: 46px; border: 1px solid var(--lux-line); background: var(--panel); box-shadow: none; font-size: 15px; }
+body:has(#sheet) .topbar #search:focus { border-color: var(--lux-ink-2); box-shadow: 0 0 0 3px color-mix(in srgb, var(--lux-ink) 12%, transparent); }
+body:has(#sheet) .topbar .toolbar-group { order: 6; gap: 8px; flex-wrap: wrap; }
+body:has(#sheet) .topbar .toolbar-group:has(#undoBtn) { order: 7; margin-left: auto; padding-left: 0; border-left: 0; gap: 4px; }
+body:has(#sheet) .topbar .toolbar-group + .toolbar-group { border-left: 0; padding-left: 0; }
+body:has(#sheet) .topbar .toolbar-group:has(#addRow) { margin-left: 0; }
+body:has(#sheet) .topbar .toolbar-group .btn { min-height: 42px; padding: 0 18px; border: 1px solid var(--lux-line); border-radius: 10px; background: var(--panel); color: var(--lux-ink-2); font-weight: 600; font-size: 14.5px; }
+body:has(#sheet) .topbar .toolbar-group .btn:hover:not(:disabled) { border-color: var(--lux-ink-2); background: var(--panel); color: var(--lux-ink); }
+body:has(#sheet) .topbar #undoBtn, body:has(#sheet) .topbar #redoBtn { border-color: transparent; background: transparent; }
+body:has(#sheet) .topbar #addRow { order: -1; border-color: var(--lux-ink); background: var(--lux-ink); color: #f6f4ef; box-shadow: 0 10px 22px -14px rgba(20, 27, 41, .9); }
+body:has(#sheet) .topbar #addRow:hover:not(:disabled) { background: var(--lux-ink-2); border-color: var(--lux-ink-2); color: #fff; box-shadow: 0 12px 26px -14px rgba(20, 27, 41, .95); }
+body:has(#sheet) .topbar #delRow { order: 9; color: var(--red-fg); }
+body:has(#sheet) .topbar #delRow:hover:not(:disabled) { border-color: var(--red-fg); background: var(--red-bg); color: var(--red-fg); }
+/* the numbers: one panel, fine dividers, serif figures */
+body:has(#sheet) .status-summary { padding: 4px 32px 18px; background: transparent; }
+body:has(#sheet) .stat-group-cards { display: flex; flex-wrap: wrap; gap: 0; padding: 4px 0; border: 1px solid var(--lux-line); border-radius: 14px; background: var(--panel); box-shadow: 0 1px 2px rgba(20, 27, 41, .04); overflow: hidden; }
+body:has(#sheet) .stat-card, body:has(#sheet) .stat-card.stat-total { flex: 1 1 0; flex-direction: column; align-items: flex-start; justify-content: flex-start; gap: 2px; min-width: min-content; width: auto; padding: 10px 11px 12px; border: 0; border-radius: 0; background: transparent; box-shadow: none; text-align: left; position: relative; }
+body:has(#sheet) .stat-card + .stat-card::before { content: ""; position: absolute; left: 0; top: 14px; bottom: 14px; width: 1px; background: var(--lux-line); }
+body:has(#sheet) .stat-card .stat-value, body:has(#sheet) .stat-card.stat-total .stat-value { font-family: var(--serif); font-size: 26px; font-weight: 600; color: var(--lux-ink); letter-spacing: 0; line-height: 1.1; }
+body:has(#sheet) .stat-card .stat-label, body:has(#sheet) .stat-card.stat-total .stat-label { min-height: 0; width: auto; color: var(--text-dim); font-weight: 550; white-space: normal; line-height: 1.25; }
+body:has(#sheet) .stat-card.stat-total .stat-label { color: var(--lux-ink); font-weight: 650; }
+body:has(#sheet) .stat-card.stat-total::after, body:has(#sheet) .stat-card.stat-rate::after { content: ""; position: absolute; left: 11px; right: 11px; bottom: 4px; height: 2px; border-radius: 2px; background: var(--lux-bronze); }
+body:has(#sheet) .stat-card.stat-rate .stat-value { color: #7a5c2e; }
+@media (max-height: 820px) {
+  body:has(#sheet) .stat-card, body:has(#sheet) .stat-card.stat-total { flex-direction: row; align-items: baseline; gap: 8px; padding: 6px 14px; }
+  body:has(#sheet) .stat-card .stat-label, body:has(#sheet) .stat-card.stat-total .stat-label { white-space: nowrap; }
+  body:has(#sheet) .stat-card .stat-value, body:has(#sheet) .stat-card.stat-total .stat-value { font-size: 20px; }
+  body:has(#sheet) .topbar { padding-top: 14px; padding-bottom: 10px; }
+  body:has(#sheet) .sheet-title { font-size: 26px; }
+}
+/* the table heading and rows */
+body:has(#sheet) .table-wrap { margin: 0 32px; border: 1px solid var(--lux-line); border-bottom: 0; border-radius: 14px 14px 0 0; }
+body:has(#sheet) #sheet thead th, body:has(#sheet) #sheet thead th.col-idx { background: #eef0f3; color: var(--lux-ink); font-weight: 650; border-bottom: 1.5px solid color-mix(in srgb, var(--lux-ink) 28%, transparent); }
+body:has(#sheet) #sheet td { border-bottom-color: color-mix(in srgb, var(--lux-line) 75%, transparent); }
+body:has(#sheet) #sheet td.col-idx { color: color-mix(in srgb, var(--text-dim) 85%, transparent); }
+/* intake tabs and the footer */
+body:has(#sheet) .topbar, body:has(#sheet) .status-summary, body:has(#sheet) .sheet-tabs, body:has(#sheet) .footbar { flex-shrink: 0; }
+body:has(#sheet) .sheet-tabs { margin: 0 32px; padding: 8px 12px; border: 1px solid var(--lux-line); border-top: 1px solid var(--lux-line); border-radius: 0 0 14px 14px; background: var(--panel); }
+body:has(#sheet) .sheet-tab { color: var(--text-dim); font-weight: 550; }
+body:has(#sheet) .sheet-tab.active { background: transparent; box-shadow: inset 0 -2px 0 var(--lux-bronze); border-radius: 6px 6px 0 0; color: var(--lux-ink); font-weight: 700; }
+body:has(#sheet) .footbar { padding: 10px 32px 14px; background: transparent; border-top: 0; }
+@media (max-width: 900px) {
+  body:has(#sheet) .topbar { padding: 14px 14px 10px; }
+  body:has(#sheet) .topbar #search { order: 5; width: 100%; margin-left: 0; }
+  body:has(#sheet) .status-summary { padding: 4px 14px 14px; }
+  body:has(#sheet) .table-wrap, body:has(#sheet) .sheet-tabs { margin-left: 14px; margin-right: 14px; }
+  body:has(#sheet) .footbar { padding-left: 14px; padding-right: 14px; }
+  body:has(#sheet) .sheet-title { font-size: 26px; }
+}
