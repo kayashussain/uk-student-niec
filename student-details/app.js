@@ -170,6 +170,9 @@
   const searchEl = $('#search');
   const sheetTabsList = $('#sheetTabsList');
   const statusSummaryEl = $('#statusSummary');
+  // The number boxes are hidden each time the page opens; "Show numbers" shows them and "Hide numbers" hides them again.
+  let statsOpen = false;
+  const statsToggle = $('#toggleStats');
   const undoBtn = $('#undoBtn');
   const redoBtn = $('#redoBtn');
   const conflictBanner = $('#conflictBanner');
@@ -2061,9 +2064,15 @@
     if (!statusOptions || !columns.includes('APPLICATION STATUS')) {
       statusSummaryEl.innerHTML = '';
       statusSummaryEl.hidden = true;
+      if (statsToggle) statsToggle.hidden = true;
       return;
     }
-    statusSummaryEl.hidden = false;
+    if (statsToggle) {
+      statsToggle.hidden = false;
+      statsToggle.textContent = statsOpen ? 'Hide numbers' : 'Show numbers';
+      statsToggle.setAttribute('aria-expanded', String(statsOpen));
+    }
+    statusSummaryEl.hidden = !statsOpen;
     // Only rows with a first or last name count as students, so blank added rows are ignored.
     // viewIndices can be a moment behind (rows just deleted, before the table is redrawn): skip any that are gone.
     const indices = viewIndices.filter((i) => rows[i] && (
@@ -2499,6 +2508,7 @@
     setTimeout(() => URL.revokeObjectURL(url), 10000); // not at once: some browsers have not started the download yet
   }
 
+  if (statsToggle) statsToggle.addEventListener('click', () => { statsOpen = !statsOpen; renderStatusSummary(); });
   $('#addRow').addEventListener('click', addRow);
   $('#delRow').addEventListener('click', () => { if (Teams.canDelete(me)) deleteRow(); });
   $('#exportExcel').addEventListener('click', exportExcel);
