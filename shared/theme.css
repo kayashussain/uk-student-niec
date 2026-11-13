@@ -939,3 +939,30 @@ body:has(.p-embed-bar) .p-hero .p-fact-apply dd .p-apply-login .btn { min-height
 body:has(#sheet) .topbar .came-from { order: 4; height: 46px; max-width: 320px; padding: 0 40px 0 16px; border: 1px solid var(--lux-line); border-radius: 999px; background-color: var(--panel); font-size: 15px; color: var(--lux-ink); }
 body:has(#sheet) .topbar .came-from:focus { border-color: var(--lux-ink-2); box-shadow: 0 0 0 3px color-mix(in srgb, var(--lux-ink) 12%, transparent); outline: none; }
 @media (max-width: 900px) { body:has(#sheet) .topbar .came-from { order: 5; width: 100%; max-width: none; } }
+
+/* 🔴 CSS CHANGED (2026-11-13): one brand look on every page (Today, Dashboard, Follow-up, Add many students, Fact File, B2B Partners, Agents, Users, Activity, Message templates, Incentive, and the pages already redone) | from: heavy black sans page titles, plain number tiles with black figures, grey rounded pill tabs, cards and tables that each looked a little different, plain grey initials circles | to: every page title in the same large navy serif as All Students and the student card, with a short dim intro under it; number tiles with navy serif figures and a thin bronze line under the first; tabs as clean underline tabs with a bronze line under the open one; cards with the same fine border, roomy padding, soft shadow and navy headings; table headings on a soft navy tint; initials circles in soft navy with a bronze ring; on Today the counts on the cards in navy; the Dashboard number cards with serif figures */
+:root { --brand-serif: "Palatino Linotype", Palatino, "Book Antiqua", "Iowan Old Style", Georgia, serif; }
+.p-head h1, .page-head h1, .t-hello h1, .ov-head h1 { font-family: var(--brand-serif); font-size: 36px; font-weight: 600; letter-spacing: 0; line-height: 1.15; color: var(--brand-navy); }
+.p-head h1 + p, .page-head h1 + p, .t-hello p, .p-head p, .page-head p { color: var(--text-dim); font-size: 16px; line-height: 1.55; max-width: 70ch; }
+/* number tiles */
+.p-kpi, .t-tile, .stat-tile { position: relative; padding: 18px 22px 20px; border: 1px solid var(--border); border-radius: 18px; background: var(--panel); box-shadow: 0 1px 2px rgba(20, 27, 41, .04), 0 14px 30px -28px rgba(29, 47, 82, .5); }
+.p-kpi b, .t-tile b { font-family: var(--brand-serif); font-size: 32px; font-weight: 600; letter-spacing: 0; color: var(--brand-navy); }
+.p-kpi span, .t-tile span { color: var(--text-dim); font-size: 14px; font-weight: 600; }
+.p-kpis > .p-kpi:first-child::after, .t-tiles > .t-tile:first-child::after { content: ""; position: absolute; left: 22px; right: 22px; bottom: 0; height: 3px; border-radius: 3px 3px 0 0; background: var(--brand-bronze); }
+.ov-kpi b, .ov-kpi .ov-num, .ov-big, .ov-kpi-value { font-family: var(--brand-serif); color: var(--brand-navy); letter-spacing: 0; }
+/* cards */
+.p-card, .page .card, .t-card { border: 1px solid var(--border); border-radius: 18px; background: var(--panel); box-shadow: 0 1px 2px rgba(20, 27, 41, .04), 0 16px 34px -30px rgba(29, 47, 82, .45); }
+.p-card h2, .page .card h2, .t-title b, .t-title strong { color: var(--brand-navy); }
+.t-count { background: var(--brand-navy); color: var(--brand-ivory); }
+.t-ico { background: var(--gold-soft); color: var(--brand-navy); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--brand-bronze) 35%, transparent); }
+.t-av, .p-avatar:not(.p-hero .p-avatar), .uni-mono { background: var(--gold-soft); color: var(--brand-navy); box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--brand-bronze) 55%, transparent); }
+/* tabs: underline, bronze under the open one */
+.p-tabs:not(body:has(.p-embed-bar) .p-tabs) { gap: 4px; padding: 0; border-radius: 0; background: transparent; border-bottom: 1px solid var(--border); width: 100%; }
+.p-tabs:not(body:has(.p-embed-bar) .p-tabs) button, .p-tabs:not(body:has(.p-embed-bar) .p-tabs) a { padding: 10px 16px 12px; border-radius: 0; font-size: 15px; font-weight: 550; color: var(--text-dim); }
+.p-tabs:not(body:has(.p-embed-bar) .p-tabs) button[aria-selected="true"], .p-tabs:not(body:has(.p-embed-bar) .p-tabs) a[aria-current="page"] { background: transparent; box-shadow: inset 0 -2px 0 var(--brand-bronze); color: var(--brand-navy); font-weight: 700; }
+/* tables */
+.p-table thead th, .page .card thead th, .table-card thead th { background: color-mix(in srgb, var(--gold-soft) 45%, var(--panel)); color: var(--brand-navy); font-weight: 650; border-bottom: 1px solid var(--border); }
+/* Fact File cards */
+.uni-card { border-radius: 18px; border: 1px solid var(--border); box-shadow: 0 1px 2px rgba(20, 27, 41, .04), 0 14px 30px -28px rgba(29, 47, 82, .45); }
+.uni-card:hover { border-color: color-mix(in srgb, var(--brand-navy) 35%, var(--border)); }
+.uni-card h3, .uni-card .uni-name, .uni-card strong { color: var(--brand-navy); }
