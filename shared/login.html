@@ -8,9 +8,10 @@
 <link rel="icon" type="image/png" href="/favicon.png" />
 <style>
   :root {
-    --niec-blue: #00adef;
-    --niec-blue-text: #0077a8;
-    --niec-orange: #fc6e1f;
+    /* 🔴 CSS CHANGED (2026-11-13): the login page colours follow the brand | from: cyan (#00adef) focus and "Show" link, orange (#fc6e1f) list dots with an orange ring | to: navy (#2e4c84 focus, #1d2f52 text) and bronze (#9a7b4f) */
+    --niec-blue: #2e4c84;
+    --niec-blue-text: #1d2f52;
+    --niec-orange: #9a7b4f;
     --bg: #e7eaef;
     --panel: #f2f4f7;
     --border: #d0d7df;
@@ -45,7 +46,7 @@
   .hero p { margin: 0; max-width: 42ch; font-size: 16px; line-height: 1.6; color: var(--text-dim); }
   .hero ul { margin: 28px 0 0; padding: 0; list-style: none; display: grid; gap: 12px; font-size: 14px; color: var(--text); }
   .hero li { display: flex; align-items: center; gap: 10px; }
-  .hero li::before { content: ""; flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--niec-orange); box-shadow: 0 0 0 4px rgba(252, 110, 31, .25); }
+  .hero li::before { content: ""; flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--niec-orange); box-shadow: 0 0 0 4px rgba(154, 123, 79, .22); }
   .hero small { color: var(--text-dim); font-size: 12px; }
   .hero::after { content: ""; position: absolute; left: 56px; right: 56px; bottom: 80px; height: 3px; border-radius: 2px; background: linear-gradient(90deg, #00adef 0%, #00adef 62%, #fc6e1f 100%); opacity: .9; }
   .panel { display: flex; align-items: center; justify-content: center; padding: 24px; background: var(--bg); }
@@ -85,7 +86,7 @@
     transition: border-color .15s, box-shadow .15s;
   }
   input.code { font-size: 22px; letter-spacing: 0.3em; text-align: center; font-variant-numeric: tabular-nums; }
-  input:focus { outline: none; border-color: var(--niec-blue); box-shadow: 0 0 0 3px rgba(0, 173, 239, .25); }
+  input:focus { outline: none; border-color: var(--niec-blue); box-shadow: 0 0 0 3px rgba(46, 76, 132, .22); }
   .hint { margin: 2px 0 0; color: var(--text-dim); font-size: 12px; }
   .qr { display: flex; justify-content: center; margin: 10px 0 4px; }
   .qr canvas, .qr img { padding: 8px; background: #fff; border-radius: 8px; }
@@ -130,20 +131,21 @@
   .pw-toggle { box-shadow: none; }
   
 
-  .hero { background: radial-gradient(90% 60% at 10% 0%, rgba(31, 95, 192, .14) 0%, rgba(31, 95, 192, 0) 70%), linear-gradient(180deg, #eef0f4 0%, #e6e9ee 100%) !important; color: #1a2230 !important; }
+  .hero { background: radial-gradient(90% 60% at 10% 0%, rgba(29, 47, 82, .14) 0%, rgba(29, 47, 82, 0) 70%), linear-gradient(180deg, #eef0f4 0%, #e6e9ee 100%) !important; color: #1a2230 !important; }
   .hero h2 { color: #1a2230 !important; font-weight: 650 !important; letter-spacing: -.035em !important; font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", sans-serif !important; }
   .hero p, .hero small, .hero li { color: #424c5b !important; }
-  .hero ul li::before { background: #1f5fc0 !important; }
+  /* 🔴 CSS CHANGED (2026-11-13): the login page in the brand colour | from: bright blue (#1f5fc0) dots, button and focus ring | to: deep navy (#1d2f52) */
+  .hero ul li::before { background: #1d2f52 !important; }
   .panel { background: #f3f5fa !important; }
   .panel { background: #eef0f4 !important; }
   .card { background: #f7f8fa !important; border-radius: 24px !important; border: 1px solid rgba(0, 0, 0, .06) !important; box-shadow: 0 4px 12px rgba(0, 0, 0, .05), 0 30px 80px -30px rgba(0, 0, 0, .25) !important; }
   .card input { background: #fbfcfd !important; }
   .card::before { background: transparent !important; }
   .card h1 { font-family: system-ui, -apple-system, "Segoe UI", sans-serif !important; font-weight: 800 !important; letter-spacing: -.04em !important; }
-  button[type="submit"], form button:not(.pw-toggle) { background: #1f5fc0 !important; border-radius: 999px !important; }
-  button:hover:not(:disabled) { background: #1a56ae !important; }
-  input:focus { border-color: #1f5fc0 !important; box-shadow: 0 0 0 4px rgba(31, 95, 192, .2) !important; }
-  .hero::after { background: linear-gradient(90deg, rgba(31,95,192,.0), rgba(31,95,192,.5), rgba(138,77,255,.0)) !important; }
+  button[type="submit"], form button:not(.pw-toggle) { background: #1d2f52 !important; border-radius: 999px !important; }
+  button:hover:not(:disabled) { background: #273d68 !important; }
+  input:focus { border-color: #2e4c84 !important; box-shadow: 0 0 0 4px rgba(46, 76, 132, .2) !important; }
+  .hero::after { background: linear-gradient(90deg, rgba(154,123,79,.0), rgba(154,123,79,.6), rgba(154,123,79,.0)) !important; }
   /* 🔴 CSS CHANGED (2026-11-13): the title in the login box | from: 24px, so the longer name wrapped onto two lines | to: 20px so "International Student Recruitment" fits on one line */
   .card h1 { font-size: 20px !important; }
 </style>

@@ -182,8 +182,8 @@ dialog.p-dialog::backdrop { background: rgba(15, 23, 42, .45); }
 
 /* ---- the card window that slides in over the sheet ---- */
 .p-drawer-back { position: fixed; inset: 0; z-index: 9000; background: rgba(15, 23, 42, .38); }
-/* 🔴 CSS CHANGED (2026-11-13): the student card panel | from: 980px wide (two thirds of a laptop screen, almost all of it when zoomed in) | to: 640px, the full width only on a phone */
-.p-drawer { position: fixed; top: 0; right: 0; bottom: 0; z-index: 9001; width: min(640px, 100vw); background: var(--bg); box-shadow: -18px 0 48px rgba(15, 23, 42, .28); animation: p-slide .18s ease-out both; }
+/* 🔴 CSS CHANGED (2026-11-13): the student card panel | from: 980px wide (two thirds of a laptop screen, almost all of it when zoomed in), then 640px that shrank with a narrow window | to: always 600px; only a phone narrower than that shows it full width */
+.p-drawer { position: fixed; top: 0; right: 0; bottom: 0; z-index: 9001; width: 600px; max-width: 100vw; background: var(--bg); box-shadow: -18px 0 48px rgba(15, 23, 42, .28); animation: p-slide .18s ease-out both; }
 .p-drawer iframe { display: block; width: 100%; height: 100%; border: 0; }
 @keyframes p-slide { from { transform: translateX(28px); opacity: 0; } to { transform: none; opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .p-drawer { animation: none; } }

@@ -230,7 +230,8 @@
 
   // ---- The intake proposal: two printed pages with charts ----
   const SVGNS = 'http://www.w3.org/2000/svg';
-  function chartBars(rows, { width = 640, color = '#1f5fc0', unit = '' } = {}) {
+  // 🔴 CSS CHANGED (2026-11-13): bars of the printed proposal in the brand colour | from: bright blue #1f5fc0 | to: navy #1d2f52
+  function chartBars(rows, { width = 640, color = '#1d2f52', unit = '' } = {}) {
     const rowH = 30; const labelW = 170; const H = rows.length * rowH + 6;
     const s = document.createElementNS(SVGNS, 'svg'); s.setAttribute('viewBox', `0 0 ${width} ${H}`); s.setAttribute('class', 'prop-chart'); s.setAttribute('role', 'img');
     const max = Math.max(1, ...rows.map((r) => r.value));
@@ -259,7 +260,7 @@
     const stats = el('div', 'prop-stats');
     [['Students', s.students], ['Applied', s.applied], ['Paid', s.paid], ['Visas issued', s.visas]].forEach(([l, v]) => { const b = el('div', 'prop-stat'); b.append(el('b', '', number(v)), el('span', '', l)); stats.append(b); });
     p1.append(stats);
-    p1.append(el('h2', '', 'The student journey'), chartBars(d.funnel.map((f, i) => ({ label: f.label, value: f.count, text: `${number(f.count)}${f.fromPrevious !== null ? '   (' + f.fromPrevious + '%)' : ''}`, color: i === d.funnel.length - 1 ? '#1f8a52' : '#1f5fc0' }))));
+    p1.append(el('h2', '', 'The student journey'), chartBars(d.funnel.map((f, i) => ({ label: f.label, value: f.count, text: `${number(f.count)}${f.fromPrevious !== null ? '   (' + f.fromPrevious + '%)' : ''}`, color: i === d.funnel.length - 1 ? '#1f8a52' : '#1d2f52' }))));
     p1.append(el('p', 'prop-note', 'The percentage is the share of the step before that went on.'));
     if (t && t.visas) {
       const likely = t.expectedTotal === null || t.expectedTotal === undefined ? null : Math.round(t.expectedTotal);
@@ -271,7 +272,7 @@
     const [t2, h2a] = hdr('What it takes, and what to decide');
     p2.append(t2, h2a);
     if (p.needs.length) {
-      p2.append(el('h2', '', 'What it takes to reach the target'), chartBars(p.needs.map((x) => ({ label: x.label, value: x.have, text: `${number(x.have)} of ${x.need === null ? '?' : number(x.need)}`, color: '#1f5fc0' })).map((r, i) => ({ ...r, value: p.needs[i].need ? Math.min(p.needs[i].have, p.needs[i].need) : r.value }))));
+      p2.append(el('h2', '', 'What it takes to reach the target'), chartBars(p.needs.map((x) => ({ label: x.label, value: x.have, text: `${number(x.have)} of ${x.need === null ? '?' : number(x.need)}`, color: '#1d2f52' })).map((r, i) => ({ ...r, value: p.needs[i].need ? Math.min(p.needs[i].have, p.needs[i].need) : r.value }))));
       if (p.weeklyPace.applicationsPerWeek) p2.append(el('p', 'prop-note', `To finish before applications close on ${p.weeklyPace.closes}, about ${number(p.weeklyPace.applicationsPerWeek)} new applications are needed every week.`));
     }
     const src = d.channels.sources.filter((x) => !x.spendOnly && x.students >= 5).slice(0, 6);

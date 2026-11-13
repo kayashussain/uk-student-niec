@@ -3,16 +3,22 @@
    Every page loads this last, so a value here changes every page. Sections: tokens, base, buttons and fields, the sheet, cards and pages, Incentive, small screens. */
 
 /* ---------- 1. Tokens ---------- */
+/* 🔴 CSS CHANGED (2026-11-13): one brand colour for the whole portal | from: a bright blue (#1f5fc0) for buttons, links, the open menu item, focus and the blue status pills, while the sheet and the student card used near-black ink and bronze, and the menu avatar was blue-to-purple | to: one deep navy (#1d2f52) everywhere (buttons, links, the open menu item, the blue status pills, the first chart colour), a slightly brighter navy (#2e4c84) for the focus ring so it stays easy to see, and bronze (#9a7b4f) with champagne (#e6cfa3) as the accent; green, amber and red keep their meaning */
 :root {
   color-scheme: light;
   --font: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI Variable Display", "Segoe UI", system-ui, BlinkMacSystemFont, Roboto, "Helvetica Neue", Arial, sans-serif;
   --serif: var(--font);
 
-  --navy: #1a2230;
-  --navy-2: #2a3445;
-  --gold: #1f5fc0;
-  --gold-deep: #164a98;
-  --gold-soft: #dde8f8;
+  --navy: #16223b;
+  --navy-2: #22324f;
+  --gold: #1d2f52;
+  --gold-deep: #1d2f52;
+  --gold-soft: #e2e7f0;
+  --brand-navy: #1d2f52;
+  --brand-navy-2: #273d68;
+  --brand-bronze: #9a7b4f;
+  --brand-champagne: #e6cfa3;
+  --brand-ivory: #f6f3ec;
 
   --ink: #1a2230;
   --text: var(--ink);
@@ -28,13 +34,13 @@
   --header-bg: #eceff3;
   --head-ink: #424c5b;
   --row-alt: #f2f4f7;
-  --row-hover: #e4edf9;
+  --row-hover: #e6eaf2;
   --edit-bg: #fbfcfd;
 
-  --focus: #1f5fc0;
-  --focus-dim: #dde8f8;
-  --focus-strong: #c4d7f3;
-  --range-tint: rgba(31, 95, 192, .12);
+  --focus: #2e4c84;
+  --focus-dim: #e1e7f2;
+  --focus-strong: #c8d3e6;
+  --range-tint: rgba(46, 76, 132, .12);
 
   /* the brand accent keeps its old variable names, which other stylesheets still use */
   --niec-blue: var(--gold);
@@ -48,12 +54,12 @@
   --accent-strong: var(--navy-2);
   --accent-strong-hover: var(--navy);
   --on-accent: #ffffff;
-  --primary: #1f5fc0;
-  --primary-hover: #1a56ae;
+  --primary: #1d2f52;
+  --primary-hover: #273d68;
   --on-primary: #ffffff;
 
   --green-bg: #dcefe3; --green-fg: #14633a;
-  --blue-bg: #dce8f9;  --blue-fg: #164a98;
+  --blue-bg: #e2e7f0;  --blue-fg: #1d2f52;
   --amber-bg: #f9e9c4; --amber-fg: #6a4500;
   --gray-bg: #e3e7ec;  --gray-fg: #3d4653;
   --red-bg: #f9dedb;   --red-fg: #9c1f18;
@@ -65,7 +71,7 @@
   --r-sm: 12px; --r-md: 18px; --r-lg: 24px;
   /* spacing scale, in steps of 4px: use these for gaps and padding */
   --s-1: 4px; --s-2: 8px; --s-3: 12px; --s-4: 16px; --s-5: 24px; --s-6: 32px; --s-7: 48px;
-  --orange: #b86a00; --niec-orange: #b86a00; --s1: #1f5fc0; --s2: #b86a00; --s3: #1f8a52;
+  --orange: #b86a00; --niec-orange: #b86a00; --s1: #1d2f52; --s2: #b86a00; --s3: #1f8a52;
   --sh-1: 0 1px 2px rgba(20, 30, 50, .06);
   --sh-2: 0 2px 6px rgba(20, 30, 50, .05), 0 12px 28px -14px rgba(20, 30, 50, .16);
   --sh-3: 0 4px 12px rgba(20, 30, 50, .08), 0 26px 60px -24px rgba(20, 30, 50, .30);
@@ -705,9 +711,9 @@ input[type="date"]:not(.date-input) { min-height: 44px; border-radius: var(--r-s
 /* 🔴 CSS CHANGED (2026-11-13): the Student Details page, a calmer and more premium look (this page only; the side menu and every other page are unchanged) | from: the page title hidden; search, Undo, Redo and six actions scattered over two rows as plain grey words with a bright blue button; 13 separate number boxes in two uneven rows; a plain grey table heading; small grey intake tabs | to: a large serif title "Student Details" with the save note beside it and the search on the right; one tidy action row of outlined buttons with a deep ink "+ Add student", Undo and Redo at the right; the numbers in one soft panel divided by fine lines, with serif figures (Total and Conversion rate marked by a thin bronze line); a table heading with darker text and a firm line under it; the open intake tab in dark ink with a bronze line under it */
 body:has(#sheet) {
   --serif: "Palatino Linotype", Palatino, "Book Antiqua", "Iowan Old Style", Georgia, serif;
-  --lux-ink: #141b29;
-  --lux-ink-2: #273246;
-  --lux-bronze: #9a7b4f;
+  --lux-ink: var(--brand-navy);
+  --lux-ink-2: var(--brand-navy-2);
+  --lux-bronze: var(--brand-bronze);
   --lux-line: #d9dde4;
 }
 /* title row: title and save note on the left, search on the right; then one row of actions */
@@ -726,7 +732,7 @@ body:has(#sheet) .topbar .toolbar-group:has(#addRow) { margin-left: 0; }
 body:has(#sheet) .topbar .toolbar-group .btn { min-height: 42px; padding: 0 18px; border: 1px solid var(--lux-line); border-radius: 10px; background: var(--panel); color: var(--lux-ink-2); font-weight: 600; font-size: 14.5px; }
 body:has(#sheet) .topbar .toolbar-group .btn:hover:not(:disabled) { border-color: var(--lux-ink-2); background: var(--panel); color: var(--lux-ink); }
 body:has(#sheet) .topbar #undoBtn, body:has(#sheet) .topbar #redoBtn { border-color: transparent; background: transparent; }
-body:has(#sheet) .topbar #addRow { order: -1; border-color: var(--lux-ink); background: var(--lux-ink); color: #f6f4ef; box-shadow: 0 10px 22px -14px rgba(20, 27, 41, .9); }
+body:has(#sheet) .topbar #addRow { order: -1; border-color: var(--lux-ink); background: var(--lux-ink); color: #f6f4ef; box-shadow: 0 10px 22px -14px rgba(29, 47, 82, .9); }
 body:has(#sheet) .topbar #addRow:hover:not(:disabled) { background: var(--lux-ink-2); border-color: var(--lux-ink-2); color: #fff; box-shadow: 0 12px 26px -14px rgba(20, 27, 41, .95); }
 body:has(#sheet) .topbar #delRow { color: var(--red-fg); }
 body:has(#sheet) .topbar #delRow:hover:not(:disabled) { border-color: var(--red-fg); background: var(--red-bg); color: var(--red-fg); }
@@ -778,21 +784,21 @@ body.p-embed .p-fact dd, body.p-embed .p-fact dd a { overflow-wrap: break-word; 
 /* 🔴 CSS CHANGED (2026-11-13): the student card, a premium look (the card that opens from All Students, and the same page opened on its own) | from: a light panel with a blue stripe down its left side, a small dark circle with the initials, a bright blue "Send a message" button, grey rounded tabs, plain panels and blue timeline dots | to: a deep ink band at the top with the name in a large serif in ivory, a thin bronze ring round the initials, the stage and source as fine outlined tags, champagne email and WhatsApp links, a bronze "Send a message" button and an outlined "Edit details"; under it, tabs with a bronze line under the open one (like the intake tabs); panels with fine borders and roomier spacing, ink "Add note" and similar buttons, and bronze timeline dots */
 body:has(.p-embed-bar) {
   --serif: "Palatino Linotype", Palatino, "Book Antiqua", "Iowan Old Style", Georgia, serif;
-  --lux-ink: #141b29;
-  --lux-ink-2: #273246;
-  --lux-bronze: #9a7b4f;
-  --lux-champagne: #e6cfa3;
-  --lux-ivory: #f6f3ec;
+  --lux-ink: var(--brand-navy);
+  --lux-ink-2: var(--brand-navy-2);
+  --lux-bronze: var(--brand-bronze);
+  --lux-champagne: var(--brand-champagne);
+  --lux-ivory: var(--brand-ivory);
   --lux-line: #d9dde4;
 }
 body:has(.p-embed-bar) .p-embed-bar .p-muted { color: var(--lux-bronze); font-weight: 650; letter-spacing: .04em; }
 body:has(.p-embed-bar) .p-embed-bar .btn { border: 1px solid var(--lux-line); background: var(--panel); color: var(--lux-ink-2); }
 /* the top band */
 body:has(.p-embed-bar) .p-card.p-hero { position: relative; overflow: hidden; padding: 28px 28px 24px; gap: 14px 20px; border: 0; border-left: 0; border-radius: 20px; color: var(--lux-ivory);
-  background: radial-gradient(120% 140% at 100% 0%, #2c3850 0%, transparent 55%), linear-gradient(160deg, #1b2335 0%, #111724 100%);
+  background: radial-gradient(120% 140% at 100% 0%, #334b78 0%, transparent 55%), linear-gradient(160deg, #22365c 0%, #16233f 100%);
   box-shadow: 0 24px 48px -28px rgba(17, 23, 36, .75), inset 0 1px 0 rgba(255, 255, 255, .06); }
 body:has(.p-embed-bar) .p-card.p-hero::after { content: ""; position: absolute; left: 28px; right: 28px; top: 0; height: 2px; background: linear-gradient(90deg, transparent, var(--lux-bronze), transparent); opacity: .8; }
-body:has(.p-embed-bar) .p-hero .p-avatar { width: 62px; height: 62px; background: #1f2840; color: var(--lux-champagne); font-family: var(--serif); font-size: 22px; font-weight: 600; box-shadow: 0 0 0 2px var(--lux-bronze), 0 0 0 6px rgba(154, 123, 79, .16); }
+body:has(.p-embed-bar) .p-hero .p-avatar { width: 62px; height: 62px; background: #1a2a4a; color: var(--lux-champagne); font-family: var(--serif); font-size: 22px; font-weight: 600; box-shadow: 0 0 0 2px var(--lux-bronze), 0 0 0 6px rgba(154, 123, 79, .16); }
 body:has(.p-embed-bar) .p-hero h1 { font-family: var(--serif); font-size: 32px; font-weight: 600; letter-spacing: 0; color: var(--lux-ivory); }
 body:has(.p-embed-bar) .p-hero-line { margin-top: 10px; gap: 8px; color: #c9cfda; font-size: 14px; }
 body:has(.p-embed-bar) .p-hero-line .p-pill, body:has(.p-embed-bar) .p-hero-line .p-chip { padding: 4px 12px; border: 1px solid rgba(230, 207, 163, .38); border-radius: 999px; background: rgba(255, 255, 255, .05); color: var(--lux-ivory); font-size: 13.5px; font-weight: 550; }
@@ -831,3 +837,21 @@ body:has(.p-embed-bar) .p-timeline li:last-child { border-left-color: transparen
 body:has(.p-embed-bar) .p-hero .p-fact:has(a[href^="mailto:"]) { grid-column: 1 / -1; }
 body:has(.p-embed-bar) .p-timeline .p-link { color: var(--text-dim); text-decoration: underline; text-underline-offset: 3px; }
 body:has(.p-embed-bar) .p-timeline .p-link:hover { color: var(--red-fg); }
+
+/* 🔴 CSS CHANGED (2026-11-13): the brand colour in the side menu, and fixed sizes for the number boxes and the student card | from: the open menu item in light blue, the account circle blue-to-purple; the 13 number boxes above the sheet stretched to fill the width and squeezed (labels on two lines) when the window was narrower or zoomed in; the student card filled the whole window below 640px | to: the open menu item in soft navy with a bronze line on its left, the account circle navy with champagne letters; every number box is one fixed small size (160 by 70) and the boxes simply wrap onto the next row, at any zoom; the student card is always 600px wide (only a phone, narrower than that, shows it full width) */
+.niec-nav a[aria-current="page"] { color: var(--brand-navy); background: var(--gold-soft); box-shadow: inset 3px 0 0 var(--brand-bronze); }
+.niec-menu a[aria-current="page"] { color: var(--brand-navy); }
+:root { --h-gold: var(--brand-navy); }
+.niec-avatar { background: var(--brand-navy); color: var(--brand-champagne); }
+body:has(#sheet) .stat-group-cards { display: flex; flex-wrap: wrap; gap: 8px; padding: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; overflow: visible; }
+body:has(#sheet) .stat-card, body:has(#sheet) .stat-card.stat-total { flex: 0 0 160px; width: 160px; min-width: 160px; height: 70px; flex-direction: column; align-items: flex-start; justify-content: center; gap: 2px; padding: 8px 14px; border: 1px solid var(--lux-line); border-radius: 12px; background: var(--panel); box-shadow: 0 1px 2px rgba(20, 27, 41, .04); }
+body:has(#sheet) .stat-card + .stat-card::before { display: none; }
+body:has(#sheet) .stat-card .stat-value, body:has(#sheet) .stat-card.stat-total .stat-value { font-size: 24px; }
+body:has(#sheet) .stat-card .stat-label, body:has(#sheet) .stat-card.stat-total .stat-label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; line-height: 1.25; }
+body:has(#sheet) .stat-card.stat-total, body:has(#sheet) .stat-card.stat-rate { border-color: color-mix(in srgb, var(--brand-bronze) 55%, var(--lux-line)); }
+body:has(#sheet) .stat-card.stat-total::after, body:has(#sheet) .stat-card.stat-rate::after { left: 14px; right: 14px; bottom: 6px; }
+@media (max-height: 820px) {
+  body:has(#sheet) .stat-card, body:has(#sheet) .stat-card.stat-total { flex-direction: column; align-items: flex-start; gap: 2px; padding: 8px 14px; }
+  body:has(#sheet) .stat-card .stat-value, body:has(#sheet) .stat-card.stat-total .stat-value { font-size: 24px; }
+}
+.p-drawer { width: 600px; max-width: 100vw; } /* the same as student-details/portal.css */

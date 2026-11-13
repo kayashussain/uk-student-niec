@@ -28,7 +28,8 @@
       border: 1px solid #d1d5db; background: var(--panel, #f2f4f7); color: #374151; }
     /* 🔴 CSS CHANGED (2026-11-12): OK button in the "Make this change?" box | from: orange | to: the same blue as every other main button */
     .eg-actions .eg-ok { background: var(--primary, #1d5fd1); border-color: var(--primary, #1d5fd1); color: var(--on-primary, #fff); }
-    .eg-actions button:focus-visible { outline: 2px solid #2563eb; outline-offset: 2px; }
+    /* 🔴 CSS CHANGED (2026-11-13): focus ring in the brand colour | from: bright blue #2563eb | to: navy #2e4c84 */
+    .eg-actions button:focus-visible { outline: 2px solid #2e4c84; outline-offset: 2px; }
     `;
 
   let open = null; // { finish } while the box is showing
