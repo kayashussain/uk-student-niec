@@ -1,93 +1,135 @@
 // B2B Partners and Agents (Admin only; one page script for both, chosen by data-kind on the body).
-//   B2B Partners: the businesses you send applications to (they hold the direct agreement with a university).
+//   B2B Partners: the businesses you send applications to (they hold the direct agreement with a university). Each card shows how to
+//   submit (the portal and its login, or the email) so it can be used without opening the partner.
 //   Agents: the businesses that send you their students.
-// Each has a contact person and number, the day the agreement ends, the commission structure of each intake (a link, and PDF files to
-// upload) and the visas it has brought, intake by intake.
+// Each has its contacts, agreement dates, the commission structure of each intake (a link or a PDF) and the visas it has brought.
 (function () {
   const { el, h, api, field, number } = window.Portal;
   const $ = (id) => document.getElementById(id);
   const say = (t, e) => window.NiecUI.toast(t, { type: e ? 'error' : 'success' });
   const KIND = document.body.dataset.kind === 'agents' ? 'agents' : 'b2b';
-  const WORD = KIND === 'agents' ? { one: 'agent', title: 'Agents' } : { one: 'partner', title: 'B2B Partners' };
+  const WORD = KIND === 'agents' ? { one: 'agent', a: 'an agent', title: 'Agents' } : { one: 'partner', a: 'a partner', title: 'B2B Partners' };
   const API = '/api/' + KIND;
+  const EMAIL = /^[^\s@<>"']+@[^\s@<>"']+\.[^\s@<>"']+$/;
   let data = null;
 
   const stats = (name) => data.performance[String(name).toLowerCase()] || { students: 0, visas: 0, intakes: {} };
-
-  // The commission list of the intake that is running: a PDF or a link that opens when clicked. Missing ones are flagged, so the
-  // updated list is asked for every intake. Older intakes are one click away in the editor.
   const same = (a, b) => String(a || '').trim().toLowerCase() === String(b || '').trim().toLowerCase();
-  const openLink = (text, href) => { const a = el('a', 'p-link', text); a.href = href; a.target = '_blank'; a.rel = 'noopener'; return a; };
-  function commissionCell(p) {
-    const td = el('td');
-    const cur = data.currentIntake;
-    const found = (p.commissions || []).find((c) => same(c.intake, cur) && (c.fileId || c.link));
-    if (found) {
-      td.append(found.fileId ? openLink(`${found.intake}: open the PDF`, `${API}/${p.id}/files/${found.fileId}?open=1`) : openLink(`${found.intake}: open the link`, found.link));
-    } else if (p.status === 'Ended') td.append(el('span', 'p-muted', 'Ended'));
-    else { const miss = el('button', 'p-pill p-pill-amber p-link', `Missing for ${cur || 'this intake'}: add it`); miss.type = 'button'; miss.addEventListener('click', () => edit(p.id)); td.append(miss); }
-    const older = (p.commissions || []).filter((c) => !same(c.intake, cur) && (c.fileId || c.link)).length;
-    if (older) td.append(el('div', 'p-muted p-small', `${older} earlier intake${older === 1 ? '' : 's'}`));
-    return td;
-  }
-  function list() {
-    const body = $('rows');
-    const active = data.partners.filter((p) => p.status === 'Active').length;
-    const total = data.partners.reduce((n, p) => n + stats(p.name).visas, 0);
-    const tile = (label, v, sub) => { const t = el('div', 'p-kpi'); t.append(el('b', '', String(v)), el('span', '', label), el('small', '', sub || '')); return t; };
-    const missing = data.partners.filter((p) => p.status === 'Active' && !(p.commissions || []).some((c) => same(c.intake, data.currentIntake) && (c.fileId || c.link))).length;
-    $('kpis').replaceChildren(tile(`${WORD.title} (active)`, active), tile('Visas through them', total, 'every intake on the sheet'), tile(`Commission list missing for ${data.currentIntake || 'this intake'}`, missing, missing ? 'ask for the updated list' : 'all in'));
-    $('count').textContent = data.partners.length ? `${data.partners.length} in the list` : '';
-    if (!data.partners.length) { body.replaceChildren(h('tr', {}, h('td', { colspan: 7, class: 'p-empty' }, el('b', '', `No ${WORD.one} yet`), `Add the first ${WORD.one}.`))); return; }
-    body.replaceChildren(...data.partners.map((p) => {
-      const st = stats(p.name);
-      const tr = el('tr');
-      const name = el('td'); name.append(h('button', { class: 'p-link', type: 'button', onclick: () => edit(p.id) }, p.name), p.city ? el('div', 'p-muted p-small', p.city) : '');
-      const pill = el('span', `p-pill p-pill-${p.status === 'Active' ? 'green' : p.status === 'Ended' ? 'red' : 'amber'}`, p.status);
-      const st1 = el('td'); st1.append(pill);
-      tr.append(name, st1, el('td', '', p.agreementEnd || '-'), commissionCell(p), el('td', '', p.contact.name || '-'), el('td', '', p.contact.phone || ''), el('td', 'num', number(st.visas)));
-      return tr;
-    }));
+  const openLink = (text, href, cls = 'bp-link') => { const a = el('a', cls, text); a.href = href; a.target = '_blank'; a.rel = 'noopener noreferrer'; return a; };
+  const btn = (cls, label, onClick) => { const b = el('button', cls, label); b.type = 'button'; if (onClick) b.addEventListener('click', onClick); return b; };
+  const copy = (value, what) => btn('bp-mini', 'Copy', async () => { try { await navigator.clipboard.writeText(value); say(`${what} copied`); } catch (e) { say(`Could not copy the ${what.toLowerCase()}`, true); } });
+  const PILL = { Active: 'green', Ended: 'red' };
+
+  // ---- the list ----
+  function draw() {
+    const all = data.partners;
+    const active = all.filter((p) => p.status === 'Active');
+    const visas = all.reduce((n, p) => n + stats(p.name).visas, 0);
+    const missing = active.filter((p) => !(p.commissions || []).some((c) => same(c.intake, data.currentIntake) && (c.fileId || c.link))).length;
+    const band = [[`Active ${WORD.one}s`, number(active.length)], ['Visas through them', number(visas), 'Every intake on the sheet'],
+      [`Commission for ${data.currentIntake || 'this intake'}`, missing ? `${missing} missing` : 'All in', missing ? 'Ask for the updated list' : '', !!missing]];
+    if (KIND === 'b2b') band.splice(2, 0, ['Ready to submit', `${number(active.filter((p) => p.applyPortal || p.applyEmail).length)} of ${number(active.length)}`, 'With a portal or an email']);
+    $('kpis').replaceChildren(...band.map(([label, v, sub, warn]) => { const d = el('div', warn ? 'warn' : ''); d.append(el('span', '', label), el('b', '', v), el('small', '', sub || '')); return d; }));
+    const q = $('search').value.trim().toLowerCase();
+    const shown = q ? all.filter((p) => `${p.name} ${p.city || ''}`.toLowerCase().includes(q)) : all;
+    $('count').textContent = all.length ? (q ? `${shown.length} of ${all.length}` : `${all.length} in the list`) : '';
+    if (!all.length) { $('list').replaceChildren(el('div', 'bp-empty', KIND === 'b2b' ? 'No partners yet. Use "Add from the sheet" to add the partners named in the University Partner column.' : `No ${WORD.one}s yet.`)); return; }
+    if (!shown.length) { $('list').replaceChildren(el('div', 'bp-empty', 'Nothing matches that search.')); return; }
+    $('list').replaceChildren(...shown.map(card));
   }
 
-  // A list of small forms the person can add to and remove from. Returns { node, values() }.
-  function repeater(title, cols, items, addLabel) {
-    const sec = el('div');
-    sec.append(el('h3', '', title));
-    const box = el('div');
-    const rowsList = [];
+  function card(p) {
+    const st = stats(p.name);
+    const c = el('article', 'bp-card');
+    const head = el('div', 'bp-card-head');
+    const who = el('div');
+    who.append(btn('bp-name', p.name, () => edit(p.id)), el('div', 'bp-sub', [p.city, `${number(st.visas)} visa${st.visas === 1 ? '' : 's'} from ${number(st.students)} student${st.students === 1 ? '' : 's'}`].filter(Boolean).join(' · ')));
+    head.append(who, el('span', `bp-status ${PILL[p.status] || 'amber'}`, p.status));
+    c.append(head);
+    if (KIND === 'b2b') c.append(submitBox(p));
+    const facts = el('dl', 'bp-facts');
+    const row = (label, value) => { const dd = el('dd'); if (value instanceof Node) dd.append(value); else if (value) dd.textContent = value; else dd.append(el('span', 'bp-none', 'Not entered yet')); facts.append(el('dt', '', label), dd); };
+    // The commission of the intake that is running: open it, or a calm note that it is missing.
+    const cur = data.currentIntake;
+    const found = (p.commissions || []).find((x) => same(x.intake, cur) && (x.fileId || x.link));
+    if (found) row(`Commission, ${cur}`, found.fileId ? openLink('Open the PDF ↗', `${API}/${p.id}/files/${found.fileId}?open=1`) : openLink('Open the link ↗', found.link));
+    else if (p.status === 'Ended') row('Commission', 'Ended');
+    else { const m = btn('bp-missing', `Missing for ${cur || 'this intake'}`, () => edit(p.id)); row(`Commission, ${cur || 'this intake'}`, m); }
+    const k = p.contact || {};
+    if (k.name || k.phone || k.email) {
+      const d = el('div', 'bp-lines');
+      if (k.name) d.append(el('span', '', k.name + (p.contactCount > 1 ? `  (+${p.contactCount - 1} more)` : '')));
+      if (k.phone) d.append(el('span', '', k.phone));
+      if (k.email) { const a = el('a', 'bp-link', k.email); a.href = 'mailto:' + k.email; d.append(a); }
+      row('Contact', d);
+    } else row('Contact', null);
+    row('Agreement', [p.agreementStart ? 'From ' + p.agreementStart : '', p.agreementEnd ? 'to ' + p.agreementEnd : ''].filter(Boolean).join(' '));
+    c.append(facts);
+    const foot = el('div', 'bp-foot'); foot.append(btn('btn', 'Open details →', () => edit(p.id)));
+    c.append(foot);
+    return c;
+  }
+
+  // How to submit an application through the partner, ready to use from the list.
+  function submitBox(p) {
+    const box = el('div', 'bp-submit');
+    box.append(el('div', 'bp-submit-title', 'Application submission'));
+    const line = (label, value, ...buttons) => { const d = el('div', 'bp-submit-line'); d.append(el('span', 'bp-submit-label', label), value, ...buttons); return d; };
+    if (p.applyPortal) {
+      box.append(line('Portal', openLink('Open portal ↗', p.applyPortal, 'bp-portal'), copy(p.applyPortal, 'Link')));
+      if (p.applyUser) box.append(line('Username', el('code', '', p.applyUser), copy(p.applyUser, 'Username')));
+      if (p.applyPassword) {
+        const dots = '•'.repeat(10);
+        const shown = el('code', '', dots);
+        const peek = btn('bp-mini', 'Show', () => { const open = shown.textContent === dots; shown.textContent = open ? p.applyPassword : dots; peek.textContent = open ? 'Hide' : 'Show'; });
+        box.append(line('Password', shown, peek, copy(p.applyPassword, 'Password')));
+      }
+    } else if (p.applyEmail) {
+      const w = el('a', 'bp-portal', 'Write email ↗'); w.href = 'mailto:' + p.applyEmail;
+      box.append(line('Email', el('code', '', p.applyEmail), copy(p.applyEmail, 'Email'), w));
+    } else box.append(el('div', 'bp-none', 'Not entered yet. Open the partner to add the portal or the email.'));
+    return box;
+  }
+
+  // ---- one partner, in numbered steps ----
+  function step(n, title, help) {
+    const s = el('section', 'bp-step');
+    const head = el('div', 'bp-step-head');
+    const words = el('div'); words.append(el('h3', '', title)); if (help) words.append(el('p', '', help));
+    head.append(el('span', 'bp-num', String(n)), words);
+    s.append(head);
+    return s;
+  }
+  function grid(cls, ...nodes) { const g = el('div', 'p-form ' + cls); nodes.forEach((n) => g.append(n)); return g; }
+  function repeater(cols, items, addLabel) {
+    const node = el('div');
+    const box = el('div', 'bp-rows');
+    const rows = [];
     const add = (item) => {
-      const r = el('div', 'p-form p-form-2');
-      r.style.marginBottom = '8px';
+      const r = el('div', 'bp-row');
       const inputs = {};
       cols.forEach(([k, label, ph]) => { const f = field(label, { value: item[k], placeholder: ph, max: 500 }); inputs[k] = f.input; r.append(f.wrap); });
-      r.append(h('button', { class: 'btn btn-sm btn-danger', type: 'button', onclick: () => { r.remove(); rowsList.splice(rowsList.indexOf(inputs), 1); } }, 'Remove'));
-      rowsList.push(inputs);
-      box.append(r);
+      r.append(btn('bp-remove', 'Remove', () => { r.remove(); rows.splice(rows.indexOf(inputs), 1); }));
+      rows.push(inputs); box.append(r);
     };
     items.forEach(add);
-    sec.append(box, h('button', { class: 'btn btn-sm', type: 'button', onclick: () => add({}) }, addLabel));
-    return { node: sec, values: () => rowsList.map((i) => Object.fromEntries(Object.entries(i).map(([k, x]) => [k, x.value]))) };
+    node.append(box, btn('btn btn-sm bp-add-row', '+ ' + addLabel, () => add({})));
+    return { node, values: () => rows.map((i) => Object.fromEntries(Object.entries(i).map(([k, x]) => [k, x.value]))) };
   }
-
-  // Commission by intake: for each intake a PDF to upload or a link (either opens when clicked in the list).
-  function commissionEditor(id, p, reload) {
-    const sec = el('div');
-    sec.append(el('h3', '', 'Commission list by intake'), el('p', 'p-muted p-small', 'Every intake has its own commission. Choose the intake, then upload the PDF or paste the link. Ask for the updated list each intake.'));
-    const box = el('div');
-    const rowsList = [];
-    const intakes = data.intakes && data.intakes.length ? data.intakes : [];
+  function commissionEditor(id, p) {
+    const node = el('div');
+    const box = el('div', 'bp-rows');
+    const rows = [];
+    const intakes = data.intakes || [];
     const add = (item) => {
-      const r = el('div', 'p-form p-form-2');
-      r.style.marginBottom = '12px';
+      const r = el('div', 'bp-row');
       const intake = field('Intake', { kind: 'select', choices: intakes, value: item.intake || data.currentIntake || '' });
       const link = field('Link (optional)', { value: item.link, placeholder: 'https://…', max: 500 });
-      const note = field('Note', { value: item.note, max: 200 });
       const st = { fileId: item.fileId || '' };
       const fileLine = el('div', 'p-field');
       const showFile = () => {
         const a = (p.agreements || []).find((x) => x.id === st.fileId);
-        fileLine.replaceChildren(el('span', 'p-label', 'PDF'), a ? openLink(a.name, `${API}/${id}/files/${a.id}?open=1`) : el('span', 'p-muted', 'No PDF uploaded for this intake'));
+        fileLine.replaceChildren(el('span', 'p-label', 'PDF'), a ? openLink(a.name, `${API}/${id}/files/${a.id}?open=1`) : el('span', 'p-muted', 'None uploaded'));
       };
       showFile();
       const pick = el('input'); pick.type = 'file'; pick.accept = '.pdf,.png,.jpg,.jpeg'; pick.setAttribute('aria-label', 'Upload the commission PDF');
@@ -97,64 +139,76 @@
           const res = await fetch(`${API}/${id}/files?name=${encodeURIComponent(f.name)}`, { method: 'POST', headers: { 'Content-Type': 'application/octet-stream' }, body: f });
           const j = await res.json().catch(() => ({}));
           if (!res.ok) throw new Error(j.error || 'Could not upload it.');
-          p.agreements = j.agreements; st.fileId = j.agreements[j.agreements.length - 1].id; showFile(); say('Uploaded. Press Save to keep it for this intake.');
+          p.agreements = j.agreements; st.fileId = j.agreements[j.agreements.length - 1].id; showFile(); say('Uploaded. Save to keep it for this intake.');
         } catch (e) { say(e.message, true); }
       });
-      r.append(intake.wrap, link.wrap, note.wrap, fileLine, pick, h('button', { class: 'btn btn-sm btn-danger', type: 'button', onclick: () => { r.remove(); rowsList.splice(rowsList.indexOf(rec), 1); } }, 'Remove this intake'));
-      const rec = { intake, link, note, st };
-      rowsList.push(rec);
-      box.append(r);
+      const rec = { intake, link, st };
+      r.append(intake.wrap, link.wrap, fileLine, pick, btn('bp-remove', 'Remove', () => { r.remove(); rows.splice(rows.indexOf(rec), 1); }));
+      rows.push(rec); box.append(r);
     };
     (p.commissions || []).forEach(add);
-    sec.append(box, h('button', { class: 'btn btn-sm', type: 'button', onclick: () => add({}) }, 'Add an intake'));
-    return { node: sec, values: () => rowsList.map((x) => ({ intake: x.intake.input.value, link: x.link.input.value, note: x.note.input.value, fileId: x.st.fileId })) };
+    node.append(box, btn('btn btn-sm bp-add-row', '+ Add an intake', () => add({})));
+    return { node, values: () => rows.map((x) => ({ intake: x.intake.input.value, link: x.link.input.value, fileId: x.st.fileId, note: '' })) };
   }
 
   async function edit(id) {
     const p = await api(`${API}/${id}`);
-    const ed = $('editor');
     const st = stats(p.name);
+    const ed = $('editor');
+    const form = el('div');
+    form.append(btn('bp-back', `← ${WORD.title}`, closeEditor));
+    const head = el('div', 'bp-ed-head'); head.append(el('h2', '', p.name), el('span', `bp-status ${PILL[p.status] || 'amber'}`, p.status));
+    form.append(head, el('p', 'bp-saved', `${number(st.visas)} visa${st.visas === 1 ? '' : 's'} from ${number(st.students)} student${st.students === 1 ? '' : 's'}.`));
+    let n = 0;
     const name = field('Name', { value: p.name, max: 120 });
     const status = field('Status', { kind: 'select', choices: data.statuses, value: p.status });
-    status.input.querySelector('option[value=""]').remove();
+    const blank = status.input.querySelector('option[value=""]'); if (blank) blank.remove();
     const city = field('City or country', { value: p.city, max: 300 });
-    const start = field('Agreement starts', { value: p.agreementStart, placeholder: '1 Jan 2026', max: 40 });
-    const end = field('Agreement ends', { value: p.agreementEnd, placeholder: '31 Dec 2026', max: 40 });
-    const form = el('div', 'p-form');
-    form.append(name.wrap, status.wrap, city.wrap, start.wrap, end.wrap);
-    const contacts = repeater('Contacts', [['name', 'Contact person'], ['phone', 'Contact number'], ['email', 'Email']], p.contacts, 'Add a contact');
-    const commissions = commissionEditor(id, p, () => edit(id));
-    const notes = field('Notes', { kind: 'area', value: p.notes, max: 12000, wide: true });
+    const start = field('Agreement starts', { value: p.agreementStart, placeholder: 'e.g. 1 Jan 2026', max: 40 });
+    const end = field('Agreement ends (optional)', { value: p.agreementEnd, placeholder: 'e.g. 31 Dec 2027', max: 40 });
+    const s1 = step(++n, `The ${WORD.one}`, 'Its name, where it is, and the agreement.');
+    s1.append(grid('bp-three', name.wrap, status.wrap, city.wrap, start.wrap, end.wrap));
+    const steps = [s1];
 
-    const visas = el('div');
-    visas.append(el('h3', '', 'Visas by intake'));
-    const byIntake = Object.entries(st.intakes || {});
-    if (!byIntake.length) visas.append(el('p', 'p-muted p-small', 'No students yet.'));
-    else {
-      const t = el('table', 'p-table');
-      t.append(h('thead', {}, h('tr', {}, ...['Intake', 'Visas'].map((x, i) => el('th', i ? 'num' : '', x)))));
-      const tb = el('tbody');
-      byIntake.forEach(([intake, v]) => tb.append(h('tr', {}, el('td', '', intake), el('td', 'num', number(v.visas)))));
-      tb.append(h('tr', {}, el('td', '', el('b', '', 'Total')), el('td', 'num', el('b', '', number(st.visas)))));
-      t.append(tb); visas.append(t);
+    let apply = null; let applyUser = null; let applyPassword = null;
+    if (KIND === 'b2b') {
+      const s2 = step(++n, 'Application submission', 'Paste the portal link or the email applications go to. For a portal, add the login details your team uses. The team sees them on the list and on the card of every student whose University Partner is this partner.');
+      apply = field('Portal link or email', { value: p.applyPortal || p.applyEmail, max: 600, wide: true, placeholder: 'e.g. https://portal.partner.com  or  applications@partner.com' });
+      const kind = el('span', 'bp-kind');
+      apply.wrap.append(kind);
+      applyUser = field('Username', { value: p.applyUser, max: 200, placeholder: 'The username or email used to log in' });
+      applyPassword = field('Password', { value: p.applyPassword, max: 200, placeholder: 'The password' });
+      applyPassword.input.type = 'password'; applyPassword.input.autocomplete = 'new-password';
+      const peek = btn('btn btn-sm', 'Show', () => { const hid = applyPassword.input.type === 'password'; applyPassword.input.type = hid ? 'text' : 'password'; peek.textContent = hid ? 'Hide' : 'Show'; });
+      const passRow = el('div', 'bp-pass'); applyPassword.input.replaceWith(passRow); passRow.append(applyPassword.input, peek);
+      const login = el('div'); login.append(el('h4', 'bp-sub-head', 'Login details'), grid('bp-two', applyUser.wrap, applyPassword.wrap));
+      const showKind = () => { const v = apply.input.value.trim(); const isEmail = EMAIL.test(v); kind.hidden = !v; kind.textContent = isEmail ? 'Email: applications are sent to this address' : 'Portal link: add the login details below'; login.hidden = !v || isEmail; };
+      apply.input.addEventListener('input', showKind); showKind();
+      s2.append(grid('bp-one', apply.wrap), login);
+      steps.push(s2);
     }
 
-    // PDF (or Word, or picture) of a commission structure or of the agreement
-    const files = el('div');
-    files.append(el('h3', '', 'Commission structure and agreement files (PDF)'));
-    const fl = el('div');
-    const draw = (pp) => {
+    const s3 = step(++n, 'Contacts', 'The people you deal with. The first one shows on the list.');
+    const contacts = repeater([['name', 'Name', 'e.g. Partner manager'], ['phone', 'Phone', 'e.g. 98XXXXXXXX'], ['email', 'Email', 'name@partner.com']], p.contacts, 'Add a contact');
+    s3.append(contacts.node); steps.push(s3);
+
+    const s4 = step(++n, 'Commission by intake', 'Every intake has its own commission list. Choose the intake, then paste the link or upload the PDF.');
+    const commissions = commissionEditor(id, p);
+    s4.append(commissions.node); steps.push(s4);
+
+    const s5 = step(++n, 'Agreement and other files', 'PDF, Word or an image, up to 10 MB. Files are saved as soon as they are uploaded.');
+    const fl = el('div', 'bp-files');
+    const drawFiles = (pp) => {
       fl.replaceChildren(...(pp.agreements.length ? pp.agreements.map((a) => {
-        const r = el('div', 'p-sent');
-        const link = el('a', 'p-link', a.name); link.href = `${API}/${id}/files/${a.id}`; link.setAttribute('download', a.name);
-        r.append(link, el('span', 'p-muted p-small', `${Math.max(1, Math.round(a.size / 1024))} KB`), h('button', { class: 'p-link', type: 'button', onclick: async () => { if (await window.NiecUI.confirm(`Remove ${a.name}?`, { danger: true })) draw(await api(`${API}/${id}/files/${a.id}/delete`, {})); } }, 'Remove'));
+        const r = el('div', 'bp-file');
+        const link = el('a', 'bp-link', a.name); link.href = `${API}/${id}/files/${a.id}`; link.setAttribute('download', a.name);
+        r.append(link, el('span', 'p-muted', `${Math.max(1, Math.round(a.size / 1024))} KB`), btn('bp-remove', 'Remove', async () => { if (await window.NiecUI.confirm(`Remove ${a.name}?`, { danger: true })) drawFiles(await api(`${API}/${id}/files/${a.id}/delete`, {})); }));
         return r;
-      }) : [el('p', 'p-muted p-small', 'No file uploaded yet. Name the file after the intake, for example "Jan 2027 commission.pdf", so it is easy to find.')]));
+      }) : [el('p', 'p-muted', 'No file uploaded yet.')]));
     };
-    draw(p);
+    drawFiles(p);
     const pick = el('input'); pick.type = 'file'; pick.accept = '.pdf,.doc,.docx,.png,.jpg,.jpeg';
-    const up = h('button', { class: 'btn btn-sm', type: 'button' }, 'Upload');
-    up.addEventListener('click', async () => {
+    const up = btn('btn btn-sm', 'Upload', async () => {
       const f = pick.files && pick.files[0];
       if (!f) { say('Choose the file first.', true); return; }
       up.disabled = true;
@@ -162,42 +216,84 @@
         const res = await fetch(`${API}/${id}/files?name=${encodeURIComponent(f.name)}`, { method: 'POST', headers: { 'Content-Type': 'application/octet-stream' }, body: f });
         const j = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(j.error || 'Could not upload it.');
-        pick.value = ''; draw(j); say('Uploaded');
+        pick.value = ''; drawFiles(j); say('Uploaded');
       } catch (e) { say(e.message, true); }
       up.disabled = false;
     });
-    files.append(fl, el('div', 'p-bar'));
-    files.lastChild.append(pick, up, el('span', 'p-muted p-small', 'PDF, Word or image, up to 10 MB.'));
+    const upRow = el('div', 'p-bar'); upRow.append(pick, up);
+    s5.append(fl, upRow); steps.push(s5);
 
-    const bar = el('div', 'p-bar');
-    const save = h('button', { class: 'btn btn-primary', type: 'button' }, 'Save');
-    save.addEventListener('click', async () => {
+    const byIntake = Object.entries(st.intakes || {});
+    const s6 = step(++n, 'Visas by intake', '');
+    if (!byIntake.length) s6.append(el('p', 'p-muted', 'No students yet.'));
+    else {
+      const t = el('div', 'bp-visas');
+      byIntake.forEach(([intake, v]) => { const d = el('div'); d.append(el('span', '', intake), el('b', '', number(v.visas))); t.append(d); });
+      const tot = el('div', 'total'); tot.append(el('span', '', 'Total'), el('b', '', number(st.visas))); t.append(tot);
+      s6.append(t);
+    }
+    steps.push(s6);
+
+    const notes = field('Notes', { kind: 'area', value: p.notes, max: 12000, wide: true });
+    const s7 = step(++n, 'Notes', '');
+    s7.append(grid('bp-one', notes.wrap)); steps.push(s7);
+    form.append(...steps);
+
+    const bar = el('div', 'bp-savebar');
+    const save = btn('btn btn-primary', 'Save', async () => {
       try {
-        await api(`${API}/${id}`, { name: name.input.value, status: status.input.value, city: city.input.value, agreementStart: start.input.value, agreementEnd: end.input.value, contacts: contacts.values(), commissions: commissions.values(), notes: notes.input.value });
-        say('Saved'); await load(); edit(id);
+        const body = { name: name.input.value, status: status.input.value, city: city.input.value, agreementStart: start.input.value, agreementEnd: end.input.value, contacts: contacts.values(), commissions: commissions.values(), notes: notes.input.value };
+        if (apply) Object.assign(body, { apply: apply.input.value, applyUser: applyUser.input.value, applyPassword: applyPassword.input.value });
+        const saved = await api(`${API}/${id}`, body);
+        if (apply && apply.input.value.trim() && !saved.applyPortal && !saved.applyEmail) say('Saved, but the application link could not be kept: it must be a web address or an email address.', true);
+        else say('Saved');
+        await load(); edit(id);
       } catch (e) { say(e.message, true); }
     });
-    const close = h('button', { class: 'btn', type: 'button', onclick: () => { ed.hidden = true; } }, 'Close');
-    const del = h('button', { class: 'btn btn-danger', type: 'button', onclick: async () => { if (!(await window.NiecUI.confirm(`Remove ${p.name} from ${WORD.title}?`, { danger: true, confirmText: 'Remove' }))) return; await api(`${API}/${id}/delete`, {}); ed.hidden = true; say('Removed'); load(); } }, 'Remove from list');
-    bar.append(save, close, del);
-    ed.replaceChildren(el('h2', '', p.name), el('div', 'p-notice', `Visas so far: ${number(st.visas)} from ${number(st.students)} students.`), form, contacts.node, commissions.node, files, visas, notes.wrap, bar);
-    ed.hidden = false;
-    ed.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    const del = btn('btn btn-danger', 'Remove from list', async () => { if (!(await window.NiecUI.confirm(`Remove ${p.name} from ${WORD.title}?`, { danger: true, confirmText: 'Remove' }))) return; await api(`${API}/${id}/delete`, {}); say('Removed'); closeEditor(); load(); });
+    bar.append(save, btn('btn', 'Back to the list', closeEditor), el('span', 'grow'), del);
+    form.append(bar);
+    ed.replaceChildren(form);
+    $('listView').hidden = true; ed.hidden = false;
+    window.scrollTo({ top: 0 });
   }
-  async function load() { data = await api(API); list(); }
-  $('add').addEventListener('click', async () => {
-    const made = await new Promise((resolve) => window.Portal.dialog(`Add ${WORD.one === 'agent' ? 'an agent' : 'a partner'}`, (body, close) => {
+  function closeEditor() { $('editor').hidden = true; $('editor').replaceChildren(); $('listView').hidden = false; window.scrollTo({ top: 0 }); }
+
+  // ---- add one, or add the partners named in the sheet ----
+  function addOne() {
+    window.Portal.dialog(`New ${WORD.one}`, (body, close) => {
       const n = field('Name', { max: 120 });
       const msg = el('div', 'p-msg');
       const foot = el('div', 'p-dialog-foot');
-      foot.append(h('button', { class: 'btn', type: 'button', onclick: () => close() }, 'Cancel'));
-      const ok = h('button', { class: 'btn btn-primary', type: 'button' }, 'Add');
-      ok.addEventListener('click', async () => { try { close(await api(API, { name: n.input.value })); } catch (e) { msg.textContent = e.message; msg.className = 'p-msg error'; } });
+      foot.append(btn('btn', 'Cancel', () => close()));
+      const ok = btn('btn btn-primary', 'Add', async () => { try { close(await api(API, { name: n.input.value })); } catch (e) { msg.textContent = e.message; msg.className = 'p-msg error'; } });
       foot.append(ok);
-      body.append(el('div', 'p-form p-form-2'), msg, foot);
-      body.firstChild.append(n.wrap);
-    }).then(resolve));
-    if (made) { await load(); edit(made.id); }
-  });
-  load().catch((e) => { $('rows').replaceChildren(h('tr', {}, h('td', { colspan: 6, class: 'p-notice bad' }, e.message))); });
+      body.append(grid('p-form-2', n.wrap), msg, foot);
+    }).then(async (made) => { if (made) { await load(); edit(made.id); } });
+  }
+  function fromSheet() {
+    window.Portal.dialog('Add from the sheet', async (body, close) => {
+      body.append(el('p', 'p-muted', 'Looking in the University Partner column…'));
+      let names;
+      try { names = (await api(`${API}/from-sheet`, { preview: true })).names; } catch (e) { body.replaceChildren(el('div', 'p-notice bad', e.message)); return; }
+      body.replaceChildren();
+      if (!names.length) { body.append(el('p', '', 'Every partner named in the University Partner column is already in the list (university names are left out).')); const f = el('div', 'p-dialog-foot'); f.append(btn('btn', 'Close', () => close())); body.append(f); return; }
+      body.append(el('p', 'p-muted', 'The names in the University Partner column that are not in the list yet. University names are left out. Untick any that are not a partner.'));
+      const list = el('div', 'bp-picks');
+      const boxes = names.map((x) => { const l = el('label', 'bp-pick'); const c = el('input'); c.type = 'checkbox'; c.checked = true; c.value = x.name; l.append(c, el('b', '', x.name), el('span', 'p-muted', `${number(x.students)} student${x.students === 1 ? '' : 's'}`)); list.append(l); return c; });
+      const foot = el('div', 'p-dialog-foot');
+      foot.append(btn('btn', 'Cancel', () => close()), btn('btn btn-primary', 'Add the ticked ones', async () => {
+        const picked = boxes.filter((c) => c.checked).map((c) => c.value);
+        if (!picked.length) { close(); return; }
+        try { const r = await api(`${API}/from-sheet`, { names: picked }); close(r.added); } catch (e) { say(e.message, true); }
+      }));
+      body.append(list, foot);
+    }).then(async (added) => { if (added && added.length) { say(`${added.length} added`); await load(); } });
+  }
+
+  async function load() { data = await api(API); draw(); }
+  $('add').addEventListener('click', addOne);
+  if ($('fromSheet')) $('fromSheet').addEventListener('click', fromSheet);
+  $('search').addEventListener('input', () => data && draw());
+  load().catch((e) => { $('list').replaceChildren(h('div', { class: 'p-notice bad' }, e.message)); });
 })();

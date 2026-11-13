@@ -222,3 +222,12 @@ test('agreement files: only PDF, Word or image, kept under their own id, downloa
   direct.remove(id);
   assert.ok(!fs.existsSync(path.join(dir, 'direct-files', id)), 'the files go with the university');
 });
+
+test('B2B partners keep an application route like the Partner Universities: a portal with its login, or an email', () => {
+  const { cleanPartner } = require('../student-details/b2b');
+  const p = cleanPartner({ name: 'Partner', apply: 'portal.partner.com', applyUser: 'niec', applyPassword: 'pw' });
+  assert.deepStrictEqual([p.applyPortal, p.applyUser, p.applyPassword], ['https://portal.partner.com/', 'niec', 'pw']);
+  const e = cleanPartner({ name: 'Partner', apply: 'apps@partner.com', applyPassword: 'pw' });
+  assert.deepStrictEqual([e.applyEmail, e.applyPortal, e.applyPassword], ['apps@partner.com', '', '']);
+  assert.strictEqual(cleanPartner({ name: 'Old' }).applyPortal, '', 'a partner saved before has none');
+});

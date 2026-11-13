@@ -13,17 +13,20 @@
 </head>
 <body class="p-body" data-kind="agents">
   <header class="niec-header" data-page="agents"></header>
-  <main class="p-page">
-    <div class="p-head">
-      <div>
-        <h1 id="pageTitle">Agents <span class="p-chip">Admin only</span></h1>
-        <p id="intro">The agents who send you their students to apply to the universities. Their contact, agreement and commission structure of each intake, and the visas of the students they sent.</p>
+  <main class="p-page bp-page">
+    <div id="listView">
+      <div class="p-head">
+        <div>
+          <h1 id="pageTitle">Agents <span class="p-chip">Admin only</span></h1>
+          <p id="intro">The agents who send you their students: contact, the commission of each intake, and the visas of the students they sent.</p>
+        </div>
+        <div class="p-actions"><button class="btn btn-primary" type="button" id="add">+ New agent</button></div>
       </div>
-      <div class="p-actions"><button class="btn btn-primary" type="button" id="add">+ Add an agent</button></div>
+      <div class="bp-band" id="kpis"></div>
+      <div class="bp-tools"><input id="search" class="bp-search" type="search" placeholder="Search by name" aria-label="Search" /><span class="p-muted" id="count"></span></div>
+      <div class="bp-grid" id="list"><div class="bp-empty">Loading…</div></div>
     </div>
-    <div class="p-kpis" id="kpis"></div>
-        <section class="p-card"><div class="p-card-head"><h2 id="listTitle">Agents</h2><span class="p-muted p-small" id="count"></span></div><div class="p-table-wrap"><table class="p-table"><thead><tr><th>Name</th><th>Status</th><th>Agreement ends</th><th>Commission</th><th>Contact person</th><th>Contact number</th><th class="num">Visas</th></tr></thead><tbody id="rows"><tr><td colspan="6" class="p-muted">Loading…</td></tr></tbody></table></div></section>
-    <section class="p-card" id="editor" hidden></section>
+    <section id="editor" hidden></section>
   </main>
 <script src="session.js"></script>
 <script src="ui.js"></script>

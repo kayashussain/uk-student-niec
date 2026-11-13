@@ -119,7 +119,7 @@
         const peek = h('button', { class: 'btn btn-sm', type: 'button', onclick: () => { open = !open; shown.textContent = open ? data.apply.password : '\u2022'.repeat(10); peek.textContent = open ? 'Hide' : 'Show'; } }, 'Show');
         const line = el('span', 'p-apply-login'); line.append(el('small', '', 'Password'), shown, peek, copyBtn(data.apply.password, 'Password')); dd.append(line);
       }
-      d.append(el('dt', '', 'Application link'), dd); facts.append(d);
+      d.append(el('dt', '', data.apply.via ? `Application link (through ${data.apply.via})` : 'Application link'), dd); facts.append(d);
     }
     mid.append(facts);
     const act = el('div', 'p-hero-actions');

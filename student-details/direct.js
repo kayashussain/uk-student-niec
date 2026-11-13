@@ -273,4 +273,4 @@ function createDirect(dir, {
   };
 }
 
-module.exports = { createDirect, viewDirect, clean, cleanPortal, cleanApplyEmail, STATUSES, TYPES, STARTERS, FILE_TYPES, MAX_FILE_BYTES, LIMITS };
+module.exports = { createDirect, viewDirect, clean, applyRoute, cleanPortal, cleanApplyEmail, STATUSES, TYPES, STARTERS, FILE_TYPES, MAX_FILE_BYTES, LIMITS };

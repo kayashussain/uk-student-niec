@@ -39,12 +39,22 @@ function createPortalApi({
   // Partner Universities (never the commission or the agreement), and a partner marked Ended is left out. The portal's
   // login (username and password) goes only to an account that may work on the student (not the view-only Manager).
   const squash = (s) => String(s || '').toLowerCase().replace(/\(.*?\)/g, ' ').replace(/[^a-z0-9]+/g, '');
+  // A student whose University Partner is one of the B2B partners is applied for through that partner: its portal or email wins.
+  function partnerRouteFor(partner, withLogin) {
+    const want = squash(partner);
+    if (!want || !b2b || !b2b.all) return null;
+    const hit = b2b.all().find((p) => p.status !== 'Ended' && (p.applyPortal || p.applyEmail) && squash(p.name) === want);
+    if (!hit) return null;
+    const route = { university: '', via: hit.name, portal: hit.applyPortal || '', email: hit.applyEmail || '' };
+    if (withLogin && hit.applyPortal) Object.assign(route, { user: hit.applyUser || '', password: hit.applyPassword || '' });
+    return route;
+  }
   function applyRouteFor(university, withLogin) {
     const want = squash(university);
     if (!want || !direct || !direct.all) return null;
     const hit = direct.all().find((u) => u.status !== 'Ended' && (u.applyPortal || u.applyEmail) && squash(u.name) === want);
     if (!hit) return null;
-    const route = { university: hit.name, portal: hit.applyPortal || '', email: hit.applyEmail || '' };
+    const route = { university: hit.name, via: '', portal: hit.applyPortal || '', email: hit.applyEmail || '' };
     if (withLogin && hit.applyPortal) Object.assign(route, { user: hit.applyUser || '', password: hit.applyPassword || '' });
     return route;
   }
@@ -425,7 +435,7 @@ function createPortalApi({
           me: { name: req.user.name },
           event: (() => { const e = eventOf(card.profile.sourceDetail); return e ? { name: e.name, kind: e.kind || 'Event', type: e.type, place: e.place, date: e.date, endDate: e.endDate } : null; })(),
           mail: { ready: Boolean(cfg), from: cfg ? cfg.from : '' },
-          apply: applyRouteFor(found.row['UNIVERSITY NAME'], editable),
+          apply: partnerRouteFor(found.row['UNIVERSITY PARTNER'], editable) || applyRouteFor(found.row['UNIVERSITY NAME'], editable),
           today: cards.today(),
         });
         return true;
@@ -820,6 +830,29 @@ function createPortalApi({
     if (req.method !== 'POST') { send(res, 405, 'Method not allowed'); return true; }
     const body = await bodyOf(req, res, 1024 * 1024);
     if (!body) return true;
+    if (kind === 'b2b' && urlPath === '/api/b2b/from-sheet') {
+      // The names in the University Partner column of the intakes (or one intake) that are not yet B2B partners, leaving out
+      // university names (the Fact File, Partner Universities, and any name with University or College in it). preview: only list them.
+      const wb = getWorkbook();
+      const known = new Set(b2b.list().map((p) => squash(p.name)));
+      const unis = new Set([...facts.all().map((u) => squash(u.name)), ...direct.all().map((u) => squash(u.name))].filter(Boolean));
+      const found = new Map();
+      (wb ? wb.sheets : []).filter((sh) => !body.sheetId || sh.id === body.sheetId).forEach((sh) => sh.rows.forEach((row) => {
+        const name = text(row['UNIVERSITY PARTNER']).replace(/\s+/g, ' ');
+        const key = squash(name);
+        if (!key || known.has(key) || unis.has(key) || /universit|college/i.test(name)) return;
+        const f = found.get(key) || { name, students: 0 };
+        f.students += 1; found.set(key, f);
+      }));
+      const names = [...found.values()].sort((x, y) => y.students - x.students);
+      if (body.preview) { sendJSON(res, 200, { names }); return true; }
+      const pick = new Set((Array.isArray(body.names) ? body.names : []).map(squash));
+      const added = [];
+      names.filter((n) => pick.has(squash(n.name))).forEach((n) => { const made = b2b.create(n.name, req.user.label); if (!made.error) added.push(made.university.name); });
+      if (added.length) record(`Added from the sheet: ${added.join(', ')}`);
+      sendJSON(res, 200, { added });
+      return true;
+    }
     if (!id) {
       const made = b2b.create(body.name, req.user.label);
       if (made.error) { sendJSON(res, 400, { error: made.error }); return true; }

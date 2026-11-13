@@ -13,17 +13,20 @@
 </head>
 <body class="p-body" data-kind="b2b">
   <header class="niec-header" data-page="b2b"></header>
-  <main class="p-page">
-    <div class="p-head">
-      <div>
-        <h1>B2B Partners <span class="p-chip">Admin only</span></h1>
-        <p id="intro">The businesses you send applications to, because they hold the direct agreement with the university. Their contact, agreement and the commission structure of each intake, and the visas each has given us.</p>
+  <main class="p-page bp-page">
+    <div id="listView">
+      <div class="p-head">
+        <div>
+          <h1 id="pageTitle">B2B Partners <span class="p-chip">Admin only</span></h1>
+          <p id="intro">Where your applications go when a partner holds the university agreement: how to submit, the commission of each intake, and the visas each has given.</p>
+        </div>
+        <div class="p-actions"><button class="btn" type="button" id="fromSheet">Add from the sheet</button><button class="btn btn-primary" type="button" id="add">+ New partner</button></div>
       </div>
-      <div class="p-actions"><button class="btn btn-primary" type="button" id="add">+ Add a partner</button></div>
+      <div class="bp-band" id="kpis"></div>
+      <div class="bp-tools"><input id="search" class="bp-search" type="search" placeholder="Search by name" aria-label="Search" /><span class="p-muted" id="count"></span></div>
+      <div class="bp-grid" id="list"><div class="bp-empty">Loading…</div></div>
     </div>
-    <div class="p-kpis" id="kpis"></div>
-        <section class="p-card"><div class="p-card-head"><h2 id="listTitle">Partners</h2><span class="p-muted p-small" id="count"></span></div><div class="p-table-wrap"><table class="p-table"><thead><tr><th>Name</th><th>Status</th><th>Agreement ends</th><th>Commission</th><th>Contact person</th><th>Contact number</th><th class="num">Visas</th></tr></thead><tbody id="rows"><tr><td colspan="6" class="p-muted">Loading…</td></tr></tbody></table></div></section>
-    <section class="p-card" id="editor" hidden></section>
+    <section id="editor" hidden></section>
   </main>
 <script src="session.js"></script>
 <script src="ui.js"></script>

@@ -3,7 +3,7 @@
 // the server refuses every other account. Kept in b2b-partners.json in the data folder, with the agreement files in b2b-files/
 // (never in git, never served as pages). The store itself is the one the Partner Universities use (direct.js).
 
-const { createDirect, STATUSES, LIMITS } = require('./direct');
+const { createDirect, applyRoute, STATUSES, LIMITS } = require('./direct');
 
 const str = (v, max) => (typeof v === 'string' ? v.replace(/\r\n?/g, '\n').slice(0, max) : '');
 
@@ -28,6 +28,8 @@ function cleanPartner(input, old = {}) {
     agreementEnd: str(input.agreementEnd, 40).trim(),
     contacts,
     commissions,
+    // Where the team sends a student's application through this partner: a portal (with its login) or an email, as on Partner Universities.
+    ...applyRoute(input),
     notes: str(input.notes, LIMITS.text),
   };
 }
@@ -36,6 +38,8 @@ const summary = (p) => ({
   id: p.id, name: p.name, status: p.status, city: p.city,
   agreementStart: p.agreementStart, agreementEnd: p.agreementEnd, agreementCount: p.agreements.length, updatedAt: p.updatedAt,
   contact: p.contacts[0] || { name: '', email: '', phone: '' }, contactCount: p.contacts.length, commissionCount: (p.commissions || []).length,
+  // The page is Admin only: the login is carried so it can be copied from the list.
+  applyPortal: p.applyPortal || '', applyEmail: p.applyEmail || '', applyUser: p.applyUser || '', applyPassword: p.applyPassword || '',
   commissions: (p.commissions || []).map((c) => { const f = (p.agreements || []).find((a) => a.id === c.fileId); return { intake: c.intake, link: c.link || '', fileId: c.fileId || '', fileName: f ? f.name : '' }; }),
 });
 
