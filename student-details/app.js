@@ -35,7 +35,10 @@
     'NOC': ['Submitted'],
     'MEDICAL REPORT': ['Received'],
     'STUDENT SOURCE': SOURCE_OPTIONS,
+    // Filled from Partner Universities and B2B Partners when the page opens (loadPartnerChoices); a new partner is added there first.
+    'UNIVERSITY PARTNER': [],
   };
+  const PARTNER_GROUP = new Map(); // name -> 'Partner Universities' or 'B2B Partners'
   // Language test results (IELTS/PTE/etc.) are valid for 2 years. Flag as "expiring soon"
   // once within 3 months of that expiry (21 months elapsed), matching the source sheet's rule.
   const LANGUAGE_TEST_VALID_MONTHS = 24;
@@ -1526,6 +1529,11 @@
             if (col === SOURCE_COL && opt && window.CardFields.isBranchValue(opt)) {
               if (!branchGroup) { branchGroup = document.createElement('optgroup'); branchGroup.label = 'Branch'; select.appendChild(branchGroup); }
               branchGroup.appendChild(o);
+            } else if (col === PARTNER_COL && opt && PARTNER_GROUP.has(opt)) {
+              const label = PARTNER_GROUP.get(opt);
+              let g = [...select.querySelectorAll('optgroup')].find((x) => x.label === label);
+              if (!g) { g = document.createElement('optgroup'); g.label = label; select.appendChild(g); }
+              g.appendChild(o);
             } else select.appendChild(o);
           });
         };
@@ -1871,7 +1879,7 @@
   }
 
   // Columns where people type the same names again and again, so a slip can be matched against the sheet.
-  const SUGGEST_COLS = new Set(['UNIVERSITY NAME', 'COURSE NAME', 'RECEIVING PARTNER', 'UNIVERSITY PARTNER']);
+  const SUGGEST_COLS = new Set(['UNIVERSITY NAME', 'COURSE NAME', 'RECEIVING PARTNER']);
   // Every value already in this column, across all the sheets this account can see.
   function knownValues(col) {
     return sheets.flatMap((s) => s.rows.map((r) => r[col]));
@@ -2965,6 +2973,20 @@
   setInterval(syncPresence, 5000);
   setInterval(() => { if (JSON.stringify(myPresence()) !== lastSent) syncPresence(); }, 50);
   document.addEventListener('visibilitychange', () => { if (!document.hidden) syncPresence(); });
+  // The University Partner choices: Partner Universities, then B2B Partners.
+  async function loadPartnerChoices() {
+    try {
+      const r = await fetch('/api/partner-choices', { cache: 'no-store' });
+      if (!r.ok) return;
+      const c = await r.json();
+      PARTNER_GROUP.clear();
+      c.universities.forEach((n) => PARTNER_GROUP.set(n, 'Partner Universities'));
+      c.partners.forEach((n) => { if (!PARTNER_GROUP.has(n)) PARTNER_GROUP.set(n, 'B2B Partners'); });
+      SELECT_COLS[PARTNER_COL] = [...c.universities, ...c.partners.filter((n) => !c.universities.includes(n))];
+      if (rows.length) renderBody();
+    } catch (e) { /* offline for a moment: the cells keep what they hold */ }
+  }
   loadData();
   loadEventTags();
+  loadPartnerChoices();
 })();

@@ -967,7 +967,7 @@ body:has(#sheet) .topbar .came-from:focus { border-color: var(--lux-ink-2); box-
 .uni-card:hover { border-color: color-mix(in srgb, var(--brand-navy) 35%, var(--border)); }
 .uni-card h3, .uni-card .uni-name, .uni-card strong { color: var(--brand-navy); }
 
-/* 🔴 CSS CHANGED (2026-11-13): B2B Partners and Agents rebuilt calm and premium | from: three plain number tiles and one table (name, status, agreement ends, commission, contact person, number, visas), and one long editor form under it | to: a summary band divided by fine lines (active partners, visas, ready to submit, commission for the current intake, the last in amber when some are missing); a search box; each partner as a soft card (name in navy, city and visas under it, a status tag), on B2B Partners a navy-tinted "Application submission" box (Open portal with the username and the password, dots until Show, each with Copy, or the email with Copy and Write email), then Commission of the current intake, Contact and Agreement; the editor as its own view in numbered steps with a Save bar that stays at the bottom; "Add from the sheet" lists the partners named in the University Partner column with tick boxes */
+/* 🔴 CSS CHANGED (2026-11-13): B2B Partners and Agents rebuilt calm and premium | from: three plain number tiles and one table (name, status, agreement ends, commission, contact person, number, visas), and one long editor form under it | to: a summary band divided by fine lines (active partners, visas, ready to submit); a search box; each partner as a soft card (name in navy, city and visas under it, a status tag), on B2B Partners a navy-tinted "Application submission" box (Open portal with the username and the password, dots until Show, each with Copy, or the email with Copy and Write email), then Commission of the current intake, Contact and Agreement; the editor as its own view in numbered steps with a Save bar that stays at the bottom */
 .bp-page { max-width: 1480px; }
 .bp-band { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); margin: 8px 0 18px; border: 1px solid var(--border); border-radius: 18px; background: var(--panel); overflow: hidden; box-shadow: 0 1px 2px rgba(20, 27, 41, .04), 0 18px 36px -32px rgba(29, 47, 82, .55); }
 .bp-band > div { padding: 18px 22px; border-left: 1px solid var(--border); min-width: 0; }
@@ -1038,6 +1038,5 @@ body:has(#sheet) .topbar .came-from:focus { border-color: var(--lux-ink-2); box-
 .bp-visas .total { border-color: color-mix(in srgb, var(--brand-bronze) 55%, var(--border)); }
 .bp-savebar { position: sticky; bottom: 0; z-index: 5; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 14px 18px; border: 1px solid var(--border); border-radius: 16px; background: color-mix(in srgb, var(--panel) 92%, transparent); backdrop-filter: blur(8px); box-shadow: 0 -10px 30px -24px rgba(29, 47, 82, .5); }
 .bp-savebar .grow { flex: 1 1 auto; }
-.bp-picks { display: grid; gap: 8px; margin: 12px 0; max-height: 50vh; overflow: auto; }
-.bp-pick { display: flex; align-items: center; gap: 12px; padding: 10px 14px; border: 1px solid var(--border); border-radius: 12px; cursor: pointer; }
-.bp-pick b { flex: 1; color: var(--brand-navy); }
+
+/* 🔴 CSS CHANGED (2026-11-13): the University Partner column on All Students is a dropdown | from: a box to type any name | to: the same dropdown as the other choice columns, with the Partner Universities and the B2B Partners in two labelled groups (no new style rule: it uses the dropdown look already there) */

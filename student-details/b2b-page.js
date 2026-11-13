@@ -25,15 +25,13 @@
     const all = data.partners;
     const active = all.filter((p) => p.status === 'Active');
     const visas = all.reduce((n, p) => n + stats(p.name).visas, 0);
-    const missing = active.filter((p) => !(p.commissions || []).some((c) => same(c.intake, data.currentIntake) && (c.fileId || c.link))).length;
-    const band = [[`Active ${WORD.one}s`, number(active.length)], ['Visas through them', number(visas), 'Every intake on the sheet'],
-      [`Commission for ${data.currentIntake || 'this intake'}`, missing ? `${missing} missing` : 'All in', missing ? 'Ask for the updated list' : '', !!missing]];
+    const band = [[`Active ${WORD.one}s`, number(active.length)], ['Visas through them', number(visas), 'Every intake on the sheet']];
     if (KIND === 'b2b') band.splice(2, 0, ['Ready to submit', `${number(active.filter((p) => p.applyPortal || p.applyEmail).length)} of ${number(active.length)}`, 'With a portal or an email']);
     $('kpis').replaceChildren(...band.map(([label, v, sub, warn]) => { const d = el('div', warn ? 'warn' : ''); d.append(el('span', '', label), el('b', '', v), el('small', '', sub || '')); return d; }));
     const q = $('search').value.trim().toLowerCase();
     const shown = q ? all.filter((p) => `${p.name} ${p.city || ''}`.toLowerCase().includes(q)) : all;
     $('count').textContent = all.length ? (q ? `${shown.length} of ${all.length}` : `${all.length} in the list`) : '';
-    if (!all.length) { $('list').replaceChildren(el('div', 'bp-empty', KIND === 'b2b' ? 'No partners yet. Use "Add from the sheet" to add the partners named in the University Partner column.' : `No ${WORD.one}s yet.`)); return; }
+    if (!all.length) { $('list').replaceChildren(el('div', 'bp-empty', `No ${WORD.one}s yet. Add the first with "+ New ${WORD.one}".`)); return; }
     if (!shown.length) { $('list').replaceChildren(el('div', 'bp-empty', 'Nothing matches that search.')); return; }
     $('list').replaceChildren(...shown.map(card));
   }
@@ -52,9 +50,9 @@
     // The commission of the intake that is running: open it, or a calm note that it is missing.
     const cur = data.currentIntake;
     const found = (p.commissions || []).find((x) => same(x.intake, cur) && (x.fileId || x.link));
-    if (found) row(`Commission, ${cur}`, found.fileId ? openLink('Open the PDF ↗', `${API}/${p.id}/files/${found.fileId}?open=1`) : openLink('Open the link ↗', found.link));
+    if (found) row(`Commission list, ${cur}`, found.fileId ? openLink('Open the PDF ↗', `${API}/${p.id}/files/${found.fileId}?open=1`) : openLink('Open the link ↗', found.link));
     else if (p.status === 'Ended') row('Commission', 'Ended');
-    else { const m = btn('bp-missing', `Missing for ${cur || 'this intake'}`, () => edit(p.id)); row(`Commission, ${cur || 'this intake'}`, m); }
+    else { const m = btn('bp-missing', 'Not uploaded yet', () => edit(p.id)); row(`Commission list, ${cur || 'this intake'}`, m); }
     const k = p.contact || {};
     if (k.name || k.phone || k.email) {
       const d = el('div', 'bp-lines');
@@ -192,7 +190,7 @@
     const contacts = repeater([['name', 'Name', 'e.g. Partner manager'], ['phone', 'Phone', 'e.g. 98XXXXXXXX'], ['email', 'Email', 'name@partner.com']], p.contacts, 'Add a contact');
     s3.append(contacts.node); steps.push(s3);
 
-    const s4 = step(++n, 'Commission by intake', 'Every intake has its own commission list. Choose the intake, then paste the link or upload the PDF.');
+    const s4 = step(++n, 'Commission list by intake', 'The partner\'s own commission list for each intake (it covers its universities, each with its own rate). Choose the intake, then paste the link or upload the PDF.');
     const commissions = commissionEditor(id, p);
     s4.append(commissions.node); steps.push(s4);
 
@@ -271,29 +269,8 @@
       body.append(grid('p-form-2', n.wrap), msg, foot);
     }).then(async (made) => { if (made) { await load(); edit(made.id); } });
   }
-  function fromSheet() {
-    window.Portal.dialog('Add from the sheet', async (body, close) => {
-      body.append(el('p', 'p-muted', 'Looking in the University Partner column…'));
-      let names;
-      try { names = (await api(`${API}/from-sheet`, { preview: true })).names; } catch (e) { body.replaceChildren(el('div', 'p-notice bad', e.message)); return; }
-      body.replaceChildren();
-      if (!names.length) { body.append(el('p', '', 'Every partner named in the University Partner column is already in the list (university names are left out).')); const f = el('div', 'p-dialog-foot'); f.append(btn('btn', 'Close', () => close())); body.append(f); return; }
-      body.append(el('p', 'p-muted', 'The names in the University Partner column that are not in the list yet. University names are left out. Untick any that are not a partner.'));
-      const list = el('div', 'bp-picks');
-      const boxes = names.map((x) => { const l = el('label', 'bp-pick'); const c = el('input'); c.type = 'checkbox'; c.checked = true; c.value = x.name; l.append(c, el('b', '', x.name), el('span', 'p-muted', `${number(x.students)} student${x.students === 1 ? '' : 's'}`)); list.append(l); return c; });
-      const foot = el('div', 'p-dialog-foot');
-      foot.append(btn('btn', 'Cancel', () => close()), btn('btn btn-primary', 'Add the ticked ones', async () => {
-        const picked = boxes.filter((c) => c.checked).map((c) => c.value);
-        if (!picked.length) { close(); return; }
-        try { const r = await api(`${API}/from-sheet`, { names: picked }); close(r.added); } catch (e) { say(e.message, true); }
-      }));
-      body.append(list, foot);
-    }).then(async (added) => { if (added && added.length) { say(`${added.length} added`); await load(); } });
-  }
-
   async function load() { data = await api(API); draw(); }
   $('add').addEventListener('click', addOne);
-  if ($('fromSheet')) $('fromSheet').addEventListener('click', fromSheet);
   $('search').addEventListener('input', () => data && draw());
   load().catch((e) => { $('list').replaceChildren(h('div', { class: 'p-notice bad' }, e.message)); });
 })();

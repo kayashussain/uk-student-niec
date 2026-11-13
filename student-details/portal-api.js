@@ -830,29 +830,6 @@ function createPortalApi({
     if (req.method !== 'POST') { send(res, 405, 'Method not allowed'); return true; }
     const body = await bodyOf(req, res, 1024 * 1024);
     if (!body) return true;
-    if (kind === 'b2b' && urlPath === '/api/b2b/from-sheet') {
-      // The names in the University Partner column of the intakes (or one intake) that are not yet B2B partners, leaving out
-      // university names (the Fact File, Partner Universities, and any name with University or College in it). preview: only list them.
-      const wb = getWorkbook();
-      const known = new Set(b2b.list().map((p) => squash(p.name)));
-      const unis = new Set([...facts.all().map((u) => squash(u.name)), ...direct.all().map((u) => squash(u.name))].filter(Boolean));
-      const found = new Map();
-      (wb ? wb.sheets : []).filter((sh) => !body.sheetId || sh.id === body.sheetId).forEach((sh) => sh.rows.forEach((row) => {
-        const name = text(row['UNIVERSITY PARTNER']).replace(/\s+/g, ' ');
-        const key = squash(name);
-        if (!key || known.has(key) || unis.has(key) || /universit|college/i.test(name)) return;
-        const f = found.get(key) || { name, students: 0 };
-        f.students += 1; found.set(key, f);
-      }));
-      const names = [...found.values()].sort((x, y) => y.students - x.students);
-      if (body.preview) { sendJSON(res, 200, { names }); return true; }
-      const pick = new Set((Array.isArray(body.names) ? body.names : []).map(squash));
-      const added = [];
-      names.filter((n) => pick.has(squash(n.name))).forEach((n) => { const made = b2b.create(n.name, req.user.label); if (!made.error) added.push(made.university.name); });
-      if (added.length) record(`Added from the sheet: ${added.join(', ')}`);
-      sendJSON(res, 200, { added });
-      return true;
-    }
     if (!id) {
       const made = b2b.create(body.name, req.user.label);
       if (made.error) { sendJSON(res, 400, { error: made.error }); return true; }
@@ -1063,6 +1040,13 @@ function createPortalApi({
       const wbNow = getWorkbook(); const cur = currentIntake();
       const intakes = wbNow ? Teams.viewFor(req.user, wbNow).sheets.map((sh) => ({ id: sh.id, name: sh.name })).sort((x, y) => (cur && x.id === cur.id ? -1 : cur && y.id === cur.id ? 1 : 0)) : [];
       sendJSON(res, 200, { activities: list, unlinkedSocial, intakes, channels: CHANNELS, types: EVENT_TYPES, marketingTypes: MARKETING_TYPES, canEdit: Teams.isAdmin(req.user) });
+      return true;
+    }
+    // The choices of the University Partner column: the Partner Universities and the B2B Partners (names only, no terms), for every
+    // account that sees the sheet. A new partner is added on B2B Partners first, then it can be picked.
+    if (urlPath === '/api/partner-choices' && req.method === 'GET') {
+      const names = (store) => (store && store.list ? store.list().filter((x) => x.status !== 'Ended').map((x) => x.name).sort((x, y) => x.localeCompare(y)) : []);
+      sendJSON(res, 200, { universities: names(direct), partners: names(b2b) });
       return true;
     }
     if (urlPath === '/api/event-tags' && req.method === 'GET') { sendJSON(res, 200, eventTags(req.user)); return true; }
