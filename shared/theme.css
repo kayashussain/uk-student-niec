@@ -781,62 +781,71 @@ body.p-embed .p-fact dd, body.p-embed .p-fact dd a { overflow-wrap: break-word; 
 @media (max-width: 460px) { body.p-embed .p-facts { grid-template-columns: minmax(0, 1fr); } }
 .ns-many { display: flex; align-items: center; justify-content: space-between; gap: 10px 14px; flex-wrap: wrap; margin: 0 0 18px; padding: 12px 16px; border: 1px solid var(--border); border-radius: var(--r-sm); background: var(--soft); color: var(--text-dim); }
 
-/* 🔴 CSS CHANGED (2026-11-13): the student card, a premium look (the card that opens from All Students, and the same page opened on its own) | from: a light panel with a blue stripe down its left side, a small dark circle with the initials, a bright blue "Send a message" button, grey rounded tabs, plain panels and blue timeline dots | to: a deep ink band at the top with the name in a large serif in ivory, a thin bronze ring round the initials, the stage and source as fine outlined tags, champagne email and WhatsApp links, a bronze "Send a message" button and an outlined "Edit details"; under it, tabs with a bronze line under the open one (like the intake tabs); panels with fine borders and roomier spacing, ink "Add note" and similar buttons, and bronze timeline dots */
+/* 🔴 CSS CHANGED (2026-11-13): the student card, a calm and clean premium look (the card that opens from All Students, and the same page opened on its own) | from: first a light panel with a blue stripe, a bright blue button and grey pill tabs; then a heavy deep navy band with ivory text, champagne links and a bronze button | to: a light, calm top panel (soft off-white with a fine bronze line along its top), the name in a large navy serif, the initials in a soft navy circle with a thin bronze ring, the stage as a soft navy tag and the source as a fine outlined tag, a slim progress line of the student's journey (navy for steps done, bronze for where the student is now, grey for what is still to come, with "Step 3 of 8, Mock Stage" under it, or a calm amber note for Withdrawn, Hold, Defer and Visa Rejected), the details as a quiet two-column list, a navy "Send a message" and an outlined "Edit details"; tabs with a bronze line under the open one; panels with fine borders and roomy spacing, navy "Add note" and similar buttons, bronze timeline dots and quiet underlined "Remove" links */
 body:has(.p-embed-bar) {
   --serif: "Palatino Linotype", Palatino, "Book Antiqua", "Iowan Old Style", Georgia, serif;
   --lux-ink: var(--brand-navy);
   --lux-ink-2: var(--brand-navy-2);
   --lux-bronze: var(--brand-bronze);
-  --lux-champagne: var(--brand-champagne);
-  --lux-ivory: var(--brand-ivory);
   --lux-line: #d9dde4;
 }
-body:has(.p-embed-bar) .p-embed-bar .p-muted { color: var(--lux-bronze); font-weight: 650; letter-spacing: .04em; }
-body:has(.p-embed-bar) .p-embed-bar .btn { border: 1px solid var(--lux-line); background: var(--panel); color: var(--lux-ink-2); }
-/* the top band */
-body:has(.p-embed-bar) .p-card.p-hero { position: relative; overflow: hidden; padding: 28px 28px 24px; gap: 14px 20px; border: 0; border-left: 0; border-radius: 20px; color: var(--lux-ivory);
-  background: radial-gradient(120% 140% at 100% 0%, #334b78 0%, transparent 55%), linear-gradient(160deg, #22365c 0%, #16233f 100%);
-  box-shadow: 0 24px 48px -28px rgba(17, 23, 36, .75), inset 0 1px 0 rgba(255, 255, 255, .06); }
-body:has(.p-embed-bar) .p-card.p-hero::after { content: ""; position: absolute; left: 28px; right: 28px; top: 0; height: 2px; background: linear-gradient(90deg, transparent, var(--lux-bronze), transparent); opacity: .8; }
-body:has(.p-embed-bar) .p-hero .p-avatar { width: 62px; height: 62px; background: #1a2a4a; color: var(--lux-champagne); font-family: var(--serif); font-size: 22px; font-weight: 600; box-shadow: 0 0 0 2px var(--lux-bronze), 0 0 0 6px rgba(154, 123, 79, .16); }
-body:has(.p-embed-bar) .p-hero h1 { font-family: var(--serif); font-size: 32px; font-weight: 600; letter-spacing: 0; color: var(--lux-ivory); }
-body:has(.p-embed-bar) .p-hero-line { margin-top: 10px; gap: 8px; color: #c9cfda; font-size: 14px; }
-body:has(.p-embed-bar) .p-hero-line .p-pill, body:has(.p-embed-bar) .p-hero-line .p-chip { padding: 4px 12px; border: 1px solid rgba(230, 207, 163, .38); border-radius: 999px; background: rgba(255, 255, 255, .05); color: var(--lux-ivory); font-size: 13.5px; font-weight: 550; }
-body:has(.p-embed-bar) .p-hero-line .p-pill { color: var(--lux-champagne); border-color: rgba(230, 207, 163, .6); font-weight: 650; }
-body:has(.p-embed-bar) .p-hero .p-facts { margin-top: 18px; padding-top: 16px; border-top: 1px solid rgba(230, 207, 163, .22); }
-body:has(.p-embed-bar) .p-hero .p-fact dt { color: #aab3c2; font-size: 13px; letter-spacing: .02em; }
-body:has(.p-embed-bar) .p-hero .p-fact dd { color: var(--lux-ivory); font-weight: 550; }
-body:has(.p-embed-bar) .p-hero .p-fact dd a { color: var(--lux-champagne); }
-body:has(.p-embed-bar) .p-hero-actions { margin-top: 4px; }
-body:has(.p-embed-bar) .p-hero-actions .btn { min-height: 44px; padding: 0 22px; border-radius: 12px; border: 1px solid rgba(246, 243, 236, .35); background: transparent; color: var(--lux-ivory); box-shadow: none; font-weight: 600; }
-body:has(.p-embed-bar) .p-hero-actions .btn:hover:not(:disabled) { border-color: var(--lux-ivory); background: rgba(255, 255, 255, .06); color: #fff; }
-body:has(.p-embed-bar) .p-hero-actions .btn.btn-primary { border-color: var(--lux-champagne); background: linear-gradient(180deg, #ecd8b1 0%, #d7b885 100%); color: var(--lux-ink); box-shadow: 0 10px 22px -14px rgba(215, 184, 133, .9); }
-body:has(.p-embed-bar) .p-hero-actions .btn.btn-primary:hover:not(:disabled) { background: linear-gradient(180deg, #f2e2c2 0%, #dcc093 100%); color: var(--lux-ink); }
-body:has(.p-embed-bar) .p-hero .btn:focus-visible { outline: 2px solid var(--lux-champagne); outline-offset: 2px; }
+body:has(.p-embed-bar) .p-embed-bar { margin-bottom: 14px; padding-bottom: 12px; border-bottom: 1px solid var(--lux-line); }
+body:has(.p-embed-bar) .p-embed-bar .p-muted { color: var(--lux-ink); font-weight: 650; font-size: 15px; letter-spacing: .01em; }
+body:has(.p-embed-bar) .p-embed-bar .btn { border: 1px solid var(--lux-line); background: var(--panel); color: var(--lux-ink-2); box-shadow: none; }
+body:has(.p-embed-bar) .p-embed-bar .btn:hover:not(:disabled) { border-color: var(--lux-ink-2); color: var(--lux-ink); }
+/* the top panel */
+body:has(.p-embed-bar) .p-card.p-hero { position: relative; overflow: hidden; padding: 28px 28px 24px; gap: 14px 20px; border: 1px solid var(--lux-line); border-left: 1px solid var(--lux-line); border-radius: 20px; background: var(--panel); color: var(--text); box-shadow: 0 1px 2px rgba(20, 27, 41, .04), 0 18px 40px -30px rgba(29, 47, 82, .45); }
+body:has(.p-embed-bar) .p-card.p-hero::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 3px; background: linear-gradient(90deg, transparent 0%, var(--lux-bronze) 30%, var(--lux-bronze) 70%, transparent 100%); opacity: .85; }
+body:has(.p-embed-bar) .p-hero .p-avatar { width: 60px; height: 60px; background: var(--gold-soft); color: var(--lux-ink); font-family: var(--serif); font-size: 22px; font-weight: 600; box-shadow: 0 0 0 1.5px var(--lux-bronze), 0 0 0 5px color-mix(in srgb, var(--lux-bronze) 12%, transparent); }
+body:has(.p-embed-bar) .p-hero h1 { font-family: var(--serif); font-size: 32px; font-weight: 600; letter-spacing: 0; color: var(--lux-ink); }
+body:has(.p-embed-bar) .p-hero-line { margin-top: 10px; gap: 8px; color: var(--text-dim); font-size: 14.5px; }
+body:has(.p-embed-bar) .p-hero-line .p-pill, body:has(.p-embed-bar) .p-hero-line .p-chip { padding: 4px 12px; border-radius: 999px; font-size: 14px; font-weight: 550; }
+body:has(.p-embed-bar) .p-hero-line .p-pill { border: 1px solid color-mix(in srgb, var(--lux-ink) 18%, transparent); background: var(--gold-soft); color: var(--lux-ink); font-weight: 650; }
+body:has(.p-embed-bar) .p-hero-line .p-chip { border: 1px solid var(--lux-line); background: transparent; color: var(--text-dim); }
+/* the journey line */
+body:has(.p-embed-bar) .p-journey { margin-top: 18px; }
+body:has(.p-embed-bar) .p-journey-bar { display: flex; gap: 4px; }
+body:has(.p-embed-bar) .p-journey-bar i { flex: 1 1 0; height: 6px; border-radius: 3px; background: #dfe3ea; }
+body:has(.p-embed-bar) .p-journey-bar i.done { background: var(--lux-ink); }
+body:has(.p-embed-bar) .p-journey-bar i.now { background: var(--lux-bronze); }
+body:has(.p-embed-bar) .p-journey-text { margin-top: 8px; font-size: 14px; color: var(--text-dim); }
+body:has(.p-embed-bar) .p-journey-text b { color: var(--lux-ink); font-weight: 650; }
+body:has(.p-embed-bar) .p-journey.lost .p-journey-bar i { background: #e5e2da; }
+body:has(.p-embed-bar) .p-journey.lost .p-journey-text { display: inline-block; padding: 4px 12px; border-radius: 999px; background: var(--amber-bg); color: var(--amber-fg); font-weight: 600; }
+/* the details */
+body:has(.p-embed-bar) .p-hero .p-facts { margin-top: 18px; padding-top: 16px; gap: 14px 24px; border-top: 1px solid var(--lux-line); }
+body:has(.p-embed-bar) .p-hero .p-fact dt { color: var(--text-dim); font-size: 13.5px; letter-spacing: .01em; }
+body:has(.p-embed-bar) .p-hero .p-fact dd { margin-top: 2px; color: var(--ink); font-weight: 550; font-size: 15px; }
+body:has(.p-embed-bar) .p-hero .p-fact dd a { color: var(--lux-ink); text-decoration: underline; text-decoration-color: color-mix(in srgb, var(--lux-bronze) 55%, transparent); text-underline-offset: 4px; }
+body:has(.p-embed-bar) .p-hero .p-fact:has(a[href^="mailto:"]) { grid-column: 1 / -1; }
+body:has(.p-embed-bar) .p-hero-actions { margin-top: 6px; }
+body:has(.p-embed-bar) .p-hero-actions .btn { min-height: 44px; padding: 0 22px; border-radius: 12px; border: 1px solid var(--lux-line); background: var(--panel); color: var(--lux-ink-2); box-shadow: none; font-weight: 600; }
+body:has(.p-embed-bar) .p-hero-actions .btn:hover:not(:disabled) { border-color: var(--lux-ink-2); color: var(--lux-ink); }
+body:has(.p-embed-bar) .p-hero-actions .btn.btn-primary { border-color: var(--lux-ink); background: var(--lux-ink); color: var(--brand-ivory); box-shadow: 0 10px 22px -14px rgba(29, 47, 82, .9); }
+body:has(.p-embed-bar) .p-hero-actions .btn.btn-primary:hover:not(:disabled) { border-color: var(--lux-ink-2); background: var(--lux-ink-2); color: #fff; }
 /* the tabs */
-body:has(.p-embed-bar) .p-tabs { gap: 6px; margin: 22px 0 18px; padding: 0; border-radius: 0; background: transparent; border-bottom: 1px solid var(--lux-line); width: 100%; }
+body:has(.p-embed-bar) .p-tabs { gap: 6px; margin: 24px 0 18px; padding: 0; border-radius: 0; background: transparent; border-bottom: 1px solid var(--lux-line); width: 100%; }
 body:has(.p-embed-bar) .p-tabs button { padding: 10px 14px 12px; border-radius: 0; font-size: 15px; font-weight: 550; color: var(--text-dim); }
 body:has(.p-embed-bar) .p-tabs button[aria-selected="true"] { background: transparent; box-shadow: inset 0 -2px 0 var(--lux-bronze); color: var(--lux-ink); font-weight: 700; }
 /* the panels under the tabs */
-body:has(.p-embed-bar) #view > div > .p-card, body:has(.p-embed-bar) #view .p-card:not(.p-hero) { padding: 24px 26px; border: 1px solid var(--lux-line); border-radius: 18px; background: var(--panel); box-shadow: 0 1px 2px rgba(20, 27, 41, .04), 0 14px 32px -26px rgba(20, 27, 41, .35); }
+body:has(.p-embed-bar) #view .p-card:not(.p-hero) { padding: 24px 26px; border: 1px solid var(--lux-line); border-radius: 18px; background: var(--panel); box-shadow: 0 1px 2px rgba(20, 27, 41, .04), 0 14px 32px -28px rgba(29, 47, 82, .4); }
 body:has(.p-embed-bar) #view .p-card:not(.p-hero) h2 { font-size: 18px; font-weight: 700; color: var(--lux-ink); letter-spacing: -.005em; }
 body:has(.p-embed-bar) #view .p-card:not(.p-hero) .p-card-head { padding-bottom: 14px; border-bottom: 1px solid var(--lux-line); }
 body:has(.p-embed-bar) #view .p-card:not(.p-hero) .p-facts { border-top: 0; }
 body:has(.p-embed-bar) #view .p-card:not(.p-hero) .btn { border: 1px solid var(--lux-line); background: var(--panel); color: var(--lux-ink-2); box-shadow: none; }
 body:has(.p-embed-bar) #view .p-card:not(.p-hero) .btn:hover:not(:disabled) { border-color: var(--lux-ink-2); color: var(--lux-ink); }
-body:has(.p-embed-bar) #view .p-card:not(.p-hero) .btn.btn-primary { border-color: var(--lux-ink); background: var(--lux-ink); color: var(--lux-ivory); }
+body:has(.p-embed-bar) #view .p-card:not(.p-hero) .btn.btn-primary { border-color: var(--lux-ink); background: var(--lux-ink); color: var(--brand-ivory); }
 body:has(.p-embed-bar) #view .p-card:not(.p-hero) .btn.btn-primary:hover:not(:disabled) { background: var(--lux-ink-2); border-color: var(--lux-ink-2); color: #fff; }
 body:has(.p-embed-bar) #view .p-card:not(.p-hero) .btn.btn-danger { color: var(--red-fg); }
 body:has(.p-embed-bar) .p-timeline li { border-left-color: color-mix(in srgb, var(--lux-bronze) 30%, var(--lux-line)); }
 body:has(.p-embed-bar) .p-timeline li::before { background: var(--lux-bronze); box-shadow: 0 0 0 3px var(--panel), 0 0 0 4px color-mix(in srgb, var(--lux-bronze) 35%, transparent); }
 body:has(.p-embed-bar) .p-timeline li:last-child { border-left-color: transparent; }
+body:has(.p-embed-bar) .p-timeline .p-link { color: var(--text-dim); text-decoration: underline; text-underline-offset: 3px; }
+body:has(.p-embed-bar) .p-timeline .p-link:hover { color: var(--red-fg); }
 @media (max-width: 520px) {
   body:has(.p-embed-bar) .p-card.p-hero { padding: 22px 18px 20px; }
   body:has(.p-embed-bar) .p-hero h1 { font-size: 27px; }
 }
-body:has(.p-embed-bar) .p-hero .p-fact:has(a[href^="mailto:"]) { grid-column: 1 / -1; }
-body:has(.p-embed-bar) .p-timeline .p-link { color: var(--text-dim); text-decoration: underline; text-underline-offset: 3px; }
-body:has(.p-embed-bar) .p-timeline .p-link:hover { color: var(--red-fg); }
 
 /* 🔴 CSS CHANGED (2026-11-13): the brand colour in the side menu, and fixed sizes for the number boxes and the student card | from: the open menu item in light blue, the account circle blue-to-purple; the 13 number boxes above the sheet stretched to fill the width and squeezed (labels on two lines) when the window was narrower or zoomed in; the student card filled the whole window below 640px | to: the open menu item in soft navy with a bronze line on its left, the account circle navy with champagne letters; every number box is one fixed small size (160 by 70) and the boxes simply wrap onto the next row, at any zoom; the student card is always 600px wide (only a phone, narrower than that, shows it full width) */
 .niec-nav a[aria-current="page"] { color: var(--brand-navy); background: var(--gold-soft); box-shadow: inset 3px 0 0 var(--brand-bronze); }

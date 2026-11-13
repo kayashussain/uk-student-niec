@@ -63,6 +63,23 @@
     return c;
   }
 
+  // ---- where the student is on the way from first inquiry to visa: a slim line of steps under the name ----
+  const JOURNEY = [['Inquiry', 'Inquiry'], ['Application Stage', 'Application'], ['Mock Stage', 'Mock interview'], ['Payment Stage', 'Payment'],
+    ['CAS Stage', 'CAS requested'], ['CAS Issued', 'CAS issued'], ['Visa Lodge', 'Visa lodged'], ['Visa Issued', 'Visa issued']];
+  function journey(stage) {
+    const box = el('div', 'p-journey');
+    const bar = el('div', 'p-journey-bar');
+    const at = JOURNEY.findIndex(([name]) => name === stage);
+    JOURNEY.forEach(([, label], i) => { const step = el('i', at === -1 ? '' : i < at ? 'done' : i === at ? 'now' : ''); step.title = label; bar.append(step); });
+    bar.setAttribute('aria-hidden', 'true');
+    const text = el('div', 'p-journey-text');
+    if (at !== -1) text.append(`Step ${at + 1} of ${JOURNEY.length}: `, el('b', '', JOURNEY[at][1]));
+    else if (F.LOST_STAGES.includes(stage)) { box.classList.add('lost'); text.textContent = `Not moving at the moment: ${stage}`; }
+    else text.textContent = stage ? `Stage: ${stage}` : 'No stage yet';
+    box.append(bar, text);
+    return box;
+  }
+
   // ---- the top: name, stage, contact ----
   function hero() {
     const s = data.student;
@@ -77,6 +94,7 @@
     // An event or marketing tag shows when and for how long it ran.
     if (data.event) { const e = data.event; line.append(el('span', 'p-chip', `${e.kind === 'Marketing' ? 'Marketing' : 'Event'}: ${e.name}, ${e.endDate && e.endDate !== e.date ? day(e.date) + ' to ' + day(e.endDate) : day(e.date)}`)); }
     mid.append(line);
+    mid.append(journey(s.stage));
     const facts = el('dl', 'p-facts');
     const fact = (k, v, href) => { if (!v) return; const d = el('div', 'p-fact'); const dd = el('dd'); if (href) { const a = el('a', '', v); a.href = href; dd.append(a); } else dd.textContent = v; d.append(el('dt', '', k), dd); facts.append(d); };
     fact('Email', s.email, s.email ? 'mailto:' + s.email : '');
