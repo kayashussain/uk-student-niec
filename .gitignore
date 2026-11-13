@@ -21,9 +21,10 @@ student-details/session-secret
 student-details/activity.jsonl
 *.tmp
 
-# Per-machine Claude Code session config, not part of the app.
-.claude/
-**/.claude/
+# Per-machine Claude Code session config, not part of the app. Only the shared .claude/settings.json is kept in git.
+.claude/*
+!.claude/settings.json
+**/.claude/settings.local.json
 
 .env
 *.log
