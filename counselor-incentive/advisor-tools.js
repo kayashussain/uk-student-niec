@@ -15,7 +15,7 @@ const GROUPS = { university: 'University Name', universityPartner: 'University P
 const INCENTIVE_TOOLS = [
   {
     name: 'get_incentive_overview',
-    description: 'Start here for anything about incentives, commissions or company earnings. Lists every intake (a tab of Student Details) with the number of visa-issued students (the only students the Incentive page lists), the exchange rate (GBP to NPR) last used, and what each field means. Use the intake names in the other incentive tools.',
+    description: 'Start here for anything about incentives, commissions or company earnings. Lists every intake (a tab of All Students) with the number of visa-issued students (the only students the Incentive page lists), the exchange rate (GBP to NPR) last used, and what each field means. Use the intake names in the other incentive tools.',
     inputSchema: { type: 'object', properties: {}, additionalProperties: false },
   },
   {
@@ -64,7 +64,7 @@ function createIncentiveTools({ getSync, getCommissions, getAdvances, getRate })
   // Every visa-issued student with their saved incentives and the worked-out amounts.
   function load(liveRate) {
     const sync = getSync();
-    if (!sync || !sync.ok) return { error: (sync && sync.error) || 'The Student Details data could not be read right now.' };
+    if (!sync || !sync.ok) return { error: (sync && sync.error) || 'The student data could not be read right now.' };
     const commissions = getCommissions();
     if (!commissions) return { error: 'The Incentive data (commissions and advances) could not be found on this server, so incentives cannot be shown. The Incentive data folder must be reachable from the Student Details app (see COUNSELOR_DATA_DIR).' };
     const advances = getAdvances() || {};
@@ -202,7 +202,7 @@ function createIncentiveTools({ getSync, getCommissions, getAdvances, getRate })
         intakes: data.intakes.map((i) => ({ name: i.name, visaIssuedStudents: i.students.length, exchangeRateGbpToNpr: i.rate ? i.rate.rate : null, rateSource: i.rateSource || null })),
         notes: [
           'Only students whose Application Status is exactly "Visa Issued" appear here, as on the Incentive page.',
-          'University Partner is the agent: it comes from the University Partner column of Student Details.',
+          'University Partner is the agent: it comes from the University Partner column of All Students.',
           'Tuition fee and university commission are in GBP; every incentive, TDS, advance and salary figure is in NPR.',
           'Enrollment Incentive, Enrollment Incentive from University and New Partnership Incentive can each be entered in rupees, pounds or as a percent of that student\'s university commission: the "...Entered" field shows how it was entered (for example "£500.00", "15%" or "Rs 40,000.00") and the "...Npr" field what it comes to in rupees at the exchange rate. Pounds and percent need the exchange rate (needsExchangeRate says one is missing).',
           'Company earnings: for a student whose Student Source is a branch (ends in "Branch", like Chitwan Branch or Pokhara Branch) the branch keeps 70% of the university commission and the head office 30%. companyEarningsNpr is worked out from the head office part only.',

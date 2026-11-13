@@ -844,7 +844,7 @@ async function loadAll() {
     state.syncOk = syncRes.ok !== false;
     syncBannerEl.innerHTML = state.syncOk
       ? ''
-      : `<div class="banner error">⚠ ${esc(syncRes.error || 'Could not read Student Details.')}</div>`;
+      : `<div class="banner error">⚠ ${esc(syncRes.error || 'Could not read All Students.')}</div>`;
     if (!state.activeIntake || !state.intakes.includes(state.activeIntake)) {
       state.activeIntake = state.intakes[0] || null;
     }
@@ -867,7 +867,7 @@ function switchIntake(intake) {
 function renderTabs() {
   tabsEl.innerHTML = '';
   if (!state.intakes.length) {
-    tabsEl.innerHTML = '<span class="none">No intake sheets found yet in Student Details.</span>';
+    tabsEl.innerHTML = '<span class="none">No intake sheets found yet in All Students.</span>';
     return;
   }
   state.intakes.forEach((intake) => {

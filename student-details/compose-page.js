@@ -151,7 +151,7 @@
       if (!d.can.edit) { view.replaceChildren(h('div', { class: 'p-card' }, el('h2', '', 'You can read this student but not send messages'), h('a', { class: 'btn', href: '/students' }, 'Back'))); return; }
       await build(t.templates);
     } catch (e) {
-      view.replaceChildren(h('div', { class: 'p-card' }, el('h2', '', 'This message cannot be opened'), el('p', '', e.message), h('a', { class: 'btn', href: '/students' }, 'Back to Student Details')));
+      view.replaceChildren(h('div', { class: 'p-card' }, el('h2', '', 'This message cannot be opened'), el('p', '', e.message), h('a', { class: 'btn', href: '/students' }, 'Back to All Students')));
     }
   }
   start();

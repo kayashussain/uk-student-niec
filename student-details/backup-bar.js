@@ -1,8 +1,8 @@
 // Looking at a backup (?backup=ID, Admin only; the server refuses anyone else).
 //
-// While a page is open on a backup, this bar is the ONLY navigation: the usual NIEC header (Dashboard, Student Details,
+// While a page is open on a backup, this bar is the ONLY navigation: the usual NIEC header (Dashboard, All Students,
 // Users, Activity, Fact File) is removed so nobody mistakes the backup for the live data or clicks away by accident.
-// The bar says which backup it is, switches between the real Student Details, Fact File and Partner Universities pages
+// The bar says which backup it is, switches between the real All Students, Fact File and Partner Universities pages
 // on that backup, offers "Restore this backup" (with a preview of what a restore would change), and "Close", which is
 // the only way out. The pages themselves read the backup's data and are read only (app.js, fact-file.js,
 // fact-university.js, direct-page.js).

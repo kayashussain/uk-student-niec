@@ -3,8 +3,8 @@
 // is dashboard, sheet, b2b, templates, incentive, users, activity or direct), loads header.css and this file (after
 // session.js), and the header fills itself in.
 //
-// Navigation depends on the account: Admin sees every page (Users and Activity in the account menu), the Manager the Dashboard, Student Details and
-// Fact File, and the teams Student Details and Fact File.
+// Navigation depends on the account: Admin sees every page (Users and Activity in the account menu), the Manager the Dashboard, All Students and
+// Fact File, and the teams All Students and Fact File.
 (function () {
   const header = document.querySelector('.niec-header');
   if (!header) return;
@@ -90,12 +90,12 @@
     factfile: svg('<path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2V5z"/><path d="M4 19a2 2 0 0 1 2-2h13"/>'),
   };
   const LINKS = {
-    admin: [['today', '/today', 'Today'], ['dashboard', '/dashboard', 'Dashboard'], ['sheet', '/students', 'Student Details'],
+    admin: [['today', '/today', 'Today'], ['dashboard', '/dashboard', 'Dashboard'], ['sheet', '/students', 'All Students'],
       ['direct', '/partner-universities', 'Partner Universities'], ['events', '/events', 'Events and marketing'], ['b2b', '/b2b-partners', 'B2B Partners'], ['agents', '/agents', 'Agents'], ['factfile', '/fact-file', 'Fact File']],
-    manager: [['today', '/today', 'Today'], ['dashboard', '/dashboard', 'Dashboard'], ['sheet', '/students', 'Student Details'], ['events', '/events', 'Events and marketing'], ['factfile', '/fact-file', 'Fact File']],
-    staff: [['today', '/today', 'Today'], ['sheet', '/students', 'Student Details'], ['factfile', '/fact-file', 'Fact File']],
-    followup: [['today', '/today', 'Today'], ['sheet', '/students', 'Student Details'], ['bulk', '/bulk', 'Follow-up'], ['factfile', '/fact-file', 'Fact File']],
-    branch: [['today', '/today', 'Today'], ['sheet', '/students', 'Student Details'], ['bulkadd', '/bulk-add', 'Add many students'], ['bulk', '/bulk', 'Follow-up'], ['factfile', '/fact-file', 'Fact File']],
+    manager: [['today', '/today', 'Today'], ['dashboard', '/dashboard', 'Dashboard'], ['sheet', '/students', 'All Students'], ['events', '/events', 'Events and marketing'], ['factfile', '/fact-file', 'Fact File']],
+    staff: [['today', '/today', 'Today'], ['sheet', '/students', 'All Students'], ['factfile', '/fact-file', 'Fact File']],
+    followup: [['today', '/today', 'Today'], ['sheet', '/students', 'All Students'], ['bulk', '/bulk', 'Follow-up'], ['factfile', '/fact-file', 'Fact File']],
+    branch: [['today', '/today', 'Today'], ['sheet', '/students', 'All Students'], ['bulkadd', '/bulk-add', 'Add many students'], ['bulk', '/bulk', 'Follow-up'], ['factfile', '/fact-file', 'Fact File']],
   };
   // The menu of an account: Admin and Manager have their own; a team gets the pages its work needs (a branch adds students, the Follow-up Team follows up).
   const kindOf = (me) => {
@@ -134,7 +134,7 @@
     // The current page is scrolled into view in a menu that doesn't fit.
     const here = nav.querySelector('[aria-current="page"]');
     if (here) nav.scrollLeft = Math.max(0, here.getBoundingClientRect().left - nav.getBoundingClientRect().left + nav.scrollLeft - (nav.clientWidth - here.offsetWidth) / 2);
-    // The logo goes home: the dashboard for the Manager, Student Details for everyone else.
+    // The logo goes home: the dashboard for the Manager, All Students for everyone else.
     header.querySelector('#niecHome').setAttribute('href', '/today');
     const initials = String(me.name || '?').split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase();
     const account = header.querySelector('.niec-account');

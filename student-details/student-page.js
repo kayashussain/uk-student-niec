@@ -38,7 +38,7 @@
   function heroEdit() {
     const c = el('section', 'p-card');
     c.append(el('h2', '', 'Change the details'));
-    c.append(el('p', 'p-muted p-small', 'These are the columns of the Student Details sheet. A change here is a change on the sheet.'));
+    c.append(el('p', 'p-muted p-small', 'These are the columns of the All Students sheet. A change here is a change on the sheet.'));
     const form = el('div', 'p-form');
     const inputs = {};
     HERO_FIELDS.forEach(([col, label, kind]) => {
@@ -424,7 +424,7 @@
       if (!TABS.some(([k]) => k === tab)) tab = 'details';
       render();
     } catch (e) {
-      view.replaceChildren(h('div', { class: 'p-card' }, el('h2', '', 'This student cannot be opened'), el('p', '', e.message), h('a', { class: 'btn', href: '/students' }, 'Back to Student Details')));
+      view.replaceChildren(h('div', { class: 'p-card' }, el('h2', '', 'This student cannot be opened'), el('p', '', e.message), h('a', { class: 'btn', href: '/students' }, 'Back to All Students')));
     }
   }
   window.addEventListener('hashchange', () => { const t = location.hash.slice(1); if (data && t !== tab && TABS.some(([k]) => k === t)) { tab = t; render(); } });

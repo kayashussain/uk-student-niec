@@ -24,7 +24,7 @@
     const head = el('div', 'p-head');
     const title = el('div');
     title.append(el('h1', '', 'Follow-up'), el('p', '', 'Follow up many students at once. Choose the students, choose email or WhatsApp, and write the message once: each student gets it with their own name and details.'));
-    head.append(title, h('a', { class: 'btn', href: '/students' }, 'Back to Student Details'));
+    head.append(title, h('a', { class: 'btn', href: '/students' }, 'Back to All Students'));
     wrap.append(head);
 
     // 1. who

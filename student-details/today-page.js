@@ -64,9 +64,9 @@
     // The buttons of each kind of account: what that team starts its day with.
     const actions = el('div', 't-actions');
     const go = (href, text, primary) => actions.append(h('a', { class: `btn${primary ? ' btn-primary' : ''}`, href }, text));
-    if (d.kind === 'manager') { go('/dashboard', 'Open the Dashboard', true); go('/students', 'Student Details'); }
+    if (d.kind === 'manager') { go('/dashboard', 'Open the Dashboard', true); go('/students', 'All Students'); }
     else {
-      go('/students', 'Open Student Details', true);
+      go('/students', 'Open All Students', true);
       if (['admin', 'branch', 'team'].includes(d.kind)) go('/bulk-add', 'Add many students');
       if (['admin', 'branch', 'team', 'followup'].includes(d.kind)) go('/bulk', 'Follow-up');
       if (d.kind === 'admin') go('/dashboard', 'Dashboard');

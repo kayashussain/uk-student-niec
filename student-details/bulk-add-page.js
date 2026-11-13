@@ -92,7 +92,7 @@
     const head = el('div', 'p-head');
     const title = el('div');
     title.append(el('h1', '', 'Add many students'), el('p', '', 'Choose the stage and where the students came from once, upload an Excel or CSV file, and they are all added with the same source.'));
-    head.append(title, h('a', { class: 'btn', href: '/students' }, 'Back to Student Details'));
+    head.append(title, h('a', { class: 'btn', href: '/students' }, 'Back to All Students'));
     wrap.append(head);
 
     const set = el('section', 'p-card');

@@ -23,7 +23,7 @@
             b.append(el('span', 'p-avatar sm', root.Portal.initials(s.name)), text);
             b.addEventListener('click', () => close(s));
             return b;
-          }) : [el('div', 'p-empty', 'No student found. Add the student on the Student Details sheet first.')]));
+          }) : [el('div', 'p-empty', 'No student found. Add the student on the All Students sheet first.')]));
         } catch (e) { results.replaceChildren(el('div', 'p-notice bad', e.message)); }
       };
       q.input.addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(run, 200); });

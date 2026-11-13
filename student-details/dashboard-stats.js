@@ -3,7 +3,7 @@
 //
 // buildDashboard(workbook, { sheetId, includeHidden, today }) -> plain object, see the end of the file.
 // Only rows with a first or last name count as students (blank added rows are ignored), the same rule
-// as the cards on the Student Details page.
+// as the cards on the All Students page.
 //
 // How a student's progress is read. A student is "at" the step their status says, but the dates and
 // amounts filled in count too, and a later step proves the earlier ones: someone at Visa Issued must have
