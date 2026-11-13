@@ -4,8 +4,6 @@
 // that stays at the bottom of the screen.
 (function () {
   const $ = (id) => document.getElementById(id);
-  const STATUSES = ['Active', 'Pending', 'On hold', 'Ended'];
-  const PILL = { Active: 'pill-ok', Pending: 'pill-wait', 'On hold': 'pill-wait', Ended: 'pill-off' };
   let uni = null; // the university open in the editor
   let all = []; // the list, for the search box
   // ?backup=ID: this is an earlier daily backup, read only (see backup-bar.js): looked at, never changed.
@@ -47,25 +45,34 @@
     const c = el('article', 'pu-card');
     const head = el('div', 'pu-card-head');
     const who = el('div');
-    who.append(btn('pu-name', u.name, () => openEditor(u.id)), el('div', 'pu-sub', u.type === 'Through a B2B partner' ? `Through ${u.via || 'a B2B partner'}` : 'Direct agreement'));
-    head.append(who, el('span', 'pill ' + (PILL[u.status] || 'pill-wait'), u.status));
+    who.append(btn('pu-name', u.name, () => openEditor(u.id)));
+    // The campuses straight under the name.
+    if ((u.campuses || []).length) { const t = el('div', 'pu-tags pu-campus-tags'); u.campuses.forEach((x) => t.append(el('span', 'pu-tag', x))); who.append(t); }
+    head.append(who);
+    // Application submission, ready to use without opening the university: the portal and its login, or the email.
+    const sub = el('div', 'pu-submit');
+    sub.append(el('div', 'pu-submit-title', 'Application submission'));
+    const copy = (value, what) => btn('pu-mini', 'Copy', async () => { try { await navigator.clipboard.writeText(value); window.NiecUI.toast(`${what} copied`, { type: 'success' }); } catch (e) { window.NiecUI.toast(`Could not copy the ${what.toLowerCase()}`, { type: 'error' }); } });
+    const line = (label, valueNode, ...buttons) => { const d = el('div', 'pu-submit-line'); d.append(el('span', 'pu-submit-label', label), valueNode, ...buttons); return d; };
+    if (u.applyPortal) {
+      const a = el('a', 'pu-portal', 'Open portal ↗'); a.href = u.applyPortal; a.target = '_blank'; a.rel = 'noopener noreferrer'; a.title = u.applyPortal;
+      sub.append(line('Portal', a, copy(u.applyPortal, 'Link')));
+      if (u.applyUser) sub.append(line('Username', el('code', '', u.applyUser), copy(u.applyUser, 'Username')));
+      if (u.applyPassword) {
+        const dots = '•'.repeat(10);
+        const shown = el('code', '', dots);
+        const peek = btn('pu-mini', 'Show', () => { const open = shown.textContent === dots; shown.textContent = open ? u.applyPassword : dots; peek.textContent = open ? 'Hide' : 'Show'; });
+        sub.append(line('Password', shown, peek, copy(u.applyPassword, 'Password')));
+      }
+    } else if (u.applyEmail) {
+      const a = el('a', 'pu-portal', 'Write email ↗'); a.href = 'mailto:' + u.applyEmail;
+      sub.append(line('Email', el('code', '', u.applyEmail), copy(u.applyEmail, 'Email'), a));
+    } else {
+      sub.append(el('div', 'pu-none', 'Not entered yet. Open the university to add the portal link or email.'));
+    }
     const facts = el('dl', 'pu-facts');
     const row = (label, value) => { const dd = el('dd'); if (value instanceof Node) dd.append(value); else if (value) dd.textContent = value; else dd.append(el('span', 'pu-none', 'Not entered yet')); facts.append(el('dt', '', label), dd); };
-    const tags = (items, cls) => { if (!items.length) return null; const t = el('div', 'pu-tags'); items.forEach((x) => t.append(el('span', 'pu-tag' + (cls ? ' ' + cls : ''), x))); return t; };
-    // How to apply: the portal (and whether its login is saved) or the email.
-    let apply = null;
-    if (u.applyPortal || u.applyEmail) {
-      apply = el('div', 'pu-lines');
-      if (u.applyPortal) {
-        const a = el('a', 'pu-link', 'Open portal ↗'); a.href = u.applyPortal; a.target = '_blank'; a.rel = 'noopener noreferrer'; a.title = u.applyPortal;
-        const line = el('div'); line.append(a); if (u.applyLogin) line.append(' ', el('span', 'pu-tag bronze', 'Login saved')); apply.append(line);
-      }
-      if (u.applyEmail) { const a = el('a', 'pu-link', u.applyEmail); a.href = 'mailto:' + u.applyEmail; apply.append(a); }
-    }
-    row('Application', apply);
-    row('Campuses', tags(u.campuses || []));
     row('Commission', u.slabs && u.slabs.length ? (() => { const d = el('div', 'pu-lines'); u.slabs.forEach((x) => d.append(el('span', '', x))); return d; })() : null);
-    row('Agreement ends', u.agreementEnd ? u.agreementEnd + (u.agreementCount ? ` (${u.agreementCount} file${u.agreementCount === 1 ? '' : 's'})` : '') : (u.agreementCount ? `${u.agreementCount} file${u.agreementCount === 1 ? '' : 's'} uploaded` : ''));
     const p = u.contact || {};
     if (p.name || p.phone || p.email) {
       const d = el('div', 'pu-lines');
@@ -74,9 +81,10 @@
       if (p.email) { const a = el('a', 'pu-link', p.email); a.href = 'mailto:' + p.email; d.append(a); }
       row('Contact', d);
     } else row('Contact', null);
+    row('Agreement', [u.agreementStart ? 'Since ' + u.agreementStart : '', u.agreementCount ? `${u.agreementCount} file${u.agreementCount === 1 ? '' : 's'}` : ''].filter(Boolean).join(' · '));
     const foot = el('div', 'pu-card-foot');
     foot.append(btn('btn', 'Open details →', () => openEditor(u.id)));
-    c.append(head, facts, foot);
+    c.append(head, sub, facts, foot);
     return c;
   }
 
@@ -89,7 +97,6 @@
   }
   function text(value, max, placeholder) { const i = el('input'); i.value = value || ''; i.maxLength = max || 300; if (placeholder) i.placeholder = placeholder; return i; }
   function area(value, placeholder) { const t = el('textarea'); t.value = value || ''; t.maxLength = 12000; if (placeholder) t.placeholder = placeholder; return t; }
-  function select(choices, value) { const s = el('select'); choices.forEach((c) => { const o = el('option', '', c); o.value = c; s.append(o); }); s.value = value; return s; }
   function step(n, title, help) {
     const s = el('section', 'pu-step');
     const head = el('div', 'pu-step-head');
@@ -136,26 +143,22 @@
     form.autocomplete = 'off';
     form.append(btn('pu-back', '← All partner universities', closeEditor));
     const head = el('div', 'pu-ed-head');
-    head.append(el('h2', '', uni.name), el('span', 'pill ' + (PILL[uni.status] || 'pill-wait'), uni.status));
+    head.append(el('h2', '', uni.name));
     form.append(head, el('p', 'pu-saved', uni.updatedAt ? `Last saved ${new Date(uni.updatedAt).toLocaleString()}${uni.updatedBy ? ' by ' + uni.updatedBy : ''}.` : 'Not saved yet.'));
 
-    // 1. The university
-    const s1 = step(1, 'The university', 'Its name, whether the partnership is active, and how you hold it.');
+    // 1. The university: its name, its campuses and when the agreement started. (Status, how it is held, when it ends
+    // and notes are no longer asked: a partner is always active. Anything stored in them is kept as it is.)
+    const s1 = step(1, 'The university', 'Its name, its campuses and the day the agreement started.');
     f.name = text(uni.name, 120);
-    f.status = select(STATUSES, uni.status);
-    f.type = select(['Direct', 'Through a B2B partner'], uni.type || 'Direct');
-    f.via = text(uni.via, 120, 'e.g. Adventus');
     f.agreementStart = text(uni.agreementStart, 40, 'e.g. 1 Sep 2025');
-    f.agreementEnd = text(uni.agreementEnd, 40, 'e.g. 31 Aug 2027');
-    const viaField = field('Through which B2B partner', f.via);
-    const g1 = el('div', 'pu-fields');
-    g1.append(field('University name', f.name), field('Status', f.status), field('How you hold it', f.type), viaField, field('Agreement starts', f.agreementStart), field('Agreement ends', f.agreementEnd));
-    const showVia = () => { viaField.hidden = f.type.value !== 'Through a B2B partner'; };
-    f.type.addEventListener('change', showVia); showVia();
-    s1.append(g1);
+    const g1 = el('div', 'pu-fields two');
+    g1.append(field('University name', f.name), field('Agreement started', f.agreementStart));
+    const campusHead = el('h4', 'pu-sub-head', 'Campuses');
+    const campuses = repeater([['name', 'Campus', 'e.g. London Campus'], ['city', 'City', 'e.g. London']], uni.campuses, 'Add a campus');
+    s1.append(g1, campusHead, campuses.node);
 
-    // 2. Application: one box, a link or an email; the login only for a link.
-    const s2 = step(2, 'Application', 'Where your team sends applications. Paste the portal link or the email address. For a portal, add the login your team uses. The team sees all of this on the card of every student applying here.');
+    // 2. Application submission: one box, a link or an email; the login only for a link.
+    const s2 = step(2, 'Application submission', 'Paste the portal link or the email address applications go to. For a portal, add the login details your team uses. The team sees them on the list and on every student\'s card for this university.');
     f.apply = text(uni.applyPortal || uni.applyEmail, 600, 'e.g. https://apply.university.ac.uk  or  admissions@university.ac.uk');
     f.apply.inputMode = 'url';
     const kind = el('span', 'pu-kind');
@@ -165,35 +168,31 @@
     f.applyPassword.autocomplete = 'new-password';
     const peek = btn('btn btn-sm', 'Show', () => { const hidden = f.applyPassword.type === 'password'; f.applyPassword.type = hidden ? 'text' : 'password'; peek.textContent = hidden ? 'Hide' : 'Show'; });
     const pass = el('div', 'pu-pass'); pass.append(f.applyPassword, peek);
-    const login = el('div', 'pu-fields two');
-    login.append(field('Portal username', f.applyUser), field('Portal password', pass));
+    const login = el('div');
+    const loginFields = el('div', 'pu-fields two');
+    loginFields.append(field('Username', f.applyUser), field('Password', pass));
+    login.append(el('h4', 'pu-sub-head', 'Login details'), loginFields);
     const g2 = el('div', 'pu-fields');
-    const applyField = field('Application (link or email)', f.apply, { wide: true });
+    const applyField = field('Portal link or email', f.apply, { wide: true });
     applyField.append(kind);
     g2.append(applyField);
     const showKind = () => {
       const v = f.apply.value.trim();
       const isEmail = EMAIL.test(v);
       kind.hidden = !v;
-      kind.textContent = isEmail ? 'Email: your team will see the address to send to' : 'Link: your team will see "Open portal" and the login below';
+      kind.textContent = isEmail ? 'Email: applications are sent to this address' : 'Portal link: add the login details below';
       login.hidden = !v || isEmail;
     };
     f.apply.addEventListener('input', showKind); showKind();
     s2.append(g2, login);
-    login.style.marginTop = '16px';
 
     // 3. Contacts
     const s3 = step(3, 'Contacts', 'The people at the university you deal with. The first one shows on the list.');
     const contacts = repeater([['name', 'Name', 'e.g. Braj Jha (Regional Manager)'], ['phone', 'Phone', 'e.g. +44 7833 769210'], ['email', 'Email', 'name@university.ac.uk']], uni.contacts, 'Add a contact');
     s3.append(contacts.node);
 
-    // 4. Campuses
-    const s4 = step(4, 'Campuses', 'Where the university teaches.');
-    const campuses = repeater([['name', 'Campus', 'e.g. London Campus'], ['city', 'City', 'e.g. London']], uni.campuses, 'Add a campus');
-    s4.append(campuses.node);
-
-    // 5. Commission and payment
-    const s5 = step(5, 'Commission and payment', 'One row for each band, for example level UG, students "1 to 10", commission "15%". Then when and how it is paid.');
+    // 4. Commission and payment
+    const s5 = step(4, 'Commission and payment', 'One row for each band, for example level UG, students "1 to 10", commission "15%". Then when and how it is paid.');
     const slabs = repeater([['level', 'Level', 'UG, PG or All'], ['students', 'Students enrolled', 'e.g. 1 to 10'], ['commission', 'Commission', 'e.g. 15% or £1,500']], uni.slabs, 'Add a commission band');
     f.paymentTerms = area(uni.paymentTerms, 'When and how commission is paid.');
     const pay = el('div', 'pu-fields'); pay.style.marginTop = '16px';
@@ -201,7 +200,7 @@
     s5.append(slabs.node, pay);
 
     // 6. Agreement files: uploaded and removed at once (they are not part of Save).
-    const s6 = step(6, 'Agreement files', 'The signed agreement. PDF, Word or an image, up to 10 MB. Files are saved as soon as they are uploaded.');
+    const s6 = step(5, 'Agreement files', 'The signed agreement. PDF, Word or an image, up to 10 MB. Files are saved as soon as they are uploaded.');
     const fileList = el('div', 'pu-files');
     const size = (n) => (n >= 1048576 ? (n / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(n / 1024)) + ' KB');
     function drawFiles() {
@@ -237,13 +236,7 @@
     const picker = el('div', 'bar'); picker.append(pick, up);
     s6.append(fileList, picker);
 
-    // 7. Notes
-    const s7 = step(7, 'Notes', 'Anything else to remember about this university.');
-    f.notes = area(uni.notes, 'Anything else to remember.');
-    const g7 = el('div', 'pu-fields'); g7.append(field('Notes', f.notes, { wide: true }));
-    s7.append(g7);
-
-    form.append(s1, s2, s3, s4, s5, s6, s7);
+    form.append(s1, s2, s3, s5, s6);
 
     const bar = el('div', 'pu-savebar');
     const save = el('button', 'btn btn-primary', 'Save'); save.type = 'submit';
@@ -260,6 +253,8 @@
       e.preventDefault();
       const body = Object.fromEntries(Object.entries(f).map(([k, i]) => [k, i.value]));
       Object.assign(body, { campuses: campuses.values(), slabs: slabs.values(), contacts: contacts.values() });
+      // What the page no longer asks is sent back as it was, so nothing stored is lost; a partner is always Active.
+      Object.assign(body, { status: 'Active', type: uni.type || 'Direct', via: uni.via || '', agreementEnd: uni.agreementEnd || '', notes: uni.notes || '' });
       say('editMsg', 'Saving...');
       try {
         uni = await api('/api/direct/' + uni.id, body);

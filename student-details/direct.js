@@ -137,6 +137,8 @@ const summary = (u) => ({
   // The first contact person is shown in the list; the rest are on the university's page.
   contact: u.contacts[0] || { name: '', email: '', phone: '' }, contactCount: u.contacts.length,
   applyPortal: u.applyPortal || '', applyEmail: u.applyEmail || '', applyLogin: Boolean(u.applyUser || u.applyPassword),
+  // The list is Admin only: it carries the portal login so it can be copied without opening the university.
+  applyUser: u.applyUser || '', applyPassword: u.applyPassword || '', agreementStart: u.agreementStart || '',
 });
 
 

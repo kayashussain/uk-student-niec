@@ -71,6 +71,18 @@
   .pu-savebar { position: sticky; bottom: 0; z-index: 5; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 6px -4px 0; padding: 14px 18px; border: 1px solid var(--border); border-radius: 16px; background: color-mix(in srgb, var(--panel) 92%, transparent); backdrop-filter: blur(8px); box-shadow: 0 -10px 30px -24px rgba(29, 47, 82, .5); }
   .pu-savebar .grow { flex: 1 1 auto; }
   #adminOnly { display: inline-block; margin-left: 8px; }
+  /* 🔴 CSS CHANGED (2026-11-13): Partner Universities, application submission on every card | from: the list cards showed only "Open portal" and a "Login saved" tag, so the team had to open each university to see the login; the cards also showed a status tag, "Direct agreement" and Agreement ends | to: the campuses as soft tags straight under the name; a soft navy-tinted "Application submission" box on every card with "Open portal", the username and the password (dots until Show), each with Copy, or the email with Copy and "Write email"; then Commission, Contact and Agreement ("Since ..." and the files); no status tag; in the editor, small "Campuses" and "Login details" headings inside the steps */
+  .pu-campus-tags { margin-top: 10px; }
+  .pu-submit { display: grid; gap: 8px; padding: 14px 16px; border: 1px solid color-mix(in srgb, var(--brand-navy, #1d2f52) 16%, var(--border)); border-radius: 14px; background: color-mix(in srgb, var(--gold-soft, #e2e7f0) 55%, var(--panel)); }
+  .pu-submit-title { color: var(--brand-navy, #1d2f52); font-size: 14px; font-weight: 700; letter-spacing: .01em; }
+  .pu-submit-line { display: flex; align-items: center; gap: 8px 10px; flex-wrap: wrap; }
+  .pu-submit-label { flex: 0 0 84px; color: var(--text-dim); font-size: 14px; }
+  .pu-submit-line code { font-family: var(--font); font-size: 15px; font-weight: 600; color: var(--brand-navy, #1d2f52); overflow-wrap: anywhere; }
+  .pu-portal { display: inline-flex; align-items: center; min-height: 34px; padding: 0 14px; border: 1px solid var(--brand-navy, #1d2f52); border-radius: 10px; background: var(--panel); color: var(--brand-navy, #1d2f52); font-size: 14px; font-weight: 650; text-decoration: none; }
+  .pu-portal:hover { background: var(--gold-soft, #e2e7f0); }
+  .pu-mini { min-height: 32px; padding: 0 12px; border: 1px solid var(--border); border-radius: 999px; background: var(--panel); font: inherit; font-size: 14px; font-weight: 600; color: var(--brand-navy, #1d2f52); cursor: pointer; }
+  .pu-mini:hover { border-color: var(--brand-navy, #1d2f52); }
+  #editor .pu-sub-head { margin: 22px 0 12px; padding: 0; border: 0; color: var(--brand-navy, #1d2f52); font-size: 15px; font-weight: 700; }
 </style>
 <link rel="stylesheet" href="theme.css" />
 </head>
@@ -81,7 +93,7 @@
       <div class="page-head">
         <div>
           <h1>Partner Universities <span class="pill pill-wait" id="adminOnly">Admin only</span></h1>
-          <p class="pu-intro">The universities you work with. Click one to see or change its details: how to apply, contacts, campuses, commission and agreement. Only the Admin account can see this page; the application link and its login also show on each student's card, for the team.</p>
+          <p class="pu-intro">The universities you work with, and where to submit each application. Copy the login straight from the list, or open a university to change its details. Only the Admin account can see this page; the application link and its login also show on each student's card, for the team.</p>
         </div>
       </div>
       <div class="pu-tools">
