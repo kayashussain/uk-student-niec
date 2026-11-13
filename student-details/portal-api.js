@@ -36,13 +36,17 @@ function createPortalApi({
   // ---- where to send a student's application: the portal link and email saved on Partner Universities ----
   // The student's university is matched to a partner by name, ignoring case, spaces and punctuation; a partner name with a
   // delivery partner in brackets ("Ulster University (QA)") also matches the plain name. Only these two fields leave
-  // Partner Universities (never the commission or the agreement), and a partner marked Ended is left out.
+  // Partner Universities (never the commission or the agreement), and a partner marked Ended is left out. The portal's
+  // login (username and password) goes only to an account that may work on the student (not the view-only Manager).
   const squash = (s) => String(s || '').toLowerCase().replace(/\(.*?\)/g, ' ').replace(/[^a-z0-9]+/g, '');
-  function applyRouteFor(university) {
+  function applyRouteFor(university, withLogin) {
     const want = squash(university);
     if (!want || !direct || !direct.all) return null;
     const hit = direct.all().find((u) => u.status !== 'Ended' && (u.applyPortal || u.applyEmail) && squash(u.name) === want);
-    return hit ? { university: hit.name, portal: hit.applyPortal || '', email: hit.applyEmail || '' } : null;
+    if (!hit) return null;
+    const route = { university: hit.name, portal: hit.applyPortal || '', email: hit.applyEmail || '' };
+    if (withLogin && hit.applyPortal) Object.assign(route, { user: hit.applyUser || '', password: hit.applyPassword || '' });
+    return route;
   }
 
   // ---- finding a student, and who may see or change them ----
@@ -414,7 +418,7 @@ function createPortalApi({
           me: { name: req.user.name },
           event: (() => { const e = eventOf(card.profile.sourceDetail); return e ? { name: e.name, kind: e.kind || 'Event', type: e.type, place: e.place, date: e.date, endDate: e.endDate } : null; })(),
           mail: { ready: Boolean(cfg), from: cfg ? cfg.from : '' },
-          apply: applyRouteFor(found.row['UNIVERSITY NAME']),
+          apply: applyRouteFor(found.row['UNIVERSITY NAME'], editable),
           today: cards.today(),
         });
         return true;

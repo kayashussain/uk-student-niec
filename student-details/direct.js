@@ -42,6 +42,25 @@ function cleanPortal(v) {
   if (!/^[a-z][a-z0-9+.-]*:/i.test(s) && /^[\w-]+(\.[\w-]+)+(:\d+)?([/?#].*)?$/.test(s)) s = 'https://' + s;
   try { const u = new URL(s); return (u.protocol === 'https:' || u.protocol === 'http:') && u.hostname.includes('.') ? u.href : ''; } catch (e) { return ''; }
 }
+// The one "Application" box: an email goes to applyEmail, anything else is tried as a portal link. Without the box
+// (a stored record, a backup) the two stored fields are read as they are. The login is kept only with a portal.
+function applyRoute(input) {
+  let applyPortal; let applyEmail;
+  if (typeof input.apply === 'string') {
+    const v = input.apply.trim();
+    applyEmail = cleanApplyEmail(v);
+    applyPortal = applyEmail ? '' : cleanPortal(v);
+  } else {
+    applyPortal = cleanPortal(input.applyPortal);
+    applyEmail = applyPortal ? '' : cleanApplyEmail(input.applyEmail);
+  }
+  return {
+    applyPortal,
+    applyEmail,
+    applyUser: applyPortal ? str(input.applyUser, 200).trim() : '',
+    applyPassword: applyPortal ? str(input.applyPassword, 200).replace(/\n/g, '').trim() : '',
+  };
+}
 function cleanApplyEmail(v) {
   const s = str(v, 254).trim();
   return /^[^\s@<>"']+@[^\s@<>"']+\.[^\s@<>"']+$/.test(s) ? s : '';
@@ -80,9 +99,9 @@ function clean(input, old = {}) {
     paymentTerms: str(input.paymentTerms, LIMITS.text),
     agreementEnd: str(input.agreementEnd, 40).trim(),
     contacts,
-    // How the team sends an application to this university (both optional; older records have neither).
-    applyPortal: cleanPortal(input.applyPortal),
-    applyEmail: cleanApplyEmail(input.applyEmail),
+    // How the team sends an application to this university: one box, a portal link OR an email (`apply`), kept as
+    // applyPortal or applyEmail. A portal can have the login the team uses on it. All optional; older records have none.
+    ...applyRoute(input),
     notes: str(input.notes, LIMITS.text),
   };
 }
@@ -117,7 +136,7 @@ const summary = (u) => ({
   agreementEnd: u.agreementEnd, agreementCount: u.agreements.length, updatedAt: u.updatedAt,
   // The first contact person is shown in the list; the rest are on the university's page.
   contact: u.contacts[0] || { name: '', email: '', phone: '' }, contactCount: u.contacts.length,
-  applyPortal: u.applyPortal || '', applyEmail: u.applyEmail || '',
+  applyPortal: u.applyPortal || '', applyEmail: u.applyEmail || '', applyLogin: Boolean(u.applyUser || u.applyPassword),
 });
 
 

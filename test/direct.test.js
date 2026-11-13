@@ -52,9 +52,23 @@ test('where to send applications: a real web link or email is kept, anything els
   const old = direct.list()[0];
   assert.strictEqual(old.applyPortal, '', 'a record saved before these fields existed reads as having none');
   assert.strictEqual(old.applyEmail, '');
-  const saved = direct.update(old.id, { ...direct.get(old.id), applyPortal: 'portal.old.ac.uk', applyEmail: 'apply@old.ac.uk' }, 'Kayas');
+  const saved = direct.update(old.id, { ...direct.get(old.id), apply: 'portal.old.ac.uk' }, 'Kayas');
   assert.strictEqual(saved.university.applyPortal, 'https://portal.old.ac.uk/');
+  direct.update(old.id, { ...direct.get(old.id), apply: 'apply@old.ac.uk' }, 'Kayas');
   assert.strictEqual(direct.list()[0].applyEmail, 'apply@old.ac.uk');
+  assert.strictEqual(direct.list()[0].applyPortal, '', 'one route at a time: the email replaced the portal');
+});
+
+test('the one Application box: a link becomes the portal with its login, an email stays an email (and drops any login)', () => {
+  const { clean } = require('../student-details/direct');
+  const link = clean({ name: 'A', apply: ' apply.a.ac.uk ', applyUser: ' team@niec ', applyPassword: ' s3cret!\n ' });
+  assert.deepStrictEqual([link.applyPortal, link.applyEmail, link.applyUser, link.applyPassword], ['https://apply.a.ac.uk/', '', 'team@niec', 's3cret!']);
+  const mail = clean({ name: 'B', apply: 'admissions@b.ac.uk', applyUser: 'x', applyPassword: 'y' });
+  assert.deepStrictEqual([mail.applyPortal, mail.applyEmail, mail.applyUser, mail.applyPassword], ['', 'admissions@b.ac.uk', '', ''], 'an email has no login');
+  const bad = clean({ name: 'C', apply: 'javascript:alert(1)', applyPassword: 'y' });
+  assert.deepStrictEqual([bad.applyPortal, bad.applyEmail, bad.applyPassword], ['', '', ''], 'a script link is never kept, nor a login without a portal');
+  const stored = clean({ name: 'D', applyPortal: 'https://d.ac.uk/', applyUser: 'u', applyPassword: 'p' });
+  assert.deepStrictEqual([stored.applyPortal, stored.applyUser, stored.applyPassword], ['https://d.ac.uk/', 'u', 'p'], 'a saved record reads back the same');
 });
 
 test('a new list starts with the five direct universities, once, and a removed one is not added back', () => {

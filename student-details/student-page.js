@@ -108,6 +108,17 @@
       const d = el('div', 'p-fact p-fact-apply'); const dd = el('dd');
       if (data.apply.portal) { const a = el('a', 'p-apply-portal', 'Open portal'); a.href = data.apply.portal; a.target = '_blank'; a.rel = 'noopener noreferrer'; a.title = data.apply.portal; dd.append(a); }
       if (data.apply.email) { const a = el('a', 'p-apply-email', data.apply.email); a.href = 'mailto:' + data.apply.email; dd.append(a); }
+      // The portal's login, to copy into the portal: the password stays hidden until Show is pressed.
+      const copyBtn = (value, what) => h('button', { class: 'btn btn-sm', type: 'button', onclick: async () => { try { await navigator.clipboard.writeText(value); say(`${what} copied`); } catch (e) { say(`Could not copy the ${what.toLowerCase()}`, true); } } }, 'Copy');
+      if (data.apply.user) {
+        const line = el('span', 'p-apply-login'); line.append(el('small', '', 'Username'), el('code', '', data.apply.user), copyBtn(data.apply.user, 'Username')); dd.append(line);
+      }
+      if (data.apply.password) {
+        const shown = el('code', '', '\u2022'.repeat(10));
+        let open = false;
+        const peek = h('button', { class: 'btn btn-sm', type: 'button', onclick: () => { open = !open; shown.textContent = open ? data.apply.password : '\u2022'.repeat(10); peek.textContent = open ? 'Hide' : 'Show'; } }, 'Show');
+        const line = el('span', 'p-apply-login'); line.append(el('small', '', 'Password'), shown, peek, copyBtn(data.apply.password, 'Password')); dd.append(line);
+      }
       d.append(el('dt', '', 'Application link'), dd); facts.append(d);
     }
     mid.append(facts);

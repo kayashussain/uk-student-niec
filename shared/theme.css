@@ -929,3 +929,8 @@ body:has(.p-embed-bar) .p-hero .p-fact-apply dd { display: flex; align-items: ce
 body:has(.p-embed-bar) .p-hero .p-fact-apply dd a.p-apply-portal { display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 16px; border: 1px solid var(--lux-ink); border-radius: 10px; color: var(--lux-ink); font-weight: 650; text-decoration: none; }
 body:has(.p-embed-bar) .p-hero .p-fact-apply dd a.p-apply-portal::after { content: "\2197"; color: var(--lux-bronze); }
 body:has(.p-embed-bar) .p-hero .p-fact-apply dd a.p-apply-portal:hover { background: var(--gold-soft); }
+/* 🔴 CSS CHANGED (2026-11-13): the portal login on the student card | from: nothing | to: under "Open portal", a line for the username and one for the password (shown as dots until Show), each in a soft box with Copy beside it */
+body:has(.p-embed-bar) .p-hero .p-fact-apply dd .p-apply-login { display: inline-flex; align-items: center; gap: 8px; padding: 4px 6px 4px 12px; border: 1px solid var(--lux-line); border-radius: 10px; background: color-mix(in srgb, var(--gold-soft) 40%, var(--panel)); }
+body:has(.p-embed-bar) .p-hero .p-fact-apply dd .p-apply-login small { color: var(--text-dim); font-size: 13.5px; }
+body:has(.p-embed-bar) .p-hero .p-fact-apply dd .p-apply-login code { font-family: var(--font); font-size: 15px; font-weight: 600; color: var(--lux-ink); letter-spacing: .02em; }
+body:has(.p-embed-bar) .p-hero .p-fact-apply dd .p-apply-login .btn { min-height: 32px; padding: 0 12px; font-size: 14px; }
