@@ -1,0 +1,30 @@
+name: Delete old branches
+
+# Run by hand (Actions, Delete old branches, Run workflow). Deletes only the branches typed in, separated by spaces.
+# It never deletes master. The owner keeps one version of the code, on master (CLAUDE.md, Rule 2).
+
+on:
+  workflow_dispatch:
+    inputs:
+      branches:
+        description: 'Branch names to delete, separated by spaces (never master)'
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  delete:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Delete the named branches
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          BRANCHES: ${{ inputs.branches }}
+        run: |
+          for b in $BRANCHES; do
+            if [ "$b" = "master" ]; then echo "Refusing to delete master"; continue; fi
+            if ! printf '%s' "$b" | grep -Eq '^[A-Za-z0-9._/-]+$'; then echo "Skipping odd name: $b"; continue; fi
+            if gh api -X DELETE "repos/$REPO/git/refs/heads/$b" >/dev/null; then echo "Deleted $b"; else echo "Could not delete $b"; fi
+          done
