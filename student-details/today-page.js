@@ -68,7 +68,7 @@
     else {
       go('/students', 'Open Student Details', true);
       if (['admin', 'branch', 'team'].includes(d.kind)) go('/bulk-add', 'Add many students');
-      if (['admin', 'branch', 'team', 'followup'].includes(d.kind)) go('/bulk', 'Bulk follow-up');
+      if (['admin', 'branch', 'team', 'followup'].includes(d.kind)) go('/bulk', 'Follow-up');
       if (d.kind === 'admin') go('/dashboard', 'Dashboard');
       if (['application', 'mock'].includes(d.kind)) go('/fact-file', 'Fact File');
     }

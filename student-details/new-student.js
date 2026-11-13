@@ -14,6 +14,10 @@
     return dialog(sheetName ? `Add a student to ${sheetName}` : 'Add a student', (body, close) => {
       const inputs = {};
       const form = el('div');
+      // Many students at once (from an Excel or CSV file) is its own page: offered here, at the top of Add student.
+      const many = el('div', 'ns-many');
+      many.append(el('span', '', 'Adding many students at once?'), h('button', { class: 'btn btn-sm', type: 'button', onclick: () => { close(); location.href = '/bulk-add'; } }, 'Add many students'));
+      body.append(many);
       const group = (title, ...fields) => { form.append(el('h3', '', title)); const g = el('div', 'p-form p-form-2'); fields.forEach((x) => g.append(x.wrap)); form.append(g); };
       const make = (key, label, opts) => { const x = field(label, opts); inputs[key] = x.input; return x; };
 

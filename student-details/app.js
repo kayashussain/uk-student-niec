@@ -661,7 +661,7 @@
         document.body.dataset.role = me.role;
         $('#viewOnly').hidden = !Teams.isReadOnly(me);
         { const note = $('#teamNote'); if (note && me.role !== 'admin' && (me.departments || []).length) { const labels = me.departments.map((d) => (Teams.DEPARTMENTS[d] || { label: d }).label); note.textContent = isBranchAccount() ? `${labels.join(' and ')}: your students, every column` : `${labels.join(' and ')}: the highlighted columns are yours to fill in`; note.hidden = false; } }
-        { const many = document.getElementById('bulkAdd'); if (many) many.hidden = Teams.isReadOnly(me); const bs = document.getElementById('bulkSend'); if (bs) bs.hidden = Teams.isReadOnly(me); }
+        { const bs = document.getElementById('bulkSend'); if (bs) bs.hidden = Teams.isReadOnly(me); }
         document.body.toggleAttribute('data-viewonly', Teams.isReadOnly(me));
         document.body.toggleAttribute('data-candelete', Teams.canDelete(me));
       }
@@ -2333,8 +2333,6 @@
     if (row && row._id && window.CardDrawer) window.CardDrawer.open(row._id);
   }
 
-  const addManyBtn = document.getElementById('bulkAdd');
-  if (addManyBtn) addManyBtn.addEventListener('click', () => { location.href = '/bulk-add'; });
   const bulkBtn = document.getElementById('bulkSend');
   if (bulkBtn) bulkBtn.addEventListener('click', () => { location.href = '/bulk'; });
 

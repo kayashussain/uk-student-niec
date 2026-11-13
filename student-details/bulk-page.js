@@ -1,4 +1,4 @@
-// Bulk follow-up: choose the intake and the stage, tick the students, choose email or WhatsApp, write (or choose) the message, then send the
+// Follow-up (the /bulk page): choose the intake and the stage, tick the students, choose email or WhatsApp, write (or choose) the message, then send the
 // emails in one go (when the office mailbox is set up) or open each student's WhatsApp chat one after the other.
 (function () {
   const { el, h, api, field } = window.Portal;
@@ -23,7 +23,7 @@
     const wrap = el('div');
     const head = el('div', 'p-head');
     const title = el('div');
-    title.append(el('h1', '', 'Bulk follow-up'), el('p', '', 'Follow up many students at once. Choose the students, choose email or WhatsApp, and write the message once: each student gets it with their own name and details.'));
+    title.append(el('h1', '', 'Follow-up'), el('p', '', 'Follow up many students at once. Choose the students, choose email or WhatsApp, and write the message once: each student gets it with their own name and details.'));
     head.append(title, h('a', { class: 'btn', href: '/students' }, 'Back to Student Details'));
     wrap.append(head);
 

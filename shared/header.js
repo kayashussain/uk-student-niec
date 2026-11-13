@@ -94,8 +94,8 @@
       ['direct', '/partner-universities', 'Partner Universities'], ['events', '/events', 'Events and marketing'], ['b2b', '/b2b-partners', 'B2B Partners'], ['agents', '/agents', 'Agents'], ['factfile', '/fact-file', 'Fact File']],
     manager: [['today', '/today', 'Today'], ['dashboard', '/dashboard', 'Dashboard'], ['sheet', '/students', 'Student Details'], ['events', '/events', 'Events and marketing'], ['factfile', '/fact-file', 'Fact File']],
     staff: [['today', '/today', 'Today'], ['sheet', '/students', 'Student Details'], ['factfile', '/fact-file', 'Fact File']],
-    followup: [['today', '/today', 'Today'], ['sheet', '/students', 'Student Details'], ['bulk', '/bulk', 'Bulk follow-up'], ['factfile', '/fact-file', 'Fact File']],
-    branch: [['today', '/today', 'Today'], ['sheet', '/students', 'Student Details'], ['bulkadd', '/bulk-add', 'Add many students'], ['bulk', '/bulk', 'Bulk follow-up'], ['factfile', '/fact-file', 'Fact File']],
+    followup: [['today', '/today', 'Today'], ['sheet', '/students', 'Student Details'], ['bulk', '/bulk', 'Follow-up'], ['factfile', '/fact-file', 'Fact File']],
+    branch: [['today', '/today', 'Today'], ['sheet', '/students', 'Student Details'], ['bulkadd', '/bulk-add', 'Add many students'], ['bulk', '/bulk', 'Follow-up'], ['factfile', '/fact-file', 'Fact File']],
   };
   // The menu of an account: Admin and Manager have their own; a team gets the pages its work needs (a branch adds students, the Follow-up Team follows up).
   const kindOf = (me) => {
