@@ -958,6 +958,7 @@ const server = http.createServer(async (req, res) => {
         return serveStatic(req, res);
       }
     }
+    if (urlPath === '/api/demo' && req.method === 'GET') return sendJSON(res, 200, { demo: process.env.ISR_DEMO === '1' });
     if (urlPath === '/api/dashboard' && req.method === 'GET') {
       if (!isAdmin(req.user) && !isManager(req.user)) return sendJSON(res, 403, { error: 'The dashboard is for Admin and the Manager.' });
       if (!current) return sendJSON(res, 500, { error: 'Could not read the data file' });

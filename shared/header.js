@@ -158,6 +158,15 @@
     account.querySelector('.niec-logout').addEventListener('click', () => window.NiecSession.logout());
   }
 
+  // A preview made of made-up students says so on every page, so it is never mistaken for the real data.
+  fetch('/api/demo', { cache: 'no-store' }).then((r) => (r.ok ? r.json() : null)).then((d) => {
+    if (!d || !d.demo) return;
+    const bar = document.createElement('div');
+    bar.className = 'niec-demo';
+    bar.setAttribute('role', 'status');
+    bar.textContent = 'DEMO: these students, intakes and numbers are made up. They are not your real data.';
+    document.body.prepend(bar);
+  }).catch(() => { /* no banner */ });
   fetch('/api/me', { cache: 'no-store' })
     .then((res) => (res.ok ? res.json() : null))
     .then((me) => { if (me) render(me); })

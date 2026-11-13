@@ -50,7 +50,7 @@ if (!keep) {
 }
 
 console.log(`\nStarting the system at http://localhost:${port}\nLog in as owner (Admin), chief (Manager), asha, bikram, sunita, chitwan or palpa. Password: Demo-Password-2026\nPress Ctrl+C to stop.\n`);
-const env = { ...process.env, PORT: port, STUDENT_DETAILS_DATA_DIR: studentsDir, COUNSELOR_DATA_DIR: path.join(dir, 'counselor-incentive'), INCENTIVE_PASSWORD: process.env.INCENTIVE_PASSWORD || 'Demo Incentive 1' };
+const env = { ...process.env, ISR_DEMO: '1', PORT: port, STUDENT_DETAILS_DATA_DIR: studentsDir, COUNSELOR_DATA_DIR: path.join(dir, 'counselor-incentive'), INCENTIVE_PASSWORD: process.env.INCENTIVE_PASSWORD || 'Demo Incentive 1' };
 const child = spawn(process.execPath, [path.join(root, 'student-details', 'server.js')], { env, stdio: 'inherit' });
 child.on('exit', (code) => process.exit(code || 0));
 process.on('SIGINT', () => child.kill('SIGINT'));

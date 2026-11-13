@@ -697,3 +697,6 @@ input[type="date"]:not(.date-input) { min-height: 44px; border-radius: var(--r-s
 .stat-group-cards { display: flex; flex-wrap: wrap; gap: 8px; width: 100%; max-width: 100%; overflow: visible; }
 .stat-card, .stat-card.stat-total { flex: 0 0 auto; width: auto; min-width: 104px; padding: 6px 12px; }
 .stat-card .stat-value, .stat-card.stat-total .stat-value { font-size: 22px; }
+
+/* 🔴 CSS CHANGED (2026-11-13): a warning bar on the demo preview | from: nothing, so made-up students could look real | to: a red bar across the top of every page of the demo that says the students and numbers are made up (it never appears on the live server or on a copy of your real data) */
+.niec-demo { position: sticky; top: 0; z-index: 100; padding: 8px 16px; background: #b3261e; color: #fff; font-size: 15px; font-weight: 700; text-align: center; }

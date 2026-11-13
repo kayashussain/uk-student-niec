@@ -7,6 +7,8 @@ To find every marked change in the code, search the project for `CSS CHANGED`.
 
 Format: **date · file · what · from → to · why**
 
+- **2026-11-13 · shared/theme.css (bar added by shared/header.js) · a warning bar on the demo preview · from: nothing, so made-up students could look real → to: a red bar across the top of every page of the demo saying the students and numbers are made up (never shown on the live server or on a copy of your real data) · why: the owner insisted the preview data is not his real data and wants that to be clear.**
+
 - **2026-11-13 · student-details/dashboard.css · the printed proposal · from: the second page ran over to a third page → to: both pages fit one A4 sheet each · why: the owner asked for a short proposal with charts.**
 
 - **2026-11-13 · student-details/dashboard.css · sizes of the big numbers on the Dashboard · from: the small-text rule for bold words also shrank the big numbers to 14px → to: the big numbers keep their own sizes (38px, 30px, 20px) · why: found while checking the new Dashboard.**
