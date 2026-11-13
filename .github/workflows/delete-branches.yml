@@ -1,6 +1,7 @@
 name: Delete old branches
 
 # Run by hand (Actions, Delete old branches, Run workflow). Deletes only the branches typed in, separated by spaces.
+# How to use it, and the steps for every Claude session or anyone else: CLAUDE.md, Rule 2, "How to delete old branches".
 # It never deletes master. The owner keeps one version of the code, on master (CLAUDE.md, Rule 2).
 
 on:

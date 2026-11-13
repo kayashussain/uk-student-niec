@@ -34,6 +34,18 @@ The owner does not want old versions, copies or rewrites lying around, because a
 - **If the tool you run in forces a branch on you** (some cloud sessions start on an automatic `claude/...` branch), merge it
   into `master` before you finish, say so at the top of the reply, and name the branch so the owner can delete it. Never
   leave work only on a branch. Finish with `git ls-remote --heads origin`: only `master` should be listed.
+- **How to delete old branches.** Cloud sessions are often not allowed to delete a branch with `git push origin --delete`
+  (GitHub answers 403). Use the repository's own Actions task instead:
+  1. List the branches: `git ls-remote --heads origin`. Only `master` should stay.
+  2. Before deleting, check each one for work that is not on `master` (`git fetch origin <branch>`, then
+     `git log master..FETCH_HEAD`). A branch with no such work can be deleted. If a branch has work that is not on `master`,
+     tell the owner what it holds and delete it only once the owner says yes (deleting cannot be undone).
+  3. Run the workflow `.github/workflows/delete-branches.yml` ("Delete old branches") on `master`, with the input `branches`
+     set to the branch names separated by spaces. From a Claude session: the GitHub tool `actions_run_trigger`, method
+     `run_workflow`, workflow `delete-branches.yml`, ref `master`. By hand: GitHub, Actions, Delete old branches, Run workflow.
+     It never deletes `master`.
+  4. Check again with `git ls-remote --heads origin` that only `master` is left, and say so in the reply.
+  The session's own `claude/...` branch counts too: delete it once its work is merged into `master`.
 - **Backups are not code.** The owner's server takes a backup every day at 6 PM, and the server keeps its own rolling copies
   next to the data (`data.backup.json`, the `backups/` folder). They are never in git. Anything that is a backup must say so in
   its name, and nobody edits a backup: only the main code is changed.
