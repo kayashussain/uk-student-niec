@@ -1,8 +1,8 @@
 'use strict';
 // Starts ISR on this computer, on http://localhost:8080, with the data in ONE fixed folder (default C:\ISR-data), so nothing has to be
 // set in the command window and the same login works every time. Used by start-isr.bat.
-//   - The first time, the folder gets one login: owner / isr-local-2026 (a private copy on this computer only; the live server is never touched).
-//   - After that the folder is left as it is, so any login made in it stays.
+//   - The login owner / isr-local-2026 is made (or set right again) every time it starts: a private copy on this computer only; the live server is never touched.
+//   - Any other login in the folder stays as it is.
 // To use another folder: set ISR_DATA=<folder>. To use another port: set PORT=<number>.
 const fs = require('fs');
 const os = require('os');
@@ -19,18 +19,19 @@ const PASSWORD = 'isr-local-2026';
 
 fs.mkdirSync(dataDir, { recursive: true, mode: 0o700 });
 const usersFile = path.join(dataDir, 'users.json');
-let made = false;
 let existing = null;
 try { existing = JSON.parse(fs.readFileSync(usersFile, 'utf8')); } catch (e) { /* none yet */ }
-if (!existing || !Array.isArray(existing.users) || !existing.users.length) {
-  writeFileAtomic(usersFile, JSON.stringify({ users: [{ id: crypto.randomBytes(8).toString('hex'), username: 'owner', name: 'Owner', email: '', role: 'admin', departments: [], passwordHash: hashPassword(PASSWORD), mustChangePassword: false, disabled: false, createdAt: new Date().toISOString() }] }, null, 1));
-  made = true;
-}
+const users = existing && Array.isArray(existing.users) ? existing.users : [];
+// The login "owner" always exists here and always has the password below, so it can never be locked out of this private copy.
+// Any other login in the folder is left as it is.
+const mine = users.find((u) => u && String(u.username).toLowerCase() === 'owner');
+const owner = { id: (mine && mine.id) || crypto.randomBytes(8).toString('hex'), username: 'owner', name: (mine && mine.name) || 'Owner', email: (mine && mine.email) || '', role: 'admin', departments: [], passwordHash: hashPassword(PASSWORD), mustChangePassword: false, disabled: false, createdAt: (mine && mine.createdAt) || new Date().toISOString() };
+writeFileAtomic(usersFile, JSON.stringify({ ...(existing || {}), users: [owner, ...users.filter((u) => u !== mine)] }, null, 1));
 try { fs.unlinkSync(path.join(dataDir, 'first-admin-code.txt')); } catch (e) { /* not there */ }
 
 console.log(`\nData folder : ${dataDir}`);
 console.log(`Open        : http://localhost:${port}`);
-console.log(made ? `Log in as   : owner   password: ${PASSWORD}   (this private copy on your computer only)` : 'Log in as   : the login you already use in this folder (first time ever: owner / ' + PASSWORD + ')');
+console.log(`Log in as   : owner   password: ${PASSWORD}   (this private copy on your computer only)`);
 console.log('Keep this window open while you use the portal. Press Ctrl+C to stop.\n');
 
 const env = { ...process.env, PORT: port, STUDENT_DETAILS_DATA_DIR: dataDir, COUNSELOR_DATA_DIR: path.join(dataDir, 'counselor-incentive'), INCENTIVE_PASSWORD: process.env.INCENTIVE_PASSWORD || PASSWORD };
