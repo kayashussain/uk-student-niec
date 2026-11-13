@@ -6,6 +6,7 @@
     if (!current) return;
     current.back.remove();
     current.drawer.remove();
+    if (current.before && document.contains(current.before)) { try { current.before.focus({ preventScroll: true }); } catch (e) { /* the cell is gone: nothing to go back to */ } }
     document.removeEventListener('keydown', current.onKey);
     window.removeEventListener('message', current.onMessage);
     current = null;
@@ -27,8 +28,14 @@
     back.addEventListener('mousedown', close);
     document.addEventListener('keydown', onKey);
     window.addEventListener('message', onMessage);
+    // The keyboard goes with the card: whatever was being typed in on the page underneath (a cell of the sheet, after a
+    // double-click on the name) lets go, so nothing typed now lands in a cell hidden behind the card. Closing gives it back.
+    const before = document.activeElement && document.activeElement !== document.body ? document.activeElement : null;
     document.body.append(back, drawer);
-    current = { back, drawer, onKey, onMessage };
+    if (before && before.blur) before.blur();
+    frame.tabIndex = -1;
+    frame.focus({ preventScroll: true });
+    current = { back, drawer, onKey, onMessage, before };
   }
   // Loaded in its own stylesheet-less pages too (the Fact File): make sure the drawer's look is there.
   if (!document.querySelector('link[href^="portal.css"]')) {

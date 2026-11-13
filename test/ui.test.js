@@ -116,6 +116,17 @@ test('screens: log in, edit, delete, search, team rules, Fact File', { timeout: 
     await page.keyboard.press('Escape');
     assert.deepStrictEqual(await look(), before, 'clicking the cell by mistake changes nothing about how it looks');
     assert.deepStrictEqual(await page.evaluate(() => (window.__rowsChanged || 0)), 0);
+    // An empty date box (Language Test with no date) is one line with its calendar icon: the "nothing here yet" look of the
+    // empty panels (a round badge, big padding) must never be drawn inside it.
+    const box = await page.locator('#body td.lang-test').first().evaluate((cell) => {
+      const el = document.createElement('input'); // drawn the way the sheet draws a Language Test date that is still empty
+      el.type = 'date'; el.className = 'date-input empty';
+      cell.append(el);
+      const out = { height: Math.round(el.getBoundingClientRect().height), badge: getComputedStyle(el, '::before').content, padding: getComputedStyle(el).paddingTop };
+      el.remove();
+      return out;
+    });
+    assert.ok(box.height <= 46 && box.badge === 'none' && box.padding === '2px', `an empty date box is one plain line, got ${JSON.stringify(box)}`);
     await page.close();
   });
 
@@ -143,6 +154,11 @@ test('screens: log in, edit, delete, search, team rules, Fact File', { timeout: 
     await frame.locator('.p-hero h1').waitFor();
     assert.match(await frame.locator('.p-hero h1').textContent(), /Student/);
     assert.ok(await frame.locator('.p-tabs button').count() === 3, 'three tabs only: Notes, University options, Send a message');
+    // The keyboard is in the card now: typing must not reach the cell of the sheet hidden behind it.
+    assert.strictEqual(await page.evaluate(() => document.activeElement && document.activeElement.tagName), 'IFRAME');
+    await page.keyboard.type('x');
+    await page.waitForTimeout(300);
+    assert.strictEqual(await page.locator('.eg-overlay').count(), 0, 'no "Make this change?" question for the sheet underneath');
     await page.keyboard.press('Escape');
     await page.waitForFunction(() => !document.querySelector('.p-drawer'));
     assert.strictEqual(await page.locator('#openCard, .row-open').count(), 0, 'no Open card button on top or in a row');
@@ -285,10 +301,13 @@ test('screens: log in, edit, delete, search, team rules, Fact File', { timeout: 
     await gate.fill('#pw', 'Test Gate Pass 1');
     await gate.click('#go');
     await gate.waitForSelector('#rows tr');
-    assert.deepStrictEqual(gate.errors.filter((e) => !/40[13]/.test(e)), []);
+    assert.deepStrictEqual(gate.errors.filter((e) => !/40[13]|502/.test(e)), []); // 502: the exchange rate site cannot be reached from this machine
     const page = gate; // closing the page would lock Incentive again (that is the point), so carry on in it
     await page.waitForSelector('#rows tr');
     assert.strictEqual(await page.locator('#rows tr').count(), 1, 'only the Visa Issued student is listed');
+    // The table keeps each cell on one line and scrolls sideways: the wrapping meant for the Users table must not squeeze it.
+    const cellLook = await page.locator('#rows tr td').nth(3).evaluate((el) => ({ wrap: getComputedStyle(el).whiteSpace, wide: el.closest('table').offsetWidth > el.closest('.table-scroll').clientWidth }));
+    assert.deepStrictEqual(cellLook, { wrap: 'nowrap', wide: true }, 'Incentive cells stay on one line and the table scrolls inside its card');
     // The Incentive page has the shared NIEC header, a Student Source column, and no (i) on University Partner.
     assert.strictEqual(await page.locator('.niec-header').count(), 1, 'the shared NIEC header is on the Incentive page');
     const heads = await page.locator('#headRow th').allTextContents();

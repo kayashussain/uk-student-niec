@@ -7,6 +7,10 @@ To find every marked change in the code, search the project for `CSS CHANGED`.
 
 Format: **date · file · what · from → to · why**
 
+- **2026-11-13 · counselor-incentive/index.html · the Incentive table on laptop screens (1600px wide and narrower) · from: a rule meant for the Users and Partner Universities tables squeezed every column into the screen, so course names, university names and dates broke into two or three letters a line and each row was very tall → to: each cell stays on one line and the table scrolls sideways inside its card, as it was built to (the number headings still wrap onto two lines) · why: a bug found while rehearsing the upgrade of the live server on data shaped like the live data; no colour, font or size was changed.**
+
+- **2026-11-13 · shared/theme.css · an empty date box on the sheet (seen in the Language Test column) · from: the "nothing here yet" look (a round badge with a dot, big padding) was also drawn inside every empty date box, so a student with no language test date had a tall row with a stray circle and the calendar icon pushed below → to: that look is only for the "nothing here yet" panels; an empty date box is one line with the calendar icon again · why: a bug found in the same rehearsal (the live sheet has many students with no test date); no colour, font or size was changed.**
+
 - **2026-11-13 · shared/theme.css (bar added by shared/header.js) · a warning bar on the demo preview · from: nothing, so made-up students could look real → to: a red bar across the top of every page of the demo saying the students and numbers are made up (never shown on the live server or on a copy of your real data) · why: the owner insisted the preview data is not his real data and wants that to be clear.**
 
 - **2026-11-13 · student-details/dashboard.css · the printed proposal · from: the second page ran over to a third page → to: both pages fit one A4 sheet each · why: the owner asked for a short proposal with charts.**

@@ -317,9 +317,10 @@ p.count:empty { display: none; }
 @keyframes fly-rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
 .ui-skeleton { display: block; border-radius: 12px; background: linear-gradient(100deg, var(--soft) 30%, color-mix(in srgb, var(--soft) 40%, var(--panel)) 50%, var(--soft) 70%); background-size: 220% 100%; animation: fly-shimmer 1.3s linear infinite; }
 @keyframes fly-shimmer { from { background-position: 120% 0; } to { background-position: -120% 0; } }
-.p-empty, .empty { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 38px 20px; text-align: center; color: var(--text-dim); }
-.p-empty b, .empty b { color: var(--ink); font-size: 15px; font-weight: 650; }
-.p-empty::before, .empty::before { content: ""; width: 46px; height: 46px; margin-bottom: 6px; border-radius: 50%; background: var(--focus-dim) radial-gradient(circle at 50% 50%, var(--gold) 0 4px, transparent 5px); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--gold) 25%, transparent); }
+/* 🔴 CSS CHANGED (2026-11-13): an empty date box on the sheet (seen in the Language Test column) | from: the "nothing here yet" look (a round badge with a dot, big padding) was also drawn inside every empty date box, so a student with no test date had a tall row with a stray circle and the calendar icon pushed below | to: that look is only for the "nothing here yet" panels; an empty date box is again one line with the calendar icon */
+.p-empty, .empty:not(input) { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 38px 20px; text-align: center; color: var(--text-dim); }
+.p-empty b, .empty:not(input) b { color: var(--ink); font-size: 15px; font-weight: 650; }
+.p-empty::before, .empty:not(input)::before { content: ""; width: 46px; height: 46px; margin-bottom: 6px; border-radius: 50%; background: var(--focus-dim) radial-gradient(circle at 50% 50%, var(--gold) 0 4px, transparent 5px); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--gold) 25%, transparent); }
 .ui-toast { border-radius: 16px; box-shadow: var(--sh-3); animation: fly-pop .28s var(--ease) both; }
 @keyframes fly-pop { from { opacity: 0; transform: translateY(10px) scale(.98); } to { opacity: 1; transform: none; } }
 dialog.p-dialog, .ui-dialog { animation: fly-pop .24s var(--ease) both; }
