@@ -1193,3 +1193,8 @@ body:has(.p-embed-bar) #view .p-card:not(.p-hero) h2 { font-family: var(--brand-
 .p-hint { font-size: 13px; }
 .td-check:disabled { cursor: default; opacity: .5; }
 .p-tasks .td-task { margin-top: 10px; }
+
+/* 🔴 CSS CHANGED (2026-11-14): light lines between the cells on All Students | from: only a faint line under each row, no line between the columns | to: a light grey line around every cell (between the columns and under each row, #dde2e9) and under the headings, so each cell reads as its own box; light, never dark */
+body:has(#sheet) #sheet td, body:has(#sheet) #sheet thead th { border-right: 1px solid #dde2e9; }
+body:has(#sheet) #sheet td { border-bottom: 1px solid #dde2e9; }
+body:has(#sheet) #sheet tbody tr.pad-row td { border: 0; }
