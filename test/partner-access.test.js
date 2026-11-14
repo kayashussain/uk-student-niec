@@ -77,6 +77,13 @@ test('partners: the Manager sees the commission, the teams and branches do not, 
   assert.strictEqual((await chief('POST', `/api/direct/${uni.id}`, { name: 'Changed' })).status, 403, 'the Manager only looks');
   assert.strictEqual((await admin('GET', `/api/direct/${uni.id}`)).json.applyPassword, 'secret-pass', 'Admin sees everything');
 
+  // A partner address that is not one partner's id is "not found" (it used to answer with the whole list, and the page broke).
+  assert.strictEqual((await admin('GET', '/api/agents/not-an-id')).status, 404);
+  assert.strictEqual((await asha('GET', '/api/b2b/ag0000000000')).status, 404);
+  // The visa target can be due before teaching starts (that is normal), so saving it is not refused.
+  const sheetId = (await admin('GET', '/api/data')).json.sheets[0].id;
+  assert.strictEqual((await admin('POST', `/api/planning/targets/${sheetId}`, { visas: 40, byDate: '2027-01-10', startDate: '2027-01-20' })).status, 200);
+
   // A branch gives its own student a task for the Application or the Mock Team (no other team), and removes only its own tasks.
   const id = (await admin('POST', '/api/students/new', { stage: 'Application Stage', fields: { 'FIRST NAME': 'Mina', 'LAST NAME': 'Example', 'CONTACT NUMBER': '9800000002', 'STUDENT SOURCE': 'Chitwan Branch' } })).json.id;
   const card = (await chitwan('GET', `/api/cards/${id}`)).json;

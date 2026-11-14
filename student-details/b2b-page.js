@@ -187,9 +187,12 @@
     return { node, values: () => rows.map((x) => ({ intake: x.intake.input.value, link: x.link.input.value, fileId: x.st.fileId, note: '' })) };
   }
 
+  // A partner as the page uses it: every list present, whatever an older or partial record holds.
+  const whole = (p) => ({ ...p, name: p.name || '', contacts: Array.isArray(p.contacts) ? p.contacts : [], commissions: Array.isArray(p.commissions) ? p.commissions : [], agreements: Array.isArray(p.agreements) ? p.agreements : [] });
+
   // ---- one partner, read only (everyone but Admin) ----
   async function view(id) {
-    const p = await api(`${API}/${id}`);
+    const p = whole(await api(`${API}/${id}`));
     const st = stats(p.name);
     const page = el('div');
     page.append(btn('bp-back', `← ${WORD.title}`, closeEditor));
@@ -219,7 +222,7 @@
   }
 
   async function edit(id) {
-    const p = await api(`${API}/${id}`);
+    const p = whole(await api(`${API}/${id}`));
     const st = stats(p.name);
     const ed = $('editor');
     const form = el('div');

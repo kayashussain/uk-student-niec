@@ -21,6 +21,12 @@
     <button type="button" class="niec-burger" aria-expanded="false" aria-controls="niecNav"><span class="niec-burger-ico" aria-hidden="true"></span><span class="niec-burger-lbl">Menu</span></button>
     <nav class="niec-nav" id="niecNav" aria-label="Pages"></nav>
     <div class="niec-account"></div>`;
+  // The soft fade between pages: a second click while one page is still fading in skips the fade, which the browser reports as an
+  // error although nothing is wrong. It is caught here so it is never shown as one.
+  const quiet = (e) => { if (e.viewTransition) e.viewTransition.finished.catch(() => {}); if (e.viewTransition && e.viewTransition.ready) e.viewTransition.ready.catch(() => {}); };
+  window.addEventListener('pageswap', quiet);
+  window.addEventListener('pagereveal', quiet);
+
   // Only the consultancy's logo at the top of the menu (the owner, 14 Nov 2026); "ISR" shows only if there is no logo.
   const logo = header.querySelector('.niec-logo');
   logo.addEventListener('error', () => { logo.hidden = true; header.querySelector('.niec-name').hidden = false; });

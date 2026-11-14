@@ -176,7 +176,7 @@ function createPlanning(dir, { now = () => new Date() } = {}) {
       const data = load();
       const raw = input || {};
       if (raw.visas !== undefined && String(raw.visas).trim() !== '' && !/^\d[\d,\s]*$/.test(String(raw.visas).trim())) return { error: 'The target must be a whole number of visas, for example 45.' };
-      if (isoDay(raw.byDate) && isoDay(raw.startDate) && isoDay(raw.byDate) < isoDay(raw.startDate)) return { error: 'The end date is before the start date.' };
+      // No rule between the two days: the visas are normally wanted before teaching starts (startDate), so byDate is often earlier.
       const cleaned = cleanTarget(input || {});
       const targets = { ...data.targets };
       if (!cleaned.visas && !cleaned.applications && !cleaned.byDate && !cleaned.startDate && !cleaned.note) delete targets[sheetId];

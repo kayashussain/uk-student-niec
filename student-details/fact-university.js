@@ -132,8 +132,9 @@
     list.forEach((c) => {
       if (c.group && c.group !== group) { group = c.group; const hd = el('li', 'course-group', c.group); ul.append(hd); }
       const li = el('li');
-      const a = el('a', 'course-link', c.course);
-      a.target = '_blank'; a.rel = 'noopener';
+      // A course with no page yet, for an account that cannot look one up, is plain text (never a link that goes nowhere).
+      const a = el(c.link || courseData.canFind ? 'a' : 'span', 'course-link', c.course);
+      if (a.tagName === 'A') { a.target = '_blank'; a.rel = 'noopener'; }
       const show = () => { if (c.link) { a.href = c.link; a.removeAttribute('role'); } };
       show();
       li.append(a);

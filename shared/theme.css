@@ -1428,3 +1428,10 @@ dialog.ui-dialog .ui-ok.danger, dialog.ui-dialog .ui-ok.ui-danger { background: 
 .tp-stage.on { border-color: #0071e3; background: #0071e3; color: #fff; }
 /* Dashboard: no coloured stubs on the figure cards */
 .ov-kpi::before { content: none !important; }
+
+/* 🔴 CSS CHANGED (2026-11-14): two phone layout fixes from the crash and layout review | from: on a phone (390px) the two-column forms (My email, Assign a task, the Add student pop-up) squeezed each box to half the width and cut the hints; the "Given 8 Nov" note on a task ran past its card and showed as "Given 8 No" | to: on a narrow screen these forms use one column; the task's due tag and "Given" note wrap onto their own line inside the card */
+@media (max-width: 600px) {
+  .p-form-2 { grid-template-columns: minmax(0, 1fr); }
+  .td-task-side { flex-wrap: wrap; text-align: left; }
+  .td-from { white-space: normal; }
+}

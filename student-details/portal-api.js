@@ -1078,6 +1078,7 @@ function createPortalApi({
       return true;
     }
     if (req.method === 'GET') {
+      if (!id && urlPath !== `/api/${prefix}`) { sendJSON(res, 404, { error: 'No such partner.' }); return true; }
       if (!id && level !== 'full') { sendJSON(res, 200, { access: level, partners: b2b.list().map((p) => shapePartner(p, level)), statuses: PARTNER_STATUSES, performance: partnerPerformance(kind), currentIntake: (currentIntake() || {}).name || '' }); return true; }
       if (!id) { sendJSON(res, 200, { access: level, partners: b2b.list(), ...(kind === 'b2b' ? { onSheet: sheetPartners(), notPartners: planning.all().settings.notPartners || [] } : { onSheet: sheetAgents(), notPartners: planning.all().settings.notAgents || [] }), statuses: PARTNER_STATUSES, performance: partnerPerformance(kind), currentIntake: (currentIntake() || {}).name || '', intakes: (() => { const wb = getWorkbook(); return wb ? wb.sheets.filter((x) => !x.hidden || true).map((x) => x.name) : []; })() }); return true; }
       const one = shapePartner(b2b.get(id), level);

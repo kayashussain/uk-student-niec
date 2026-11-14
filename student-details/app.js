@@ -980,6 +980,8 @@
   function onSheetMenuDocClick(e) {
     if (openSheetMenu && !openSheetMenu.contains(e.target) && !e.target.closest('#colorRow, .sheet-tab-menu-btn')) closeSheetMenu();
   }
+  // Esc closes the intake tab menu and the Colour rows menu, as it closes every other pop-up.
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && openSheetMenu) { e.stopPropagation(); closeSheetMenu(); } }, true);
 
   function openSheetMenuFor(sheet, btn, tab) {
     if (openSheetMenu && openSheetMenu.dataset.sheetId === sheet.id) { closeSheetMenu(); return; }

@@ -210,7 +210,7 @@ function buildDemo({ today = '2026-11-11', seed = 20261111 } = {}) {
   const stamp = new Date(now).toISOString();
   const common = { status: 'Active', agreementStart: '2026-01-01', commissions: [{ intake: 'Jan Intake 2027', link: 'https://example.org/commission-demo', note: 'Demo link' }], notes: '', agreements: [], updatedAt: stamp, updatedBy: 'Demo Admin' };
   // Agents send you their students; B2B partners are the ones you send applications to.
-  const agents = PARTNERS.map((name, i) => ({ ...common, id: `ag0000000${i}0`.slice(0, 12), name, city: ['Pokhara', 'Butwal', 'Biratnagar'][i], agreementEnd: ['2026-12-31', '2027-06-30', ''][i], contacts: [{ name: `${pick(FIRST)} ${pick(LAST)} (demo)`, email: `agent${i}@example.com`, phone: `98000990${i}0` }] }));
+  const agents = PARTNERS.map((name, i) => ({ ...common, id: `a00000000${i}a0`, name, city: ['Pokhara', 'Butwal', 'Biratnagar'][i], agreementEnd: ['2026-12-31', '2027-06-30', ''][i], contacts: [{ name: `${pick(FIRST)} ${pick(LAST)} (demo)`, email: `agent${i}@example.com`, phone: `98000990${i}0` }] }));
   const b2b = [{ ...common, id: 'b2b000000009', name: 'Adventus', city: 'Online', agreementStart: '2025-06-01', agreementEnd: '2027-01-31', contacts: [{ name: 'Partner manager (demo)', email: 'manager@example.com', phone: '9800099999' }] }];
   // A few made-up tasks Admin gave the teams about students of the current intake (some late, some for today, some done), so
   // Today and each team's Dashboard show what a task list looks like. Only students that already have a card get one.
