@@ -316,3 +316,17 @@ details.rates summary { cursor: pointer; color: var(--brand-text); font-weight: 
 .ov-from-row .num.strong { font-weight: 700; color: var(--brand-navy, #1d2f52); }
 .ov-target-set { display: flex; gap: 8px; align-items: center; margin-top: 12px; }
 .ov-target-set input { width: 150px; min-height: 40px; padding: 0 12px; border: 1px solid var(--border); border-radius: 10px; font: inherit; font-size: 15px; }
+/* 🔴 CSS CHANGED (2026-11-14): Dashboard, the students' sources, partners and agents | from: a headline card "Applicants from Head Office" that repeated the list beside it, and no view of sources, partners or agents | to: the headline cards are Students, Applicants, Offers, Payments and Visas; a full-width "Where students came from" card with each source as a soft block (its totals on one line, then each event, platform, agent or branch in a calm table with a bar); "Partners" (each partner university and B2B partner, tagged) and "Agents" cards, both as calm tables of students, applied and visas */
+.ov-t-row { display: grid; grid-template-columns: minmax(0, 1fr) repeat(var(--n, 3), 76px); gap: 10px; align-items: center; padding: 9px 4px; border-top: 1px solid var(--border); }
+.ov-t-row.head { border-top: 0; color: var(--text-dim); font-size: 14px; font-weight: 650; }
+.ov-t-row .num { text-align: right; font-variant-numeric: tabular-nums; }
+.ov-t-row .num.strong { font-weight: 700; color: var(--brand-navy, #1d2f52); }
+.ov-t-row .ov-board-name small { margin-left: 8px; color: var(--text-dim); font-size: 13px; }
+.ov-sources-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(420px, 1fr)); gap: 16px; }
+@media (max-width: 560px) { .ov-sources-grid { grid-template-columns: minmax(0, 1fr); } }
+.ov-source { padding: 16px 18px; border: 1px solid var(--border); border-radius: 14px; background: color-mix(in srgb, var(--gold-soft, #e2e7f0) 22%, var(--panel)); }
+.ov-source-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-bottom: 6px; }
+.ov-source-head b { color: var(--brand-navy, #1d2f52); font-size: 17px; }
+.ov-source-head span { color: var(--text-dim); font-size: 14px; }
+.ov-row:not(.ov-row-2) > .ov-card { grid-column: 1 / -1; }
+.ov-t-row .ov-board-name b { white-space: normal; overflow: visible; text-overflow: clip; }

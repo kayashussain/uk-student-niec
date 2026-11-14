@@ -85,11 +85,11 @@
   function kpis() {
     const s = ins.summary;
     const trend = ins.trend || [];
-    const a = apps || { applicants: 0, headOffice: 0, headOfficeVisas: 0 };
+    const a = apps || { applicants: 0 };
     const cards = [
       { label: 'Students', value: num(s.students), color: 'var(--s1)', series: null, hint: `${num(s.active)} still active` },
       { label: 'Applicants', value: num(a.applicants), color: COLORS.applied, series: trend.map((t) => t.applied), hint: `${pct(s.toApplication)} of students` },
-      { label: 'Applicants from Head Office', value: num(a.headOffice), color: 'var(--s1)', series: null, hint: a.applicants ? `${Math.round((a.headOffice / a.applicants) * 100)}% of applicants \u00b7 ${num(a.headOfficeVisas)} visa${a.headOfficeVisas === 1 ? '' : 's'}` : 'No applicants yet', main: true },
+      { label: 'Offers', value: num(s.offers), color: COLORS.offer, series: trend.map((t) => t.offer), hint: `${pct(s.toOffer)} of applicants` },
       { label: 'Payments', value: num(s.paid), color: COLORS.paid, series: trend.map((t) => t.paid), hint: `${pct(s.toPayment)} of offers` },
       { label: 'Visas issued', value: num(s.visas), color: COLORS.visa, series: trend.map((t) => t.visa), hint: ins.target && ins.target.visas ? `target ${ins.target.visas}` : `${pct(s.visaSuccess)} of decisions` },
     ];
@@ -276,7 +276,7 @@
 
   // ---- where the applicants came from: Head Office, each branch and each agent ----
   function fromCard() {
-    const c = card('ov-from', 'Where applicants came from', 'By the Receiving Partner of each applicant');
+    const c = card('ov-from', 'Where applicants came from', 'Head Office, each branch and each agent (Receiving Partner)');
     const list = (apps && apps.list) || [];
     if (!list.length) { c.append(el('p', 'ov-empty', 'No applicant has a Receiving Partner yet.')); return c; }
     const max = Math.max(1, ...list.map((g) => g.applicants));
@@ -294,16 +294,70 @@
     return c;
   }
 
+  // ---- a calm table: name (with a bar), then the figures; Head Office or a group can be highlighted ----
+  function table(rows, cols, { tag } = {}) {
+    const max = Math.max(1, ...rows.map((g) => g[cols[0][0]] || 0));
+    const box = el('div', 'ov-board-list');
+    const head = el('div', 'ov-t-row head'); head.style.setProperty('--n', cols.length);
+    head.append(el('span', '', ''), ...cols.map(([, label]) => el('span', 'num', label)));
+    box.append(head);
+    rows.forEach((g) => {
+      const row = el('div', 'ov-t-row' + (g.main ? ' main' : '')); row.style.setProperty('--n', cols.length);
+      const name = el('span', 'ov-board-name'); name.append(el('b', '', g.label));
+      if (tag && tag(g)) name.append(el('small', '', tag(g)));
+      const bar = el('i', 'ov-board-bar'); bar.style.width = Math.max(3, ((g[cols[0][0]] || 0) / max) * 100) + '%'; name.append(bar);
+      row.append(name, ...cols.map(([k], n) => el('span', 'num' + (n === cols.length - 1 ? ' strong' : ''), num(g[k] || 0))));
+      box.append(row);
+    });
+    return box;
+  }
+  const COLS = [['students', 'Students'], ['applicants', 'Applied'], ['visas', 'Visas']];
+
+  // ---- where the students came from: each source, and under it each event, platform, agent or branch ----
+  function sourcesCard() {
+    const c = card('ov-sources', 'Where students came from', 'Each Student Source, and under it exactly which event, platform, agent or branch');
+    const list = (apps && apps.sources) || [];
+    if (!list.length) { c.append(el('p', 'ov-empty', 'No student has a source yet.')); return c; }
+    const grid = el('div', 'ov-sources-grid');
+    list.forEach((g) => {
+      const block = el('div', 'ov-source');
+      const top = el('div', 'ov-source-head');
+      top.append(el('b', '', g.label), el('span', '', `${num(g.students)} students · ${num(g.applicants)} applied · ${num(g.visas)} visa${g.visas === 1 ? '' : 's'}`));
+      block.append(top);
+      if (g.details.length) block.append(table(g.details.slice(0, 8), COLS));
+      if (g.details.length > 8) block.append(el('p', 'ov-foot', `and ${g.details.length - 8} more`));
+      grid.append(block);
+    });
+    c.append(grid);
+    return c;
+  }
+  function partnersCard() {
+    const c = card('ov-partners', 'Partners', 'Students sent to each partner university and B2B partner (University Partner)');
+    const list = (apps && apps.partners) || [];
+    if (!list.length) { c.append(el('p', 'ov-empty', 'No student has a University Partner yet.')); return c; }
+    c.append(table(list.slice(0, 10), COLS, { tag: (g) => (g.kind === 'university' ? 'Partner university' : 'B2B partner') }));
+    return c;
+  }
+  function agentsCard() {
+    const c = card('ov-agents', 'Agents', 'Students each agent sent us, and how far they went');
+    const list = (apps && apps.agents) || [];
+    if (!list.length) { c.append(el('p', 'ov-empty', 'No student came through an agent in this intake yet.')); return c; }
+    c.append(table(list.slice(0, 10), COLS));
+    return c;
+  }
+
   // ---- the page: only what the head of the consultancy needs ----
   function draw() {
     if (!ins || !dash || !window.DashText) return;
     const page = el('div', 'ov');
     page.append(kpis());
-    const r1 = el('div', 'ov-row ov-row-2'); r1.append(fromCard(), targetCard());
+    const r1 = el('div', 'ov-row ov-row-2'); r1.append(targetCard(), fromCard());
+    const r2 = el('div', 'ov-row'); r2.append(sourcesCard());
+    const r3 = el('div', 'ov-row ov-row-2'); r3.append(partnersCard(), agentsCard());
     // Universities: only those recorded on the students (a blank University Name is not a row).
     const unis = (ins.universities.list || []).filter((g) => g.label && !/not recorded/i.test(g.label));
-    const r2 = el('div', 'ov-row ov-row-2'); r2.append(funnelCard(), leaderboard('Universities', 'Where the students are placed', unis, null, 'university'));
-    page.append(r1, r2);
+    const r4 = el('div', 'ov-row ov-row-2'); r4.append(funnelCard(), leaderboard('Universities', 'Where the students are placed', unis, null, 'university'));
+    page.append(r1, r2, r3, r4);
     if (ins.summary.low) page.append(el('p', 'ov-foot', 'This intake has fewer than 10 students, so a rate from it is a hint, not evidence.'));
     root.replaceChildren(page);
   }

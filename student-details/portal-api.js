@@ -1228,27 +1228,55 @@ function createPortalApi({
       if (!wb) { sendJSON(res, 500, { error: 'Could not read the data file' }); return true; }
       const want = query().get('intake') || '';
       const sheet = wb.sheets.find((sh) => sh.id === want) || currentIntake() || wb.sheets[wb.sheets.length - 1];
-      const groups = new Map();
-      let applicants = 0; let headOffice = 0; let headOfficeVisas = 0; let unrecorded = 0;
+      const allCards = cards.all();
+      const events = planning.all().events;
+      const directNames = new Set(direct.all().map((u) => squash(u.name)));
+      const bump = (map, key, label, extra = {}) => { const g = map.get(key) || { label, students: 0, applicants: 0, visas: 0, ...extra }; map.set(key, g); return g; };
+      const receiving = new Map(); const sources = new Map(); const partners = new Map(); const agentsMap = new Map();
+      let applicants = 0;
       (sheet ? sheet.rows : []).forEach((row) => {
         if (!isStudent(row)) return;
         const stage = text(row[STATUS]);
         const applied = !['', 'Inquiry', 'Defer', 'Hold', 'Withdrawn'].includes(stage) || Boolean(text(row['APPLICATION SUBMISSION DATE']));
-        if (!applied) return;
-        applicants += 1;
         const visa = stage === 'Visa Issued' || Boolean(text(row['VISA RECEIVED DATE']));
+        const add = (g) => { g.students += 1; if (applied) g.applicants += 1; if (visa) g.visas += 1; };
+        if (applied) applicants += 1;
+        const card = allCards[row._id];
+        // Where the student came from: the Student Source, and under it exactly which (the event, the platform, the agent ...).
+        const src = text(row['STUDENT SOURCE']);
+        if (src) {
+          const group = Fields.isBranchValue(src) ? 'Branch' : src;
+          const g = bump(sources, group, group, { details: new Map() }); add(g);
+          let detail = Fields.isBranchValue(src) ? src : text(card && card.profile.sourceDetail);
+          const ev = !Fields.isBranchValue(src) && detail ? eventFor(events, detail) : null;
+          if (ev) detail = ev.name;
+          if (detail) add(bump(g.details, squash(detail), detail));
+        }
+        // Where the application was received (Head Office, a branch, an agent).
         let from = text(row['RECEIVING PARTNER']);
-        if (!from) { unrecorded += 1; return; }
-        const k = squash(from);
-        if (k === squash('Head Office')) from = 'Head Office';
-        else { const b = Fields.BRANCHES.find((x) => k === squash(x) || k === squash(Fields.branchValue(x))); if (b) from = Fields.branchValue(b); }
-        const kind = from === 'Head Office' ? 'office' : Fields.isBranchValue(from) ? 'branch' : 'agent';
-        if (kind === 'office') { headOffice += 1; if (visa) headOfficeVisas += 1; }
-        const g = groups.get(from) || { label: from, kind, applicants: 0, visas: 0 };
-        g.applicants += 1; if (visa) g.visas += 1; groups.set(from, g);
+        if (from && applied) {
+          const k = squash(from);
+          if (k === squash('Head Office')) from = 'Head Office';
+          else { const b = Fields.BRANCHES.find((x) => k === squash(x) || k === squash(Fields.branchValue(x))); if (b) from = Fields.branchValue(b); }
+          const kind = from === 'Head Office' ? 'office' : Fields.isBranchValue(from) ? 'branch' : 'agent';
+          const g = bump(receiving, from, from, { kind }); g.students += 1; g.applicants += 1; if (visa) g.visas += 1;
+        }
+        // The agent who sent the student: the Receiving Partner when it is not the head office or a branch, else the Agent source.
+        const rp = text(row['RECEIVING PARTNER']);
+        const agent = rp && !isOffice(rp) ? rp : (src === 'Agent' ? text(card && card.profile.sourceDetail) : '');
+        if (agent) add(bump(agentsMap, squash(agent), agent));
+        // Where the application was sent: a Partner University or a B2B partner (the University Partner column).
+        const up = text(row['UNIVERSITY PARTNER']);
+        if (up) { const k = squash(up); add(bump(partners, k, up, { kind: directNames.has(k) || /universit|college/i.test(up) ? 'university' : 'b2b' })); }
       });
+      const list = (m) => [...m.values()].sort((x, y) => y.students - x.students || x.label.localeCompare(y.label));
       const order = { office: 0, branch: 1, agent: 2 };
-      sendJSON(res, 200, { intake: sheet ? sheet.name : '', applicants, headOffice, headOfficeVisas, unrecorded, list: [...groups.values()].sort((x, y) => order[x.kind] - order[y.kind] || y.applicants - x.applicants) });
+      sendJSON(res, 200, {
+        intake: sheet ? sheet.name : '', applicants,
+        list: [...receiving.values()].sort((x, y) => order[x.kind] - order[y.kind] || y.applicants - x.applicants),
+        sources: list(sources).map((g) => ({ ...g, details: list(g.details) })),
+        partners: list(partners), agents: list(agentsMap),
+      });
       return true;
     }
     if (urlPath === '/api/insights' && req.method === 'GET') {
