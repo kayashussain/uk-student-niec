@@ -7,182 +7,56 @@
 <title>Log in · International Student Recruitment</title>
 <link rel="icon" type="image/png" href="/favicon.png" />
 <style>
-  :root {
-    /* 🔴 CSS CHANGED (2026-11-13): the login page colours follow the brand | from: cyan (#00adef) focus and "Show" link, orange (#fc6e1f) list dots with an orange ring | to: navy (#2e4c84 focus, #1d2f52 text) and bronze (#9a7b4f) */
-    --niec-blue: #2e4c84;
-    --niec-blue-text: #1d2f52;
-    --niec-orange: #9a7b4f;
-    --bg: #e7eaef;
-    --panel: #f2f4f7;
-    --border: #d0d7df;
-    --text: #1c2126;
-    --text-dim: #5b6472;
-    --danger: #dc2626;
-    --note-bg: #eef7fc;
-  }
-  
+  /* 🔴 CSS CHANGED (2026-11-14): the login page rebuilt in the design language of Apple's sign-in page (the earlier styles of this page are replaced, not kept beside it) | from: two halves (a picture side with "Welcome back", three points and the logo with "UK" beside it; a sign-in box with a black button) | to: one calm centred column on Apple's light grey (#f5f5f7): the NIEC logo alone at the top (no "UK"), a large "Sign in" title, a short line under it, an off-white rounded panel with tall rounded fields (blue ring while typing) and a blue pill button (#0071e3), a quiet note at the foot; the system font (SF Pro on Apple devices, Inter elsewhere) */
+  @font-face { font-family: "Inter"; font-style: normal; font-weight: 100 900; font-display: swap; src: url("/fonts/inter-latin.woff2") format("woff2"); }
+  :root { --ink: #1d1d1f; --dim: #515154; --line: #d2d2d7; --bg: #f5f5f7; --panel: #fbfbfd; --blue: #0071e3; --blue-hover: #0077ed; --link: #0066cc; --danger: #b42318; --note-bg: #eef4fc; }
   * { box-sizing: border-box; }
-  body {
-    margin: 0;
-    min-height: 100vh;
-    display: grid;
-    grid-template-columns: minmax(0, 1.05fr) minmax(380px, .95fr);
-    background: var(--panel);
-    color: var(--text);
-    font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif;
-  }
-  .hero {
-    position: relative; overflow: hidden; display: flex; flex-direction: column; justify-content: space-between;
-    padding: 48px 56px; color: var(--text);
-    background: radial-gradient(620px 420px at 92% -6%, rgba(0, 173, 239, .16), transparent 65%),
-                radial-gradient(560px 420px at -8% 108%, rgba(252, 110, 31, .12), transparent 65%),
-                linear-gradient(165deg, #f2f4f7 0%, #e6ecf2 100%);
-    border-right: 1px solid var(--border);
-  }
-  /* 🔴 CSS CHANGED (2026-11-13): the name on the login page | from: a picture logo | to: plain text, "International Student Recruitment" in large bold type with PORTAL under it */
-  .hero-name { align-self: flex-start; display: grid; gap: 4px; }
-  .hero-name b { font-size: 30px; font-weight: 800; letter-spacing: -.03em; line-height: 1.1; color: var(--text, #1a2230); }
-  .hero h2 { margin: 0 0 14px; font-size: clamp(30px, 3.4vw, 46px); line-height: 1.1; letter-spacing: -.03em; font-weight: 500; max-width: 14ch; color: var(--text); }
-  .hero p { margin: 0; max-width: 42ch; font-size: 16px; line-height: 1.6; color: var(--text-dim); }
-  .hero ul { margin: 28px 0 0; padding: 0; list-style: none; display: grid; gap: 12px; font-size: 14px; color: var(--text); }
-  .hero li { display: flex; align-items: center; gap: 10px; }
-  .hero li::before { content: ""; flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--niec-orange); box-shadow: 0 0 0 4px rgba(154, 123, 79, .22); }
-  .hero small { color: var(--text-dim); font-size: 12px; }
-  .hero::after { content: ""; position: absolute; left: 56px; right: 56px; bottom: 80px; height: 3px; border-radius: 2px; background: linear-gradient(90deg, #00adef 0%, #00adef 62%, #fc6e1f 100%); opacity: .9; }
-  .panel { display: flex; align-items: center; justify-content: center; padding: 24px; background: var(--bg); }
-  .card {
-    width: 100%;
-    max-width: 400px;
-    padding: 36px 32px 28px;
-    background: var(--panel);
-    border-radius: 20px;
-    border: 1px solid var(--border);
-    box-shadow: 0 2px 4px rgba(11, 42, 74, .05), 0 24px 56px -20px rgba(11, 42, 74, .28);
-    animation: rise .5s cubic-bezier(.2, .7, .2, 1) both;
-  }
-  @keyframes rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
-  @media (min-width: 901px) { .card .logo { display: none; } .card .brand { margin-bottom: 8px; } .card h1 { font-size: 24px; letter-spacing: -.02em; color: var(--text); } .card .company { display: none; } }
-  @media (max-width: 900px) { body { grid-template-columns: 1fr; background: var(--bg); } .hero { display: none; } .panel { min-height: 100vh; padding: 16px; } }
+  html, body { margin: 0; min-height: 100%; }
+  body { min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 48px 20px; background: var(--bg); color: var(--ink);
+    font: 17px/1.47 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; -webkit-font-smoothing: antialiased; letter-spacing: -.01em; }
+  .top { display: flex; justify-content: center; margin-bottom: 28px; }
+  .top img { display: block; height: 64px; width: auto; }
+  .top img[hidden] { display: none; }
+  .top b { font-size: 28px; font-weight: 600; letter-spacing: -.02em; }
+  .top b[hidden] { display: none; }
+  main.card { width: 100%; max-width: 440px; padding: 40px 40px 30px; border-radius: 22px; background: var(--panel); box-shadow: 0 2px 12px rgba(0, 0, 0, .05); animation: rise .5s cubic-bezier(.2, .7, .2, 1) both; }
+  @keyframes rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+  @media (prefers-reduced-motion: reduce) { main.card { animation: none; } }
+  h1 { margin: 0; font-size: 34px; font-weight: 600; letter-spacing: -.022em; line-height: 1.1; text-align: center; }
+  .sub { margin: 8px 0 26px; color: var(--dim); font-size: 17px; text-align: center; }
   form { display: flex; flex-direction: column; gap: 6px; }
   form[hidden] { display: none; }
-  .brand { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; }
-  .brand { flex-direction: column; text-align: center; gap: 6px; }
-  .logo { display: block; height: 64px; width: auto; }
-  .company { font-size: 12px; color: var(--text-dim); }
-  h1 { margin: 0; font-size: 19px; color: var(--niec-blue-text); }
-  .footnote { margin: 18px 0 0; padding-top: 14px; border-top: 1px solid var(--border); font-size: 12px; color: var(--text-dim); text-align: center; }
-  
-  .sub { margin: 2px 0 12px; color: var(--text-dim); }
-  .note { margin: 0 0 6px; padding: 10px 12px; border-radius: 8px; background: var(--note-bg); font-size: 13px; }
+  label { margin-top: 10px; font-size: 14px; font-weight: 500; color: var(--dim); }
+  input { font: inherit; height: 52px; padding: 0 16px; border: 1px solid var(--line); border-radius: 12px; background: #fff; color: var(--ink); transition: border-color .15s, box-shadow .15s; }
+  input:focus { outline: none; border-color: var(--blue); box-shadow: 0 0 0 4px rgba(0, 113, 227, .2); }
+  input.code { font-size: 22px; letter-spacing: .3em; text-align: center; font-variant-numeric: tabular-nums; }
+  .note { margin: 0 0 6px; padding: 12px 14px; border-radius: 12px; background: var(--note-bg); font-size: 15px; }
   .note ol { margin: 4px 0 0; padding-left: 18px; }
-  label { margin-top: 8px; font-size: 12px; font-weight: 600; color: var(--text-dim); }
-  input {
-    font: inherit;
-    padding: 9px 11px;
-    border: 1px solid #cdd5df;
-    border-radius: 10px;
-    background: var(--panel);
-    color: var(--text);
-    transition: border-color .15s, box-shadow .15s;
-  }
-  input.code { font-size: 22px; letter-spacing: 0.3em; text-align: center; font-variant-numeric: tabular-nums; }
-  input:focus { outline: none; border-color: var(--niec-blue); box-shadow: 0 0 0 3px rgba(46, 76, 132, .22); }
-  .hint { margin: 2px 0 0; color: var(--text-dim); font-size: 12px; }
+  .hint { margin: 2px 0 0; color: var(--dim); font-size: 14px; }
   .qr { display: flex; justify-content: center; margin: 10px 0 4px; }
   .qr canvas, .qr img { padding: 8px; background: #fff; border-radius: 8px; }
-  .secret { font: 600 13px/1.4 ui-monospace, Menlo, Consolas, monospace; word-break: break-all; text-align: center;
-    padding: 6px; border: 1px dashed var(--border); border-radius: 6px; user-select: all; }
-  .error { margin: 8px 0 0; color: var(--danger); font-size: 13px; }
+  .secret { font: 600 13px/1.4 ui-monospace, Menlo, Consolas, monospace; word-break: break-all; text-align: center; padding: 6px; border: 1px dashed var(--line); border-radius: 6px; user-select: all; }
+  .error { margin: 12px 0 0; color: var(--danger); font-size: 15px; text-align: center; }
   .error[hidden] { display: none; }
-  button {
-    margin-top: 16px;
-    padding: 10px;
-    border: none;
-    border-radius: 10px;
-    background: #17324d;
-    box-shadow: 0 8px 18px -10px rgba(23, 50, 77, .7);
-    color: #fff;
-    font: inherit;
-    font-weight: 600;
-    cursor: pointer;
-  }
-  button { transition: filter .12s, background .12s; }
-  button:hover:not(:disabled) { background: #0f2438; }
-  
-  button:focus-visible, .pw-toggle:focus-visible { outline: 2px solid var(--niec-blue); outline-offset: 2px; }
-  button:disabled { opacity: 0.6; cursor: default; }
+  button { margin-top: 22px; height: 50px; padding: 0 22px; border: 0; border-radius: 980px; background: var(--blue); color: #fff; font: inherit; font-weight: 500; cursor: pointer; transition: background .15s; }
+  button:hover:not(:disabled) { background: var(--blue-hover); }
+  button:focus-visible, .pw-toggle:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+  button:disabled { opacity: .55; cursor: default; }
   .pw { position: relative; display: flex; }
-  .pw input { flex: 1; min-width: 0; padding-right: 58px; }
-  .pw-toggle { position: absolute; right: 4px; top: 50%; transform: translateY(-50%); margin: 0; padding: 5px 9px; background: none;
-    color: var(--niec-blue-text); font-size: 12px; font-weight: 600; border-radius: 6px; }
-  .pw-toggle:hover:not(:disabled) { background: var(--note-bg); filter: none; }
-  
-  .caps { margin: 4px 0 0; color: #b45309; font-size: 12px; font-weight: 600; }
-  
+  .pw input { flex: 1; min-width: 0; padding-right: 70px; }
+  .pw-toggle { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); margin: 0; height: auto; padding: 6px 10px; border-radius: 8px; background: none; color: var(--link); font-size: 14px; font-weight: 500; }
+  .pw-toggle:hover:not(:disabled) { background: rgba(0, 102, 204, .08); }
+  .caps { margin: 4px 0 0; color: #a15c00; font-size: 14px; font-weight: 500; }
   .caps[hidden] { display: none; }
-  @media (prefers-reduced-motion: reduce) { button { transition: none; } }
-  .link { margin-top: 10px; padding: 0; background: none; color: var(--niec-blue-text); font-weight: 500; font-size: 13px; }
-  
-  /* the same finish as the app: serif title, the NIEC blue-to-orange line, calm shadows */
-  .card { position: relative; overflow: hidden; }
-  .card::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 3px; background: linear-gradient(90deg, #00adef 0%, #00adef 62%, #fc6e1f 100%); }
-  .card h1 { font-family: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif; font-weight: 500; letter-spacing: -.01em; }
-  .hero h2 { font-family: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif; font-weight: 500; letter-spacing: -.02em; }
-  .pw-toggle { box-shadow: none; }
-  
-
-  .hero { background: radial-gradient(90% 60% at 10% 0%, rgba(29, 47, 82, .14) 0%, rgba(29, 47, 82, 0) 70%), linear-gradient(180deg, #eef0f4 0%, #e6e9ee 100%) !important; color: #1a2230 !important; }
-  .hero h2 { color: #1a2230 !important; font-weight: 650 !important; letter-spacing: -.035em !important; font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", sans-serif !important; }
-  .hero p, .hero small, .hero li { color: #424c5b !important; }
-  /* 🔴 CSS CHANGED (2026-11-13): the login page in the brand colour | from: bright blue (#1f5fc0) dots, button and focus ring | to: deep navy (#1d2f52) */
-  .hero ul li::before { background: #1d2f52 !important; }
-  .panel { background: #f3f5fa !important; }
-  .panel { background: #eef0f4 !important; }
-  .card { background: #f7f8fa !important; border-radius: 24px !important; border: 1px solid rgba(0, 0, 0, .06) !important; box-shadow: 0 4px 12px rgba(0, 0, 0, .05), 0 30px 80px -30px rgba(0, 0, 0, .25) !important; }
-  .card input { background: #fbfcfd !important; }
-  .card::before { background: transparent !important; }
-  .card h1 { font-family: system-ui, -apple-system, "Segoe UI", sans-serif !important; font-weight: 800 !important; letter-spacing: -.04em !important; }
-  button[type="submit"], form button:not(.pw-toggle) { background: #1d2f52 !important; border-radius: 999px !important; }
-  button:hover:not(:disabled) { background: #273d68 !important; }
-  input:focus { border-color: #2e4c84 !important; box-shadow: 0 0 0 4px rgba(46, 76, 132, .2) !important; }
-  .hero::after { background: linear-gradient(90deg, rgba(154,123,79,.0), rgba(154,123,79,.6), rgba(154,123,79,.0)) !important; }
-  /* 🔴 CSS CHANGED (2026-11-13): the title in the login box | from: 24px, so the longer name wrapped onto two lines | to: 20px so "International Student Recruitment" fits on one line */
-  .card h1 { font-size: 20px !important; }
-  /* 🔴 CSS CHANGED (2026-11-14): the login page in the NIEC UK brand look | from: "International Student Recruitment" in bold type at the top left, a navy and bronze page, a navy Log in button, a bronze line near the bottom | to: the NIEC logo on a soft off-white tile with the short name (for example NIEC UK) and "International Student Recruitment Portal" beside it, a large near-black welcome line in the clean display font, NIEC blue (#0071bc) Log in button, focus ring and list dots, a fine blue line near the bottom */
-  .hero-brand { display: flex; align-items: center; gap: 18px; align-self: flex-start; }
-  .hero-logo { display: block; width: 128px; height: auto; padding: 10px 14px; border-radius: 18px; background: rgba(250, 251, 252, .9); box-shadow: 0 1px 2px rgba(0, 0, 0, .05), 0 14px 30px -20px rgba(0, 0, 0, .25); }
-  .hero-logo[hidden] { display: none; }
-  .hero-brand .hero-name { display: grid; gap: 2px; align-self: center; }
-  /* 🔴 CSS CHANGED (2026-11-14): beside the logo on the login page | from: "NIEC" in bold and "International Student Recruitment Portal" under it | to: only "UK" in bold beside the NIEC logo, a little larger (30px) */
-  .hero-name b { font-size: 30px !important; font-weight: 700 !important; letter-spacing: -.025em !important; color: #1d1d1f !important; }
-  .hero h2 { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI Variable Display", "Segoe UI", sans-serif !important; color: #1d1d1f !important; font-weight: 700 !important; letter-spacing: -.035em !important; }
-  .hero { background: radial-gradient(80% 55% at 0% 0%, rgba(0, 119, 200, .10) 0%, rgba(0, 119, 200, 0) 70%), linear-gradient(180deg, #f3f4f7 0%, #eceef2 100%) !important; }
-  .hero ul li::before { background: #0077c8 !important; box-shadow: 0 0 0 4px rgba(0, 119, 200, .16) !important; }
-  .hero::after { background: linear-gradient(90deg, rgba(0, 119, 200, 0), #0077c8 40%, rgba(0, 119, 200, 0)) !important; }
-  .panel { background: #eef0f3 !important; }
-  .card { background: #fafbfc !important; border: 1px solid #e0e3e8 !important; box-shadow: 0 2px 4px rgba(0, 0, 0, .04), 0 30px 60px -30px rgba(0, 0, 0, .28) !important; }
-  .card h1 { color: #1d1d1f !important; letter-spacing: -.025em !important; }
-  .card button[type="submit"] { background: #0071bc !important; border-color: #0071bc !important; color: #fff !important; box-shadow: 0 10px 22px -12px rgba(0, 113, 188, .8) !important; }
-  .card button[type="submit"]:hover { background: #005e9f !important; }
-  .card input:focus { border-color: #0077c8 !important; box-shadow: 0 0 0 3px rgba(0, 119, 200, .18) !important; }
+  .link { margin-top: 12px; height: auto; padding: 0; background: none; color: var(--link); font-weight: 400; font-size: 15px; }
+  .link:hover:not(:disabled) { background: none; text-decoration: underline; }
+  .footnote { margin: 26px 0 0; padding-top: 18px; border-top: 1px solid #e3e3e8; font-size: 13px; color: #6e6e73; text-align: center; }
 </style>
 </head>
 <body>
-<aside class="hero" aria-hidden="true">
-  <div class="hero-brand"><img class="hero-logo" src="/brand-logo.png" alt="" width="198" height="96" /><span class="hero-name"><b id="heroShort"></b></span></div>
-  <div>
-    <h2>Welcome back to your team’s workspace.</h2>
-    <p>Everything your team needs to guide students from first inquiry to visa, in one place. </p>
-    <ul><li>Applications, mock interviews and visas, step by step</li><li>An up-to-date list of university partners and university fact files</li><li>One place for every team</li></ul>
-  </div>
-  <small id="heroTag"></small>
-</aside>
-<div class="panel">
+<div class="top"><img id="brandLogo" src="/brand-logo.png" alt="Logo" width="198" height="96" /><b id="brandName" hidden>ISR</b></div>
 <main class="card">
-  <div class="brand">
-    
-    <div><h1>Staff login</h1></div>
-  </div>
+  <h1>Sign in</h1>
   <p class="sub" id="subtitle">Log in to continue</p>
 
   <!-- First start only: no accounts exist yet. -->
@@ -203,7 +77,7 @@
     <label for="password">Password</label>
     <div class="pw"><input id="password" type="password" autocomplete="current-password" required /><button type="button" class="pw-toggle" aria-pressed="false" aria-label="Show password">Show</button></div>
     <p class="caps" id="caps" hidden>Caps Lock is on.</p>
-    <button type="submit">Log in</button>
+    <button type="submit">Sign in</button>
   </form>
 
   <form id="step-new-password" hidden>
@@ -220,16 +94,11 @@
   <p class="error" id="error" role="alert" hidden></p>
   <p class="footnote">🔒 Staff only. Log in with your own username and password.</p>
 </main>
-</div>
 <script>
-  // The logo, and beside it only what it does not already say ("UK" for NIEC UK); without a logo, the whole short name.
+  // Only the consultancy's logo above the box; "ISR" if there is no logo.
   (function () {
-    const logo = document.querySelector('.hero-logo');
-    const name = document.getElementById('heroShort');
-    let brand = null;
-    const fill = () => { if (brand) name.textContent = logo && !logo.hidden ? (brand.besideLogo || '') : (brand.short || brand.company || 'ISR'); };
-    if (logo) logo.addEventListener('error', () => { logo.hidden = true; fill(); });
-    fetch('/api/brand').then((r) => (r.ok ? r.json() : null)).then((b) => { brand = b; fill(); }).catch(() => {});
+    const logo = document.getElementById('brandLogo');
+    logo.addEventListener('error', () => { logo.hidden = true; document.getElementById('brandName').hidden = false; });
   })();
 (function () {
   const $ = (id) => document.getElementById(id);

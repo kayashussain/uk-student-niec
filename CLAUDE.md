@@ -81,7 +81,7 @@ The owner does not want old versions, copies or rewrites lying around, because a
 - There is **one look only: a light theme, no dark mode and no alternative themes** (the owner asked). It must be easy on older eyes: no pure white panels (soft off-white on a soft grey canvas), strong dark text, larger type and larger buttons.
 - The login page must not mention incentives or commissions. Incentive is Admin-only and behind its own password.
 - Do not change colours, fonts or layout the owner did not ask about. When a change is needed for a bug fix, say so (Rule 1).
-- One sans-serif font everywhere (`--font` in `shared/theme.css`); page titles and big numbers use its display cut (`--display`), no serif (the owner, 14 Nov 2026).
-- The brand look (the owner, 14 Nov 2026): calm and clean like a top global brand, near-black text, the consultancy's logo blue (`#0077c8`) as the one accent, the consultancy's logo and short name (for example NIEC UK) at the top of the menu and on the login page. The logo is `brand-logo.png` in the data folder, else the starting one in `shared/`; the short name is a setting (Message templates, Email signature, Short name).
+- One font everywhere (`--font` in `shared/theme.css`): the system font (SF Pro on Apple devices), Inter (in `shared/fonts`) elsewhere; no serif (the owner, 14 Nov 2026).
+- The look (the owner, 14 Nov 2026): the design language of Apple's website and apps: light grey canvas (#f5f5f7), off-white rounded panels with soft shadows, near-black text, blue pill buttons (#0071e3) and grey pills for the rest, segmented tabs. Only the consultancy's logo at the top of the menu and on the login page (no name or "UK" beside it). The logo is `brand-logo.png` in the data folder, else the starting one in `shared/`.
 - Never put the real Incentive password, tokens or personal data in code, tests or git. It is the `INCENTIVE_PASSWORD`
   setting on the server only.

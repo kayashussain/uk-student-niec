@@ -1252,10 +1252,10 @@ a { text-decoration-color: color-mix(in srgb, var(--brand-bronze) 60%, transpare
 html[data-nav="closed"] .niec-logo { display: none; }
 @media (max-width: 900px) { .niec-logo { width: 72px; } .niec-brand { flex-direction: row; } }
 
-/* 🔴 CSS CHANGED (2026-11-14): All Students and the student card ONLY, in the design language of Apple's website (to be approved by the owner before other pages follow; every other page is unchanged) | from (the first proposal of today): Inter, black "+ Add student" and "Send a message" buttons, square-cornered buttons, a flat menu, a blue #0a7ac4 accent | to: the system font first (SF Pro on a Mac, iPhone and iPad, where it is built in; Inter, kept with the code, on Windows and elsewhere); Apple's calm light grey canvas (#f5f5f7), off-white rounded panels (#fbfbfd, 18 to 20px corners) with very light lines and soft shadows; near-black text (#1d1d1f) and grey secondary text (#515154); the main buttons as Apple-style blue pills (#0071e3, hover #0077ed) and the others as soft grey pills (#e8e8ed); links and focus in Apple's link blue (#0066cc); a frosted, see-through menu; titles a touch tighter; segmented controls for the intake tabs and the card's tabs; the student's current step in blue; the NIEC logo with "UK" beside it in the logo's blue. Apple's own images, logo and font files are not copied: the system font is used only where the device already has it */
+/* 🔴 CSS CHANGED (2026-11-14): EVERY page in the design language of Apple's website and apps (first made on All Students and the student card; the owner then asked for it everywhere) | from: navy and bronze, a Palatino serif for titles and big numbers, bluish greys, outlined buttons, bordered pills, a bronze line on cards, "UK" beside the logo | to: the system font first (SF Pro on a Mac, iPhone and iPad, where it is built in; Inter, kept with the code, elsewhere); Apple's light grey canvas (#f5f5f7), off-white rounded panels (#fbfbfd) with soft shadows instead of borders; near-black text (#1d1d1f), grey secondary text (#515154); main buttons as blue pills (#0071e3, hover #0077ed), the others as soft grey pills (#e8e8ed); links and focus in Apple's blue; titles a touch tighter; segmented controls for tabs; small spaced capitals for table headings; the charts in Apple's system colours; a frosted menu with only the NIEC logo at the top (no "UK"). Apple's own images, logo and font files are not copied: SF Pro is used only where the device already has it */
 @font-face { font-family: "Inter"; font-style: normal; font-weight: 100 900; font-display: swap; src: url("/fonts/inter-latin.woff2") format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
 @font-face { font-family: "Inter"; font-style: normal; font-weight: 100 900; font-display: swap; src: url("/fonts/inter-latin-ext.woff2") format("woff2"); unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+1E00-1E9F, U+20A0-20AB, U+20AD-20C0, U+2C60-2C7F, U+A720-A7FF; }
-body:has(#sheet), body:has(.p-embed-bar) {
+body {
   --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Inter", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   --serif: var(--font); --brand-serif: var(--font);
   --ink: #1d1d1f; --text: #1d1d1f; --text-dim: #515154; --head-ink: #515154;
@@ -1269,19 +1269,22 @@ body:has(#sheet), body:has(.p-embed-bar) {
   --red-bg: #fdeceb; --red-fg: #b42318; --gray-bg: #f0f0f3; --gray-fg: #48484e;
   background: var(--bg); color: var(--ink); font-family: var(--font); -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;
 }
-body:has(#sheet) :is(button, input, select, textarea, table, th, td), body:has(.p-embed-bar) :is(button, input, select, textarea) { font-family: var(--font); }
+body :is(button, input, select, textarea, table, th, td, dialog) { font-family: var(--font); }
 
-/* ---- the menu on these two pages: frosted and calm, the logo with "UK" in the logo's blue ---- */
-body:is(:has(#sheet), :has(.p-embed-bar)) .niec-header { background: rgba(251, 251, 253, .8); -webkit-backdrop-filter: saturate(180%) blur(20px); backdrop-filter: saturate(180%) blur(20px); box-shadow: 1px 0 0 rgba(0, 0, 0, .08); }
-body:is(:has(#sheet), :has(.p-embed-bar)) .niec-brand { flex-direction: row; align-items: center; gap: 6px; padding: 4px 8px 18px; border-bottom: 1px solid var(--border); }
-body:is(:has(#sheet), :has(.p-embed-bar)) .niec-logo { width: auto; height: 46px; }
-body:is(:has(#sheet), :has(.p-embed-bar)) .niec-name b { font-family: "Arial Narrow", "Roboto Condensed", "Helvetica Neue", Arial, sans-serif; font-stretch: condensed; font-size: 25px; font-weight: 400; letter-spacing: .06em; line-height: 1; color: #1aa3df; transform: translateY(-4px); }
-body:is(:has(#sheet), :has(.p-embed-bar)) .niec-nav a { color: #3a3a3c; font-weight: 500; border-radius: 10px; }
-body:is(:has(#sheet), :has(.p-embed-bar)) .niec-nav a:hover { background: rgba(0, 0, 0, .04); color: var(--ink); }
-body:is(:has(#sheet), :has(.p-embed-bar)) .niec-nav a[aria-current="page"] { background: rgba(0, 0, 0, .06); color: var(--ink); font-weight: 600; box-shadow: none; }
-body:is(:has(#sheet), :has(.p-embed-bar)) .niec-nav a[aria-current="page"] .niec-ico { color: var(--ink); }
-body:is(:has(#sheet), :has(.p-embed-bar)) .niec-account-btn { background: transparent; border-color: var(--border); }
-body:is(:has(#sheet), :has(.p-embed-bar)) .niec-avatar { background: var(--ink); }
+/* ---- the menu: frosted and calm, only the NIEC logo at the top ---- */
+body .niec-header { background: rgba(251, 251, 253, .8); -webkit-backdrop-filter: saturate(180%) blur(20px); backdrop-filter: saturate(180%) blur(20px); box-shadow: 1px 0 0 rgba(0, 0, 0, .08); }
+body .niec-brand { flex-direction: row; align-items: center; justify-content: flex-start; gap: 6px; padding: 6px 8px 18px; border-bottom: 1px solid var(--border); }
+body .niec-logo { display: block; width: auto; height: 52px; }
+body .niec-logo[hidden], body .niec-name[hidden] { display: none; }
+html[data-nav="closed"] body .niec-logo { display: none; }
+@media (max-width: 900px) { body .niec-logo { height: 32px; } }
+body .niec-name b { font-size: 26px; font-weight: 600; letter-spacing: -.02em; color: var(--ink); }
+body .niec-nav a { color: #3a3a3c; font-weight: 500; border-radius: 10px; }
+body .niec-nav a:hover { background: rgba(0, 0, 0, .04); color: var(--ink); }
+body .niec-nav a[aria-current="page"] { background: rgba(0, 0, 0, .06); color: var(--ink); font-weight: 600; box-shadow: none; }
+body .niec-nav a[aria-current="page"] .niec-ico { color: var(--ink); }
+body .niec-account-btn { background: transparent; border-color: var(--border); }
+body .niec-avatar { background: var(--ink); }
 
 /* ---- All Students ---- */
 body:has(#sheet) .sheet-title { font-family: var(--font); font-size: 34px; font-weight: 600; letter-spacing: -.02em; color: var(--ink); }
@@ -1350,7 +1353,57 @@ body:has(.p-embed-bar) .p-field input:focus, body:has(.p-embed-bar) .p-field sel
 body:has(.p-embed-bar) .p-timeline li { border-left-color: var(--border); }
 body:has(.p-embed-bar) .p-timeline li::before { background: #0071e3; box-shadow: 0 0 0 3px var(--panel), 0 0 0 4px var(--border); }
 body:has(.p-embed-bar) .td-task { border-color: var(--border); background: var(--edit-bg); }
-body:is(:has(#sheet), :has(.p-embed-bar)) a { color: #0066cc; }
-body:is(:has(#sheet), :has(.p-embed-bar)) .niec-header a, body:has(.p-embed-bar) .p-back, body:has(.p-embed-bar) .p-hero .p-fact dd a { color: inherit; }
+
+body .niec-header a, body:has(.p-embed-bar) .p-back, body:has(.p-embed-bar) .p-hero .p-fact dd a { color: inherit; }
 body:has(.p-embed-bar) .p-hero .p-fact dd a { color: #0066cc; text-decoration: none; }
 body:has(.p-embed-bar) .p-hero .p-fact dd a:hover { text-decoration: underline; }
+
+/* ---- every page: titles, panels, buttons, fields, pills, tabs and tables in the same Apple-like look ---- */
+:root { --sh-1: none; --sh-2: 0 2px 12px rgba(0, 0, 0, .04); --sh-3: 0 4px 24px rgba(0, 0, 0, .06); --s1: #0071e3; --s2: #ff9f0a; --s3: #34c759; --s4: #5e5ce6; --s5: #64d2ff; }
+body { --s1: #0071e3; --s2: #ff9f0a; --s3: #30b350; --s4: #5e5ce6; --s5: #5ac8fa; --grid: #e8e8ed; --axis: #d2d2d7; --ov-track: #ececf0; --ov-grid: #ececf0; }
+body .ov { --ov-track: #ececf0; }
+h1, .p-head h1, .page-head h1, .ov-head h1, .td-hello h1 { font-family: var(--font); font-weight: 600; letter-spacing: -.02em; color: var(--ink); }
+.td-hello h1 { font-size: 44px; }
+h2, h3, .p-card > h2, .p-card-head h2, .md-card-head h2, .td-tasks-head h2, .td-attn-head h2, body:has(.p-embed-bar) #view .p-card:not(.p-hero) h2 { font-family: var(--font); font-weight: 600; letter-spacing: -.015em; color: var(--ink); }
+.p-card-head h2, .p-card > h2 { font-size: 19px; }
+.p-kpi b, .md-kpi b, .md-week-item b, .ov-kpi b, .ov-kpi .ov-num, .ov-big, .ov-kpi-value, .stat-value { font-family: var(--font); font-weight: 600; letter-spacing: -.025em; color: var(--ink); }
+.td-kicker { color: #6e6e73; letter-spacing: .08em; }
+/* panels: no hard borders, soft shadow, generous corners */
+.p-card, .page .card, .md-card, .md-kpi, .td-attn, .td-tasks, .p-kpi, .stat-tile, .bp-card, .pu-card, .ov-card, .tp-panel, .tp-list, .bp-band, .ev-band, .p-table-wrap, .admin-card, .fact-card { border-color: rgba(0, 0, 0, .05) !important; border-radius: 20px; background: var(--panel); box-shadow: var(--sh-2); }
+.td-tasks { background: var(--panel); box-shadow: var(--sh-3); }
+.td-tasks::before { width: 3px; background: #0071e3; }
+.td-task { border-color: var(--border); background: #fdfdfe; border-radius: 14px; }
+.td-task:hover { border-color: var(--border-strong); box-shadow: 0 4px 16px rgba(0, 0, 0, .05); }
+.md-kpi:first-child { box-shadow: inset 0 -3px 0 #0071e3, var(--sh-2); }
+.md-taskline { border: 0; border-left: 3px solid #0071e3; background: var(--panel); box-shadow: var(--sh-2); }
+.md-taskline.has-late { border-left-color: var(--red-fg); }
+.p-kpis > .p-kpi:first-child::after { background: #0071e3; }
+.md-bar-fill { background: #0071e3; }
+.td-attn-count { background: #e8e8ed; color: #1d1d1f; }
+.td-av, .p-avatar:not(.p-hero .p-avatar), .uni-mono { background: #e8e8ed; color: #1d1d1f; box-shadow: none; border: 0; }
+.td-chip, .td-due, .td-team, .md-date, .p-pill, .p-chip, .pill, .bp-status, .pu-tag { border-radius: 980px; }
+/* buttons: blue pills for the main action, soft grey pills for the rest */
+.btn, button.btn, a.btn { min-height: 36px; padding: 0 16px; border: 0; border-radius: 980px; background: #e8e8ed; color: #1d1d1f; font-weight: 500; letter-spacing: -.01em; box-shadow: none; }
+.btn:hover:not(:disabled), a.btn:hover { background: #dcdce2; color: #1d1d1f; border-color: transparent; }
+.btn-sm, .btn.btn-sm { min-height: 30px; padding: 0 12px; font-size: 13.5px; }
+.btn-primary, button.btn-primary, .btn.btn-primary, .topbar .btn-primary, .topbar .btn.btn-primary, .toolbar .btn.btn-primary { border: 0; background: #0071e3; color: #fff; box-shadow: none; }
+.btn-primary:hover:not(:disabled), .btn.btn-primary:hover:not(:disabled), .topbar .btn.btn-primary:hover:not(:disabled) { background: #0077ed; color: #fff; box-shadow: none; }
+.btn-danger, .btn.btn-danger { background: #e8e8ed; color: var(--red-fg); }
+.btn-danger:hover:not(:disabled) { background: var(--red-bg); color: var(--red-fg); }
+.td-done-toggle, .pu-link, .bp-link, .p-link, .td-attn-more, .md-taskline .md-taskline-go { color: #0066cc; text-decoration: none; }
+.td-done-toggle:hover, .pu-link:hover, .bp-link:hover, .td-attn-more:hover { text-decoration: underline; }
+/* fields: tall and rounded, a blue ring while typing */
+input:not([type="checkbox"]):not([type="radio"]):not([type="color"]):not([type="file"]), select, textarea { border-color: var(--border-strong); border-radius: 12px; }
+.p-field input, .p-field select, .p-field textarea, .p-input, .pu-field input, .pu-field textarea, .pu-search, .bp-search, .tp-search { border: 1px solid var(--border-strong); border-radius: 12px; background: #fdfdfe; }
+input:focus-visible, select:focus-visible, textarea:focus-visible, .p-field input:focus, .p-field select:focus, .p-field textarea:focus, .p-input:focus { outline: none; border-color: #0071e3 !important; box-shadow: 0 0 0 4px rgba(0, 113, 227, .18) !important; }
+/* tabs as a segmented control */
+.p-tabs { display: inline-flex; width: auto; gap: 2px; padding: 3px; border: 0; border-radius: 12px; background: #e8e8ed; }
+.p-tabs button { padding: 7px 16px; border: 0; border-radius: 9px; background: transparent; color: #515154; font-weight: 500; box-shadow: none; }
+.p-tabs button[aria-selected="true"] { background: #fff; color: #1d1d1f; font-weight: 600; box-shadow: 0 1px 2px rgba(0, 0, 0, .08), 0 2px 8px -4px rgba(0, 0, 0, .12); }
+/* tables on the other pages: headings in small spaced capitals */
+.p-table th, .page table th, .admin-table th { background: #f7f7f9; color: #6e6e73; font-size: 12.5px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; border-bottom: 1px solid var(--border-strong); }
+.p-table td, .page table td { border-color: #ececf0; }
+.p-notice, .tp-note { border-radius: 14px; }
+/* the cost figures and campaign tags on Events and marketing in the same look (the page's own styles come after this file, so these carry the body in front) */
+html body .ev-band .gold b, html body .ev-lrow.item .num.gold { color: #0071e3; }
+html body .ev-tag.mk { border-color: #d2d2d7; color: #515154; }

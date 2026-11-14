@@ -944,10 +944,7 @@ const server = http.createServer(async (req, res) => {
     // The product name and the company name, for the login page and the menu: nothing private.
     if (urlPath === '/api/brand' && req.method === 'GET') {
       const sig = messages.signature();
-      // Beside the logo, only what the logo does not already say: "NIEC UK" with the NIEC logo shows just "UK".
-      const initials = require('./messages').initialsOf(sig.company);
-      const besideLogo = initials && sig.short.toUpperCase().startsWith(initials.toUpperCase()) ? sig.short.slice(initials.length).trim() : sig.short;
-      return sendJSON(res, 200, { product: 'ISR', company: sig.company, short: sig.short, besideLogo });
+      return sendJSON(res, 200, { product: 'ISR', company: sig.company, short: sig.short });
     }
     // The consultancy's logo, for the menu and the login page (nothing private): the consultancy's own brand-logo.png in the data
     // folder wins; the file shipped in shared/ is only the first installation's starting logo.
