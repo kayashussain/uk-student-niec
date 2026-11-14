@@ -1069,3 +1069,37 @@ body:has(#sheet) .topbar .came-from:focus { border-color: var(--lux-ink-2); box-
 .t-section-title { margin: 6px 0 12px; font-size: 17px; font-weight: 700; color: var(--brand-navy); }
 body:has(.p-embed-bar) .p-tasks-wide, body:has(.p-embed-bar) .p-tabs + div > .p-card.p-tasks { grid-column: 1 / -1 !important; grid-row: auto !important; }
 .p-tasks .p-card-head + .p-task { border-top: 0; }
+
+/* 🔴 CSS CHANGED (2026-11-14): Message templates rebuilt calm and premium | from: two plain columns (a list of template boxes with the email signature form under it, and one long editor with a grid of stage tick boxes and a "Words you can use" fold-out), and a long yellow notice | to: a short soft notice; two underline tabs (Templates, Email signature); a slim list on the left with a search, each template a quiet row (name in navy, its stages under it, an "Edited" or "Yours" tag) and the open one marked with a bronze line; the editor in calm panels (Name and stages with the stages as pills, Email with the subject, the message and the fill-in words as chips, WhatsApp) and a Save bar that stays at the bottom; the signature on its own tab in three panels */
+.tp-page { max-width: 1480px; }
+.tp-note { margin: 0 0 16px; padding: 12px 16px; border-radius: 12px; font-size: 15px; }
+.tp-note.warn { background: color-mix(in srgb, var(--amber-bg) 70%, var(--panel)); color: var(--amber-fg); border: 1px solid color-mix(in srgb, var(--amber-fg) 20%, transparent); }
+.tp-note.ok { background: var(--green-bg); color: var(--green-fg); }
+.tp-layout { display: grid; grid-template-columns: 340px minmax(0, 1fr); gap: 22px; align-items: start; margin-top: 18px; }
+@media (max-width: 900px) { .tp-layout { grid-template-columns: minmax(0, 1fr); } }
+.tp-side { position: sticky; top: 16px; display: grid; gap: 12px; }
+.tp-search { width: 100%; height: 44px; padding: 0 16px; border: 1px solid var(--border); border-radius: 999px; background: var(--panel); font: inherit; font-size: 15px; }
+.tp-list { display: grid; gap: 4px; padding: 8px; border: 1px solid var(--border); border-radius: 18px; background: var(--panel); max-height: calc(100vh - 220px); overflow: auto; }
+.tp-item { position: relative; display: grid; gap: 3px; width: 100%; padding: 12px 14px 12px 18px; border: 0; border-radius: 12px; background: transparent; font: inherit; text-align: left; cursor: pointer; }
+.tp-item:hover { background: color-mix(in srgb, var(--gold-soft) 45%, transparent); }
+.tp-item.on { background: var(--gold-soft); }
+.tp-item.on::before { content: ""; position: absolute; left: 6px; top: 12px; bottom: 12px; width: 3px; border-radius: 3px; background: var(--brand-bronze); }
+.tp-item b { color: var(--brand-navy); font-size: 15px; font-weight: 650; }
+.tp-item-meta { color: var(--text-dim); font-size: 13.5px; }
+.tp-flag { justify-self: start; margin-top: 2px; padding: 1px 9px; border: 1px solid color-mix(in srgb, var(--brand-bronze) 50%, transparent); border-radius: 999px; color: #6f5631; font-size: 12.5px; font-weight: 600; }
+.tp-ed-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 0 0 16px; }
+.tp-ed-head h2 { margin: 0; font-family: var(--brand-serif); font-size: 30px; font-weight: 600; color: var(--brand-navy); }
+.tp-ed-kind { padding: 3px 11px; border-radius: 999px; background: var(--gold-soft); color: var(--brand-navy); font-size: 13.5px; font-weight: 600; }
+.tp-panel { margin: 0 0 16px; padding: 22px 24px; border: 1px solid var(--border); border-radius: 18px; background: var(--panel); box-shadow: 0 1px 2px rgba(20, 27, 41, .04); }
+#viewSignature.tp-panel { padding: 0; border: 0; background: none; box-shadow: none; margin-top: 18px; }
+#editor .tp-panel h3, .tp-panel h3 { margin: 0 0 4px; padding: 0; border: 0; color: var(--brand-navy); font-size: 18px; font-weight: 700; }
+.tp-help { margin: 0 0 14px; color: var(--text-dim); font-size: 14.5px; }
+.tp-panel .p-field input, .tp-panel .p-field textarea { min-height: 46px; border-radius: 12px; font-size: 15px; line-height: 1.55; }
+.tp-label { display: block; margin: 16px 0 8px; color: var(--brand-navy); font-size: 14px; font-weight: 600; }
+.tp-stages, .tp-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.tp-stage { min-height: 36px; padding: 0 14px; border: 1px solid var(--border); border-radius: 999px; background: var(--panel); font: inherit; font-size: 14px; font-weight: 600; color: var(--text); cursor: pointer; }
+.tp-stage.on { border-color: var(--brand-navy); background: var(--brand-navy); color: var(--brand-ivory); }
+.tp-chip { min-height: 32px; padding: 0 12px; border: 1px dashed color-mix(in srgb, var(--brand-navy) 30%, var(--border)); border-radius: 8px; background: color-mix(in srgb, var(--gold-soft) 35%, var(--panel)); font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 13.5px; color: var(--brand-navy); cursor: pointer; }
+.tp-chip:hover { border-style: solid; border-color: var(--brand-navy); }
+.tp-savebar { position: sticky; bottom: 0; z-index: 5; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 14px 18px; border: 1px solid var(--border); border-radius: 16px; background: color-mix(in srgb, var(--panel) 92%, transparent); backdrop-filter: blur(8px); box-shadow: 0 -10px 30px -24px rgba(29, 47, 82, .5); }
+.tp-savebar .grow { flex: 1 1 auto; }

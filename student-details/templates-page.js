@@ -1,101 +1,163 @@
-// Message templates (Admin edits, everyone else reads on the student card).
+// Message templates (Admin edits, everyone else reads on the student card). A slim list on the left (with a search), the open
+// template in calm panels (stages, email, WhatsApp) with a Save bar that stays on screen, the words that can be filled in as chips
+// that go where the cursor is, and the email signature on its own tab.
 (function () {
   const { el, h, api, field, dialog } = window.Portal;
   const $ = (id) => document.getElementById(id);
   let data = null;
   let openKey = '';
+  let lastBox = null; // the subject, email or WhatsApp box last typed in: a word chip goes there
   const say = (t, e) => window.NiecUI.toast(t, { type: e ? 'error' : 'success' });
 
   function list() {
-    const box = $('list');
-    box.replaceChildren(...data.templates.map((t) => {
-      const b = el('button', 'p-template');
+    const q = $('tpSearch').value.trim().toLowerCase();
+    const shown = data.templates.filter((t) => !q || `${t.name} ${t.stages.join(' ')}`.toLowerCase().includes(q));
+    $('list').replaceChildren(...(shown.length ? shown.map((t) => {
+      const b = el('button', 'tp-item' + (t.key === openKey ? ' on' : ''));
       b.type = 'button';
       b.setAttribute('aria-pressed', String(t.key === openKey));
-      b.append(el('b', '', t.name), el('small', '', `${t.stages.join(', ') || 'Any stage'}${t.edited ? ' · edited' : ''}${t.builtIn ? '' : ' · yours'}`));
+      const tags = el('span', 'tp-item-meta', t.stages.length ? t.stages.join(', ') : 'Any stage');
+      b.append(el('b', '', t.name), tags);
+      if (t.edited || !t.builtIn) b.append(el('span', 'tp-flag', t.builtIn ? 'Edited' : 'Yours'));
       b.addEventListener('click', () => { openKey = t.key; list(); edit(t); });
       return b;
-    }));
+    }) : [el('p', 'p-muted', 'No template matches.')]));
   }
+
+  function panel(title, help) {
+    const s = el('section', 'tp-panel');
+    s.append(el('h3', '', title));
+    if (help) s.append(el('p', 'tp-help', help));
+    return s;
+  }
+
   function edit(t) {
     const ed = $('editor');
     const name = field('Name', { value: t.name, max: 80 });
-    const subject = field('Email subject', { value: t.subject, max: 200, wide: true });
-    const body = field('Email message', { kind: 'area', value: t.body, max: 8000, wide: true, hint: 'A blank line starts a new paragraph. A line that starts with "- " is a bullet, and one that starts with "## " is a small heading.' });
-    body.input.style.minHeight = '300px';
-    const wa = field('WhatsApp message (short)', { kind: 'area', value: t.whatsapp, max: 3000, wide: true });
-    const stages = el('div', 'p-form');
-    const checks = data.stages.map((s) => {
-      const l = el('label', 'p-check'); const c = el('input'); c.type = 'checkbox'; c.checked = t.stages.includes(s); c.value = s; l.append(c, el('span', '', s)); stages.append(l); return c;
+    const subject = field('Subject', { value: t.subject, max: 200, wide: true });
+    const body = field('Message', { kind: 'area', value: t.body, max: 8000, wide: true });
+    body.input.style.minHeight = '340px';
+    const wa = field('Message', { kind: 'area', value: t.whatsapp, max: 3000, wide: true });
+    wa.input.style.minHeight = '120px';
+    [subject.input, body.input, wa.input].forEach((x) => x.addEventListener('focus', () => { lastBox = x; }));
+    lastBox = body.input;
+
+    const head = el('div', 'tp-ed-head');
+    head.append(el('h2', '', t.name), el('span', 'tp-ed-kind', t.builtIn ? (t.edited ? 'Ready-made, edited' : 'Ready-made') : 'Your own'));
+
+    // 1. Name and the stages it suits: pills to tick.
+    const p1 = panel('Name and stages', 'The student card shows the templates that suit the student\'s stage first.');
+    const g1 = el('div', 'p-form'); g1.append(name.wrap); p1.append(g1);
+    const pills = el('div', 'tp-stages');
+    const chosen = new Set(t.stages);
+    data.stages.forEach((s) => {
+      const b = el('button', 'tp-stage' + (chosen.has(s) ? ' on' : ''), s); b.type = 'button'; b.setAttribute('aria-pressed', String(chosen.has(s)));
+      b.addEventListener('click', () => { if (chosen.has(s)) chosen.delete(s); else chosen.add(s); b.classList.toggle('on', chosen.has(s)); b.setAttribute('aria-pressed', String(chosen.has(s))); });
+      pills.append(b);
     });
-    const form = el('div', 'p-form p-form-2');
-    form.append(name.wrap, el('div'), subject.wrap, body.wrap, wa.wrap);
-    const words = el('details');
-    words.append(el('summary', 'p-link', 'Words you can use'));
-    const dl = el('dl', 'p-sheet-grid');
-    window.__fields = data.fields;
-    data.fields.forEach(([k, d]) => { const x = el('div'); x.append(h('dt', {}, `{${k}}`), el('dd', '', d)); dl.append(x); });
-    words.append(dl);
-    const bar = el('div', 'p-bar');
+    p1.append(el('span', 'tp-label', 'Suits these stages'), pills);
+
+    // 2. The email, with the words that can be filled in.
+    const p2 = panel('Email', 'A blank line starts a new paragraph. A line that starts with "- " is a bullet, and "## " a small heading.');
+    const g2 = el('div', 'p-form'); g2.append(subject.wrap, body.wrap); p2.append(g2);
+    const chips = el('div', 'tp-chips');
+    data.fields.forEach(([k, d]) => {
+      const c = el('button', 'tp-chip', `{${k}}`); c.type = 'button'; c.title = d;
+      c.addEventListener('mousedown', (e) => e.preventDefault()); // keep the cursor where it is
+      c.addEventListener('click', () => {
+        const box = lastBox || body.input;
+        const at = box.selectionStart ?? box.value.length; const end = box.selectionEnd ?? at;
+        box.value = box.value.slice(0, at) + `{${k}}` + box.value.slice(end);
+        box.focus(); box.selectionStart = box.selectionEnd = at + k.length + 2;
+      });
+      chips.append(c);
+    });
+    p2.append(el('span', 'tp-label', 'Words filled in from the student (click to add where you are typing)'), chips);
+
+    // 3. WhatsApp
+    const p3 = panel('WhatsApp', 'Keep it short: it opens on the counselor\'s phone or WhatsApp Web, ready to send.');
+    const g3 = el('div', 'p-form'); g3.append(wa.wrap); p3.append(g3);
+
+    const bar = el('div', 'tp-savebar');
+    const msg = el('span', 'p-msg grow');
     const save = h('button', { class: 'btn btn-primary', type: 'button' }, 'Save');
-    const msg = el('div', 'p-msg');
     save.addEventListener('click', async () => {
       try {
-        await api('/api/templates/' + t.key, { name: name.input.value, subject: subject.input.value, body: body.input.value, whatsapp: wa.input.value, stages: checks.filter((c) => c.checked).map((c) => c.value) });
+        await api('/api/templates/' + t.key, { name: name.input.value, subject: subject.input.value, body: body.input.value, whatsapp: wa.input.value, stages: data.stages.filter((s) => chosen.has(s)) });
         say('Template saved'); await load(t.key);
-      } catch (e) { msg.textContent = e.message; msg.className = 'p-msg error'; }
+      } catch (e) { msg.textContent = e.message; msg.className = 'p-msg error grow'; }
     });
-    bar.append(save);
-    const remove = h('button', { class: 'btn btn-danger', type: 'button' }, t.builtIn ? 'Put back the original text' : 'Delete');
-    remove.addEventListener('click', async () => {
-      if (!(await window.NiecUI.confirm(t.builtIn ? 'This template goes back to the text it came with.' : 'This template is deleted.', { danger: true, confirmText: t.builtIn ? 'Put back' : 'Delete' }))) return;
-      try { await api(`/api/templates/${t.key}/delete`, {}); say(t.builtIn ? 'Original text put back' : 'Deleted'); openKey = t.builtIn ? t.key : ''; await load(openKey); } catch (e) { say(e.message, true); }
-    });
-    if (t.edited || !t.builtIn) bar.append(remove);
+    bar.append(save, msg);
+    if (t.edited || !t.builtIn) {
+      const remove = h('button', { class: 'btn', type: 'button' }, t.builtIn ? 'Put back the original text' : 'Delete');
+      remove.addEventListener('click', async () => {
+        if (!(await window.NiecUI.confirm(t.builtIn ? 'This template goes back to the text it came with.' : 'This template is deleted.', { danger: true, confirmText: t.builtIn ? 'Put back' : 'Delete' }))) return;
+        try { await api(`/api/templates/${t.key}/delete`, {}); say(t.builtIn ? 'Original text put back' : 'Deleted'); openKey = t.builtIn ? t.key : ''; await load(openKey); } catch (e) { say(e.message, true); }
+      });
+      bar.append(remove);
+    }
     if (t.builtIn) {
-      const del = h('button', { class: 'btn btn-danger', type: 'button' }, 'Delete this template');
+      const del = h('button', { class: 'btn btn-danger', type: 'button' }, 'Delete');
       del.addEventListener('click', async () => {
         if (!(await window.NiecUI.confirm(`Delete "${t.name}"? It disappears from the list and from the student card. You can bring the ready-made templates back later.`, { danger: true, confirmText: 'Delete' }))) return;
         try { await api(`/api/templates/${t.key}/hide`, {}); say('Deleted'); openKey = ''; await load(''); } catch (e) { say(e.message, true); }
       });
       bar.append(del);
     }
-    ed.replaceChildren(el('h2', '', t.name), el('p', 'p-muted', 'Which stages should this suit? The student card puts the suitable templates first.'), stages, el('h3', '', 'Words'), form, words, bar, msg);
+    ed.replaceChildren(head, p1, p2, p3, ...(data.canEdit ? [bar] : []));
     if (!data.canEdit) { ed.querySelectorAll('input, textarea, select, button').forEach((x) => { x.disabled = true; }); }
   }
+
   function signature() {
     const s = data.signature;
-    const f = el('div', 'p-form');
     const fields = {};
-    [['name', 'Name'], ['title', 'Title'], ['company', 'Company name'], ['short', 'Short name (for messages)'], ['phone', 'Phone'], ['whatsapp', 'WhatsApp'], ['email', 'Email shown'], ['website', 'Website'], ['address', 'Address']].forEach(([k, label]) => { fields[k] = field(label, { value: s[k], max: 200 }); f.append(fields[k].wrap); });
+    const make = (k, label, ph) => { fields[k] = field(label, { value: s[k], max: 200, placeholder: ph || '' }); return fields[k].wrap; };
+    const who = panel('Who signs', 'At the end of every email sent from a student card.');
+    const g1 = el('div', 'p-form p-form-2'); g1.append(make('name', 'Name'), make('title', 'Title', 'e.g. Senior Counselor')); who.append(g1);
+    const co = panel('The company', 'Its name is used everywhere in the portal and in the messages.');
+    const g2 = el('div', 'p-form p-form-2'); g2.append(make('company', 'Company name'), make('short', 'Short name (for messages)')); co.append(g2);
+    const reach = panel('How students reach you', '');
+    const g3 = el('div', 'p-form p-form-2'); g3.append(make('phone', 'Phone'), make('whatsapp', 'WhatsApp'), make('email', 'Email shown'), make('website', 'Website'), make('address', 'Address')); reach.append(g3);
     const copyBox = el('label', 'p-check');
     const c = el('input'); c.type = 'checkbox'; c.checked = s.copyToOffice !== false;
-    copyBox.append(c, el('span', '', 'Send the office mailbox a copy of every email (so it is found there with the student\'s replies)'));
-    const save = h('button', { class: 'btn btn-primary btn-sm', type: 'button' }, 'Save signature');
+    copyBox.append(c, el('span', '', 'Send the office mailbox a copy of every email, so it is found there with the student\'s replies'));
+    reach.append(copyBox);
+    const bar = el('div', 'tp-savebar');
+    const save = h('button', { class: 'btn btn-primary', type: 'button' }, 'Save signature');
     save.addEventListener('click', async () => { try { await api('/api/templates/signature', { ...Object.fromEntries(Object.entries(fields).map(([k, x]) => [k, x.input.value])), copyToOffice: c.checked }); say('Signature saved'); } catch (e) { say(e.message, true); } });
-    if (!data.canEdit) { f.querySelectorAll('input').forEach((x) => { x.disabled = true; }); c.disabled = true; save.disabled = true; }
-    $('sig').replaceChildren(f, copyBox, el('div', 'p-bar'));
-    $('sig').lastChild.append(save);
+    bar.append(save);
+    $('sig').replaceChildren(who, co, reach, ...(data.canEdit ? [bar] : []));
+    if (!data.canEdit) $('sig').querySelectorAll('input').forEach((x) => { x.disabled = true; });
   }
+
   async function load(key) {
     data = await api('/api/templates');
-    $('mailNote').hidden = false;
-    $('mailNote').className = data.mail.ready ? 'p-notice ok' : 'p-notice warn';
-    $('mailNote').textContent = data.mail.ready ? `Emails are sent from ${data.mail.from}.` : 'Email is not set up on this server yet, so sending only keeps a preview on the student card. Your system administrator sets it up once (the steps are in DEPLOY.md). Emails to students are sent from the mailbox set up for this system, and WhatsApp messages open from your own phone or WhatsApp Web.';
+    const note = $('mailNote');
+    note.hidden = false;
+    note.className = 'tp-note ' + (data.mail.ready ? 'ok' : 'warn');
+    note.textContent = data.mail.ready ? `Emails are sent from ${data.mail.from}.` : 'Email is not set up on this server yet: sending keeps a preview on the student card. WhatsApp messages open on your own phone or WhatsApp Web.';
     list();
     signature();
-    // A link to bring back the ready-made templates that were deleted.
-    const old = document.getElementById('bringBack'); if (old) old.remove();
+    const old = $('bringBack'); if (old) old.remove();
     if (data.hiddenCount && data.canEdit) {
-      const back = h('button', { class: 'btn', type: 'button', id: 'bringBack' }, `Bring back ${data.hiddenCount} deleted template${data.hiddenCount === 1 ? '' : 's'}`);
+      const back = h('button', { class: 'btn', type: 'button', id: 'bringBack' }, `Bring back ${data.hiddenCount} deleted`);
       back.addEventListener('click', async () => { try { await api('/api/templates/restore-hidden', {}); say('Brought back'); await load(''); } catch (e) { say(e.message, true); } });
-      $('addTemplate').after(back);
+      $('addTemplate').before(back);
     }
+    $('addTemplate').hidden = !data.canEdit;
     const t = data.templates.find((x) => x.key === (key || openKey)) || data.templates[0];
-    if (t) edit(t); else $('editor').replaceChildren(el('p', 'p-muted', 'Choose a template on the left to edit it.'));
+    if (t) { openKey = t.key; list(); edit(t); } else $('editor').replaceChildren(el('p', 'p-muted', 'No template yet.'));
   }
+
+  // The two tabs: Templates and Email signature.
+  document.querySelectorAll('.tp-page [role="tab"]').forEach((b) => b.addEventListener('click', () => {
+    document.querySelectorAll('.tp-page [role="tab"]').forEach((x) => x.setAttribute('aria-selected', String(x === b)));
+    $('viewTemplates').hidden = b.dataset.view !== 'templates';
+    $('viewSignature').hidden = b.dataset.view !== 'signature';
+  }));
+  $('tpSearch').addEventListener('input', () => data && list());
   $('addTemplate').addEventListener('click', () => dialog('New template', (body, close) => {
-    const name = field('Name', { max: 80, placeholder: 'Scholarship deadline reminder' });
+    const name = field('Name', { max: 80, placeholder: 'e.g. Scholarship deadline reminder' });
     const subject = field('Email subject', { max: 200 });
     const text = field('Email message', { kind: 'area', max: 8000, value: 'Dear {first_name},\n\n' });
     const msg = el('div', 'p-msg');

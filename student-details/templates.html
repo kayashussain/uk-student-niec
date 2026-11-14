@@ -13,20 +13,27 @@
 </head>
 <body class="p-body">
   <header class="niec-header" data-page="templates"></header>
-  <main class="p-page">
+  <main class="p-page tp-page">
     <div class="p-head">
       <div>
         <h1>Message templates</h1>
-        <p>The ready-made emails and WhatsApp messages counselors send from a student card, one for each step of the journey. Edit the words, the signature, or add your own. Words in curly brackets, like {first_name}, are filled in from the student.</p>
+        <p>The emails and WhatsApp messages your team sends from a student card. Words in curly brackets, like {first_name}, are filled in from the student.</p>
       </div>
-      <div class="p-actions"><button class="btn btn-primary" type="button" id="addTemplate">+ New template</button></div>
+      <div class="p-actions" id="actions"><button class="btn btn-primary" type="button" id="addTemplate">+ New template</button></div>
     </div>
-    <div class="p-notice" id="mailNote" hidden></div>
-    <div class="p-cols" style="grid-template-columns:minmax(0,320px) minmax(0,1fr);margin-top:16px">
-      <section class="p-card"><h2>Templates</h2><div class="p-templates" id="list" style="margin-top:12px"></div>
-        <h3 style="margin-top:22px">Email signature</h3><div id="sig"></div></section>
-      <section class="p-card" id="editor"><p class="p-muted">Choose a template on the left to edit it.</p></section>
+    <div class="tp-note" id="mailNote" hidden></div>
+    <div class="p-tabs" role="tablist" aria-label="Message templates">
+      <button type="button" role="tab" data-view="templates" aria-selected="true">Templates</button>
+      <button type="button" role="tab" data-view="signature" aria-selected="false">Email signature</button>
     </div>
+    <div class="tp-layout" id="viewTemplates">
+      <aside class="tp-side">
+        <input class="tp-search" id="tpSearch" type="search" placeholder="Search templates" aria-label="Search templates" />
+        <div class="tp-list" id="list"></div>
+      </aside>
+      <section id="editor"><p class="p-muted">Choose a template to edit it.</p></section>
+    </div>
+    <section class="tp-panel" id="viewSignature" hidden><div id="sig"></div></section>
   </main>
 <script src="session.js"></script>
 <script src="ui.js"></script>
