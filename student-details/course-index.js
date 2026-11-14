@@ -193,21 +193,43 @@ function searchCourses(index, { q = '', level = '', intake = '', universityId = 
 }
 
 // The links typed for single courses, remembered for the next student.
+// Course pages checked by hand on the university's own website (public pages, nothing private). They show in the Fact File for every
+// installation that has the university and the course, until someone looks a link up with "Find the course page" (that one is kept).
+const STARTING_LINKS = [
+  // Checked on 14 Nov 2026 on arden.ac.uk, Arden University's own site: the page names this course and lists a January 2027 intake.
+  { university: 'Arden University', course: 'BA (Hons) Business Management (Top-Up)', link: 'https://arden.ac.uk/our-courses/undergraduate/business-degree/ba-hons-business-management-top-up' },
+];
+
 function createCourseLinks(dir) {
   const file = path.join(dir, 'course-links.json');
   let cache = null;
+  const NONE = Object.freeze({}); // the same empty list every time, so the merged links below are worked out once
   function load() {
     let stat;
-    try { stat = fs.statSync(file); } catch (e) { return {}; }
+    try { stat = fs.statSync(file); } catch (e) { return NONE; }
     if (cache && cache.mtimeMs === stat.mtimeMs && cache.size === stat.size) return cache.data;
     try {
       const data = JSON.parse(fs.readFileSync(file, 'utf8'));
       if (data && typeof data === 'object' && !Array.isArray(data)) { cache = { mtimeMs: stat.mtimeMs, size: stat.size, data }; return data; }
     } catch (e) { /* unreadable: start again */ }
-    return {};
+    return NONE;
+  }
+  // The links kept, with the starting links added for the universities given (worked out once per version of either).
+  let merged = { data: null, universities: null, out: {} };
+  function all(universities) {
+    const data = load();
+    if (!Array.isArray(universities)) return data;
+    if (merged.data === data && merged.universities === universities) return merged.out;
+    const out = { ...data };
+    STARTING_LINKS.forEach((s) => universities.filter((u) => u && text(u.name).toLowerCase() === s.university.toLowerCase()).forEach((u) => {
+      const key = linkKey(u.id, s.course);
+      if (!out[key]) out[key] = s.link;
+    }));
+    merged = { data, universities, out };
+    return out;
   }
   return {
-    all: load,
+    all,
     remember(universityId, course, link) {
       if (!/^[a-f0-9]{12}$/.test(String(universityId || '')) || !text(course) || !/^https?:\/\/[^\s<>"']+$/i.test(text(link))) return false;
       const data = load();

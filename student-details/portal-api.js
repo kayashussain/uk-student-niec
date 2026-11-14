@@ -922,7 +922,7 @@ function createPortalApi({
   let courseCache = { facts: null, links: null, index: [] };
   function courseIndex() {
     const all = facts.all();
-    const links = courseLinks.all();
+    const links = courseLinks.all(all);
     if (courseCache.facts !== all || courseCache.links !== links) courseCache = { facts: all, links, index: buildIndex(all, links) };
     return courseCache.index;
   }
@@ -1516,7 +1516,7 @@ function createPortalApi({
       const uid = text(new URL(req.url, 'http://x').searchParams.get('university'));
       const uni = facts.all().find((u) => u.id === uid);
       if (!uni) { sendJSON(res, 404, { error: 'No such university.' }); return true; }
-      const links = courseLinks.all();
+      const links = courseLinks.all(facts.all());
       const shape = (block) => parseCourses(block).map((c) => ({ course: c.course, group: c.group, link: links[linkKey(uid, c.course)] || '' }));
       sendJSON(res, 200, { id: uid, general: shape(uni.courses), intakes: Object.fromEntries((uni.intakes || []).map((i) => [i.name, shape(i.courses)])), canFind: !Teams.isReadOnly(req.user) });
       return true;
@@ -1528,7 +1528,7 @@ function createPortalApi({
       const university = text(body.university).slice(0, 160);
       const course = text(body.course).slice(0, 240);
       if (!university || !course) { sendJSON(res, 400, { error: 'The university and the course are needed.' }); return true; }
-      const known = courseLinks.all()[linkKey(body.universityId, course)];
+      const known = courseLinks.all(facts.all())[linkKey(body.universityId, course)];
       if (known) { sendJSON(res, 200, { link: known, remembered: true }); return true; }
       const uni = facts.all().find((u) => u.id === body.universityId);
       const found = courseLinker ? await courseLinker.lookup({ university, course, hosts: uni ? hostsOf(uni) : [] }) : { link: '', error: 'Not available.' };

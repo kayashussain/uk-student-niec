@@ -11,7 +11,7 @@ const { spawn } = require('node:child_process');
 const { createCards, cleanProfile } = require('../student-details/cards');
 const Fields = require('../student-details/card-fields');
 const Messages = require('../student-details/messages');
-const { buildIndex, searchCourses, pickLine, levelOf, parseCourses, createCourseLinks } = require('../student-details/course-index');
+const { buildIndex, searchCourses, pickLine, levelOf, parseCourses, createCourseLinks, linkKey } = require('../student-details/course-index');
 const { createPlanning } = require('../student-details/planning');
 const { createB2b } = require('../student-details/b2b');
 const { createFacts } = require('../student-details/facts');
@@ -57,6 +57,17 @@ test('notes and options are saved on the card and survive a restart', () => {
   assert.strictEqual(card.options[0].link, 'https://www.uwl.ac.uk/course/cyber');
   assert.strictEqual(card.createdBy, 'Asha');
   assert.ok(cards.addNote('../etc', { text: 'x' }, 'A').error, 'a card id is a row id, never a path');
+});
+
+test('a course page checked on the university website is shown before anyone looks it up; one found later is kept instead', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'niec-links-'));
+  const links = createCourseLinks(dir);
+  const unis = [{ id: 'abcdefabcdef', name: 'Arden University' }, { id: 'fedcbafedcba', name: 'Other University' }];
+  const key = linkKey('abcdefabcdef', 'BA (Hons) Business Management (Top-Up)');
+  assert.strictEqual(links.all(unis)[key], 'https://arden.ac.uk/our-courses/undergraduate/business-degree/ba-hons-business-management-top-up');
+  assert.strictEqual(links.all(unis)[linkKey('fedcbafedcba', 'BA (Hons) Business Management (Top-Up)')], undefined, 'only for that university');
+  links.remember('abcdefabcdef', 'BA (Hons) Business Management (Top-Up)', 'https://arden.ac.uk/new-page');
+  assert.strictEqual(links.all(unis)[key], 'https://arden.ac.uk/new-page', 'a link looked up later wins');
 });
 
 test('a damaged cards file is set aside and the cards carry on from the daily copy', () => {
