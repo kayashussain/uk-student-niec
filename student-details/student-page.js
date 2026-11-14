@@ -38,7 +38,7 @@
   function heroEdit() {
     const c = el('section', 'p-card');
     c.append(el('h2', '', 'Change the details'));
-    c.append(el('p', 'p-muted p-small', 'These are the columns of the All Students sheet. A change here is a change on the sheet.'));
+    c.append(el('p', 'p-muted p-small', 'The name, contact, university, course and dates are the columns of the All Students sheet (a change here is a change on the sheet); the date of birth, passport number, address and nationality are from the passport.'));
     const form = el('div', 'p-form');
     const inputs = {};
     HERO_FIELDS.forEach(([col, label, kind]) => {
@@ -48,10 +48,18 @@
       inputs[col] = f.input;
       form.append(f.wrap);
     });
+    // And from the passport, kept on the card.
+    const pp = profile();
+    const dob = field('Date of birth', { kind: 'date', value: pp.dob });
+    const passNo = field('Passport number', { value: pp.passportNo, max: 20 });
+    const address = field('Address (as in the passport)', { value: pp.address, max: 200 });
+    const nation = field('Nationality', { kind: 'select', choices: F.NATIONALITIES, value: pp.nationality || 'Nepali' });
+    form.append(dob.wrap, passNo.wrap, address.wrap, nation.wrap);
     const bar = el('div', 'p-bar');
     const msg = el('div', 'p-msg');
     const save = async () => {
       try {
+        await api(`/api/cards/${id}/profile`, { dob: dob.input.value, passportNo: passNo.input.value.trim().toUpperCase(), address: address.input.value.trim(), nationality: nation.input.value });
         await api(`/api/cards/${id}/sheet`, { fields: Object.fromEntries(Object.entries(inputs).map(([k, i]) => [k, i.value])) });
         data = await api('/api/cards/' + encodeURIComponent(id));
         editingHero = false; say('Saved on the sheet'); render();
@@ -103,6 +111,13 @@
     fact('Course', s.course);
     fact('Application submitted', s.row['APPLICATION SUBMISSION DATE'] ? day(s.row['APPLICATION SUBMISSION DATE']) : '');
     fact('Offer received', s.row['OFFER RECEIVED DATE'] ? day(s.row['OFFER RECEIVED DATE']) : '');
+    // From the passport (the owner, 14 Nov 2026): kept on the student's card beside the sheet's columns.
+    const pp = profile();
+    const age = (() => { if (!pp.dob) return ''; const b = new Date(pp.dob + 'T12:00:00'); const t = new Date(); let a = t.getFullYear() - b.getFullYear(); if (t < new Date(t.getFullYear(), b.getMonth(), b.getDate())) a -= 1; return a > 0 && a < 100 ? ` (${a})` : ''; })();
+    fact('Date of birth', pp.dob ? day(pp.dob) + age : '');
+    fact('Passport number', pp.passportNo);
+    fact('Address (passport)', pp.address);
+    if (pp.nationality && pp.nationality !== 'Nepali') fact('Nationality', pp.nationality);
     // Where to send the application, from Partner Universities (the portal opens in a new tab).
     if (data.apply && (data.apply.portal || data.apply.email)) {
       const d = el('div', 'p-fact p-fact-apply'); const dd = el('dd');
@@ -218,43 +233,8 @@
       }
       wrap.append(kind);
     }
-    wrap.append(origin(), personal(), notes());
+    wrap.append(origin(), notes());
     return wrap;
-  }
-
-  // ---- Personal details: where the student lives now (asked of every inquiry), their home district, date of birth and passport
-  // number (from the passport, once they apply). They feed the Dashboard's map of where students come from and the age groups. ----
-  let editingPersonal = false;
-  function personal() {
-    const p = profile();
-    const box = el('section', 'p-card');
-    const head = el('div', 'p-card-head');
-    head.append(el('h2', '', 'Personal details'));
-    if (can() && !editingPersonal) head.append(h('button', { class: 'btn btn-sm', type: 'button', onclick: () => { editingPersonal = true; render(); } }, 'Edit'));
-    box.append(head);
-    if (!editingPersonal) {
-      const dl = el('dl', 'p-facts');
-      const fact = (k, v) => { const d = el('div', 'p-fact'); d.append(el('dt', '', k), el('dd', '', v || 'Not recorded')); dl.append(d); };
-      const age = (() => { if (!p.dob) return ''; const b = new Date(p.dob + 'T12:00:00'); const t = new Date(); let a = t.getFullYear() - b.getFullYear(); if (t < new Date(t.getFullYear(), b.getMonth(), b.getDate())) a -= 1; return a > 0 && a < 100 ? ` (${a})` : ''; })();
-      fact('Lives in', p.livesIn);
-      fact('Home district', p.homeDistrict);
-      fact('Date of birth', p.dob ? day(p.dob) + age : '');
-      fact('Passport number', p.passportNo);
-      box.append(dl);
-      return box;
-    }
-    const lives = field('Lives in (district, now)', { kind: 'select', choices: F.DISTRICTS, value: p.livesIn });
-    const home = field('Home district (as in the passport)', { kind: 'select', choices: F.DISTRICTS, value: p.homeDistrict });
-    const dob = field('Date of birth', { kind: 'date', value: p.dob });
-    const pass = field('Passport number', { value: p.passportNo, max: 20 });
-    const form = el('div', 'p-form p-form-2');
-    form.append(lives.wrap, home.wrap, dob.wrap, pass.wrap);
-    const bar = el('div', 'p-bar');
-    bar.append(h('button', { class: 'btn btn-primary', type: 'button', onclick: async () => {
-      try { await save('profile', { livesIn: lives.input.value, homeDistrict: home.input.value, dob: dob.input.value, passportNo: pass.input.value.trim().toUpperCase() }, 'Saved'); editingPersonal = false; render(); } catch (e) { /* shown */ }
-    } }, 'Save'), h('button', { class: 'btn', type: 'button', onclick: () => { editingPersonal = false; render(); } }, 'Cancel'));
-    box.append(form, bar);
-    return box;
   }
 
   // ---- Where the student came from: shown as text, and changed only after pressing Edit ----
@@ -273,12 +253,15 @@
       const g = F.sourceGroup(s.source);
       fact('Student source', g);
       if (g === 'Branch') fact('Which branch', F.branchName(s.source));
-      else if (p.sourceDetail || (F.SOURCE_DETAILS[g] || []).length || g === 'Agent') fact(F.SOURCE_DETAIL_LABEL[g] || (g === 'Agent' ? 'Which agent' : 'Where exactly'), p.sourceDetail);
+      else if (g === 'Social Media' && (p.sourcePlatform || p.sourceWay)) {
+        fact('Platform', p.sourcePlatform);
+        fact('How they came', p.sourceWay === 'Advert' ? `Advert: ${p.sourceDetail || 'campaign not named'}` : 'Organic (by itself)');
+      } else if (p.sourceDetail || (F.SOURCE_DETAILS[g] || []).length || g === 'Agent') fact(F.SOURCE_DETAIL_LABEL[g] || (g === 'Agent' ? 'Which agent' : 'Where exactly'), p.sourceDetail);
       if (p.sourceRemarks) fact('Remarks', p.sourceRemarks);
       box.append(dl);
       return box;
     }
-    const picker = window.SourcePicker.create({ lists, initial: { source: s.source, detail: p.sourceDetail, remarks: p.sourceRemarks }, disabled: !data.can.source });
+    const picker = window.SourcePicker.create({ lists, initial: { source: s.source, detail: p.sourceDetail, remarks: p.sourceRemarks, platform: p.sourcePlatform, way: p.sourceWay }, disabled: !data.can.source });
     const form = el('div', 'p-form');
     picker.nodes.forEach((n) => form.append(n));
     box.append(form);
@@ -290,7 +273,7 @@
         if (missing) { say(missing, true); return; }
         const v = picker.value();
         if (data.can.source && v.source !== (s.source || '')) { await save('source', { source: v.source }); data.student.source = v.source; }
-        await save('profile', { sourceDetail: v.detail, sourceRemarks: v.remarks }, 'Saved');
+        await save('profile', { sourceDetail: v.detail, sourceRemarks: v.remarks, sourcePlatform: v.platform || '', sourceWay: v.way || '' }, 'Saved');
         editingOrigin = false; render();
       } catch (e) { /* shown */ }
     } }, 'Save'), h('button', { class: 'btn', type: 'button', onclick: () => { editingOrigin = false; render(); } }, 'Cancel'));

@@ -84,7 +84,7 @@
       if (!(await window.NiecUI.confirm(`Add ${sendRows.length} students with the source "${sourceText()}"?`, { confirmText: 'Add them' }))) return;
       go.disabled = true;
       try {
-        const r = await api('/api/students/bulk', { rows: sendRows, sheetId: intake.input.value, stage: stage.input.value, dept: dept ? dept.input.value : undefined, source: pickValue().source, sourceDetail: pickValue().detail, sourceRemarks: pickValue().remarks });
+        const r = await api('/api/students/bulk', { rows: sendRows, sheetId: intake.input.value, stage: stage.input.value, dept: dept ? dept.input.value : undefined, source: pickValue().source, sourceDetail: pickValue().detail, sourceRemarks: pickValue().remarks, sourcePlatform: pickValue().platform || '', sourceWay: pickValue().way || '' });
         const added = r.results.filter((x) => x.ok).length;
         const skippedLines = rows.filter((_, i) => checks[i].skip).map((x, k) => ({ name: `${x.first} ${x.last}`.trim(), note: checks.filter((c) => c.skip)[k].note }));
         out.replaceChildren(el('div', `p-notice ${added === r.results.length && !skippedLines.length ? 'ok' : 'warn'}`, `${added} of ${rows.length} lines added${skippedLines.length ? `, ${skippedLines.length} skipped` : ''}.`), ...r.results.filter((x) => x.ok).map((x) => el('div', 'p-sent', `Added: ${x.name}`)), ...skippedLines.map((x) => el('div', 'p-sent', `Skipped: ${x.name || '(no name)'}: ${x.note}`)), ...r.results.filter((x) => !x.ok).map((x) => el('div', 'p-sent', `${x.name || '(no name)'}: ${x.error}`)));

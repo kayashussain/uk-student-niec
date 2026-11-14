@@ -10,8 +10,8 @@
 (function (root) {
   const { el, h, api, field, dialog } = root.Portal;
   const F = root.CardFields;
-  const WITH_REMARKS = { 'Social Media': 'Remarks (optional)', Reference: 'Who referred the student (name) or remarks' };
-  const REMARK_HELP = { 'Social Media': 'For example: the post or video they saw. A paid campaign is chosen above, not typed here.', Reference: 'For example: the name of the student or person who referred.' };
+  const WITH_REMARKS = { 'Social Media': 'What they saw (optional)', Reference: 'Who referred the student (name) or remarks' };
+  const REMARK_HELP = { 'Social Media': 'For example: the post or video they saw.', Reference: 'For example: the name of the student or person who referred.' };
 
   function create({ lists, initial = {}, onChange = () => {}, disabled = false }) {
     const groups = Object.keys(F.SOURCE_DETAILS);
@@ -24,10 +24,64 @@
     let remarksInput = null;
     let firstDraw = true;
 
+    // Social Media asks three things (the owner, 14 Nov 2026): the platform, whether the student came by itself or from an advert,
+    // and for an advert which campaign (from Events and marketing), or its name typed under Other.
+    const campaigns = lists.campaigns || [];
+    const LEGACY = { 'facebook page': ['Facebook', 'Organic'], messenger: ['Facebook', 'Organic'], 'facebook or instagram advert (meta ads)': ['Facebook', 'Advert'] };
+    let social = null; // { platform, way, campaign, other } inputs while Social Media is chosen
+    const drawSocial = () => {
+      const start = firstDraw ? initial : {};
+      const legacy = LEGACY[String(start.detail || '').toLowerCase()];
+      const isCampaign = campaigns.includes(start.detail);
+      const platforms = options('Social Media');
+      const platform = field('Which platform', { kind: 'select', choices: platforms, value: start.platform || (legacy && legacy[0]) || (platforms.includes(start.detail) ? start.detail : (isCampaign ? 'Facebook' : start.detail || '')) });
+      let way = start.way || (legacy && legacy[1]) || (isCampaign ? 'Advert' : (start.detail ? 'Organic' : ''));
+      const wayBox = el('div', 'p-field');
+      wayBox.append(el('span', 'p-label', 'How they came'));
+      const seg = el('div', 'p-seg');
+      const ways = [['Organic', 'Organic (by itself)'], ['Advert', 'Advert (a paid campaign)']].map(([k, t]) => { const b = h('button', { type: 'button', class: k === way ? 'on' : '' }, t); b.addEventListener('click', () => { way = k; ways.forEach((x) => x.classList.toggle('on', x === b)); drawAd(); onChange(); }); return b; });
+      seg.append(...ways);
+      wayBox.append(seg);
+      const adBox = el('div', 'p-field');
+      let campaign = null; let other = null;
+      const drawAd = () => {
+        adBox.replaceChildren(); campaign = null; other = null;
+        if (way !== 'Advert') return;
+        const startCampaign = isCampaign ? start.detail : (start.detail && !legacy && !platforms.includes(start.detail) && way === 'Advert' ? '__other' : '');
+        const c = field('Which campaign', { kind: 'select', choices: [...campaigns, ['__other', 'Other (type its name)']], value: startCampaign });
+        campaign = c.input;
+        const o = field('Name of the campaign', { max: 120, placeholder: 'e.g. Facebook ads, Coventry scholarship', value: startCampaign === '__other' ? start.detail : '' });
+        other = o.input;
+        const showOther = () => { o.wrap.hidden = campaign.value !== '__other'; };
+        campaign.addEventListener('change', () => { showOther(); onChange(); });
+        showOther();
+        adBox.append(...c.wrap.childNodes, o.wrap);
+        if (!campaigns.length) adBox.append(el('span', 'p-hint', 'No campaign on Events and marketing yet: type its name under Other, and add it there to count its cost.'));
+      };
+      drawAd();
+      social = { platform: platform.input, way: () => way, campaign: () => campaign, other: () => other };
+      detailBox.replaceChildren(...platform.wrap.childNodes);
+      detailBox.after(wayBox);
+      wayBox.after(adBox);
+      social.boxes = [wayBox, adBox];
+    };
+    const clearSocial = () => { if (social && social.boxes) social.boxes.forEach((b) => b.remove()); social = null; };
+
     const drawDetail = () => {
       const g = source.input.value;
       const wrap = el('div');
+      clearSocial();
       if (!g) { detailBox.replaceChildren(); detailInput = null; remarkBox.replaceChildren(); remarksInput = null; return; }
+      if (g === 'Social Media' && detailBox.parentNode) {
+        detailInput = null;
+        drawSocial();
+        const r = field(WITH_REMARKS[g], { max: 160, placeholder: REMARK_HELP[g], value: firstDraw ? initial.remarks || '' : '' });
+        remarksInput = r.input;
+        remarkBox.replaceChildren(...r.wrap.childNodes);
+        firstDraw = false;
+        onChange();
+        return;
+      }
       const label = g === 'Events' ? 'Which event or marketing that was run' : (lists.sourceLabels && lists.sourceLabels[g]) || F.SOURCE_DETAIL_LABEL[g] || 'Which one';
       const choices = options(g);
       // What the form already holds is kept the first time round (a branch is held as "Chitwan Branch", the rest as the detail).
@@ -67,7 +121,8 @@
     }).then((value) => { const keep = detailInput ? detailInput.value : ''; const was = firstDraw; drawDetail(); if (detailInput) detailInput.value = value || keep; firstDraw = was; });
 
     source.input.addEventListener('change', drawDetail);
-    drawDetail();
+    // Social Media needs its boxes in the page to place the extra questions: drawn once the form holds the picker.
+    if (F.sourceGroup(initial.source) === 'Social Media') setTimeout(drawDetail, 0); else drawDetail();
     return {
       nodes: [source.wrap, detailBox, remarkBox],
       source,
@@ -77,11 +132,25 @@
         const detail = detailInput ? detailInput.value : '';
         if (disabled || !g) return '';
         if (g === 'Events' && !detail) return 'Please choose which event or marketing the student came from, so it is counted in its cost.';
+        if (g === 'Social Media' && social) {
+          if (!social.platform.value) return 'Please choose the platform the student came from.';
+          if (!social.way()) return 'Please say whether the student came by itself (organic) or from an advert.';
+          const c = social.campaign();
+          if (social.way() === 'Advert' && (!c || !c.value || (c.value === '__other' && !social.other().value.trim()))) return 'Please choose the campaign, or type its name under Other.';
+        }
         return '';
       },
       // What to save: the Student Source as the sheet keeps it, what exactly, and the remarks.
       value() {
         const g = source.input.value;
+        if (g === 'Social Media' && social) {
+          const way = social.way();
+          const c = social.campaign();
+          const ad = way === 'Advert' && c ? (c.value === '__other' ? social.other().value.trim() : c.value) : '';
+          const platform = social.platform.value;
+          // The detail is the campaign for an advert (so it is counted in its cost), the platform when the student came by itself.
+          return { source: g, group: g, detail: ad || platform, remarks: remarksInput ? remarksInput.value.trim() : '', branch: '', platform, way };
+        }
         const detail = detailInput ? detailInput.value : '';
         return { source: F.storedSource(g, detail), group: g, detail: g === 'Branch' ? '' : detail, remarks: remarksInput ? remarksInput.value.trim() : '', branch: g === 'Branch' ? detail : '' };
       },

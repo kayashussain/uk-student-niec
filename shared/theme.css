@@ -1730,3 +1730,40 @@ select option { color: #1d1d1f; }
 @media (max-width: 900px) { .tr-map-body { grid-template-columns: minmax(0, 1fr); } }
 @media (prefers-reduced-motion: reduce) { .tr-col .tr-bar, .tr-col .tr-app, .tr-col .tr-offer, .tr-dot, .tr-dot.top .tr-dot-halo, .tr-top li i { animation: none !important; } }
 .tr-head > div:first-child { flex: 1 1 420px; min-width: 0; }
+/* 🔴 CSS CHANGED (2026-11-14): a student who is already in ISR, found while adding them | from: a red line of text | to: a soft panel with an orange dot, the student's name in bold, and two pills under it: Open their card, and Fill in what is missing (blue) */
+.p-msg.ns-dup { display: block; margin-top: 10px; padding: 14px 16px; border-radius: 14px; background: var(--panel, #fbfbfd); color: #1d1d1f; box-shadow: 0 1px 2px rgba(0, 0, 0, .04), 0 2px 10px rgba(0, 0, 0, .05); }
+.p-msg.ns-dup::before { content: ""; display: inline-block; width: 8px; height: 8px; margin-right: 8px; border-radius: 50%; background: #ff9500; vertical-align: 1px; }
+.p-msg.ns-dup .p-bar { margin-top: 12px; }
+
+/* 🔴 CSS CHANGED (2026-11-14): the Dashboard told like a presentation, with a chart like a stock market's | from: inquiries as stacked bars with applications and offers as small bars below, the map further down after plain cards | to: right under the headline figures, "Business growth by intake" (each intake's students, applications, offers, payments and visas as rounded columns that rise in, a green line through the visas, and a table with a green ▲ or red ▼ change on the intake before); then "Ups and downs over time": smooth lines for inquiries, applications, offers, payments, CAS and visas that draw themselves from left to right over a soft colour wash, each line's peak marked with a ringed dot and "Peak 84", a crosshair with a dot on every line that follows the mouse, names that are tapped to show or hide a line (with their totals), a choice of source for the inquiries line, and the dashed flags of events and campaigns; then the map */
+.tr-line { fill: none; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; }
+.tr-line.draw { stroke-dasharray: 3000; stroke-dashoffset: 3000; animation: isr-draw 1.4s cubic-bezier(.32, .72, 0, 1) forwards; animation-delay: var(--d, 0ms); }
+@keyframes isr-draw { to { stroke-dashoffset: 0; } }
+.tr-area { animation: isr-fade .9s ease .3s backwards; }
+.tr-peak { animation: isr-pop .5s cubic-bezier(.34, 1.56, .64, 1) 1s backwards; transform-box: fill-box; transform-origin: center; }
+.tr-peak-label { font: 700 11px var(--font); paint-order: stroke; stroke: #fbfbfd; stroke-width: 4px; }
+.tr-cross-line { stroke: rgba(0, 0, 0, .25); stroke-width: 1; stroke-dasharray: 2 3; }
+.tr-key.line small { color: #86868b; font-size: 12px; font-variant-numeric: tabular-nums; }
+.tr-key.line i { width: 14px; height: 4px; border-radius: 2px; }
+.tr-source select { min-height: 32px; padding: 0 30px 0 12px; border: 0; border-radius: 980px; background-color: rgba(0, 0, 0, .04); font: inherit; font-size: 13px; color: #1d1d1f; }
+.tr-lines { align-items: center; }
+.tr-table { width: 100%; margin-top: 14px; border-collapse: collapse; font-size: 14px; }
+.tr-table th { padding: 8px 10px; color: #6e6e73; font-size: 12.5px; font-weight: 600; text-align: right; text-transform: none; letter-spacing: 0; border-bottom: 1px solid rgba(0, 0, 0, .08); }
+.tr-table th:first-child, .tr-table td:first-child { text-align: left; }
+.tr-table td { padding: 10px; text-align: right; border-bottom: 1px solid rgba(0, 0, 0, .05); font-variant-numeric: tabular-nums; }
+.tr-table td b { font-weight: 600; }
+.tr-table .tr-name { font-weight: 600; }
+.tr-chg { display: block; margin-top: 2px; color: #86868b; font-size: 12px; font-weight: 600; }
+.tr-chg.up { color: #248a3d; }
+.tr-chg.down { color: #d70015; }
+.tr-table tr { transition: background-color .15s; }
+.tr-table tr:hover td { background: rgba(0, 113, 227, .04); }
+.tr-top.abroad li i { background: #af52de; }
+@media (max-width: 760px) { .tr-table { font-size: 12.5px; } .tr-table th, .tr-table td { padding: 6px 4px; } }
+@media (prefers-reduced-motion: reduce) { .tr-line.draw { animation: none; stroke-dashoffset: 0; } .tr-area, .tr-peak { animation: none; } }
+.tr-table th { text-transform: none !important; letter-spacing: 0 !important; }
+.tr-live { display: inline-block; margin-left: 8px; padding: 1px 8px; border-radius: 980px; background: rgba(0, 113, 227, .1); color: #0066cc; font-size: 11.5px; font-weight: 600; vertical-align: 1px; }
+/* 🔴 CSS CHANGED (2026-11-14): the "How they came" choice for a Social Media student | from: two plain browser buttons | to: Apple's segmented switch (a grey track with a white pill that slides to Organic or Advert) */
+.p-seg { display: inline-flex; gap: 2px; padding: 3px; border-radius: 12px; background: #e8e8ed; }
+.p-seg > button { min-height: 36px; padding: 0 14px; border: 0; border-radius: 9px; background: transparent; color: #515154; font: inherit; font-size: 14.5px; font-weight: 500; cursor: pointer; transition: color .25s; }
+.p-seg > button.on { background: #fff; color: #1d1d1f; font-weight: 600; box-shadow: 0 1px 2px rgba(0, 0, 0, .08), 0 2px 8px -4px rgba(0, 0, 0, .12); }

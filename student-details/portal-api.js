@@ -177,11 +177,11 @@ function createPortalApi({
     const newest = [...plan.events].sort((a, b) => b.date.localeCompare(a.date));
     const planned = newest.map((e) => eventLabel(e.name, e.date));
     const options = sourceOptions.all(planned);
-    // Social media campaigns are offered under "Social Media" too (first), so a student who came from one is counted in its cost.
+    // The social media campaigns (newest first), offered when a Social Media student came from an advert, so they are counted in its
+    // cost. The platforms stay a short list of their own (the owner, 14 Nov 2026).
     const campaigns = newest.filter((e) => channelOf(e) === 'Social media').map((e) => eventLabel(e.name, e.date));
-    if (campaigns.length && options['Social Media']) { const seen = new Set(campaigns.map((x) => x.toLowerCase())); options['Social Media'] = [...campaigns, ...options['Social Media'].filter((x) => !seen.has(x.toLowerCase()))]; }
     return {
-      sourceOptions: options,
+      sourceOptions: options, campaigns,
       sourceLabels: Fields.SOURCE_DETAIL_LABEL, sourceCanAdd: Fields.SOURCE_CAN_ADD,
       // Only the names: the terms agreed with a partner stay on the Admin-only page.
       partners: [...new Set([...agents.list().filter((p) => p.status !== 'Ended').map((p) => p.name), ...sheetAgents().map((p) => p.name)])],
@@ -767,7 +767,16 @@ function createPortalApi({
     if (fields['CONTACT NUMBER'] && !phoneOk(fields['CONTACT NUMBER'])) { return { status: 400, json: { error: 'That phone number does not look right. Use digits, for example 9800000001 or +977 9800000001.' } }; }
     if (!body.allowDuplicate) {
       const dup = existingStudent(fields.EMAIL, fields['CONTACT NUMBER']);
-      if (dup) return { status: 409, json: { error: `${(Teams.isAdmin(req.user) && [dup['FIRST NAME'], dup['LAST NAME']].filter(Boolean).join(' ')) || 'A student'} is already on the sheet with this email or phone number, so nobody was added.` } };
+      if (dup) {
+        // The student is already in ISR: nobody is added twice. Someone who may see that student is told who it is, and can fill in
+        // what is missing on them instead (see /api/students/merge).
+        const found = rowIndex().get(dup._id);
+        const seen = found && canSee(req.user, found);
+        return { status: 409, json: {
+          error: `${(seen && nameOf(dup)) || 'A student'} is already in ISR with this email or phone number, so nobody was added.`,
+          duplicate: seen ? { id: dup._id, name: nameOf(dup), intake: found.sheet.name, stage: text(dup[STATUS]), source: text(dup['STUDENT SOURCE']), canFill: canChange(req.user, found) } : null,
+        } };
+      }
     }
     const rowId = 'row-' + Date.now().toString(36) + require('crypto').randomBytes(4).toString('hex');
     let sheet;
@@ -802,9 +811,43 @@ function createPortalApi({
     // The first inquiry day is the day the student is added, unless the list it came from says when they enquired. A lead list can
     // also say the level of study the student asked about.
     const asked = /^\d{4}-\d{2}-\d{2}$/.test(text(profile.inquiryDate)) && text(profile.inquiryDate) <= cards.today() ? text(profile.inquiryDate) : cards.today();
-    const saved = cards.setProfile(rowId, { sourceDetail: profile.sourceDetail, sourceRemarks: profile.sourceRemarks || '', inquiryDate: asked, ...(Fields.STUDY_LEVELS.includes(profile.studyLevel) ? { studyLevel: profile.studyLevel } : {}), ...(Fields.DISTRICTS.includes(profile.livesIn) ? { livesIn: profile.livesIn } : {}) }, by(req));
+    const saved = cards.setProfile(rowId, { sourceDetail: profile.sourceDetail, sourceRemarks: profile.sourceRemarks || '', inquiryDate: asked, ...(Fields.STUDY_LEVELS.includes(profile.studyLevel) ? { studyLevel: profile.studyLevel } : {}), ...(Fields.DISTRICTS.includes(profile.livesIn) ? { livesIn: profile.livesIn } : {}),
+      // From the passport, and how a Social Media student came (cleanProfile keeps only what is valid).
+      ...Object.fromEntries(['dob', 'passportNo', 'address', 'nationality', 'sourcePlatform', 'sourceWay'].filter((k) => text(profile[k])).map((k) => [k, text(profile[k])])) }, by(req));
     if (!saved.error && text(body.note)) cards.addNote(rowId, { text: body.note, kind: 'note' }, by(req));
     return { status: 200, json: { ok: true, id: rowId, sheetId: sheet.id, revision: getWorkbook().revision } };
+  }
+
+  // A student already in ISR, with what was typed for them again (Add student found them by email or phone): only what is blank on
+  // them is filled in, never what is already there (the email an application went out with stays). The source is tagged if none was
+  // recorded. Anything that differs (another email or phone) is kept in a note on the card, so nothing is lost and nothing is replaced.
+  async function handleMerge(req, res) {
+    const body = await bodyOf(req, res);
+    if (!body) return true;
+    const found = rowIndex().get(text(body.id));
+    if (!found || !canSee(req.user, found)) { sendJSON(res, 404, { error: 'No such student.' }); return true; }
+    if (!canChange(req.user, found)) { sendJSON(res, 403, { error: 'Your account cannot change this student.' }); return true; }
+    const given = body.fields && typeof body.fields === 'object' ? body.fields : {};
+    const row = found.row;
+    const fill = {}; const differs = [];
+    ['FIRST NAME', 'LAST NAME', 'EMAIL', 'CONTACT NUMBER'].forEach((col) => {
+      const v = text(given[col]).slice(0, 240); if (!v) return;
+      const now = text(row[col]);
+      if (!now) { if (Teams.canEdit(req.user, col, row) && CARD_EDITABLE[col] && CARD_EDITABLE[col](v) !== null) fill[col] = CARD_EDITABLE[col](v); }
+      else if (now.toLowerCase() !== v.toLowerCase() && !(col === 'CONTACT NUMBER' && phoneKey(now) === phoneKey(v))) differs.push(`${Fields.columnLabel ? Fields.columnLabel(col) : col}: ${v}`);
+    });
+    const source = text(given['STUDENT SOURCE']);
+    if (source && !text(row['STUDENT SOURCE']) && Teams.canEdit(req.user, 'STUDENT SOURCE', row)) fill['STUDENT SOURCE'] = source;
+    if (Object.keys(fill).length) { const out = setColumns(req, found, fill); if (out.error) { sendJSON(res, out.status || 400, { error: out.error }); return true; } }
+    const card = cards.get(row._id);
+    const profile = body.profile && typeof body.profile === 'object' ? body.profile : {};
+    const blanks = Object.fromEntries(Object.entries(profile).filter(([k, v]) => text(v) && !text(card.profile[k]) && (k !== 'sourceDetail' || fill['STUDENT SOURCE'] || !text(row['STUDENT SOURCE']))).map(([k, v]) => [k, text(v)]));
+    if (Object.keys(blanks).length) cards.setProfile(row._id, blanks, by(req));
+    const lines = [differs.length ? `Added again by ${req.user.name}, with different details (the ones above are kept): ${differs.join('; ')}.` : '', text(body.note)].filter(Boolean);
+    if (lines.length) cards.addNote(row._id, { kind: 'note', text: lines.join(' ').slice(0, 4000) }, by(req));
+    note(req, [`${nameOf(row) || 'a student'}: added again, filled in ${Object.keys(fill).length + Object.keys(blanks).length} missing detail(s) instead of a duplicate`], 'Filled in a student');
+    sendJSON(res, 200, { ok: true, id: row._id, filled: [...Object.keys(fill), ...Object.keys(blanks)], differs });
+    return true;
   }
 
   async function handleNewStudent(req, res) {
@@ -835,7 +878,7 @@ function createPortalApi({
       if (em) existing.add('e:' + em);
       if (ph) existing.add('p:' + ph);
       const fields = { 'FIRST NAME': text(r.first), 'LAST NAME': text(r.last), EMAIL: text(r.email), 'CONTACT NUMBER': text(r.phone), 'STUDENT SOURCE': text(body.source) };
-      const out = addStudent(req, { fields, profile: { sourceDetail: text(body.sourceDetail), sourceRemarks: text(body.sourceRemarks) }, stage: body.stage, sheetId: body.sheetId, dept: body.dept });
+      const out = addStudent(req, { fields, profile: { sourceDetail: text(body.sourceDetail), sourceRemarks: text(body.sourceRemarks), sourcePlatform: text(body.sourcePlatform), sourceWay: text(body.sourceWay) }, stage: body.stage, sheetId: body.sheetId, dept: body.dept });
       results.push(out.status === 200 ? { ok: true, id: out.json.id, name: [r.first, r.last].filter(Boolean).join(' ') } : { ok: false, name: [r.first, r.last].filter(Boolean).join(' '), error: out.json.error || 'Could not add.' });
     }
     note(req, [`Added ${results.filter((x) => x.ok).length} students at once${text(body.sourceDetail) ? ` (${text(body.sourceDetail)})` : ''}`], 'Added students');
@@ -932,11 +975,17 @@ function createPortalApi({
         if (r.status === 200) { added += 1; x.id = r.json.id; } else failed.push(`${x.name}: ${r.json.error || 'could not be added'}`);
       } else if (x.action === 'link') {
         const found = rowIndex().get(x.id);
-        const src = setColumns(req, found, { 'STUDENT SOURCE': source });
+        // What the list says that the sheet has not: a blank email or phone is filled in; a different one is never written over the
+        // sheet (the application may have gone out with it), it goes into the note instead.
+        const fillIn = { 'STUDENT SOURCE': source };
+        const other = [];
+        if (x.email) { const now = text(found.row.EMAIL).toLowerCase(); if (!now) fillIn.EMAIL = x.email; else if (now !== x.email) other.push(`email ${x.email}`); }
+        if (x.phone) { const now = text(found.row['CONTACT NUMBER']); if (!now && phoneOk(x.phone)) fillIn['CONTACT NUMBER'] = x.phone; else if (now && phoneKey(now) !== phoneKey(x.phone)) other.push(`phone ${x.phone}`); }
+        const src = setColumns(req, found, fillIn);
         if (src.error) { failed.push(`${x.name}: ${src.error}`); continue; }
         const card = cards.get(x.id);
         cards.setProfile(x.id, { sourceDetail: label, sourceRemarks: [card.profile.sourceRemarks, x.before ? `Previous source: ${x.before}` : ''].filter(Boolean).join(' | ').slice(0, 160) }, by(req));
-        cards.addNote(x.id, { kind: 'note', text: `Linked to ${ev.name} from its enquiry list.${x.before ? ` Previous source: ${x.before}.` : ''}` }, by(req));
+        cards.addNote(x.id, { kind: 'note', text: `Linked to ${ev.name} from its enquiry list.${x.before ? ` Previous source: ${x.before}.` : ''}${other.length ? ` The list also gave ${other.join(' and ')} (the ones on the sheet are kept).` : ''}${x.extra ? ` ${x.extra}.` : ''}` }, by(req));
         linked += 1;
       }
     }
@@ -978,9 +1027,9 @@ function createPortalApi({
     const plan = planning.all();
     const all = cards.all();
     const today = cards.today();
-    const inquiries = []; const applications = []; const offers = [];
+    const inquiries = []; const applications = []; const offers = []; const payments = []; const cas = []; const visas = [];
     let undated = 0;
-    const lives = {}; const home = {}; let noPlace = 0;
+    const lives = {}; const home = {}; let noPlace = 0; const abroad = {};
     const ages = { 'Under 20': 0, '20 to 22': 0, '23 to 25': 0, '26 to 29': 0, '30 and over': 0 }; let noAge = 0;
     const ageOf = (dob) => { const [y, m, d] = dob.split('-').map(Number); const [ty, tm, td] = today.split('-').map(Number); let a = ty - y; if (tm < m || (tm === m && td < d)) a -= 1; return a; };
     for (const row of (sheet ? sheet.rows : [])) {
@@ -992,8 +1041,17 @@ function createPortalApi({
       if (day) inquiries.push([day, TREND_GROUP[group] || 'organic']); else undated += 1;
       const applied = isoDate(row['APPLICATION SUBMISSION DATE']); if (applied) applications.push(applied);
       const offered = isoDate(row['OFFER RECEIVED DATE']); if (offered) offers.push(offered);
-      if (p.livesIn) lives[p.livesIn] = (lives[p.livesIn] || 0) + 1; else noPlace += 1;
-      if (p.homeDistrict) home[p.homeDistrict] = (home[p.homeDistrict] || 0) + 1;
+      const paid = isoDate(row['PAYMENT DATE']); if (paid) payments.push(paid);
+      const casDay = isoDate(row['CAS RECEIVED DATE']); if (casDay) cas.push(casDay);
+      const visaDay = isoDate(row['VISA RECEIVED DATE']); if (visaDay) visas.push(visaDay);
+      // Where the student is from: the district of the address in the passport (the owner, 14 Nov 2026), else a home district kept
+      // earlier; a student from outside Nepal is counted by nationality instead.
+      if (p.nationality && p.nationality !== 'Nepali') abroad[p.nationality] = (abroad[p.nationality] || 0) + 1;
+      else {
+        const district = Fields.districtOf(p.address) || p.homeDistrict || '';
+        if (district) home[district] = (home[district] || 0) + 1; else noPlace += 1;
+      }
+      if (p.livesIn) lives[p.livesIn] = (lives[p.livesIn] || 0) + 1;
       if (/^\d{4}-\d{2}-\d{2}$/.test(p.dob || '')) {
         const a = ageOf(p.dob);
         const k = a < 20 ? 'Under 20' : a <= 22 ? '20 to 22' : a <= 25 ? '23 to 25' : a <= 29 ? '26 to 29' : '30 and over';
@@ -1001,8 +1059,24 @@ function createPortalApi({
       } else noAge += 1;
     }
     const target = sheet ? plan.targets[sheet.id] || null : null;
+    // Every intake side by side, oldest first, as a company's quarters: how the business grows from one intake to the next.
+    const MONTH = { jan: 1, feb: 2, mar: 3, apr: 4, may: 5, jun: 6, jul: 7, aug: 8, sep: 9, oct: 10, nov: 11, dec: 12 };
+    const orderOf = (name) => { const t = String(name).toLowerCase(); const y = Number((t.match(/20\d\d/) || [0])[0]); const m = Object.keys(MONTH).find((k) => t.includes(k)); return y * 12 + (m ? MONTH[m] : 0); };
+    const intakes = wb.sheets.map((sh) => {
+      const v = { id: sh.id, name: sh.name, students: 0, applied: 0, offers: 0, paid: 0, visas: 0 };
+      sh.rows.forEach((row) => {
+        if (!isStudent(row)) return;
+        v.students += 1;
+        const st = text(row[STATUS]);
+        if (isoDate(row['APPLICATION SUBMISSION DATE']) || ['Mock Stage', 'Payment Stage', 'CAS Stage', 'CAS Issued', 'Visa Lodge', 'Visa Issued'].includes(st)) v.applied += 1;
+        if (isoDate(row['OFFER RECEIVED DATE'])) v.offers += 1;
+        if (isoDate(row['PAYMENT DATE']) || ['CAS Stage', 'CAS Issued', 'Visa Lodge', 'Visa Issued'].includes(st)) v.paid += 1;
+        if (st === 'Visa Issued' || isoDate(row['VISA RECEIVED DATE'])) v.visas += 1;
+      });
+      return v;
+    }).filter((v) => v.students).sort((a, b) => orderOf(a.name) - orderOf(b.name));
     return {
-      intake: sheet ? { id: sheet.id, name: sheet.name } : null, today, inquiries, undated, applications, offers,
+      intake: sheet ? { id: sheet.id, name: sheet.name } : null, today, inquiries, undated, applications, offers, payments, cas, visas, intakes, abroad,
       events: (plan.events || []).filter((e) => e.date).map((e) => ({ name: e.name, date: e.date, endDate: e.endDate || '', channel: channelOf(e) })),
       teachingStarts: target && /^\d{4}-\d{2}-\d{2}$/.test(target.startDate || '') ? target.startDate : '',
       places: { lives, home, none: noPlace }, ages, noAge,
@@ -1587,6 +1661,7 @@ function createPortalApi({
     if (urlPath === '/api/card-lists' && req.method === 'GET') { sendJSON(res, 200, cardLists(req.user)); return true; }
     if (urlPath === '/api/students/search' && req.method === 'GET') { sendJSON(res, 200, { students: searchStudents(req.user, (query().get('q') || '').slice(0, 100)) }); return true; }
     if (urlPath === '/api/students/new' && req.method === 'POST') return handleNewStudent(req, res);
+    if (urlPath === '/api/students/merge' && req.method === 'POST') return handleMerge(req, res);
     if (urlPath === '/api/students/bulk' && req.method === 'POST') return handleBulkStudents(req, res);
     if (urlPath === '/api/students/check' && req.method === 'POST') {
       const body = await bodyOf(req, res, 256 * 1024);

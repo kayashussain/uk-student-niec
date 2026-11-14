@@ -40,7 +40,7 @@ test('an .xlsx lead list is read without the Excel library: names, contacts, lev
   const grid = await ctx.StudentFile.readXlsx(file.buffer.slice(file.byteOffset, file.byteOffset + file.length));
   const rows = ctx.StudentFile.fromGrid(grid, 100);
   assert.strictEqual(rows.length, 2);
-  assert.deepStrictEqual(JSON.parse(JSON.stringify(rows[0])), { first: 'Asha', last: 'Example', email: 'asha@example.com', phone: '+9779800000001', level: 'Postgraduate', intake: 'January 2027', inquiryDate: '2026-11-12', place: '', extra: "Programme: Master's Degree. Intended UK Study Intake: January 2027" });
+  assert.deepStrictEqual(JSON.parse(JSON.stringify(rows[0])), { first: 'Asha', last: 'Example', email: 'asha@example.com', phone: '+9779800000001', level: 'Postgraduate', intake: 'January 2027', inquiryDate: '2026-11-12', place: '', extra: "Enquired 12 Nov 2026 at 9:50 pm. Programme: Master's Degree. Intended UK Study Intake: January 2027" });
   assert.deepStrictEqual([rows[1].first, rows[1].phone, rows[1].email], ['Bina', '9800000002', ''], 'a short row, a number cell');
 });
 

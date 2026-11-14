@@ -63,6 +63,19 @@
     const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(c || ''));
     return m ? m[0] : '';
   };
+  // "9:23 pm" from an Excel day number with a time (46338.89 is 12 Nov 2026, 9:21 pm), a Date, or text with a time in it.
+  const timeOf = (c) => {
+    let h = -1; let m = 0;
+    if (c instanceof Date && !Number.isNaN(c.getTime())) { h = c.getUTCHours(); m = c.getUTCMinutes(); } else {
+      const n = Number(c);
+      if (Number.isFinite(n) && n > 20000 && n < 80000 && n % 1) { const mins = Math.round((n % 1) * 1440); h = Math.floor(mins / 60) % 24; m = mins % 60; } else {
+        const t = /(\d{1,2}):(\d{2})(?::\d{2})?\s*(am|pm)?/i.exec(String(c || ''));
+        if (t) { h = Number(t[1]) % 24; m = Number(t[2]); if (t[3] && /pm/i.test(t[3]) && h < 12) h += 12; if (t[3] && /am/i.test(t[3]) && h === 12) h = 0; }
+      }
+    }
+    if (h < 0) return '';
+    return `${h % 12 || 12}:${String(m).padStart(2, '0')} ${h < 12 ? 'am' : 'pm'}`;
+  };
   const levelOf = (v) => (/master|post\s*grad|msc|\bma\b|mba/i.test(v) ? 'Postgraduate' : /bachelor|under\s*grad|bsc|\bba\b|degree/i.test(v) ? 'Undergraduate' : /foundation/i.test(v) ? 'Foundation' : /top.?up/i.test(v) ? 'Top-up (final year)' : '');
   function fromGrid(grid, max = 200) {
     const heads = (grid[0] || []).map((c) => String(c === null || c === undefined ? '' : (c.text || c.result || c)).trim());
@@ -86,7 +99,10 @@
       const programme = more.level >= 0 ? r[more.level] : '';
       const asked = more.intake >= 0 ? r[more.intake] : '';
       const when = more.date >= 0 ? dayOf(raw[more.date], true) : '';
-      const extra = [programme && `${heads[more.level]}: ${programme}`, asked && `${heads[more.intake]}: ${asked}`,
+      // The time of the enquiry too, when the list has it (an Excel time, or "12/11/2026 21:23"): kept in the first note.
+      const at = more.date >= 0 ? timeOf(raw[more.date]) : '';
+      const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      const extra = [when && at && `Enquired ${Number(when.slice(8))} ${MON[Number(when.slice(5, 7)) - 1]} ${when.slice(0, 4)} at ${at}`, programme && `${heads[more.level]}: ${programme}`, asked && `${heads[more.intake]}: ${asked}`,
         ...heads.map((hd, i) => (!used.has(i) && hd && r[i] ? `${hd}: ${r[i]}` : '')).filter(Boolean)].filter(Boolean).join('. ');
       return { first, last, email: col.email >= 0 ? r[col.email] : '', phone: col.phone >= 0 ? r[col.phone] : '', level: levelOf(programme), intake: asked, inquiryDate: when, place: more.place >= 0 ? r[more.place] : '', extra };
     });

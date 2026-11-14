@@ -731,6 +731,12 @@ test('screens: log in, edit, delete, search, team rules, Fact File', { timeout: 
     await page.waitForSelector('dialog.p-dialog[open]');
     await page.fill('.p-dialog-body input >> nth=0', 'Newly');
     await page.fill('.p-dialog-body input >> nth=1', 'Added');
+    // From Application Stage on, the passport details are needed (the owner, 14 Nov 2026).
+    await page.click('.p-dialog-foot .btn-primary');
+    await page.waitForSelector('.p-msg.error');
+    await page.locator('.p-dialog-body label', { hasText: 'Date of birth' }).locator('input').evaluate((i) => { i.value = '2003-04-05'; i.dispatchEvent(new Event('change', { bubbles: true })); });
+    await page.locator('.p-dialog-body label', { hasText: 'Passport number' }).locator('input').fill('PA0000001');
+    await page.locator('.p-dialog-body label', { hasText: 'Address' }).locator('input').fill('Butwal-11, Rupandehi');
     await page.click('.p-dialog-foot .btn-primary');
     await page.waitForFunction(() => document.querySelectorAll('#body tr:not(.pad-row)').length === 3);
     await page.waitForSelector('.p-drawer iframe');

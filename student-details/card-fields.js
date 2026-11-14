@@ -21,7 +21,9 @@
   const branchName = (stored) => String(stored || '').trim().replace(/\s+branch$/i, '');
   const storedSource = (group, detail) => (group === 'Branch' ? (detail ? branchValue(detail) : '') : group);
   const SOURCE_DETAILS = {
-    'Social Media': ['Facebook page', 'Facebook or Instagram advert (Meta Ads)', 'Instagram', 'TikTok', 'WhatsApp', 'Messenger', 'YouTube', 'LinkedIn', 'Viber'],
+    // The platforms students really come from (the owner, 14 Nov 2026: Messenger is Facebook; no leads from YouTube, LinkedIn or Viber).
+    // Then the form asks whether it was organic or an advert, and an advert is one of the campaigns on Events and marketing.
+    'Social Media': ['Facebook', 'Instagram', 'TikTok', 'WhatsApp'],
     Visitor: ['Walked in', 'Phone call', 'Website form', 'Google search or Maps', 'Signboard or hoarding', 'Newspaper, radio or TV'],
     Reference: ['Current or past student', 'Friend or family of the student', 'Staff member', 'Teacher or college'],
     'Language Classes': ['IELTS class', 'PTE class'],
@@ -51,6 +53,8 @@
     const town = Object.keys(TOWNS).find((k) => new RegExp(`\\b${k}\\b`).test(t));
     return town ? TOWNS[town] : '';
   }
+  const NATIONALITIES = ['Nepali', 'Indian', 'Chinese', 'Bangladeshi', 'Bhutanese', 'Sri Lankan', 'Pakistani', 'Other'];
+  const SOURCE_WAYS = ['Organic', 'Advert'];
   const STUDY_LEVELS = ['Foundation', 'Undergraduate', 'Top-up (final year)', 'Pre-Masters', 'Postgraduate', 'MBA', 'MRes or PhD'];
   const QUALIFICATIONS = ['SEE (Grade 10)', '+2 or Grade 12', 'A Levels', 'Diploma or PCL', 'Bachelor (3 years)', 'Bachelor (4 years)', 'Masters'];
   const ENGLISH_TESTS = ['IELTS Academic', 'IELTS UKVI', 'PTE Academic', 'PTE UKVI', 'Duolingo', 'TOEFL iBT', 'OET', 'University internal test', 'MOI or waiver', 'Not taken yet'];
@@ -101,12 +105,19 @@
     { key: 'location', label: 'Where in the UK', max: 120 },
     { key: 'subject', label: 'Subject or course wanted', max: 160 },
     { key: 'lostReason', label: 'Why the student did not go on', list: 'LOST_REASONS' },
-    // Where the student lives now (asked of every inquiry: it is where the marketing reached them) and their home district (from
-    // the passport, once they apply), with the date of birth and the passport number of an applicant. All optional.
-    { key: 'livesIn', label: 'Lives in (district, now)', list: 'DISTRICTS' },
-    { key: 'homeDistrict', label: 'Home district (permanent, as in the passport)', list: 'DISTRICTS' },
+    // From the passport (the owner, 14 Nov 2026): the date of birth, the passport number, the address as written in it and the
+    // nationality. The address gives the district for the Dashboard's map; the nationality counts the students from outside Nepal.
     { key: 'dob', label: 'Date of birth', type: 'date' },
     { key: 'passportNo', label: 'Passport number', max: 20 },
+    { key: 'address', label: 'Address (as in the passport)', max: 200 },
+    { key: 'nationality', label: 'Nationality', list: 'NATIONALITIES' },
+    // How a Social Media student came: the platform, and whether by itself or from an advert (the advert is the campaign in
+    // sourceDetail, so it is counted in its cost).
+    { key: 'sourcePlatform', label: 'Platform', max: 40 },
+    { key: 'sourceWay', label: 'Organic or advert', list: 'SOURCE_WAYS' },
+    // Kept only so the few values saved on 14 Nov 2026 are not lost; no longer asked (the address replaces them).
+    { key: 'livesIn', label: 'Lived in (district)', list: 'DISTRICTS' },
+    { key: 'homeDistrict', label: 'Home district', list: 'DISTRICTS' },
   ];
 
   // The sheet's columns in the groups the card shows them in (the card never changes them: the sheet does).
@@ -145,6 +156,6 @@
   return {
     BRANCHES, STORED_SOURCES, branchValue, isBranchValue, sourceGroup, branchName, storedSource,
     SOURCE_DETAILS, SOURCE_DETAIL_LABEL, SOURCE_CAN_ADD, STUDY_LEVELS, QUALIFICATIONS, ENGLISH_TESTS, LOST_REASONS, LOST_STAGES,
-    DISTRICTS, districtOf, NOTE_KINDS, DOCUMENTS, documentsFor, PROFILE_FIELDS, SHEET_SECTIONS, columnLabel, whatsappNumber, courseSearchUrl,
+    DISTRICTS, districtOf, NATIONALITIES, SOURCE_WAYS, NOTE_KINDS, DOCUMENTS, documentsFor, PROFILE_FIELDS, SHEET_SECTIONS, columnLabel, whatsappNumber, courseSearchUrl,
   };
 });

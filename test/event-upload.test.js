@@ -122,6 +122,25 @@ test('uploading an event list: found and tagged, added at Inquiry, skipped, noth
   assert.deepStrictEqual([anilCard.profile.studyLevel, anilCard.profile.inquiryDate], ['Postgraduate', '2026-11-10']);
   assert.match(anilCard.notes[0].text, /Intended UK Study Intake: January 2027/);
 
+  // Adding a student who is already in ISR (same phone): nobody is added twice; who it is is said, and "fill in what is missing"
+  // fills only blanks, keeps what is there, and puts a different email in a note (the owner, 14 Nov 2026).
+  const again2 = await admin('POST', '/api/students/new', { stage: 'Inquiry', fields: { 'FIRST NAME': 'Early', 'CONTACT NUMBER': '9800099999', EMAIL: 'early@example.com' } });
+  assert.strictEqual(again2.status, 409);
+  assert.strictEqual(again2.json.duplicate.id, early, 'the student already in ISR is named');
+  const filled = (await admin('POST', '/api/students/merge', { id: early, fields: { EMAIL: 'early@example.com' }, profile: { dob: '2003-04-05' } })).json;
+  assert.deepStrictEqual(filled.filled.sort(), ['EMAIL', 'dob'], 'the blank email and date of birth are filled in');
+  const kept = (await admin('POST', '/api/students/merge', { id: early, fields: { EMAIL: 'other@example.com' } })).json;
+  assert.deepStrictEqual([kept.filled.length, kept.differs.length], [0, 1], 'the email on the sheet is kept, the other one noted');
+  const earlyNow = (await admin('GET', `/api/cards/${early}`)).json;
+  assert.strictEqual(earlyNow.student.email, 'early@example.com');
+  assert.match(earlyNow.card.notes.at(-1).text, /other@example\.com/);
+
+  // The Dashboard's figures over time: every intake side by side, and the days of each step.
+  const tr = (await admin('GET', '/api/trends')).json;
+  assert.ok(Array.isArray(tr.intakes) && tr.intakes.length >= 1 && 'visas' in tr.intakes[0], 'every intake, as quarters');
+  assert.ok(Array.isArray(tr.payments) && Array.isArray(tr.visas) && Array.isArray(tr.cas), 'payments, CAS and visas by day');
+  assert.strictEqual((await follow('GET', '/api/trends')).status, 403, 'for Admin and the Manager');
+
   // A cost in rupees is kept as typed; one in dollars needs today's rate (the test has no internet, so it is refused, nothing saved).
   const usd = await admin('POST', '/api/planning/events', { id: ids.Fair, name: 'Fair', channel: 'Another venue (hall or hotel)', date: '2026-10-01', costAmount: '500', costCurrency: 'USD' });
   if (usd.status === 200) assert.ok(usd.json.entry.cost > 500 && usd.json.entry.costCurrency === 'USD' && usd.json.entry.costRate > 1);

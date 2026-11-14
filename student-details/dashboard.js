@@ -286,18 +286,20 @@
     if (!ins || !dash || !window.DashText) return;
     const page = el('div', 'ov');
     page.append(kpis());
+    // Told like a presentation (the owner, 14 Nov 2026): the headline figures, then how the business grows intake by intake, then
+    // the ups and downs of this intake over time, then where the students are from; the detail cards follow.
+    if (trends && window.DashboardTrends) {
+      const g = el('div', 'ov-row'); g.append(window.DashboardTrends.growth(trends));
+      const t = el('div', 'ov-row'); t.append(window.DashboardTrends.overTime(trends));
+      const m = el('div', 'ov-row'); m.append(window.DashboardTrends.map(trends));
+      page.append(g, t, m);
+    }
     const r1 = el('div', 'ov-row ov-row-2'); r1.append(originCard(), targetCard());
     const r3 = el('div', 'ov-row ov-row-2'); r3.append(partnersCard(), funnelCard());
     // Universities: only those recorded on the students (a blank University Name is not a row).
     const unis = (ins.universities.list || []).filter((g) => g.label && !/not recorded/i.test(g.label));
     const r4 = el('div', 'ov-row'); r4.append(leaderboard('Universities', 'Where the students are placed', unis, null, 'university'));
     page.append(r1, r3, r4);
-    // Deeper: inquiries and applications over time, and where the students live (dashboard-trends.js).
-    if (trends && window.DashboardTrends) {
-      const r5 = el('div', 'ov-row'); r5.append(window.DashboardTrends.overTime(trends));
-      const r6 = el('div', 'ov-row'); r6.append(window.DashboardTrends.map(trends));
-      page.append(r5, r6);
-    }
     if (ins.summary.low) page.append(el('p', 'ov-foot', 'This intake has fewer than 10 students, so a rate from it is a hint, not evidence.'));
     root.replaceChildren(page);
   }
