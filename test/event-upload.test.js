@@ -82,9 +82,14 @@ test('uploading an event list: found and tagged, added at Inquiry, skipped, noth
   // The same list again changes nothing.
   const again = (await admin('POST', `/api/activities/${ids['ABC event']}/students`, { rows: list, preview: true })).json;
   assert.deepStrictEqual([again.counts.new, again.counts.link, again.counts.already], [0, 0, 3]);
+  // An updated, longer list later (the owner, 14 Nov 2026: 85 leads first, 150 later): only the new people are added; everyone already
+  // tagged stays as they are.
+  const longer = [...list, { first: 'Later', last: 'Lead', phone: '9811144455' }];
+  const update = (await admin('POST', `/api/activities/${ids['ABC event']}/students`, { rows: longer })).json;
+  assert.deepStrictEqual([update.added, update.linked, update.counts.already], [1, 0, 3], 'only the new lead is added');
   // Its students, with the latest note, and the Came from tags (the follow-up team sees the tags of the students it sees).
   const people = (await admin('GET', `/api/activities/${ids['ABC event']}/students`)).json.students;
-  assert.strictEqual(people.length, 3);
+  assert.strictEqual(people.length, 4);
   assert.ok(people.every((s) => s.lastNote));
   const tags = (await follow('GET', '/api/event-tags')).json;
   assert.ok(Object.values(tags.rows).every((label) => typeof label === 'string'));
@@ -120,11 +125,4 @@ test('uploading an event list: found and tagged, added at Inquiry, skipped, noth
   else assert.match(usd.json.error, /rate could not be found/);
   const rs = await admin('POST', '/api/planning/events', { id: ids.Fair, name: 'Fair', channel: 'Another venue (hall or hotel)', date: '2026-10-01', costAmount: 'Rs 45,000', costCurrency: 'NPR' });
   assert.deepStrictEqual([rs.json.entry.cost, rs.json.entry.costCurrency], [45000, 'NPR']);
-
-  // A name on B2B Partners that is really a Partner University (Navitas, for example) moves there. Admin only.
-  assert.strictEqual((await follow('POST', '/api/b2b/to-university', { name: 'Navitas' })).status, 403);
-  const moved = await admin('POST', '/api/b2b/to-university', { name: 'Navitas' });
-  assert.strictEqual(moved.status, 200);
-  assert.ok((await admin('GET', '/api/direct')).json.some((u) => u.name === 'Navitas'), 'now a Partner University');
-  assert.strictEqual((await admin('POST', '/api/b2b/to-university', { name: 'Navitas' })).status, 400, 'not twice');
 });

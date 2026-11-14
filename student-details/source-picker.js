@@ -17,7 +17,7 @@
     const groups = Object.keys(F.SOURCE_DETAILS);
     const options = (g) => (g === 'Agent' ? lists.partners : (lists.sourceOptions[g] || F.SOURCE_DETAILS[g] || []));
     const startGroup = F.sourceGroup(initial.source) || '';
-    const source = field('Where did the student come from?', { kind: 'select', choices: groups, value: groups.includes(startGroup) ? startGroup : '', disabled });
+    const source = field('Student source', { kind: 'select', choices: groups, value: groups.includes(startGroup) ? startGroup : '', disabled });
     const detailBox = el('div', 'p-field');
     const remarkBox = el('div', 'p-field');
     let detailInput = null;

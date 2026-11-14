@@ -11,7 +11,7 @@
   let searchTimer = null;
   let searchSeq = 0; // answers arriving out of order: only the latest search is shown
 
-  const when = (iso) => new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+  const when = (iso) => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
   function el(tag, cls, text) {
     const e = document.createElement(tag);
     if (cls) e.className = cls;

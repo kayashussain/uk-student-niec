@@ -6,9 +6,9 @@
   const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({
     '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
   }[c]));
-  const when = (iso) => new Date(iso).toLocaleString(undefined, {
-    month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit',
-  });
+  // "14 Nov 2026, 2:19:40 pm", as every date in ISR (the day first).
+  const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const when = (iso) => { const d = new Date(iso); return `${d.getDate()} ${MON[d.getMonth()]} ${d.getFullYear()}, ${d.toLocaleTimeString('en-GB', { hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true })}`; };
   let events = []; // what is on screen
   let total = 0;
   let loading = 0; // newest request wins
@@ -207,7 +207,7 @@
           act.append(view, btn);
         }
         const d = new Date(b.createdAt);
-        tr.append(name, el('td', '', d.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })), el('td', '', d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })), holds, el('td', '', size(b.bytes)), act);
+        tr.append(name, el('td', '', d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })), el('td', '', d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })), holds, el('td', '', size(b.bytes)), act);
         return tr;
       }));
     } catch (err) { $('backupRows').replaceChildren(Object.assign(el('tr'), {})); const td = el('td', 'muted', err.message); td.colSpan = 6; $('backupRows').firstChild.append(td); }

@@ -379,7 +379,10 @@
   }
 
   // A YYYY-MM-DD date the way the browser's own date box shows it (e.g. 05/01/2026 in the US).
-  const dateFormat = new Intl.DateTimeFormat(undefined, { year: 'numeric', month: '2-digit', day: '2-digit', timeZone: 'UTC' });
+  // A date in a cell is written as every other date in ISR: "25 Aug 2026" (the day first, the month in words, so it can never be
+  // read the wrong way round). What is kept is unchanged.
+  const MONTH_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const dateFormat = { format: (d) => `${d.getUTCDate()} ${MONTH_SHORT[d.getUTCMonth()]} ${d.getUTCFullYear()}` };
   function displayDate(iso) {
     const [y, m, d] = iso.split('-').map(Number);
     return dateFormat.format(new Date(Date.UTC(y, m - 1, d)));

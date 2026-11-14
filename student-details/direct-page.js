@@ -86,7 +86,7 @@
       if (p.email) { const a = el('a', 'pu-link', p.email); a.href = 'mailto:' + p.email; d.append(a); }
       row('Contact', d);
     } else row('Contact', null);
-    row('Agreement', [u.agreementStart ? 'Since ' + u.agreementStart : '', u.agreementCount ? `${u.agreementCount} file${u.agreementCount === 1 ? '' : 's'}` : ''].filter(Boolean).join(' · '));
+    row('Agreement', [u.agreementStart ? 'Since ' + window.Portal.day(u.agreementStart) : '', u.agreementCount ? `${u.agreementCount} file${u.agreementCount === 1 ? '' : 's'}` : ''].filter(Boolean).join(' · '));
     const foot = el('div', 'pu-card-foot');
     foot.append(btn('btn', 'Open details →', () => (viewer() ? openView(u.id) : openEditor(u.id))));
     c.append(head, sub, facts, foot);
@@ -149,7 +149,7 @@
       else sub.append(none());
       box('Application submission', sub);
       box('Contacts', (u.contacts || []).length ? lines(u.contacts.map((c) => { const d = el('div', 'pu-lines'); if (c.name) d.append(el('b', '', c.name)); if (c.phone) d.append(el('span', '', c.phone)); if (c.email) { const a = el('a', 'pu-link', c.email); a.href = 'mailto:' + c.email; d.append(a); } return d; })) : none());
-      box('Agreement', lines([u.agreementStart ? 'Started ' + u.agreementStart : 'Start not entered', u.agreementEnd ? 'Ends ' + u.agreementEnd : ''].filter(Boolean)));
+      box('Agreement', lines([u.agreementStart ? 'Started ' + window.Portal.day(u.agreementStart) : 'Start not entered', u.agreementEnd ? 'Ends ' + window.Portal.day(u.agreementEnd) : ''].filter(Boolean)));
       // The Manager also sees the commission and the agreement files; a team never receives them.
       if (level === 'commission') {
         box('Commission', (u.slabs || []).length ? lines(u.slabs.map((x) => [x.level, x.students, x.commission].filter(Boolean).join(' · '))) : none(), ...(u.paymentTerms ? [el('p', 'pu-hint', 'Payment terms: ' + u.paymentTerms)] : []));

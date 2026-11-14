@@ -34,14 +34,26 @@
     const intake = field('Intake', { kind: 'select', choices: [['', 'All intakes you can see'], ...lists.intakes.map((i) => [i.id, i.name])] });
     const stage = field('Stage (application status)', { kind: 'select', choices: [['', 'Every stage'], ...lists.stages.map((s) => [s, s])] });
     const search = field('Name', { placeholder: 'Type to narrow the list' });
-    bar.append(intake.wrap, stage.wrap, search.wrap);
+    // Source: only the students of one source (Visitor, Social Media, a branch ...) or exactly which (a platform, a campaign).
+    const NAMES = { Events: 'Events and marketing', Agent: 'Agents', Branch: 'Branches' };
+    const groups = new Map();
+    students.forEach((s) => { const g = groups.get(s.source) || { n: 0, details: new Map() }; g.n += 1; if (s.sourceDetail) g.details.set(s.sourceDetail, (g.details.get(s.sourceDetail) || 0) + 1); groups.set(s.source, g); });
+    const source = field('Source', { kind: 'select', choices: [['', 'Every source']] });
+    [...groups].sort((a, b) => b[1].n - a[1].n).forEach(([g, info]) => {
+      const og = document.createElement('optgroup'); og.label = NAMES[g] || g;
+      og.append(new Option(`All ${NAMES[g] || g} (${info.n})`, 'g:' + g));
+      [...info.details].sort((a, b) => b[1] - a[1]).forEach(([d, n]) => og.append(new Option(`${d} (${n})`, `d:${g}\u0001${d}`)));
+      source.input.append(og);
+    });
+    const fromSource = (s) => { const v = source.input.value; if (!v) return true; if (v.startsWith('g:')) return s.source === v.slice(2); const [g, d] = v.slice(2).split('\u0001'); return s.source === g && s.sourceDetail === d; };
+    bar.append(intake.wrap, stage.wrap, source.wrap, search.wrap);
     who.append(bar);
     const info = el('div', 'p-muted p-small');
     const listBox = el('div', 'p-pick-list');
     listBox.style.maxHeight = '340px';
     listBox.style.overflow = 'auto';
     const tools = el('div', 'p-bar');
-    const visible = () => students.filter((s) => (!intake.input.value || s.sheetId === intake.input.value) && (!stage.input.value || s.stage === stage.input.value) && (!search.input.value || s.name.toLowerCase().includes(search.input.value.toLowerCase())));
+    const visible = () => students.filter((s) => fromSource(s) && (!intake.input.value || s.sheetId === intake.input.value) && (!stage.input.value || s.stage === stage.input.value) && (!search.input.value || s.name.toLowerCase().includes(search.input.value.toLowerCase())));
     const draw = () => {
       const v = visible();
       info.textContent = `${v.length} students match. ${chosen.size} chosen.`;
@@ -58,7 +70,7 @@
     const q = new URLSearchParams(location.search);
     if (q.get('stage') && lists.stages.includes(q.get('stage'))) stage.input.value = q.get('stage');
     if (q.get('sheet')) intake.input.value = q.get('sheet');
-    [intake, stage, search].forEach((x) => x.input.addEventListener('input', draw));
+    [intake, stage, source, search].forEach((x) => { x.input.addEventListener('input', draw); x.input.addEventListener('change', draw); });
     who.append(info, tools, listBox);
     wrap.append(who);
     draw();

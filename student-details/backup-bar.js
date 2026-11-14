@@ -108,7 +108,7 @@
     meta = json && (json.backups || []).find((b) => b.id === id);
     if (meta) {
       const d = new Date(meta.createdAt);
-      when.textContent = `${d.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })} at ${d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}`;
+      when.textContent = `${d.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })} at ${d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}`;
     }
   }).catch(() => {});
 

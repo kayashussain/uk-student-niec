@@ -52,15 +52,6 @@
     $('list').replaceChildren(...shown.map(card), ...shownSheet.map(sheetCard), ...hiddenLine());
   }
 
-  // "It is a Partner University": a name that is one of the universities NIEC works with directly (Navitas, for example) moves to
-  // Partner Universities, with everything kept for it, and leaves this page.
-  function toUniversity(name, id) {
-    return btn('btn', 'Move to Partner Universities', async () => {
-      if (!(await window.NiecUI.confirm(`Move ${name} to Partner Universities? Its contacts, agreement dates, how to submit, notes and files go with it, and it leaves B2B Partners. The students keep the name.`, { title: 'A Partner University?', confirmText: 'Move' }))) return;
-      try { const r = await api(`${API}/to-university`, id ? { id } : { name }); say(`${r.name} is now in Partner Universities`); load(); } catch (e) { say(e.message, true); }
-    });
-  }
-
   // A partner named in the University Partner column but not set up yet: set it up (to add how to submit and the commission list),
   // or mark it as not a B2B partner (it is then hidden here and in the dropdown, and can be shown again).
   function sheetCard(x) {
@@ -74,7 +65,6 @@
     note.append(el('div', 'bp-submit-title', 'Named on the sheet'), el('div', 'bp-none', KIND === 'agents' ? 'Named in the Receiving Partner column. Set it up to add the contact, the agreement and the commission list.' : 'Set it up to add how to submit applications, the contact and the commission list.'));
     const foot = el('div', 'bp-foot');
     const notWord = KIND === 'agents' ? 'Not an agent' : 'Not a partner';
-    if (KIND === 'b2b') foot.append(toUniversity(x.name));
     foot.append(btn('btn', notWord, async () => {
       if (!(await window.NiecUI.confirm(`${x.name} is not ${KIND === 'agents' ? 'an agent' : 'a B2B partner'}? It is hidden here and in the ${KIND === 'agents' ? 'Receiving' : 'University'} Partner dropdown (the students keep the name). You can show it again.`, { confirmText: notWord }))) return;
       await api(`${API}/not-partner`, { name: x.name }); say(`${x.name} hidden`); load();
@@ -109,11 +99,9 @@
       if (k.email) { const a = el('a', 'bp-link', k.email); a.href = 'mailto:' + k.email; d.append(a); }
       row('Contact', d);
     } else row('Contact', null);
-    row('Agreement', [p.agreementStart ? 'From ' + p.agreementStart : '', p.agreementEnd ? 'to ' + p.agreementEnd : ''].filter(Boolean).join(' '));
+    row('Agreement', [p.agreementStart ? 'From ' + window.Portal.day(p.agreementStart) : '', p.agreementEnd ? 'to ' + window.Portal.day(p.agreementEnd) : ''].filter(Boolean).join(' '));
     c.append(facts);
-    const foot = el('div', 'bp-foot');
-    if (KIND === 'b2b' && !viewer()) foot.append(toUniversity(p.name, p.id));
-    foot.append(btn('btn', 'Open details →', () => open(p.id)));
+    const foot = el('div', 'bp-foot'); foot.append(btn('btn', 'Open details →', () => open(p.id)));
     c.append(foot);
     return c;
   }
@@ -215,7 +203,7 @@
     const lines = (items) => { const d = el('div', 'bp-lines'); items.forEach((x) => d.append(x instanceof Node ? x : el('span', '', x))); return d; };
     if (KIND === 'b2b') box('Application submission', submitBox(p));
     box('Contacts', (p.contacts || []).length ? lines(p.contacts.map((c) => { const d = el('div', 'bp-lines'); if (c.name) d.append(el('b', '', c.name)); if (c.phone) d.append(el('span', '', c.phone)); if (c.email) { const a = el('a', 'bp-link', c.email); a.href = 'mailto:' + c.email; d.append(a); } return d; })) : none());
-    box('Agreement', lines([p.agreementStart ? 'From ' + p.agreementStart : 'Start not entered', p.agreementEnd ? 'To ' + p.agreementEnd : ''].filter(Boolean)));
+    box('Agreement', lines([p.agreementStart ? 'From ' + window.Portal.day(p.agreementStart) : 'Start not entered', p.agreementEnd ? 'To ' + window.Portal.day(p.agreementEnd) : ''].filter(Boolean)));
     // The Manager also sees the commission list of each intake, the files and the notes; a team never receives them.
     if (data.access === 'commission') {
       box('Commission by intake', (p.commissions || []).length ? lines(p.commissions.map((c) => {

@@ -145,7 +145,14 @@
   }
 
   async function start() {
-    if (!id) { view.replaceChildren(el('div', 'p-card', 'Choose a student first.')); return; }
+    if (!id) {
+      // Opened without a student: say how a message is started, with the way there.
+      const c = el('div', 'p-card');
+      const go = el('a', 'btn btn-primary', 'Go to All Students'); go.href = '/students';
+      c.append(el('h2', '', 'Choose a student first'), el('p', 'p-muted', 'Open a student\u2019s card and press Send a message. The message is written here, with the student\u2019s details filled in.'), go);
+      view.replaceChildren(c);
+      return;
+    }
     try {
       const [d, t] = await Promise.all([api('/api/cards/' + encodeURIComponent(id)), api('/api/templates')]);
       student = d.student; mail = d.mail;

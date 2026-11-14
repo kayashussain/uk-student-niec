@@ -128,7 +128,8 @@
   tbody tr:nth-child(even) td { background: var(--row-alt); }
   /* Cells you type in are tinted; calculated ones are grey italic. See the key under the table. */
   tbody tr td.editable { background: var(--edit-bg); }
-  tbody tr td.auto { color: var(--text-dim); font-style: italic; }
+  /* 🔴 CSS CHANGED (2026-11-14): hint text no longer slanted | from: italic grey | to: plain grey (Apple never slants text) */
+  tbody tr td.auto { color: var(--text-dim); }
   tbody tr:hover td { background: var(--row-hover); }
   tbody tr.selected td { background: var(--focus-dim); }
   tbody tr.row-picked td { background: var(--focus-strong); }

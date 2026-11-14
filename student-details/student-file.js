@@ -87,17 +87,97 @@
       return { first, last, email: col.email >= 0 ? r[col.email] : '', phone: col.phone >= 0 ? r[col.phone] : '', level: levelOf(programme), intake: asked, inquiryDate: when, extra };
     });
   }
-  // A file the person chose: .xlsx is read with the Excel library (downloaded once, as for Export Excel), .csv as text.
+  // ---- Reading an .xlsx file without any library (an .xlsx file is a zip of XML files) ----
+  // The Excel library (ExcelJS) cannot read some files Excel and Google Sheets save, for example a sheet formatted as a table (it fails
+  // with "Cannot read properties of undefined (reading 'name')"; the owner's lead list from Meta, 14 Nov 2026). ISR reads the first sheet
+  // itself: its cells as text, numbers kept as they are (a date column's Excel day numbers are turned into dates by fromGrid).
+  const u16 = (b, i) => b[i] | (b[i + 1] << 8);
+  const u32 = (b, i) => (b[i] | (b[i + 1] << 8) | (b[i + 2] << 16) | (b[i + 3] << 24)) >>> 0;
+  async function unzip(buffer, wanted) {
+    const b = new Uint8Array(buffer);
+    let end = -1;
+    for (let i = b.length - 22; i >= Math.max(0, b.length - 66000); i -= 1) if (u32(b, i) === 0x06054b50) { end = i; break; }
+    if (end < 0) throw new Error('This is not an Excel (.xlsx) file.');
+    const count = u16(b, end + 10);
+    let at = u32(b, end + 16);
+    const files = {};
+    const names = [];
+    for (let k = 0; k < count; k += 1) {
+      if (u32(b, at) !== 0x02014b50) break;
+      const method = u16(b, at + 10); const size = u32(b, at + 20);
+      const nameLen = u16(b, at + 28); const extraLen = u16(b, at + 30); const commentLen = u16(b, at + 32);
+      const local = u32(b, at + 42);
+      const name = new TextDecoder().decode(b.subarray(at + 46, at + 46 + nameLen));
+      names.push(name);
+      if (wanted(name)) {
+        const start = local + 30 + u16(b, local + 26) + u16(b, local + 28);
+        const raw = b.subarray(start, start + size);
+        let bytes;
+        if (method === 0) bytes = raw;
+        else if (method === 8) bytes = new Uint8Array(await new Response(new Blob([raw]).stream().pipeThrough(new DecompressionStream('deflate-raw'))).arrayBuffer());
+        else throw new Error('The Excel file is packed in a way ISR cannot read.');
+        files[name] = new TextDecoder().decode(bytes);
+      }
+      at += 46 + nameLen + extraLen + commentLen;
+    }
+    return { files, names };
+  }
+  const unescape = (t) => t.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&#(\d+);/g, (m, n) => String.fromCodePoint(Number(n))).replace(/&#x([0-9a-f]+);/gi, (m, n) => String.fromCodePoint(parseInt(n, 16))).replace(/&amp;/g, '&');
+  const textsOf = (xml) => [...xml.matchAll(/<t(?:\s[^>]*)?>([\s\S]*?)<\/t>/g)].map((m) => unescape(m[1])).join('');
+  const colNo = (ref) => [...ref.replace(/\d+$/, '')].reduce((n, ch) => n * 26 + ch.charCodeAt(0) - 64, 0) - 1;
+  async function readXlsx(buffer) {
+    const first = await unzip(buffer, (n) => n === 'xl/workbook.xml' || n === 'xl/_rels/workbook.xml.rels' || n === 'xl/sharedStrings.xml');
+    // The first sheet of the workbook, as the workbook names it (not always sheet1.xml).
+    let sheetPath = '';
+    const wbXml = first.files['xl/workbook.xml'] || '';
+    const rid = (/<sheet\b[^>]*\br:id="([^"]+)"/.exec(wbXml) || [])[1];
+    const rels = first.files['xl/_rels/workbook.xml.rels'] || '';
+    if (rid) {
+      const rel = [...rels.matchAll(/<Relationship\b[^>]*>/g)].map((m) => m[0]).find((r) => r.includes(`Id="${rid}"`));
+      const target = rel && (/Target="([^"]+)"/.exec(rel) || [])[1];
+      if (target) sheetPath = target.startsWith('/') ? target.slice(1) : 'xl/' + target.replace(/^\.\//, '');
+    }
+    if (!first.names.includes(sheetPath)) sheetPath = first.names.filter((n) => /^xl\/worksheets\/[^/]+\.xml$/.test(n)).sort()[0] || '';
+    if (!sheetPath) throw new Error('The Excel file has no sheet.');
+    const shared = [...(first.files['xl/sharedStrings.xml'] || '').matchAll(/<si>([\s\S]*?)<\/si>/g)].map((m) => textsOf(m[1]));
+    const xml = (await unzip(buffer, (n) => n === sheetPath)).files[sheetPath] || '';
+    const grid = [];
+    for (const row of xml.matchAll(/<row\b[^>]*>([\s\S]*?)<\/row>/g)) {
+      const cells = [];
+      for (const c of row[1].matchAll(/<c\b([^>]*?)(?:\/>|>([\s\S]*?)<\/c>)/g)) {
+        const attrs = c[1]; const inner = c[2] || '';
+        const ref = (/\br="([A-Z]+\d+)"/.exec(attrs) || [])[1];
+        const type = (/\bt="([^"]+)"/.exec(attrs) || [])[1] || '';
+        const v = (/<v>([\s\S]*?)<\/v>/.exec(inner) || [])[1];
+        let value = '';
+        if (type === 's') value = shared[Number(v)] || '';
+        else if (type === 'inlineStr') value = textsOf(inner);
+        else if (v !== undefined) value = unescape(v);
+        const at = ref ? colNo(ref) : cells.length;
+        while (cells.length < at) cells.push('');
+        cells[at] = value;
+      }
+      grid.push(cells);
+    }
+    return grid;
+  }
+
+  // A file the person chose: .csv as text; .xlsx read by ISR itself (above), and only if that fails, by the Excel library.
   async function readFile(file, max = 200) {
     if (/\.csv$/i.test(file.name)) return fromGrid((await file.text()).split(/\r?\n/).filter(Boolean).map((l) => splitLine(l)), max);
+    const buffer = await file.arrayBuffer();
+    try {
+      if (typeof DecompressionStream === 'function') return fromGrid(await readXlsx(buffer), max);
+    } catch (e) { /* tried with the Excel library below */ }
     const ExcelJS = await window.NiecSession.loadExcel();
     const wb = new ExcelJS.Workbook();
-    await wb.xlsx.load(await file.arrayBuffer());
+    await wb.xlsx.load(buffer);
     const sheet = wb.worksheets[0];
+    if (!sheet) throw new Error('The Excel file has no sheet.');
     const grid = [];
     sheet.eachRow({ includeEmpty: false }, (row) => { grid.push(row.values.slice(1)); });
     return fromGrid(grid, max);
   }
 
-  root.StudentFile = { readFile, checkRows, parse, fromGrid };
+  root.StudentFile = { readFile, readXlsx, checkRows, parse, fromGrid };
 })(this);

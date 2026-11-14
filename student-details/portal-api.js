@@ -948,6 +948,15 @@ function createPortalApi({
 
   // Which event or campaign each student came from, for the Source filter of All Students: only the students the account
   // sees, and only the event's name and day (no cost).
+  // A student's source as the Source filters show it: [the source ("Social Media", "Branch" ...), exactly which (the platform, the
+  // event or campaign with its date, the branch, the agent)].
+  function sourceOf(row, card, plan) {
+    const stored = text(row['STUDENT SOURCE']);
+    const group = Fields.sourceGroup(stored) || 'Not recorded';
+    const e = card && eventFor(plan.events, card.profile.sourceDetail);
+    const detail = group === 'Branch' ? Fields.branchName(stored) : e ? eventLabel(e.name, e.date) : text(card && card.profile.sourceDetail).slice(0, 120);
+    return [group, detail];
+  }
   function eventTags(user) {
     const plan = planning.all();
     const all = cards.all();
@@ -960,10 +969,8 @@ function createPortalApi({
     const groups = new Map();
     for (const { row } of visibleStudents(user)) {
       const card = all[row._id];
-      const stored = text(row['STUDENT SOURCE']);
-      const group = Fields.sourceGroup(stored) || 'Not recorded';
       const e = card && eventFor(plan.events, card.profile.sourceDetail);
-      const detail = group === 'Branch' ? Fields.branchName(stored) : e ? eventLabel(e.name, e.date) : text(card && card.profile.sourceDetail).slice(0, 120);
+      const [group, detail] = sourceOf(row, card, plan);
       sources[row._id] = [group, detail];
       const g = groups.get(group) || { group, count: 0, details: new Map() };
       g.count += 1;
@@ -1102,34 +1109,6 @@ function createPortalApi({
       planning.saveSettings({ notPartners: next });
       activity.record(req, req.user, 'Edited partners', { app: 'B2B Partners', changes: [body.undo ? `${name}: shown again as a B2B partner` : `${name}: marked as not a B2B partner`] });
       sendJSON(res, 200, { notPartners: planning.all().settings.notPartners });
-      return true;
-    }
-    // A name that is really one of the universities NIEC works with directly (for example Navitas, the owner, 14 Nov 2026): it moves
-    // to Partner Universities with what was kept for it (status, agreement dates, contacts, how to submit, notes, the commission
-    // links and the agreement files) and leaves B2B Partners. The students keep the name in their University Partner column.
-    if (urlPath === '/api/b2b/to-university' && req.method === 'POST') {
-      if (!adminOnly(req, res, 'B2B Partners')) return true;
-      const body = await bodyOf(req, res, 4096);
-      if (!body) return true;
-      const id = /^[a-f0-9]{12}$/.test(text(body.id)) ? text(body.id) : '';
-      const p = id ? b2b.get(id) : null;
-      if (id && !p) { sendJSON(res, 404, { error: 'No such partner.' }); return true; }
-      const name = p ? p.name : text(body.name).replace(/\s+/g, ' ').slice(0, 120);
-      if (!name) { sendJSON(res, 400, { error: 'No name.' }); return true; }
-      if (direct.all().some((u) => squash(u.name) === squash(name))) { sendJSON(res, 400, { error: `${name} is already in Partner Universities.` }); return true; }
-      const made = direct.create(name, req.user.label);
-      if (made.error) { sendJSON(res, 400, { error: made.error }); return true; }
-      if (p) {
-        const links = (p.commissions || []).filter((c) => c.intake || c.link || c.note).map((c) => `Commission ${[c.intake, c.link, c.note].filter(Boolean).join(': ')}`);
-        direct.update(made.university.id, { name, status: p.status, type: 'Direct', agreementStart: p.agreementStart, agreementEnd: p.agreementEnd, contacts: p.contacts, applyPortal: p.applyPortal, applyEmail: p.applyEmail, applyUser: p.applyUser, applyPassword: p.applyPassword, notes: [p.city ? `City: ${p.city}` : '', p.notes, ...links].filter(Boolean).join('\n') }, req.user.label);
-        for (const a of p.agreements || []) {
-          const f = b2b.agreementFile(p.id, a.id);
-          if (f) direct.addAgreement(made.university.id, f.name, fs.readFileSync(f.path), req.user.label);
-        }
-        b2b.remove(p.id);
-      }
-      activity.record(req, req.user, 'Edited partners', { app: 'B2B Partners', changes: [`${name}: moved from B2B Partners to Partner Universities`] });
-      sendJSON(res, 200, { id: made.university.id, name });
       return true;
     } return handlePartnerStore(req, res, urlPath, { store: b2b, prefix: 'b2b', label: 'B2B Partners', kind: 'b2b' }); }
   async function handleAgents(req, res, urlPath) {
@@ -1354,12 +1333,16 @@ function createPortalApi({
       const sheet = text(params.get('sheet'));
       const stage = text(params.get('stage'));
       const list = [];
+      const plan = planning.all();
+      const all = cards.all();
       for (const { sheet: sh, row } of visibleStudents(req.user)) {
         if (!canChange(req.user, rowIndex().get(row._id))) continue;
         const b = brief(sh, row);
         if (sheet && sh.id !== sheet) continue;
         if (stage && b.stage !== stage) continue;
-        list.push({ id: b.id, name: b.name, stage: b.stage, intake: b.intake, sheetId: sh.id, email: b.email, phone: b.phone, whatsapp: Boolean(Fields.whatsappNumber(b.phone)) });
+        // The source too, so the follow-up can be only the Visitor students, or only the leads of one campaign (the owner, 14 Nov 2026).
+        const [source, sourceDetail] = sourceOf(row, all[row._id], plan);
+        list.push({ id: b.id, name: b.name, stage: b.stage, intake: b.intake, sheetId: sh.id, email: b.email, phone: b.phone, whatsapp: Boolean(Fields.whatsappNumber(b.phone)), source, sourceDetail });
         if (list.length >= 1000) break;
       }
       list.sort((a, b) => a.name.localeCompare(b.name));

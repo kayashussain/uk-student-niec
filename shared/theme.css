@@ -767,9 +767,6 @@ body:has(.p-embed-bar) .p-hero-line .p-chip { border: 1px solid var(--lux-line);
 /* the journey line */
 body:has(.p-embed-bar) .p-journey { margin-top: 18px; }
 body:has(.p-embed-bar) .p-journey-bar { display: flex; gap: 4px; }
-body:has(.p-embed-bar) .p-journey-bar i { flex: 1 1 0; height: 6px; border-radius: 3px; background: #dfe3ea; }
-body:has(.p-embed-bar) .p-journey-bar i.done { background: var(--lux-ink); }
-body:has(.p-embed-bar) .p-journey-bar i.now { background: var(--lux-bronze); }
 body:has(.p-embed-bar) .p-journey-text { margin-top: 8px; font-size: 14px; color: var(--text-dim); }
 body:has(.p-embed-bar) .p-journey-text b { color: var(--lux-ink); font-weight: 650; }
 body:has(.p-embed-bar) .p-journey.lost .p-journey-bar i { background: #e5e2da; }
@@ -950,7 +947,8 @@ body:has(#sheet) .topbar .came-from:focus { border-color: var(--lux-ink-2); box-
 .bp-facts dt { color: var(--text-dim); font-size: 14px; }
 .bp-facts dd { margin: 0; overflow-wrap: anywhere; }
 .bp-lines { display: grid; gap: 2px; }
-.bp-none { color: var(--text-dim); font-style: italic; }
+/* 🔴 CSS CHANGED (2026-11-14): hint text no longer slanted | from: italic grey | to: plain grey (Apple never slants text) */
+.bp-none { color: var(--text-dim); }
 .bp-link { color: var(--brand-navy); font-weight: 600; text-decoration: underline; text-decoration-color: color-mix(in srgb, var(--brand-bronze) 55%, transparent); text-underline-offset: 4px; }
 .bp-missing { padding: 3px 12px; border: 0; border-radius: 999px; background: var(--amber-bg); color: var(--amber-fg); font: inherit; font-size: 14px; font-weight: 650; cursor: pointer; }
 .bp-foot { display: flex; justify-content: flex-end; margin-top: auto; }
@@ -1219,9 +1217,9 @@ body:has(.p-embed-bar) .p-hero h1 { font-family: var(--font); font-size: 34px; f
 body:has(.p-embed-bar) .p-hero-line .p-pill { border: 0; background: var(--blue-bg); color: var(--blue-fg); font-weight: 600; border-radius: 980px; }
 body:has(.p-embed-bar) .p-hero-line .p-chip { border: 0; border-radius: 980px; background: #e8e8ed; color: #1d1d1f; }
 body:has(.p-embed-bar) .p-journey-bar { gap: 3px; }
-body:has(.p-embed-bar) .p-journey-bar i { height: 4px; border-radius: 2px; background: #e5e5ea; }
-body:has(.p-embed-bar) .p-journey-bar i.done { background: var(--ink); }
-body:has(.p-embed-bar) .p-journey-bar i.now { background: var(--lux-bronze); }
+body:has(.p-embed-bar) .p-journey-bar i { flex: 1 1 0; height: 4px; border-radius: 980px; background: #e5e5ea; }
+body:has(.p-embed-bar) .p-journey-bar i.done { background: rgba(0, 113, 227, .38); }
+body:has(.p-embed-bar) .p-journey-bar i.now { background: #0071e3; }
 body:has(.p-embed-bar) .p-journey-text { font-size: 13.5px; }
 body:has(.p-embed-bar) .p-hero .p-facts { border-top-color: var(--border); }
 body:has(.p-embed-bar) .p-hero .p-fact dt { color: #8e8e93; font-size: 11.5px; font-weight: 600; letter-spacing: .07em; text-transform: uppercase; }
@@ -1563,4 +1561,90 @@ svg .dd-slice, svg circle[stroke-dasharray] { animation: isr-ring .9s cubic-bezi
 @media (prefers-reduced-motion: reduce) {
   :is(.ov-funnel-fill, .ov-board-bar, .dd-track > i, .md-bar-fill, .p-bar-fill, .rk-fill), svg .dd-slice, svg circle[stroke-dasharray], .td-hello::before { animation: none !important; }
   .isr-reveal { opacity: 1; transform: none; }
+}
+
+/* 🔴 CSS CHANGED (2026-11-14): the calendar, in Apple's look | from: the browser's own calendar (small, square, grey, a different look in every browser) opened from a small grey square icon | to: a light rounded panel with a soft shadow: the month in bold and the year in blue, round arrow buttons, the weekdays as single letters, the days as round cells (today in blue, the chosen day a filled blue circle, a grey circle under the mouse), Today and Clear at the bottom; it springs open from the date box and slides when the month changes; every date box shows a clean blue-grey calendar icon (on a phone, the phone's own date wheel is used) */
+.isr-cal { position: fixed; inset: auto; z-index: 10060; width: 300px; margin: 0; padding: 14px 14px 10px; border: 0; border-radius: 18px; background: rgba(251, 251, 253, .97); color: #1d1d1f; -webkit-backdrop-filter: saturate(180%) blur(24px); backdrop-filter: saturate(180%) blur(24px); box-shadow: 0 20px 60px -16px rgba(0, 0, 0, .35), 0 0 0 .5px rgba(0, 0, 0, .1); font-family: var(--font); transform-origin: top left; animation: isr-cal-in .28s cubic-bezier(.32, .72, 0, 1) both; overflow: visible; }
+.isr-cal.above { transform-origin: bottom left; }
+.isr-cal.is-closing { animation: isr-cal-out .14s ease-in both; }
+.isr-cal-head { display: flex; align-items: center; justify-content: space-between; padding: 2px 4px 10px; }
+.isr-cal-title { font-size: 17px; font-weight: 650; letter-spacing: -.01em; }
+.isr-cal-title span { color: #0071e3; }
+.isr-cal-nav { display: flex; gap: 4px; }
+.isr-cal-nav button { display: grid; place-items: center; width: 30px; height: 30px; padding: 0; border: 0; border-radius: 50%; background: transparent; color: #0071e3; cursor: pointer; transition: background-color .15s, transform .15s; }
+.isr-cal-nav button:hover { background: rgba(0, 113, 227, .1); }
+.isr-cal-nav button:active { transform: scale(.9); }
+.isr-cal-nav svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+.isr-cal-week, .isr-cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+.isr-cal-week span { padding: 4px 0 6px; color: #86868b; font-size: 11.5px; font-weight: 600; text-align: center; }
+.isr-cal-day { width: 36px; height: 36px; margin: 0 auto; padding: 0; border: 0; border-radius: 50%; background: transparent; color: #1d1d1f; font: inherit; font-size: 15px; font-variant-numeric: tabular-nums; cursor: pointer; transition: background-color .12s, color .12s, transform .12s; }
+.isr-cal-day:hover:not(:disabled):not(.is-on) { background: rgba(0, 0, 0, .06); }
+.isr-cal-day:active:not(:disabled) { transform: scale(.9); }
+.isr-cal-day.is-today { color: #0071e3; font-weight: 700; }
+.isr-cal-day.is-on { background: #0071e3; color: #fff; font-weight: 650; box-shadow: 0 4px 12px -4px rgba(0, 113, 227, .6); }
+.isr-cal-day.is-focus:not(.is-on) { box-shadow: inset 0 0 0 2px rgba(0, 113, 227, .5); }
+.isr-cal-day:disabled { color: #c7c7cc; cursor: default; }
+.isr-cal-foot { display: flex; justify-content: space-between; gap: 8px; margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(0, 0, 0, .07); }
+.isr-cal-foot button { min-height: 30px; padding: 0 14px; border: 0; border-radius: 980px; background: transparent; color: #0071e3; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; transition: background-color .15s; }
+.isr-cal-foot button:hover { background: rgba(0, 113, 227, .1); }
+.isr-cal-foot .isr-cal-today { margin-left: auto; }
+.isr-cal.slide-left .isr-cal-grid { animation: isr-cal-slide-l .28s cubic-bezier(.32, .72, 0, 1); }
+.isr-cal.slide-right .isr-cal-grid { animation: isr-cal-slide-r .28s cubic-bezier(.32, .72, 0, 1); }
+@keyframes isr-cal-in { from { opacity: 0; transform: translateY(-6px) scale(.96); } to { opacity: 1; transform: none; } }
+@keyframes isr-cal-out { to { opacity: 0; transform: scale(.97); } }
+@keyframes isr-cal-slide-l { from { opacity: 0; transform: translateX(14px); } to { opacity: 1; transform: none; } }
+@keyframes isr-cal-slide-r { from { opacity: 0; transform: translateX(-14px); } to { opacity: 1; transform: none; } }
+html.isr-cal-on input[type="date"]::-webkit-calendar-picker-indicator { background: transparent url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236e6e73' stroke-width='1.8' stroke-linecap='round'%3E%3Crect x='3.5' y='5' width='17' height='15' rx='3'/%3E%3Cpath d='M3.5 10h17M8 3v4M16 3v4'/%3E%3C/svg%3E") center / 16px 16px no-repeat; opacity: 1; cursor: pointer; }
+html.isr-cal-on input[type="date"]:hover::-webkit-calendar-picker-indicator { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%230071e3' stroke-width='1.8' stroke-linecap='round'%3E%3Crect x='3.5' y='5' width='17' height='15' rx='3'/%3E%3Cpath d='M3.5 10h17M8 3v4M16 3v4'/%3E%3C/svg%3E"); }
+@media (prefers-reduced-motion: reduce) { .isr-cal, .isr-cal.is-closing, .isr-cal-grid { animation: none !important; } }
+
+/* 🔴 CSS CHANGED (2026-11-14): the clean-up from the full page review | from: buttons side by side touching each other on partner cards; an outlined box inside each partner card; the count above a list pressed against it | to: 8px between buttons, which wrap neatly; the inner box a soft grey panel with no outline; 14px between a count and its list */
+.bp-foot { gap: 8px; flex-wrap: wrap; }
+.bp-submit, .pu-submit { border: 0 !important; background: rgba(0, 0, 0, .035) !important; border-radius: 14px !important; }
+.pu-count, #count, .bp-count { margin-bottom: 14px; }
+/* 🔴 CSS CHANGED (2026-11-14): date boxes in forms | from: the browser's "mm/dd/yyyy" in the box (month first, which reads wrongly in Nepal and the UK) | to: the date written "14 Nov 2026", or "Choose a date" in grey when empty; the browser's day, month and year boxes show only while a date is being typed */
+.p-date { position: relative; display: block; }
+.p-date input[type="date"] { width: 100%; }
+.p-date:not(.typing) input[type="date"]::-webkit-datetime-edit { opacity: 0; }
+.p-date-text { position: absolute; left: 15px; right: 44px; top: 50%; transform: translateY(-50%); overflow: hidden; color: #1d1d1f; font-size: 15px; white-space: nowrap; text-overflow: ellipsis; pointer-events: none; }
+.p-date.is-empty .p-date-text { color: #86868b; }
+.p-date.typing .p-date-text { visibility: hidden; }
+
+/* 🔴 CSS CHANGED (2026-11-14): the rest of the full page review | from: on Users, five buttons per person wrapping onto two lines, and peach initials; the chosen message template marked with a coloured bar; dashed boxes for the words filled in from the student; yellow outlined warnings (for example "Email is not set up on this server yet"); square grey checkboxes | to: on Users, one "Edit" pill and a "\2026" pill that opens a small Apple-style menu (Reset password, Log out everywhere, Disable, and Remove in red), grey initials; the chosen template a soft grey highlight with no bar; the fill-in words as soft grey pills in the system font; warnings as a soft panel with an orange dot; checkboxes and radio buttons in Apple blue */
+.row-more { position: relative; display: inline-block; }
+.row-more > summary { list-style: none; cursor: pointer; min-width: 36px; text-align: center; letter-spacing: .05em; }
+.row-more > summary::-webkit-details-marker { display: none; }
+.row-menu { position: absolute; right: 0; top: calc(100% + 6px); z-index: 30; display: grid; min-width: 210px; padding: 6px; border-radius: 14px; background: rgba(251, 251, 253, .97); -webkit-backdrop-filter: saturate(180%) blur(20px); backdrop-filter: saturate(180%) blur(20px); box-shadow: 0 16px 44px -12px rgba(0, 0, 0, .3), 0 0 0 .5px rgba(0, 0, 0, .1); animation: isr-cal-in .2s cubic-bezier(.32, .72, 0, 1) both; transform-origin: top right; }
+.row-menu button { padding: 9px 12px; border: 0; border-radius: 8px; background: transparent; color: #1d1d1f; font: inherit; font-size: 14.5px; text-align: left; cursor: pointer; }
+.row-menu button:hover { background: #0071e3; color: #fff; }
+.row-menu button.danger { color: #d70015; }
+.row-menu button.danger:hover { background: #d70015; color: #fff; }
+.actions:has(.row-more) { display: flex; justify-content: flex-end; align-items: center; gap: 8px; flex-wrap: nowrap; }
+.avatar { background: linear-gradient(180deg, #a1a1a6, #86868b) !important; color: #fff !important; }
+.tp-item.on { background: rgba(0, 0, 0, .06); }
+.tp-item.on::before { content: none; }
+.tp-chip { border: 0; border-radius: 980px; background: rgba(0, 0, 0, .05); color: #1d1d1f; font-family: var(--font); font-size: 13.5px; transition: background-color .15s, transform .15s; }
+.tp-chip:hover { background: rgba(0, 113, 227, .12); color: #0066cc; }
+.tp-chip:active { transform: scale(.95); }
+.p-notice.warn, .tp-note.warn, .tp-note.ok { display: flex; align-items: baseline; gap: 10px; border: 0; background: var(--panel, #fbfbfd); color: #1d1d1f; box-shadow: 0 1px 2px rgba(0, 0, 0, .04), 0 2px 10px rgba(0, 0, 0, .04); }
+.p-notice.warn::before, .tp-note.warn::before, .tp-note.ok::before { content: ""; flex: none; width: 8px; height: 8px; border-radius: 50%; background: #ff9500; transform: translateY(-1px); }
+input[type="checkbox"], input[type="radio"] { accent-color: #0071e3; }
+.tp-note.ok::before { background: #34c759; }
+/* 🔴 CSS CHANGED (2026-11-14): the line of steps on the student card | from: finished steps as near-black bars | to: finished steps in soft blue, the step the student is on in full Apple blue (it fills in from the left when the card opens), the steps to come in light grey, all with round ends */
+.p-journey-bar i.now { transform-origin: left center; animation: isr-grow .7s cubic-bezier(.32, .72, 0, 1) .15s backwards; }
+@media (prefers-reduced-motion: reduce) { .p-journey-bar i.now { animation: none; } }
+/* 🔴 CSS CHANGED (2026-11-14): forms | from: an empty dropdown was a blank box; a section heading sat right on the first labels under it | to: an empty dropdown reads "Choose…" in grey; 16px between a section heading and its form */
+select:has(> option:checked[value=""]) { color: #86868b; }
+select option { color: #1d1d1f; }
+.p-card > h2 + .p-form, .p-card > h2 + .p-form-2 { margin-top: 16px; }
+
+/* 🔴 CSS CHANGED (2026-11-14): phones, from the full page review | from: on Events and marketing the big rupee figures broke onto two lines; on partner cards the label and the value sat side by side and emails broke in the middle; on the student card the round initials took a column of their own and the tabs wrapped onto a second line | to: figures 24px so they fit on one line; on partner cards each label sits above its value; on the student card the initials sit above the name and the name and details use the full width; the tabs stay on one line (they scroll sideways if they ever need to) */
+@media (max-width: 600px) {
+  .ev-band b { font-size: 24px !important; white-space: nowrap; }
+  .bp-facts { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+  .bp-facts dd { margin-bottom: 10px; overflow-wrap: break-word; }
+  body:has(.p-embed-bar) .p-card.p-hero, .p-hero { grid-template-columns: minmax(0, 1fr) !important; }
+  .p-hero .p-avatar { width: 52px !important; height: 52px !important; }
+  .p-tabs { display: flex; flex-wrap: nowrap; max-width: 100%; overflow-x: auto; scrollbar-width: none; }
+  .p-tabs > button { flex: none; white-space: nowrap; }
 }

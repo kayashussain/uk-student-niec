@@ -86,7 +86,8 @@ input:focus, textarea:focus { outline: 2px solid var(--blue); outline-offset: 1p
 .intake h3 { margin-top: 0; font-size: 15px; }
 .intake .deadline { color: var(--dim); font-weight: 400; font-size: 13px; }
 .label { margin: 8px 0 2px; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--dim); }
-.placeholder { color: var(--dim); font-style: italic; }
+/* 🔴 CSS CHANGED (2026-11-14): hint text no longer slanted | from: italic grey | to: plain grey (Apple never slants text) */
+.placeholder { color: var(--dim); }
 .foot { margin-top: 24px; padding-top: 10px; border-top: 1px solid var(--border); color: var(--dim); font-size: 12px; }
 
 /* The jump bar on a long page */

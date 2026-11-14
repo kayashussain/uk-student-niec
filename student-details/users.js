@@ -14,9 +14,9 @@
   const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({
     '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
   }[c]));
-  const when = (iso) => (iso ? new Date(iso).toLocaleString(undefined, {
-    month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit',
-  }) : 'Never');
+  // "14 Nov 2026, 2:19 pm", as every date in ISR.
+  const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const when = (iso) => { if (!iso) return 'Never'; const d = new Date(iso); return `${d.getDate()} ${MON[d.getMonth()]} ${d.getFullYear()}, ${d.toLocaleTimeString('en-GB', { hour: 'numeric', minute: '2-digit', hour12: true })}`; };
   const initials = (name) => String(name || '?').split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase();
   let me = null;
   let people = {}; // user id -> person, for the questions and the edit box
@@ -131,12 +131,17 @@
       const actions = self ? `<div class="actions"><button class="btn btn-sm" data-act="edit" data-id="${u.id}">Edit name or email</button><span class="muted">This is you</span></div>` : `
         <div class="actions">
           <button class="btn btn-sm" data-act="edit" data-id="${u.id}">Edit</button>
-          <button class="btn btn-sm" data-act="reset-password" data-id="${u.id}">${notSetUp ? 'Resend setup email' : 'Reset password'}</button>
-          <button class="btn btn-sm" data-act="logout-everywhere" data-id="${u.id}">Log out everywhere</button>
-          ${u.disabled
-    ? `<button class="btn btn-sm" data-act="enable" data-id="${u.id}">Enable</button>`
-    : `<button class="btn btn-sm" data-act="disable" data-id="${u.id}">Disable</button>`}
-          <button class="btn btn-sm btn-danger" data-act="remove" data-id="${u.id}">Remove</button>
+          <details class="row-more">
+            <summary class="btn btn-sm" aria-label="More for ${esc(u.name)}" title="More">\u2026</summary>
+            <div class="row-menu" role="menu">
+              <button type="button" role="menuitem" data-act="reset-password" data-id="${u.id}">${notSetUp ? 'Resend setup email' : 'Reset password'}</button>
+              <button type="button" role="menuitem" data-act="logout-everywhere" data-id="${u.id}">Log out everywhere</button>
+              ${u.disabled
+    ? `<button type="button" role="menuitem" data-act="enable" data-id="${u.id}">Enable</button>`
+    : `<button type="button" role="menuitem" data-act="disable" data-id="${u.id}">Disable</button>`}
+              <button type="button" role="menuitem" class="danger" data-act="remove" data-id="${u.id}">Remove</button>
+            </div>
+          </details>
         </div>`;
       return `<tr class="${u.disabled ? 'is-disabled' : ''}">
         <td><div class="who"><span class="avatar" aria-hidden="true">${esc(initials(u.name))}</span><div><b>${esc(u.name)}</b><span>${esc(u.username)}${u.email ? ' &middot; ' + esc(u.email) : ''}</span></div></div></td>
@@ -166,9 +171,13 @@
     remove: 'Remove', disable: 'Disable', 'reset-password': 'Reset password', 'logout-everywhere': 'Log out',
   };
 
+  // One "…" menu open at a time; it closes when something outside it is clicked, or once a choice is made.
+  const closeMenus = (except) => document.querySelectorAll('.row-more[open]').forEach((d) => { if (d !== except) d.open = false; });
+  document.addEventListener('click', (e) => { closeMenus(e.target.closest('.row-more')); });
   $('users').addEventListener('click', async (e) => {
     const btn = e.target.closest('button[data-act]');
     if (!btn) return;
+    closeMenus(null);
     const person = people[btn.dataset.id];
     if (!person) return;
     if (btn.dataset.act === 'edit') { openEdit(person); return; }

@@ -228,3 +228,197 @@
   };
   new MutationObserver((list) => list.forEach((m) => m.addedNodes.forEach(scan))).observe(document.documentElement, { childList: true, subtree: true });
 })();
+
+// The calendar of every date box, in the look of Apple's own (the owner, 14 Nov 2026: the browser's calendar looked old): a light
+// rounded panel with the month and year, arrows, the days in round cells, today in blue, the chosen day filled blue, and Today and
+// Clear underneath. It opens when a date box is clicked (or a page asks for it with showPicker) and puts the date in the box as if it
+// had been picked from the browser's own calendar ("input" and "change" are sent, so every page keeps working as before). Typing a
+// date still works. On a phone or a tablet the phone's own date wheel is used (that already is the Apple one on an iPhone).
+(function () {
+  if (typeof document === 'undefined' || !window.HTMLInputElement) return;
+  const fine = window.matchMedia && window.matchMedia('(pointer: fine)').matches;
+  if (!fine) return;
+  document.documentElement.classList.add('isr-cal-on');
+  const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+  const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  const pad = (n) => String(n).padStart(2, '0');
+  const iso = (y, m, d) => `${y}-${pad(m + 1)}-${pad(d)}`;
+  const todayIso = () => { const t = new Date(); return iso(t.getFullYear(), t.getMonth(), t.getDate()); };
+  let open = null; // { input, panel, y, m, focus }
+
+  function close(refocus) {
+    if (!open) return;
+    const { panel, input } = open;
+    open = null;
+    panel.classList.add('is-closing');
+    setTimeout(() => panel.remove(), 140);
+    document.removeEventListener('mousedown', outside, true);
+    document.removeEventListener('keydown', keys, true);
+    window.removeEventListener('resize', place);
+    window.removeEventListener('scroll', place, true);
+    if (refocus) input.focus();
+  }
+  function outside(e) { if (open && !open.panel.contains(e.target) && e.target !== open.input) close(false); }
+  function choose(value) {
+    const { input } = open;
+    close(true);
+    if (input.value === value) return;
+    input.value = value;
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+  }
+  function place() {
+    if (!open) return;
+    const r = open.input.getBoundingClientRect();
+    const p = open.panel;
+    const h = p.offsetHeight; const w = p.offsetWidth;
+    const below = r.bottom + 8 + h <= window.innerHeight || r.top - 8 - h < 0;
+    p.style.top = `${Math.max(8, below ? r.bottom + 8 : r.top - 8 - h)}px`;
+    p.style.left = `${Math.max(8, Math.min(r.left, window.innerWidth - w - 8))}px`;
+    p.classList.toggle('above', !below);
+  }
+  function draw() {
+    const { panel, y, m, input } = open;
+    const chosen = input.value;
+    const min = input.min || ''; const max = input.max || '';
+    const first = new Date(y, m, 1);
+    const lead = (first.getDay() + 6) % 7; // Monday first
+    const days = new Date(y, m + 1, 0).getDate();
+    const today = todayIso();
+    const cells = [];
+    for (let i = 0; i < lead; i += 1) cells.push('<span class="isr-cal-gap"></span>');
+    for (let d = 1; d <= days; d += 1) {
+      const v = iso(y, m, d);
+      const off = (min && v < min) || (max && v > max);
+      cells.push(`<button type="button" class="isr-cal-day${v === today ? ' is-today' : ''}${v === chosen ? ' is-on' : ''}${v === open.focus ? ' is-focus' : ''}" data-v="${v}"${off ? ' disabled' : ''} aria-label="${d} ${MONTHS[m]} ${y}"${v === chosen ? ' aria-pressed="true"' : ''}>${d}</button>`);
+    }
+    panel.innerHTML = `
+      <div class="isr-cal-head">
+        <b class="isr-cal-title">${MONTHS[m]} <span>${y}</span></b>
+        <div class="isr-cal-nav">
+          <button type="button" class="isr-cal-prev" aria-label="Previous month"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>
+          <button type="button" class="isr-cal-next" aria-label="Next month"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button>
+        </div>
+      </div>
+      <div class="isr-cal-week">${DAYS.map((d) => `<span>${d.slice(0, 1)}</span>`).join('')}</div>
+      <div class="isr-cal-grid" role="grid">${cells.join('')}</div>
+      <div class="isr-cal-foot">
+        <button type="button" class="isr-cal-clear"${input.required ? ' hidden' : ''}>Clear</button>
+        <button type="button" class="isr-cal-today">Today</button>
+      </div>`;
+  }
+  function move(months) {
+    const d = new Date(open.y, open.m + months, 1);
+    open.y = d.getFullYear(); open.m = d.getMonth();
+    open.panel.classList.remove('slide-left', 'slide-right');
+    void open.panel.offsetWidth;
+    open.panel.classList.add(months > 0 ? 'slide-left' : 'slide-right');
+    draw();
+  }
+  function keys(e) {
+    if (!open) return;
+    if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); close(true); return; }
+    const step = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -7, ArrowDown: 7 }[e.key];
+    if (step && (document.activeElement === open.input || open.panel.contains(document.activeElement))) {
+      e.preventDefault();
+      const base = open.focus || open.input.value || todayIso();
+      const [y, m, d] = base.split('-').map(Number);
+      const t = new Date(y, m - 1, d + step);
+      open.focus = iso(t.getFullYear(), t.getMonth(), t.getDate());
+      if (t.getFullYear() !== open.y || t.getMonth() !== open.m) { open.y = t.getFullYear(); open.m = t.getMonth(); }
+      draw();
+      return;
+    }
+    if (e.key === 'Enter' && open.focus && document.activeElement === open.input) { e.preventDefault(); choose(open.focus); }
+    if (e.key === 'PageUp') { e.preventDefault(); move(-1); }
+    if (e.key === 'PageDown') { e.preventDefault(); move(1); }
+  }
+  function show(input) {
+    if (open && open.input === input) return;
+    close(false);
+    if (input.disabled || input.readOnly) return;
+    const base = /^\d{4}-\d{2}-\d{2}$/.test(input.value) ? input.value : todayIso();
+    const [y, m] = base.split('-').map(Number);
+    const panel = document.createElement('div');
+    panel.className = 'isr-cal';
+    panel.setAttribute('role', 'dialog');
+    panel.setAttribute('aria-label', 'Choose a date');
+    // Clicks inside keep the date box focused, so a page that waits for the box to lose focus is not disturbed.
+    panel.addEventListener('mousedown', (e) => { e.preventDefault(); });
+    panel.addEventListener('click', (e) => {
+      const b = e.target.closest('button');
+      if (!b || b.disabled) return;
+      if (b.classList.contains('isr-cal-prev')) move(-1);
+      else if (b.classList.contains('isr-cal-next')) move(1);
+      else if (b.classList.contains('isr-cal-today')) choose(todayIso());
+      else if (b.classList.contains('isr-cal-clear')) choose('');
+      else if (b.dataset.v) choose(b.dataset.v);
+    });
+    // Shown in the top layer (above any pop-up such as Add student), where the browser can; else inside the open pop-up.
+    // It is placed inside the open pop-up when there is one (the rest of the page cannot be clicked then).
+    (input.closest('dialog[open]') || document.body).append(panel);
+    if (typeof panel.showPopover === 'function') { panel.popover = 'manual'; panel.showPopover(); }
+    open = { input, panel, y, m: m - 1, focus: '' };
+    draw();
+    place();
+    document.addEventListener('mousedown', outside, true);
+    document.addEventListener('keydown', keys, true);
+    window.addEventListener('resize', place);
+    window.addEventListener('scroll', place, true);
+  }
+  // A page that opens the calendar itself (the date cells of All Students) gets this one too.
+  const native = HTMLInputElement.prototype.showPicker;
+  HTMLInputElement.prototype.showPicker = function showPicker() {
+    if (this.type === 'date') { show(this); return undefined; }
+    return native ? native.call(this) : undefined;
+  };
+  document.addEventListener('click', (e) => {
+    const input = e.target && e.target.closest && e.target.closest('input[type="date"]');
+    if (!input) return;
+    e.preventDefault(); // not the browser's own calendar
+    show(input);
+  }, true);
+  // Typing in the box moves the calendar to the typed month.
+  document.addEventListener('input', (e) => {
+    if (!open || e.target !== open.input || !/^\d{4}-\d{2}-\d{2}$/.test(open.input.value)) return;
+    const [y, m] = open.input.value.split('-').map(Number);
+    open.y = y; open.m = m - 1; draw();
+  }, true);
+})();
+
+// Every date box reads "14 Nov 2026" (or "Choose a date"), not the browser's "mm/dd/yyyy" (month first, which reads wrongly in Nepal
+// and the UK). The box keeps working as before: a click opens the calendar above, and typing shows the browser's own day, month and
+// year boxes while a date is typed. The date cells of All Students draw their own text and are left alone.
+(function () {
+  if (typeof document === 'undefined' || !window.MutationObserver) return;
+  const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const words = (v) => { const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(v || ''); return m ? `${Number(m[3])} ${MON[Number(m[2]) - 1]} ${m[1]}` : ''; };
+  function dress(input) {
+    if (input.dataset.dressed || input.classList.contains('date-input') || input.closest('#body, .p-date')) return;
+    input.dataset.dressed = '1';
+    const box = document.createElement('span');
+    box.className = 'p-date';
+    const shown = document.createElement('span');
+    shown.className = 'p-date-text';
+    shown.setAttribute('aria-hidden', 'true');
+    input.replaceWith(box);
+    box.append(input, shown);
+    const show = () => { shown.textContent = words(input.value) || input.placeholder || 'Choose a date'; box.classList.toggle('is-empty', !input.value); };
+    input.addEventListener('input', show);
+    input.addEventListener('change', show);
+    input.addEventListener('keydown', (e) => { if (/^\d$/.test(e.key) || e.key === 'Backspace') box.classList.add('typing'); });
+    input.addEventListener('blur', () => { box.classList.remove('typing'); show(); });
+    // A page that sets the value itself (a filter reset, a form filled in) is followed too.
+    const desc = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value');
+    Object.defineProperty(input, 'value', { configurable: true, get() { return desc.get.call(this); }, set(v) { desc.set.call(this, v); show(); } });
+    show();
+  }
+  const scan = (node) => {
+    if (!node || node.nodeType !== 1) return;
+    if (node.matches('input[type="date"]')) dress(node);
+    node.querySelectorAll('input[type="date"]').forEach(dress);
+  };
+  new MutationObserver((list) => list.forEach((m) => m.addedNodes.forEach(scan))).observe(document.documentElement, { childList: true, subtree: true });
+  document.addEventListener('DOMContentLoaded', () => scan(document.body));
+  if (document.body) scan(document.body);
+})();

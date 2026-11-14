@@ -317,9 +317,10 @@ td.calculated { background: var(--focus-dim) !important; cursor: default; color:
 td.date { font-variant-numeric: tabular-nums; color: var(--text-dim); padding: 3px 26px 3px 10px; cursor: pointer; }
 /* Calendar icon, drawn as a background so the many date cells shown as text cost no extra elements.
    #body gives it priority over the striped/hover row backgrounds, which would otherwise wipe it. */
+/* 🔴 CSS CHANGED (2026-11-14): the calendar icon of the date cells | from: a small dark-grey square icon | to: the same rounded, lighter calendar as every date box (it opens the new Apple-style calendar) */
 #body td.date {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2.2'%3E%3Crect x='3' y='5' width='18' height='16' rx='2'/%3E%3Cpath d='M3 10h18M8 3v4M16 3v4'/%3E%3C/svg%3E");
-  background-repeat: no-repeat; background-position: right 8px center;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='15' height='15' viewBox='0 0 24 24' fill='none' stroke='%23a1a1a6' stroke-width='1.8' stroke-linecap='round'%3E%3Crect x='3.5' y='5' width='17' height='15' rx='3'/%3E%3Cpath d='M3.5 10h17M8 3v4M16 3v4'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 9px center;
 }
 /* While a date is being picked the real date box is in the cell, and it must look exactly like the cell did before: the same
    text in the same place, the same calendar icon (the cell's own), no outline, no "mm/dd/yyyy", no extra buttons. Clicking a
@@ -338,7 +339,8 @@ td.date { font-variant-numeric: tabular-nums; color: var(--text-dim); padding: 3
 #body td.date .date-input::-webkit-calendar-picker-indicator { position: absolute; right: 0; top: 0; width: 34px; height: 100%; margin: 0; padding: 0; opacity: 0; cursor: pointer; }
 /* A WhatsApp number shared by more than one student on the sheet. !important beats the striped/hover row backgrounds. */
 td.duplicate-phone { background: #fff176 !important; color: #1c2126; font-weight: 600; }
-td.date-note { color: var(--text-dim); font-style: italic; }
+/* 🔴 CSS CHANGED (2026-11-14): hint text no longer slanted | from: italic grey | to: plain grey (Apple never slants text) */
+td.date-note { color: var(--text-dim); }
 #body td.lang-test, td.lang-test { padding: 5px 8px; white-space: nowrap; text-overflow: clip; }
 td.lang-test .date-input { width: 128px; margin-left: 8px; padding: 2px 0; vertical-align: middle; outline: none; border: 0; border-radius: 0; box-shadow: none; background: transparent; }
 td.lang-test .date-input:focus { outline: none; background: transparent; }

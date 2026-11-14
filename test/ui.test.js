@@ -711,7 +711,7 @@ test('screens: log in, edit, delete, search, team rules, Fact File', { timeout: 
     await cell.locator('input').evaluate((el) => { el.value = '2026-11-12'; el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('change', { bubbles: true })); });
     await page.waitForSelector('.eg-box');
     await page.click('.eg-ok');
-    await page.waitForFunction(() => /11\/12\/2026/.test(document.querySelector('#body tr:not(.pad-row) td.date').textContent === '' ? '' : [...document.querySelectorAll('#body tr:not(.pad-row)')][0].innerText), null, { timeout: 5000 });
+    await page.waitForFunction(() => /12 Nov 2026/.test(document.querySelector('#body tr:not(.pad-row) td.date').textContent === '' ? '' : [...document.querySelectorAll('#body tr:not(.pad-row)')][0].innerText), null, { timeout: 5000 });
 
     // Filter on Application Stage, then refresh: the filter is still on.
     const statusTh = page.locator('#headerRow th[data-col="APPLICATION STATUS"]');
