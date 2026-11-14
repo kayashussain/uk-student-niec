@@ -53,15 +53,33 @@
 
 
   // Rows of a spreadsheet (arrays of cells) to students. A first row with headings (First name, Last name, Name, Email, Phone ...) names the
-  // columns; without headings each row is read like a pasted line. Other columns a lead list often has are kept too: the programme
-  // (as the study level), the day of the enquiry, the intake the student asked for, and anything else as a line for the first note.
+  // columns; without headings each row is read like a pasted line. Every list is different (a Facebook export, an event's sign-up
+  // sheet, a campaign's report), so each column is read by what its heading means (the owner, 14 Nov 2026):
+  //   who: the name, email and phone;
+  //   when: the inquiry date (written in any common way: 12 November 2026, 12/11/2026, 2026-11-12, an Excel date) and its time,
+  //         kept as the student's first inquiry day and time, never copied into a note;
+  //   what: the programme (also read as the study level) and the intake asked for, and comments, remarks, questions or anything
+  //         else about the student: these go into the note;
+  //   left out: what is about the list and not the student: the inquiry or serial number, ids, links (an inbox link), and the
+  //         platform, campaign, ad, ad set and form names (the event or campaign itself already says where the student came from).
+  const MONTHS = { jan: 1, feb: 2, mar: 3, apr: 4, may: 5, jun: 6, jul: 7, aug: 8, sep: 9, oct: 10, nov: 11, dec: 12 };
+  const ymd = (y, m, d) => { y = Number(y); m = Number(m); d = Number(d); if (y < 100) y += 2000; const t = new Date(Date.UTC(y, m - 1, d)); return y > 1990 && y < 2100 && t.getUTCMonth() === m - 1 && t.getUTCDate() === d ? t.toISOString().slice(0, 10) : ''; };
   const dayOf = (c, isDate) => {
     if (c instanceof Date && !Number.isNaN(c.getTime())) return c.toISOString().slice(0, 10);
     const n = Number(c);
     // An Excel day number (46338.9 is 12 Nov 2026) in a column about a date.
     if (isDate && Number.isFinite(n) && n > 20000 && n < 80000) return new Date(Date.UTC(1899, 11, 30) + Math.floor(n) * 86400000).toISOString().slice(0, 10);
-    const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(c || ''));
-    return m ? m[0] : '';
+    const s = String(c === null || c === undefined ? '' : (c.text || c.result || c)).trim();
+    let m = /^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})/.exec(s);
+    if (m) return ymd(m[1], m[2], m[3]);
+    if (!isDate) return '';
+    m = /^(\d{1,2})(?:st|nd|rd|th)?[\s\-/.,]+([a-z]{3,})\.?[\s\-/.,]+(\d{2,4})/i.exec(s); // 12 November 2026, 12-Nov-26
+    if (m && MONTHS[m[2].slice(0, 3).toLowerCase()]) return ymd(m[3], MONTHS[m[2].slice(0, 3).toLowerCase()], m[1]);
+    m = /^([a-z]{3,})\.?\s+(\d{1,2})(?:st|nd|rd|th)?,?\s+(\d{4})/i.exec(s); // November 12, 2026
+    if (m && MONTHS[m[1].slice(0, 3).toLowerCase()]) return ymd(m[3], MONTHS[m[1].slice(0, 3).toLowerCase()], m[2]);
+    m = /^(\d{1,2})[/.-](\d{1,2})[/.-](\d{2,4})/.exec(s); // 12/11/2026 is 12 November (day first, as in Nepal); 11/25/2026 can only be month first
+    if (m) return Number(m[2]) > 12 ? ymd(m[3], m[1], m[2]) : ymd(m[3], m[2], m[1]);
+    return '';
   };
   // "9:23 pm" from an Excel day number with a time (46338.89 is 12 Nov 2026, 9:21 pm), a Date, or text with a time in it.
   const timeOf = (c) => {
@@ -80,18 +98,23 @@
   const levelOf = (v) => (/top.?up/i.test(v) ? 'Top-up (final year)' : /pre.?masters?/i.test(v) ? 'Pre-Masters' : /international year|\biy1\b/i.test(v) ? 'International Year 1'
     : /foundation|pathway/i.test(v) ? 'Foundation' : /ph\.?d|doctor|by research|\bmres\b/i.test(v) ? 'Masters by Research or PhD'
       : /master|post\s*grad|msc|\bma\b|mba|\bpg\b/i.test(v) ? 'Postgraduate' : /bachelor|under\s*grad|bsc|\bba\b|degree|\bug\b/i.test(v) ? 'Undergraduate' : '');
+  // What is about the list, not the student: never read into a note.
+  const LIST_ONLY = /inquiry\s*(no|number|#)|enquiry\s*(no|number|#)|^s\.?\s*no\.?$|^s\.?\s*n\.?$|serial|^no\.?$|^#$|(^|[\s_])id$|_id$|^id\b|link|url|inbox|platform|campaign|^ad[\s_]|ad\s*name|adset|ad\s*set|^form|form[\s_]name|is_organic|utm|^source$|lead\s*source/;
+  const isLink = (v) => /^(https?:\/\/|www\.)/i.test(String(v || '').trim());
   function fromGrid(grid, max = 200) {
     const heads = (grid[0] || []).map((c) => String(c === null || c === undefined ? '' : (c.text || c.result || c)).trim());
     const head = heads.map((c) => c.toLowerCase());
-    const find = (re) => head.findIndex((c) => re.test(c));
-    const col = { first: find(/first\s*name|given/), last: find(/last\s*name|surname|family/), name: find(/^(full\s*)?name$|student/), email: find(/e-?mail/), phone: find(/phone|mobile|contact|whatsapp|number/) };
+    const find = (re, not) => head.findIndex((c) => re.test(c) && !(not && not.test(c)));
+    const col = { first: find(/first\s*name|given/), last: find(/last\s*name|surname|family/), name: find(/^(full[\s_]*)?name$|student|full[\s_]name/), email: find(/e-?mail/), phone: find(/phone|mobile|contact|whatsapp|cell/, /e-?mail/) };
     const hasHead = Object.values(col).some((i) => i >= 0);
-    const more = { level: find(/programme|program|level|degree|course/), intake: find(/intake/), date: find(/date|when|time/), place: -1 };
-    // The place: a column about where the student lives that is not already the email or phone ("Email Address" is not a place).
     const taken = new Set(Object.values(col).filter((i) => i >= 0));
+    const free = (re, not) => head.findIndex((c, i) => !taken.has(i) && re.test(c) && !(not && not.test(c)));
+    const more = { date: free(/date|created|when|submitted/), level: free(/programme|program|level|degree|course|study/, /intake/), intake: free(/intake/) };
+    more.time = head.findIndex((c, i) => i !== more.date && !taken.has(i) && /time/.test(c));
+    if (more.date < 0 && more.time >= 0) { more.date = more.time; more.time = -1; } // one "time" column with the date and time in it
+    // The place: a column about where the student lives that is not already the email or phone ("Email Address" is not a place).
     more.place = head.findIndex((c, i) => !taken.has(i) && /district|city|address|location|where.*live/.test(c));
-    // The place stays in the note too (it may say more than the district, or name no district at all).
-    const used = new Set([...Object.values(col), more.level, more.intake, more.date].filter((i) => i >= 0));
+    const used = new Set([...taken, more.level, more.intake, more.date, more.time].filter((i) => i >= 0));
     const cellText = (c) => String(c === null || c === undefined ? '' : (c instanceof Date ? dayOf(c) : (c.text || c.result || c))).trim();
     return (hasHead ? grid.slice(1) : grid).filter((r) => r.some((c) => cellText(c))).slice(0, max).map((raw) => {
       const r = raw.map(cellText);
@@ -102,12 +125,11 @@
       const programme = more.level >= 0 ? r[more.level] : '';
       const asked = more.intake >= 0 ? r[more.intake] : '';
       const when = more.date >= 0 ? dayOf(raw[more.date], true) : '';
-      // The time of the enquiry too, when the list has it (an Excel time, or "12/11/2026 21:23"): kept in the first note.
-      const at = more.date >= 0 ? timeOf(raw[more.date]) : '';
-      const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-      const extra = [when && at && `Enquired ${Number(when.slice(8))} ${MON[Number(when.slice(5, 7)) - 1]} ${when.slice(0, 4)} at ${at}`, programme && `${heads[more.level]}: ${programme}`, asked && `${heads[more.intake]}: ${asked}`,
-        ...heads.map((hd, i) => (!used.has(i) && hd && r[i] ? `${hd}: ${r[i]}` : '')).filter(Boolean)].filter(Boolean).join('. ');
-      return { first, last, email: col.email >= 0 ? r[col.email] : '', phone: col.phone >= 0 ? r[col.phone] : '', level: levelOf(programme), intake: asked, inquiryDate: when, place: more.place >= 0 ? r[more.place] : '', extra };
+      const at = (more.time >= 0 ? timeOf(raw[more.time]) : '') || (more.date >= 0 ? timeOf(raw[more.date]) : '');
+      // The note: the programme, the intake asked for, then every other column about the student (comments, questions ...).
+      const extra = [programme && `${heads[more.level]}: ${programme}`, asked && `${heads[more.intake]}: ${asked}`,
+        ...heads.map((hd, i) => (!used.has(i) && hd && r[i] && !LIST_ONLY.test(head[i]) && !isLink(r[i]) ? `${hd}: ${r[i]}` : '')).filter(Boolean)].filter(Boolean).join('. ');
+      return { first, last, email: col.email >= 0 ? r[col.email] : '', phone: col.phone >= 0 ? r[col.phone] : '', level: levelOf(programme), intake: asked, inquiryDate: when, inquiryTime: when ? at : '', place: more.place >= 0 ? r[more.place] : '', extra };
     });
   }
   // ---- Reading an .xlsx file without any library (an .xlsx file is a zip of XML files) ----

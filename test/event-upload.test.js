@@ -94,21 +94,26 @@ test('uploading an event list: found and tagged, added at Inquiry, skipped, noth
   // a comment column): never stopped because they are already there. What is new is added, nothing is replaced, and the same file a
   // third time has nothing new.
   const richer = [
-    { first: 'Early', last: 'Person', phone: '9800099999', inquiryDate: '2026-11-06', extra: 'Enquired 6 Nov 2026 at 9:21 pm. Comment: wants nursing' },
+    { first: 'Early', last: 'Person', phone: '9800099999', inquiryDate: '2026-11-06', inquiryTime: '9:21 pm', extra: 'Comment: wants nursing' },
     { first: 'New', last: 'Two', email: 'new.two@example.com', phone: '9811155566' },
     { first: 'New', last: 'One', phone: '9811122233', email: 'new.one@example.com' },
   ];
   const rich = (await admin('POST', `/api/activities/${ids['ABC event']}/students`, { rows: richer, preview: true })).json;
   assert.deepStrictEqual([rich.counts.update, rich.counts.already], [3, 0], 'every lead has something new');
-  assert.match(rich.rows.find((r) => r.first === 'Early').note, /Will add: inquiry day, inquiry time, more details in a note/);
+  assert.match(rich.rows.find((r) => r.first === 'Early').note, /Will add: inquiry day and time, more details in a note/);
   const richDone = (await admin('POST', `/api/activities/${ids['ABC event']}/students`, { rows: richer })).json;
   assert.strictEqual(richDone.updated, 3);
   const earlyRich = (await admin('GET', `/api/cards/${early}`)).json;
-  assert.strictEqual(earlyRich.card.profile.inquiryDate, '2026-11-06', 'the earlier inquiry day replaces the day the student was added');
+  assert.deepStrictEqual([earlyRich.card.profile.inquiryDate, earlyRich.card.profile.inquiryTime], ['2026-11-06', '9:21 pm'], 'the earlier inquiry day and its time replace the day the student was added');
   assert.ok((await admin('GET', '/api/data')).json.sheets.flatMap((x) => x.rows).some((r) => r.EMAIL === 'new.one@example.com'), 'a blank email is filled in');
-  assert.match(earlyRich.card.notes.at(-1).text, /Enquired 6 Nov 2026 at 9:21 pm\. Comment: wants nursing/);
+  assert.match(earlyRich.card.notes.at(-1).text, /^More from the list of ABC event: Comment: wants nursing\.$/, 'only the comment goes into the note, never the date or time');
   const twoRow = (await admin('GET', '/api/data')).json.sheets.flatMap((x) => x.rows).find((r) => r.EMAIL === 'new.two@example.com');
   assert.strictEqual(twoRow['CONTACT NUMBER'], '9811155566', 'a blank phone is filled in');
+  // A note an earlier version wrote by copying every column is tidied away by the next upload (the owner, 14 Nov 2026).
+  await admin('POST', `/api/cards/${early}/notes`, { text: 'From the updated list of ABC event: Inquiry No.: 55. Inquiry Time (NPT): 09:21:33 PM' });
+  const tidy = (await admin('POST', `/api/activities/${ids['ABC event']}/students`, { rows: richer })).json;
+  assert.strictEqual(tidy.updated, 1);
+  assert.ok(!(await admin('GET', `/api/cards/${early}`)).json.card.notes.some((n) => /Inquiry No\./.test(n.text)), 'the copied columns are gone');
   const third = (await admin('POST', `/api/activities/${ids['ABC event']}/students`, { rows: richer, preview: true })).json;
   assert.deepStrictEqual([third.counts.update, third.counts.already], [0, 3], 'the same file again: nothing new');
   const later = (await admin('POST', `/api/activities/${ids['ABC event']}/students`, { rows: [{ first: 'Early', last: 'Person', phone: '9800099999', inquiryDate: '2026-11-09' }], preview: true })).json;

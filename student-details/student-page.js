@@ -266,12 +266,16 @@
       const dl = el('dl', 'p-facts');
       const fact = (k, v) => { const d = el('div', 'p-fact'); d.append(el('dt', '', k), el('dd', '', v || 'Not recorded')); dl.append(d); };
       const g = F.sourceGroup(s.source);
+      // An event or campaign is shown by its name: the date kept beside it in the records is the day the campaign started, not the
+      // student's (the owner, 14 Nov 2026). The student's own first inquiry day and time are shown below it.
+      const plain = (v) => String(v || '').replace(/,\s*\d{1,2} (Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]* \d{4}$/, '');
       fact('Student source', g);
       if (g === 'Branch') fact('Which branch', F.branchName(s.source));
       else if (g === 'Social Media' && (p.sourcePlatform || p.sourceWay)) {
         fact('Platform', p.sourcePlatform);
-        fact('How they came', p.sourceWay === 'Advert' ? `Advert: ${p.sourceDetail || 'campaign not named'}` : 'Organic (by itself)');
-      } else if (p.sourceDetail || (F.SOURCE_DETAILS[g] || []).length || g === 'Agent') fact(F.SOURCE_DETAIL_LABEL[g] || (g === 'Agent' ? 'Which agent' : 'Where exactly'), p.sourceDetail);
+        fact('How they came', p.sourceWay === 'Advert' ? `Advert: ${plain(p.sourceDetail) || 'campaign not named'}` : 'Organic (by itself)');
+      } else if (p.sourceDetail || (F.SOURCE_DETAILS[g] || []).length || g === 'Agent') fact(F.SOURCE_DETAIL_LABEL[g] || (g === 'Agent' ? 'Which agent' : 'Where exactly'), plain(p.sourceDetail));
+      if (p.inquiryDate) fact('First inquiry', `${day(p.inquiryDate)}${p.inquiryTime ? ` at ${p.inquiryTime}` : ''}`);
       if (p.sourceRemarks) fact('Remarks', p.sourceRemarks);
       box.append(dl);
       return box;

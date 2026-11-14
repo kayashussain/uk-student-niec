@@ -96,6 +96,7 @@
     { key: 'sourceDetail', label: 'Where exactly', max: 120 },
     { key: 'sourceRemarks', label: 'Campaign or remarks', max: 160 },
     { key: 'inquiryDate', label: 'First inquiry day', type: 'date' },
+    { key: 'inquiryTime', label: 'First inquiry time', max: 12 }, // "9:21 pm", from a lead list
     { key: 'studyLevel', label: 'Study level', list: 'STUDY_LEVELS' },
     { key: 'qualification', label: 'Highest qualification', list: 'QUALIFICATIONS' },
     { key: 'grade', label: 'GPA or percentage', max: 40 },

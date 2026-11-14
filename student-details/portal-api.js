@@ -836,7 +836,7 @@ function createPortalApi({
     // The first inquiry day is the day the student is added, unless the list it came from says when they enquired. A lead list can
     // also say the level of study the student asked about.
     const asked = /^\d{4}-\d{2}-\d{2}$/.test(text(profile.inquiryDate)) && text(profile.inquiryDate) <= cards.today() ? text(profile.inquiryDate) : cards.today();
-    const saved = cards.setProfile(rowId, { sourceDetail: profile.sourceDetail, sourceRemarks: profile.sourceRemarks || '', inquiryDate: asked, ...(Fields.STUDY_LEVELS.includes(profile.studyLevel) ? { studyLevel: profile.studyLevel } : {}), ...(Fields.DISTRICTS.includes(profile.livesIn) ? { livesIn: profile.livesIn } : {}),
+    const saved = cards.setProfile(rowId, { sourceDetail: profile.sourceDetail, sourceRemarks: profile.sourceRemarks || '', inquiryDate: asked, ...(asked === text(profile.inquiryDate) && /^\d{1,2}:\d{2} (am|pm)$/.test(text(profile.inquiryTime)) ? { inquiryTime: text(profile.inquiryTime) } : {}), ...(Fields.STUDY_LEVELS.includes(profile.studyLevel) ? { studyLevel: profile.studyLevel } : {}), ...(Fields.DISTRICTS.includes(profile.livesIn) ? { livesIn: profile.livesIn } : {}),
       // From the passport, and how a Social Media student came (cleanProfile keeps only what is valid).
       ...Object.fromEntries(['dob', 'passportNo', 'address', 'nationality', 'sourcePlatform', 'sourceWay'].filter((k) => text(profile[k])).map((k) => [k, text(profile[k])])) }, by(req));
     if (!saved.error && text(body.note)) cards.addNote(rowId, { text: body.note, kind: 'note' }, by(req));
@@ -935,15 +935,19 @@ function createPortalApi({
     const fill = {}; const profile = {}; const differs = []; const says = [];
     if (x.email) { const now = text(row.EMAIL).toLowerCase(); if (!now && mailer.isAddress(x.email)) { fill.EMAIL = x.email; says.push('email'); } else if (now && now !== x.email) differs.push(`email ${x.email}`); }
     if (x.phone) { const now = text(row['CONTACT NUMBER']); if (!now && phoneOk(x.phone)) { fill['CONTACT NUMBER'] = x.phone; says.push('phone'); } else if (now && phoneKey(now) !== phoneKey(x.phone)) differs.push(`phone ${x.phone}`); }
-    if (x.inquiryDate && x.inquiryDate <= cards.today() && (!p.inquiryDate || x.inquiryDate < p.inquiryDate)) { profile.inquiryDate = x.inquiryDate; says.push('inquiry day'); }
+    if (x.inquiryDate && x.inquiryDate <= cards.today() && (!p.inquiryDate || x.inquiryDate < p.inquiryDate)) { profile.inquiryDate = x.inquiryDate; profile.inquiryTime = x.inquiryTime || ''; says.push(x.inquiryTime ? 'inquiry day and time' : 'inquiry day'); }
+    else if (x.inquiryTime && x.inquiryDate && x.inquiryDate === p.inquiryDate && !p.inquiryTime) { profile.inquiryTime = x.inquiryTime; says.push('inquiry time'); }
     if (x.level && !p.studyLevel) { profile.studyLevel = x.level; says.push('study level'); }
     if (x.livesIn && !p.livesIn && Fields.DISTRICTS.includes(x.livesIn)) profile.livesIn = x.livesIn;
-    const known = ((card && card.notes) || []).map((n) => String(n.text || '').toLowerCase()).join(' \n ');
-    const fresh = text(x.extra).split(/\.\s+/).map((part) => part.replace(/\.$/, '').trim()).filter((part) => part && !known.includes(part.toLowerCase()));
-    if (fresh.some((f) => /^enquired /i.test(f))) says.push('inquiry time');
-    if (fresh.some((f) => !/^enquired /i.test(f))) says.push('more details in a note');
+    // An earlier list's note that copied every column (the inquiry number, the time, an inbox link; before 14 Nov 2026) is tidied away:
+    // what it said that matters is on the card itself now. It is not counted as known, so nothing worth keeping is lost.
+    const untidy = ((card && card.notes) || []).filter((n) => /^From the updated list of /.test(String(n.text || '')));
+    const known = ((card && card.notes) || []).filter((n) => !untidy.includes(n)).map((n) => String(n.text || '').toLowerCase()).join(' \n ');
+    const fresh = text(x.extra).split(/\.\s+/).map((part) => part.replace(/\.$/, '').trim()).filter((part) => part && !/^enquired /i.test(part) && !known.includes(part.toLowerCase()));
+    if (fresh.length) says.push('more details in a note');
+    if (untidy.length) says.push('a tidier note in place of the earlier list\'s');
     if (differs.length) says.push('a different ' + differs.map((d) => d.split(' ')[0]).join(' and '));
-    return { fill, profile, differs, extra: fresh.join('. '), says };
+    return { fill, profile, differs, extra: fresh.join('. '), says, untidy: untidy.map((n) => n.id) };
   }
   // Puts what newsFor found on the student: the sheet, the card, and one note saying what came from which list.
   function applyNews(req, x, news, ev, intro) {
@@ -951,6 +955,7 @@ function createPortalApi({
     if (!found) return { error: 'not found' };
     if (Object.keys(news.fill).length) { const r = setColumns(req, found, news.fill); if (r.error) return r; }
     if (Object.keys(news.profile).length) cards.setProfile(x.id, news.profile, by(req));
+    (news.untidy || []).forEach((noteId) => cards.removeNote(x.id, noteId, by(req), true));
     const words = [intro, news.differs.length ? `The list also gave ${news.differs.join(' and ')} (the ones on the sheet are kept).` : '', news.extra ? `${news.extra}.` : ''].filter(Boolean).join(' ');
     if (words && (intro || news.differs.length || news.extra)) cards.addNote(x.id, { kind: 'note', text: words }, by(req));
     return {};
@@ -1007,7 +1012,7 @@ function createPortalApi({
       const name = [first, last].filter(Boolean).join(' ');
       const d = digitsOf(phone).slice(-10);
       const asked = intakeFor(r.intake);
-      const extra = { livesIn: Fields.districtOf(r.place), level: Fields.STUDY_LEVELS.includes(r.level) ? r.level : '', inquiryDate: /^\d{4}-\d{2}-\d{2}$/.test(text(r.inquiryDate)) ? text(r.inquiryDate) : '', extra: text(r.extra).slice(0, 600), sheetId: asked ? asked.id : '', intakeName: (asked || chosen || {}).name || '' };
+      const extra = { livesIn: Fields.districtOf(r.place), level: Fields.STUDY_LEVELS.includes(r.level) ? r.level : '', inquiryDate: /^\d{4}-\d{2}-\d{2}$/.test(text(r.inquiryDate)) ? text(r.inquiryDate) : '', inquiryTime: /^\d{1,2}:\d{2} (am|pm)$/.test(text(r.inquiryTime)) ? text(r.inquiryTime) : '', extra: text(r.extra).slice(0, 600), sheetId: asked ? asked.id : '', intakeName: (asked || chosen || {}).name || '' };
       const line = { name, first, last, email, phone, ...extra };
       if (!name) { out.push({ ...line, action: 'problem', note: 'No name' }); continue; }
       if (d.length < 7 && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { out.push({ ...line, action: 'problem', note: 'No phone or email to match the student by' }); continue; }
@@ -1017,7 +1022,8 @@ function createPortalApi({
       if (earlier) {
         if (!earlier.email && email) earlier.email = email;
         if (!earlier.phone && phone) earlier.phone = phone;
-        if (line.inquiryDate && (!earlier.inquiryDate || line.inquiryDate < earlier.inquiryDate)) earlier.inquiryDate = line.inquiryDate;
+        if (line.inquiryDate && (!earlier.inquiryDate || line.inquiryDate < earlier.inquiryDate)) { earlier.inquiryDate = line.inquiryDate; earlier.inquiryTime = line.inquiryTime; }
+        if (!earlier.inquiryTime && line.inquiryTime && line.inquiryDate === earlier.inquiryDate) earlier.inquiryTime = line.inquiryTime;
         if (!earlier.level && line.level) earlier.level = line.level;
         if (!earlier.livesIn && line.livesIn) earlier.livesIn = line.livesIn;
         const parts = new Set(text(earlier.extra).split(/\.\s+/).filter(Boolean));
@@ -1089,7 +1095,7 @@ function createPortalApi({
     let added = 0; let linked = 0; let updated = 0; const failed = [];
     for (const x of out) {
       if (x.action === 'new') {
-        const r = addStudent(req, { fields: { 'FIRST NAME': x.first, 'LAST NAME': x.last, EMAIL: x.email, 'CONTACT NUMBER': x.phone, 'STUDENT SOURCE': source }, profile: { sourceDetail: label, studyLevel: x.level, inquiryDate: x.inquiryDate, livesIn: x.livesIn }, stage: 'Inquiry', sheetId: x.sheetId || body.sheetId, note: `Enquiry from ${ev.name}, from its enquiry list.${x.extra ? ` ${x.extra}.` : ''}` });
+        const r = addStudent(req, { fields: { 'FIRST NAME': x.first, 'LAST NAME': x.last, EMAIL: x.email, 'CONTACT NUMBER': x.phone, 'STUDENT SOURCE': source }, profile: { sourceDetail: label, studyLevel: x.level, inquiryDate: x.inquiryDate, inquiryTime: x.inquiryDate ? x.inquiryTime : '', livesIn: x.livesIn }, stage: 'Inquiry', sheetId: x.sheetId || body.sheetId, note: `Enquiry from ${ev.name}, from its enquiry list.${x.extra ? ` ${x.extra}.` : ''}` });
         if (r.status === 200) { added += 1; x.id = r.json.id; } else failed.push(`${x.name}: ${r.json.error || 'could not be added'}`);
       } else if (x.action === 'link') {
         const found = rowIndex().get(x.id);
@@ -1101,7 +1107,7 @@ function createPortalApi({
         if (r.error) { failed.push(`${x.name}: ${r.error}`); continue; }
         linked += 1;
       } else if (x.action === 'update') {
-        const r = applyNews(req, x, x.news, ev, (x.news.extra || x.news.differs.length) ? `From the updated list of ${ev.name}:` : '');
+        const r = applyNews(req, x, x.news, ev, (x.news.extra || x.news.differs.length) ? `More from the list of ${ev.name}:` : '');
         if (r.error) { failed.push(`${x.name}: ${r.error}`); continue; }
         updated += 1;
       }
