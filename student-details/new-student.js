@@ -34,6 +34,9 @@
       if (admin) rest.push(make('stage', 'Stage', { kind: 'select', choices: lists.stages.length ? lists.stages : [defaultStage], value: defaultStage }));
       else if (lists.departments.length > 1) rest.push(make('dept', 'Add the student for', { kind: 'select', choices: lists.departments.map((d) => [d.id, `${d.label} (starts at ${d.start})`]), value: lists.departments[0].id }));
       if (rest.length) group(admin ? 'Where the student starts' : 'Stage', ...rest);
+      // Where the student lives now (optional): the Dashboard's map of where students come from.
+      form.append(el('h3', '', 'Where the student lives'));
+      { const g = el('div', 'p-form p-form-2'); g.append(make('livesIn', 'District (now, optional)', { kind: 'select', choices: F.DISTRICTS }).wrap); form.append(g); }
       const note = make('note', 'Note (optional)', { kind: 'area', wide: true, max: 2000, placeholder: 'What was discussed at the first contact.' });
       form.append(note.wrap);
       body.append(form);
@@ -57,7 +60,7 @@
         const pick = picker ? picker.value() : { source: '', detail: '', remarks: '' };
         fields['STUDENT SOURCE'] = pick.source;
         try {
-          const r = await api('/api/students/new', { fields, profile: { sourceDetail: pick.detail, sourceRemarks: pick.remarks }, stage: v('stage'), sheetId: activeSheetId, dept: v('dept'), note: v('note') });
+          const r = await api('/api/students/new', { fields, profile: { sourceDetail: pick.detail, sourceRemarks: pick.remarks, livesIn: v('livesIn') }, stage: v('stage'), sheetId: activeSheetId, dept: v('dept'), note: v('note') });
           close(r);
         } catch (e) { msg.textContent = e.message; msg.className = 'p-msg error'; ok.disabled = false; ok.focus(); }
       });

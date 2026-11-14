@@ -14,6 +14,7 @@
   let dash = null;
   let ins = null;
   let apps = null; // where the applicants came from (/api/applicants)
+  let trends = null; // inquiries and applications over time, and where the students live (/api/trends)
   let isAdmin = false; // only Admin sets the visa target
   let seq = 0;
   let timer = null;
@@ -291,6 +292,12 @@
     const unis = (ins.universities.list || []).filter((g) => g.label && !/not recorded/i.test(g.label));
     const r4 = el('div', 'ov-row'); r4.append(leaderboard('Universities', 'Where the students are placed', unis, null, 'university'));
     page.append(r1, r3, r4);
+    // Deeper: inquiries and applications over time, and where the students live (dashboard-trends.js).
+    if (trends && window.DashboardTrends) {
+      const r5 = el('div', 'ov-row'); r5.append(window.DashboardTrends.overTime(trends));
+      const r6 = el('div', 'ov-row'); r6.append(window.DashboardTrends.map(trends));
+      page.append(r5, r6);
+    }
     if (ins.summary.low) page.append(el('p', 'ov-foot', 'This intake has fewer than 10 students, so a rate from it is a hint, not evidence.'));
     root.replaceChildren(page);
   }
@@ -303,6 +310,7 @@
       if (my !== seq) return;
       dash = d; ins = i; selected = i.selected || d.selected;
       try { apps = await api('/api/applicants?intake=' + encodeURIComponent(selected)); } catch (e) { apps = null; }
+      try { trends = await api('/api/trends?intake=' + encodeURIComponent(selected)); } catch (e) { trends = null; }
       try { isAdmin = (await api('/api/me')).role === 'admin'; } catch (e) { isAdmin = false; }
       picker.replaceChildren(...i.intakes.map((x) => { const o = el('option', '', x.name); o.value = x.id; return o; }));
       picker.value = selected;

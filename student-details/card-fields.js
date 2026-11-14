@@ -38,6 +38,19 @@
   };
   const SOURCE_CAN_ADD = ['Social Media', 'Visitor', 'Reference', 'Language Classes', 'Events'];
 
+  // Nepal's 77 districts, for where a student lives (the owner, 14 Nov 2026: the Dashboard's map of where students come from).
+  const DISTRICTS = ["Achham", "Arghakhanchi", "Baglung", "Baitadi", "Bajhang", "Bajura", "Banke", "Bara", "Bardiya", "Bhaktapur", "Bhojpur", "Chitwan", "Dadeldhura", "Dailekh", "Dang", "Darchula", "Dhading", "Dhankuta", "Dhanusha", "Dolakha", "Dolpa", "Doti", "Gorkha", "Gulmi", "Humla", "Ilam", "Jajarkot", "Jhapa", "Jumla", "Kailali", "Kalikot", "Kanchanpur", "Kapilvastu", "Kaski", "Kathmandu", "Kavrepalanchok", "Khotang", "Lalitpur", "Lamjung", "Mahottari", "Makwanpur", "Manang", "Morang", "Mugu", "Mustang", "Myagdi", "Nawalpur (Nawalparasi East)", "Nuwakot", "Okhaldhunga", "Palpa", "Panchthar", "Parasi (Nawalparasi West)", "Parbat", "Parsa", "Pyuthan", "Ramechhap", "Rasuwa", "Rautahat", "Rolpa", "Rukum East", "Rukum West", "Rupandehi", "Salyan", "Sankhuwasabha", "Saptari", "Sarlahi", "Sindhuli", "Sindhupalchok", "Siraha", "Solukhumbu", "Sunsari", "Surkhet", "Syangja", "Tanahun", "Taplejung", "Terhathum", "Udayapur"];
+  // The district of a place as people write it ("Butwal", "Pokhara-8, Kaski", "kathmandu"): a district named in it, or the district of
+  // a big town. '' when it cannot be told.
+  const TOWNS = { butwal: 'Rupandehi', bhairahawa: 'Rupandehi', siddharthanagar: 'Rupandehi', pokhara: 'Kaski', bharatpur: 'Chitwan', narayangarh: 'Chitwan', biratnagar: 'Morang', birgunj: 'Parsa', dharan: 'Sunsari', itahari: 'Sunsari', nepalgunj: 'Banke', dhangadhi: 'Kailali', hetauda: 'Makwanpur', janakpur: 'Dhanusha', damak: 'Jhapa', birtamod: 'Jhapa', tansen: 'Palpa', ghorahi: 'Dang', tulsipur: 'Dang', patan: 'Lalitpur', kirtipur: 'Kathmandu', banepa: 'Kavrepalanchok', dhulikhel: 'Kavrepalanchok', kavre: 'Kavrepalanchok', mahendranagar: 'Kanchanpur', birendranagar: 'Surkhet', gaur: 'Rautahat', kalaiya: 'Bara', lahan: 'Siraha', rajbiraj: 'Saptari', waling: 'Syangja', damauli: 'Tanahun', baglung: 'Baglung', besisahar: 'Lamjung', gorkha: 'Gorkha', bidur: 'Nuwakot', ilam: 'Ilam', nawalparasi: 'Nawalpur (Nawalparasi East)', kawasoti: 'Nawalpur (Nawalparasi East)', parasi: 'Parasi (Nawalparasi West)', ktm: 'Kathmandu' };
+  function districtOf(place) {
+    const t = String(place || '').toLowerCase();
+    if (!t.trim()) return '';
+    const named = DISTRICTS.find((d) => t.includes(d.toLowerCase().replace(/\s*\(.*\)$/, '')));
+    if (named) return named;
+    const town = Object.keys(TOWNS).find((k) => new RegExp(`\\b${k}\\b`).test(t));
+    return town ? TOWNS[town] : '';
+  }
   const STUDY_LEVELS = ['Foundation', 'Undergraduate', 'Top-up (final year)', 'Pre-Masters', 'Postgraduate', 'MBA', 'MRes or PhD'];
   const QUALIFICATIONS = ['SEE (Grade 10)', '+2 or Grade 12', 'A Levels', 'Diploma or PCL', 'Bachelor (3 years)', 'Bachelor (4 years)', 'Masters'];
   const ENGLISH_TESTS = ['IELTS Academic', 'IELTS UKVI', 'PTE Academic', 'PTE UKVI', 'Duolingo', 'TOEFL iBT', 'OET', 'University internal test', 'MOI or waiver', 'Not taken yet'];
@@ -88,6 +101,12 @@
     { key: 'location', label: 'Where in the UK', max: 120 },
     { key: 'subject', label: 'Subject or course wanted', max: 160 },
     { key: 'lostReason', label: 'Why the student did not go on', list: 'LOST_REASONS' },
+    // Where the student lives now (asked of every inquiry: it is where the marketing reached them) and their home district (from
+    // the passport, once they apply), with the date of birth and the passport number of an applicant. All optional.
+    { key: 'livesIn', label: 'Lives in (district, now)', list: 'DISTRICTS' },
+    { key: 'homeDistrict', label: 'Home district (permanent, as in the passport)', list: 'DISTRICTS' },
+    { key: 'dob', label: 'Date of birth', type: 'date' },
+    { key: 'passportNo', label: 'Passport number', max: 20 },
   ];
 
   // The sheet's columns in the groups the card shows them in (the card never changes them: the sheet does).
@@ -126,6 +145,6 @@
   return {
     BRANCHES, STORED_SOURCES, branchValue, isBranchValue, sourceGroup, branchName, storedSource,
     SOURCE_DETAILS, SOURCE_DETAIL_LABEL, SOURCE_CAN_ADD, STUDY_LEVELS, QUALIFICATIONS, ENGLISH_TESTS, LOST_REASONS, LOST_STAGES,
-    NOTE_KINDS, DOCUMENTS, documentsFor, PROFILE_FIELDS, SHEET_SECTIONS, columnLabel, whatsappNumber, courseSearchUrl,
+    DISTRICTS, districtOf, NOTE_KINDS, DOCUMENTS, documentsFor, PROFILE_FIELDS, SHEET_SECTIONS, columnLabel, whatsappNumber, courseSearchUrl,
   };
 });

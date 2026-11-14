@@ -147,7 +147,7 @@
       let lines;
       try { lines = await window.StudentFile.readFile(f, 1000); } catch (e) { out.replaceChildren(el('div', 'p-notice bad', 'Could not read the file: ' + e.message)); return; }
       if (!lines.length) { out.replaceChildren(el('div', 'p-notice bad', 'No names were found in that file.')); return; }
-      const rows = lines.map((r) => ({ first: r.first, last: r.last, email: r.email, phone: r.phone, level: r.level || '', intake: r.intake || '', inquiryDate: r.inquiryDate || '', extra: r.extra || '' }));
+      const rows = lines.map((r) => ({ first: r.first, last: r.last, email: r.email, phone: r.phone, level: r.level || '', intake: r.intake || '', inquiryDate: r.inquiryDate || '', place: r.place || '', extra: r.extra || '' }));
       let pre;
       try { pre = await api(`/api/activities/${a.id}/students`, { rows, sheetId: intake.value, preview: true }); } catch (e) { out.replaceChildren(el('div', 'p-notice bad', e.message)); return; }
       out.replaceChildren(review(pre, async () => {

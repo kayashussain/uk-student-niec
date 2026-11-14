@@ -40,6 +40,16 @@ test('an .xlsx lead list is read without the Excel library: names, contacts, lev
   const grid = await ctx.StudentFile.readXlsx(file.buffer.slice(file.byteOffset, file.byteOffset + file.length));
   const rows = ctx.StudentFile.fromGrid(grid, 100);
   assert.strictEqual(rows.length, 2);
-  assert.deepStrictEqual(JSON.parse(JSON.stringify(rows[0])), { first: 'Asha', last: 'Example', email: 'asha@example.com', phone: '+9779800000001', level: 'Postgraduate', intake: 'January 2027', inquiryDate: '2026-11-12', extra: "Programme: Master's Degree. Intended UK Study Intake: January 2027" });
+  assert.deepStrictEqual(JSON.parse(JSON.stringify(rows[0])), { first: 'Asha', last: 'Example', email: 'asha@example.com', phone: '+9779800000001', level: 'Postgraduate', intake: 'January 2027', inquiryDate: '2026-11-12', place: '', extra: "Programme: Master's Degree. Intended UK Study Intake: January 2027" });
   assert.deepStrictEqual([rows[1].first, rows[1].phone, rows[1].email], ['Bina', '9800000002', ''], 'a short row, a number cell');
+});
+
+test('a place as people write it gives its district (for the map of where students live)', () => {
+  const F = require('../student-details/card-fields');
+  assert.strictEqual(F.DISTRICTS.length, 77, 'the 77 districts of Nepal');
+  assert.deepStrictEqual(['Butwal', 'Pokhara-8, Kaski', 'kathmandu', 'New Baneshwor, KTM', 'Itahari, Sunsari', 'Rukum East', 'somewhere'].map(F.districtOf),
+    ['Rupandehi', 'Kaski', 'Kathmandu', 'Kathmandu', 'Sunsari', 'Rukum East', '']);
+  const ctx = {};
+  require('node:vm').runInNewContext(fs.readFileSync(path.join(__dirname, '..', 'student-details', 'nepal-map.js'), 'utf8').replace('})(this);', '})(globalThis);'), ctx);
+  assert.ok(F.DISTRICTS.every((d) => ctx.NepalMap.pointOf(d)), 'every district has its place on the map');
 });

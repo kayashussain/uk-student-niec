@@ -70,8 +70,12 @@
     const find = (re) => head.findIndex((c) => re.test(c));
     const col = { first: find(/first\s*name|given/), last: find(/last\s*name|surname|family/), name: find(/^(full\s*)?name$|student/), email: find(/e-?mail/), phone: find(/phone|mobile|contact|whatsapp|number/) };
     const hasHead = Object.values(col).some((i) => i >= 0);
-    const more = { level: find(/programme|program|level|degree|course/), intake: find(/intake/), date: find(/date|when|time/) };
-    const used = new Set([...Object.values(col), ...Object.values(more)].filter((i) => i >= 0));
+    const more = { level: find(/programme|program|level|degree|course/), intake: find(/intake/), date: find(/date|when|time/), place: -1 };
+    // The place: a column about where the student lives that is not already the email or phone ("Email Address" is not a place).
+    const taken = new Set(Object.values(col).filter((i) => i >= 0));
+    more.place = head.findIndex((c, i) => !taken.has(i) && /district|city|address|location|where.*live/.test(c));
+    // The place stays in the note too (it may say more than the district, or name no district at all).
+    const used = new Set([...Object.values(col), more.level, more.intake, more.date].filter((i) => i >= 0));
     const cellText = (c) => String(c === null || c === undefined ? '' : (c instanceof Date ? dayOf(c) : (c.text || c.result || c))).trim();
     return (hasHead ? grid.slice(1) : grid).filter((r) => r.some((c) => cellText(c))).slice(0, max).map((raw) => {
       const r = raw.map(cellText);
@@ -84,7 +88,7 @@
       const when = more.date >= 0 ? dayOf(raw[more.date], true) : '';
       const extra = [programme && `${heads[more.level]}: ${programme}`, asked && `${heads[more.intake]}: ${asked}`,
         ...heads.map((hd, i) => (!used.has(i) && hd && r[i] ? `${hd}: ${r[i]}` : '')).filter(Boolean)].filter(Boolean).join('. ');
-      return { first, last, email: col.email >= 0 ? r[col.email] : '', phone: col.phone >= 0 ? r[col.phone] : '', level: levelOf(programme), intake: asked, inquiryDate: when, extra };
+      return { first, last, email: col.email >= 0 ? r[col.email] : '', phone: col.phone >= 0 ? r[col.phone] : '', level: levelOf(programme), intake: asked, inquiryDate: when, place: more.place >= 0 ? r[more.place] : '', extra };
     });
   }
   // ---- Reading an .xlsx file without any library (an .xlsx file is a zip of XML files) ----

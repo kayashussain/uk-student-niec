@@ -218,8 +218,43 @@
       }
       wrap.append(kind);
     }
-    wrap.append(origin(), notes());
+    wrap.append(origin(), personal(), notes());
     return wrap;
+  }
+
+  // ---- Personal details: where the student lives now (asked of every inquiry), their home district, date of birth and passport
+  // number (from the passport, once they apply). They feed the Dashboard's map of where students come from and the age groups. ----
+  let editingPersonal = false;
+  function personal() {
+    const p = profile();
+    const box = el('section', 'p-card');
+    const head = el('div', 'p-card-head');
+    head.append(el('h2', '', 'Personal details'));
+    if (can() && !editingPersonal) head.append(h('button', { class: 'btn btn-sm', type: 'button', onclick: () => { editingPersonal = true; render(); } }, 'Edit'));
+    box.append(head);
+    if (!editingPersonal) {
+      const dl = el('dl', 'p-facts');
+      const fact = (k, v) => { const d = el('div', 'p-fact'); d.append(el('dt', '', k), el('dd', '', v || 'Not recorded')); dl.append(d); };
+      const age = (() => { if (!p.dob) return ''; const b = new Date(p.dob + 'T12:00:00'); const t = new Date(); let a = t.getFullYear() - b.getFullYear(); if (t < new Date(t.getFullYear(), b.getMonth(), b.getDate())) a -= 1; return a > 0 && a < 100 ? ` (${a})` : ''; })();
+      fact('Lives in', p.livesIn);
+      fact('Home district', p.homeDistrict);
+      fact('Date of birth', p.dob ? day(p.dob) + age : '');
+      fact('Passport number', p.passportNo);
+      box.append(dl);
+      return box;
+    }
+    const lives = field('Lives in (district, now)', { kind: 'select', choices: F.DISTRICTS, value: p.livesIn });
+    const home = field('Home district (as in the passport)', { kind: 'select', choices: F.DISTRICTS, value: p.homeDistrict });
+    const dob = field('Date of birth', { kind: 'date', value: p.dob });
+    const pass = field('Passport number', { value: p.passportNo, max: 20 });
+    const form = el('div', 'p-form p-form-2');
+    form.append(lives.wrap, home.wrap, dob.wrap, pass.wrap);
+    const bar = el('div', 'p-bar');
+    bar.append(h('button', { class: 'btn btn-primary', type: 'button', onclick: async () => {
+      try { await save('profile', { livesIn: lives.input.value, homeDistrict: home.input.value, dob: dob.input.value, passportNo: pass.input.value.trim().toUpperCase() }, 'Saved'); editingPersonal = false; render(); } catch (e) { /* shown */ }
+    } }, 'Save'), h('button', { class: 'btn', type: 'button', onclick: () => { editingPersonal = false; render(); } }, 'Cancel'));
+    box.append(form, bar);
+    return box;
   }
 
   // ---- Where the student came from: shown as text, and changed only after pressing Edit ----

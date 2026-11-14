@@ -34,7 +34,7 @@ function isoDay(v) {
 
 const LISTS = {
   STUDY_LEVELS: Fields.STUDY_LEVELS, QUALIFICATIONS: Fields.QUALIFICATIONS,
-  ENGLISH_TESTS: Fields.ENGLISH_TESTS, LOST_REASONS: Fields.LOST_REASONS,
+  ENGLISH_TESTS: Fields.ENGLISH_TESTS, LOST_REASONS: Fields.LOST_REASONS, DISTRICTS: Fields.DISTRICTS,
 };
 
 // The details of a card as they are kept, whatever was sent: only the known ones, as text, within limits, and a

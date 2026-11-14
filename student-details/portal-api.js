@@ -802,7 +802,7 @@ function createPortalApi({
     // The first inquiry day is the day the student is added, unless the list it came from says when they enquired. A lead list can
     // also say the level of study the student asked about.
     const asked = /^\d{4}-\d{2}-\d{2}$/.test(text(profile.inquiryDate)) && text(profile.inquiryDate) <= cards.today() ? text(profile.inquiryDate) : cards.today();
-    const saved = cards.setProfile(rowId, { sourceDetail: profile.sourceDetail, sourceRemarks: profile.sourceRemarks || '', inquiryDate: asked, ...(Fields.STUDY_LEVELS.includes(profile.studyLevel) ? { studyLevel: profile.studyLevel } : {}) }, by(req));
+    const saved = cards.setProfile(rowId, { sourceDetail: profile.sourceDetail, sourceRemarks: profile.sourceRemarks || '', inquiryDate: asked, ...(Fields.STUDY_LEVELS.includes(profile.studyLevel) ? { studyLevel: profile.studyLevel } : {}), ...(Fields.DISTRICTS.includes(profile.livesIn) ? { livesIn: profile.livesIn } : {}) }, by(req));
     if (!saved.error && text(body.note)) cards.addNote(rowId, { text: body.note, kind: 'note' }, by(req));
     return { status: 200, json: { ok: true, id: rowId, sheetId: sheet.id, revision: getWorkbook().revision } };
   }
@@ -891,7 +891,7 @@ function createPortalApi({
       const name = [first, last].filter(Boolean).join(' ');
       const d = digitsOf(phone).slice(-10);
       const asked = intakeFor(r.intake);
-      const extra = { level: Fields.STUDY_LEVELS.includes(r.level) ? r.level : '', inquiryDate: /^\d{4}-\d{2}-\d{2}$/.test(text(r.inquiryDate)) ? text(r.inquiryDate) : '', extra: text(r.extra).slice(0, 600), sheetId: asked ? asked.id : '', intakeName: (asked || chosen || {}).name || '' };
+      const extra = { livesIn: Fields.districtOf(r.place), level: Fields.STUDY_LEVELS.includes(r.level) ? r.level : '', inquiryDate: /^\d{4}-\d{2}-\d{2}$/.test(text(r.inquiryDate)) ? text(r.inquiryDate) : '', extra: text(r.extra).slice(0, 600), sheetId: asked ? asked.id : '', intakeName: (asked || chosen || {}).name || '' };
       const line = { name, first, last, email, phone, ...extra };
       if (!name) { out.push({ ...line, action: 'problem', note: 'No name' }); continue; }
       if (d.length < 7 && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { out.push({ ...line, action: 'problem', note: 'No phone or email to match the student by' }); continue; }
@@ -928,7 +928,7 @@ function createPortalApi({
     let added = 0; let linked = 0; const failed = [];
     for (const x of out) {
       if (x.action === 'new') {
-        const r = addStudent(req, { fields: { 'FIRST NAME': x.first, 'LAST NAME': x.last, EMAIL: x.email, 'CONTACT NUMBER': x.phone, 'STUDENT SOURCE': source }, profile: { sourceDetail: label, studyLevel: x.level, inquiryDate: x.inquiryDate }, stage: 'Inquiry', sheetId: x.sheetId || body.sheetId, note: `Enquiry from ${ev.name}, from its enquiry list.${x.extra ? ` ${x.extra}.` : ''}` });
+        const r = addStudent(req, { fields: { 'FIRST NAME': x.first, 'LAST NAME': x.last, EMAIL: x.email, 'CONTACT NUMBER': x.phone, 'STUDENT SOURCE': source }, profile: { sourceDetail: label, studyLevel: x.level, inquiryDate: x.inquiryDate, livesIn: x.livesIn }, stage: 'Inquiry', sheetId: x.sheetId || body.sheetId, note: `Enquiry from ${ev.name}, from its enquiry list.${x.extra ? ` ${x.extra}.` : ''}` });
         if (r.status === 200) { added += 1; x.id = r.json.id; } else failed.push(`${x.name}: ${r.json.error || 'could not be added'}`);
       } else if (x.action === 'link') {
         const found = rowIndex().get(x.id);
@@ -970,6 +970,43 @@ function createPortalApi({
     const e = card && eventFor(plan.events, card.profile.sourceDetail);
     const detail = group === 'Branch' ? Fields.branchName(stored) : e ? eventLabel(e.name, e.date) : text(card && card.profile.sourceDetail).slice(0, 120);
     return [group, detail];
+  }
+  // Where a source belongs on the "over time" chart: the paid and social reach, events, what came by itself, branches, agents.
+  const TREND_GROUP = { 'Social Media': 'social', Events: 'events', Branch: 'branch', Agent: 'agent', 'B2B Partner': 'agent', 'Not recorded': 'unknown' };
+  function trendsFor(wb, intakeId) {
+    const sheet = wb.sheets.find((x) => x.id === intakeId) || currentIntake() || wb.sheets[0];
+    const plan = planning.all();
+    const all = cards.all();
+    const today = cards.today();
+    const inquiries = []; const applications = []; const offers = [];
+    let undated = 0;
+    const lives = {}; const home = {}; let noPlace = 0;
+    const ages = { 'Under 20': 0, '20 to 22': 0, '23 to 25': 0, '26 to 29': 0, '30 and over': 0 }; let noAge = 0;
+    const ageOf = (dob) => { const [y, m, d] = dob.split('-').map(Number); const [ty, tm, td] = today.split('-').map(Number); let a = ty - y; if (tm < m || (tm === m && td < d)) a -= 1; return a; };
+    for (const row of (sheet ? sheet.rows : [])) {
+      if (!isStudent(row)) continue;
+      const card = all[row._id];
+      const p = (card && card.profile) || {};
+      const [group] = sourceOf(row, card, plan);
+      const day = /^\d{4}-\d{2}-\d{2}$/.test(p.inquiryDate || '') ? p.inquiryDate : '';
+      if (day) inquiries.push([day, TREND_GROUP[group] || 'organic']); else undated += 1;
+      const applied = isoDate(row['APPLICATION SUBMISSION DATE']); if (applied) applications.push(applied);
+      const offered = isoDate(row['OFFER RECEIVED DATE']); if (offered) offers.push(offered);
+      if (p.livesIn) lives[p.livesIn] = (lives[p.livesIn] || 0) + 1; else noPlace += 1;
+      if (p.homeDistrict) home[p.homeDistrict] = (home[p.homeDistrict] || 0) + 1;
+      if (/^\d{4}-\d{2}-\d{2}$/.test(p.dob || '')) {
+        const a = ageOf(p.dob);
+        const k = a < 20 ? 'Under 20' : a <= 22 ? '20 to 22' : a <= 25 ? '23 to 25' : a <= 29 ? '26 to 29' : '30 and over';
+        if (a > 10 && a < 80) ages[k] += 1; else noAge += 1;
+      } else noAge += 1;
+    }
+    const target = sheet ? plan.targets[sheet.id] || null : null;
+    return {
+      intake: sheet ? { id: sheet.id, name: sheet.name } : null, today, inquiries, undated, applications, offers,
+      events: (plan.events || []).filter((e) => e.date).map((e) => ({ name: e.name, date: e.date, endDate: e.endDate || '', channel: channelOf(e) })),
+      teachingStarts: target && /^\d{4}-\d{2}-\d{2}$/.test(target.startDate || '') ? target.startDate : '',
+      places: { lives, home, none: noPlace }, ages, noAge,
+    };
   }
   function eventTags(user) {
     const plan = planning.all();
@@ -1646,6 +1683,16 @@ function createPortalApi({
         sources: list(sources).map((g) => ({ ...g, details: list(g.details) })),
         partners: list(partners).map((g) => ({ ...g, unis: list(g.unis) })), agents: list(agentsMap),
       });
+      return true;
+    }
+    // The Dashboard's "over time" chart and map (the owner, 14 Nov 2026): every inquiry of the intake on the day the student really
+    // enquired (from the lead list or the day they were added) with where they came from, every application and offer on its day, the
+    // events and campaigns with their dates (to see why inquiries rose), where the students live, and their ages.
+    if (urlPath === '/api/trends' && req.method === 'GET') {
+      if (!managers(req, res, 'The Dashboard')) return true;
+      const wb = getWorkbook();
+      if (!wb) { sendJSON(res, 500, { error: 'Could not read the data file' }); return true; }
+      sendJSON(res, 200, trendsFor(wb, query().get('intake') || ''));
       return true;
     }
     if (urlPath === '/api/insights' && req.method === 'GET') {

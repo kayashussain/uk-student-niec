@@ -65,6 +65,10 @@ const at = (isoDay) => Date.parse(isoDay + 'T00:00:00Z');
 // today: 'YYYY-MM-DD'. Returns { workbook, cards, planning, b2b } ready to write to the data folder.
 function buildDemo({ today = '2026-11-11', seed = 20261111 } = {}) {
   const rnd = mulberry32(seed);
+  // A second sequence for the details added later (where a student lives, their age), so every older made-up value stays the same.
+  const rnd2 = mulberry32(seed + 7919);
+  const between2 = (a, b) => a + Math.floor(rnd2() * (b - a + 1));
+  const weighted2 = (pairs) => { let r = rnd2() * pairs.reduce((n, p) => n + p[1], 0); for (const p of pairs) { r -= p[1]; if (r <= 0) return p; } return pairs[pairs.length - 1]; };
   const pick = (list) => list[Math.floor(rnd() * list.length)];
   const between = (a, b) => a + Math.floor(rnd() * (b - a + 1));
   const weighted = (pairs) => { let r = rnd() * pairs.reduce((n, p) => n + p[1], 0); for (const p of pairs) { r -= p[1]; if (r <= 0) return p; } return pairs[pairs.length - 1]; };
@@ -170,6 +174,10 @@ function buildDemo({ today = '2026-11-11', seed = 20261111 } = {}) {
         if (know()) { profile.englishTest = pick(['IELTS Academic', 'PTE Academic', 'Not taken yet', 'MOI or waiver']); if (profile.englishTest.startsWith('IELTS')) profile.englishScore = pick(['6.0', '6.5', '5.5']); if (profile.englishTest.startsWith('PTE')) profile.englishScore = pick(['56', '59', '62']); }
         if (leftKind && leftKind !== 'R' && know()) { profile.lostReason = weighted(LOST)[0]; if (profile.lostReason === 'Course or university not available with us') profile.subject = pick(WANTED); }
         if (leftKind === 'R' && know()) profile.lostReason = 'Visa refused';
+        // Where the made-up student lives, their home district and age (for the Dashboard's map and age groups).
+        const PLACES = [['Kathmandu', 30], ['Chitwan', 12], ['Rupandehi', 10], ['Kaski', 9], ['Lalitpur', 7], ['Morang', 5], ['Sunsari', 4], ['Palpa', 4], ['Dang', 3], ['Jhapa', 3], ['Banke', 2], ['Kailali', 2], ['Parsa', 2], ['Bhaktapur', 3], ['Dhanusha', 1], ['Syangja', 1], ['Tanahun', 1]];
+        if (rnd2() < intake.filled) profile.livesIn = weighted2(PLACES)[0];
+        if (furthest >= 1 && rnd2() < intake.filled) { profile.homeDistrict = rnd2() < 0.5 && profile.livesIn ? profile.livesIn : weighted2(PLACES.slice(1))[0]; profile.dob = `${between2(1996, 2007)}-${String(between2(1, 12)).padStart(2, '0')}-${String(between2(1, 28)).padStart(2, '0')}`; }
         const card = { profile, notes: [], options: [], messages: [], createdAt: new Date(dates.inquiry).toISOString(), createdBy: 'Demo Admin' };
         const noteCount = current ? between(0, 3) : (rnd() < 0.3 ? 1 : 0);
         for (let k = 0; k < noteCount; k += 1) {
