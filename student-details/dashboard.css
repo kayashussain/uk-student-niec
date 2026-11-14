@@ -330,3 +330,49 @@ details.rates summary { cursor: pointer; color: var(--brand-text); font-weight: 
 .ov-source-head span { color: var(--text-dim); font-size: 14px; }
 .ov-row:not(.ov-row-2) > .ov-card { grid-column: 1 / -1; }
 .ov-t-row .ov-board-name b { white-space: normal; overflow: visible; text-overflow: clip; }
+
+/* 🔴 CSS CHANGED (2026-11-14): Dashboard drill-down charts | from: two cards for the same question ("Where applicants came from", and a long "Where students came from" with a table per source), and separate Partners and Agents tables | to: one card "Where students came from" with a switch (By source / By who received): a donut of the sources with a clickable legend (colour dot, name, students, share, an arrow); a click opens that source's events, platforms, agents or branches as bars (light bar students, dark part visas); a click on a bar lists the students (a click opens the student card); a path at the top (All sources › Social Media › TikTok) goes back up; Partners works the same way (partner, its universities, the students); the Agents card is gone (agents are under "By who received") */
+.ov-origin .ov-card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.dd-card { border: 0 !important; box-shadow: none !important; padding: 0 !important; background: none !important; }
+.dd-switch { display: inline-flex; gap: 4px; padding: 4px; border: 1px solid var(--border); border-radius: 999px; background: var(--panel); }
+.dd-switch button { min-height: 34px; padding: 0 14px; border: 0; border-radius: 999px; background: transparent; font: inherit; font-size: 14px; font-weight: 600; color: var(--text-dim); cursor: pointer; }
+.dd-switch button.on { background: var(--brand-navy, #1d2f52); color: var(--brand-ivory, #f6f3ec); }
+.dd-path { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin: 4px 0 14px; font-size: 14.5px; color: var(--brand-navy, #1d2f52); }
+.dd-crumb { padding: 0; border: 0; background: none; font: inherit; color: var(--text-dim); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.dd-crumb:hover { color: var(--brand-navy, #1d2f52); }
+.dd-sep { color: var(--brand-bronze, #9a7b4f); }
+.dd-body { animation: dd-in .25s ease both; }
+@keyframes dd-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .dd-body { animation: none; } }
+.dd-donut-wrap { display: grid; grid-template-columns: 200px minmax(0, 1fr); gap: 20px; align-items: center; }
+@media (max-width: 640px) { .dd-donut-wrap { grid-template-columns: minmax(0, 1fr); justify-items: center; } }
+.dd-donut { width: 200px; height: 200px; }
+.dd-slice { cursor: pointer; transition: stroke-width .15s ease, opacity .15s ease; }
+.dd-slice:hover, .dd-slice:focus { stroke-width: 32; outline: none; }
+.dd-donut-num { font-family: var(--brand-serif, Georgia, serif); font-size: 34px; font-weight: 600; fill: var(--brand-navy, #1d2f52); }
+.dd-donut-sub { font-size: 13px; fill: var(--text-dim); }
+.dd-legend { display: grid; gap: 2px; width: 100%; }
+.dd-legend-row, .dd-bar-row { display: grid; align-items: center; gap: 10px; width: 100%; padding: 9px 10px; border: 0; border-radius: 10px; background: transparent; font: inherit; text-align: left; cursor: pointer; color: var(--text); }
+.dd-legend-row { grid-template-columns: 12px minmax(0, 1fr) 44px 40px 12px; }
+.dd-legend-name { white-space: normal !important; }
+.dd-legend-row:hover, .dd-bar-row:not(.head):hover { background: color-mix(in srgb, var(--gold-soft, #e2e7f0) 55%, transparent); }
+.dd-dot { width: 12px; height: 12px; border-radius: 50%; }
+.dd-legend-name { font-weight: 600; color: var(--brand-navy, #1d2f52); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dd-legend-row b, .dd-legend-row small { text-align: right; font-variant-numeric: tabular-nums; }
+.dd-legend-row small { color: var(--text-dim); }
+.dd-go { color: var(--brand-bronze, #9a7b4f); font-size: 18px; text-align: right; }
+.dd-bar-row { grid-template-columns: minmax(0, 1fr) 76px 70px 56px; }
+.dd-bar-row.head { cursor: default; color: var(--text-dim); font-size: 14px; font-weight: 650; }
+.dd-bar-row .num { text-align: right; font-variant-numeric: tabular-nums; }
+.dd-bar-row .num.strong { font-weight: 700; color: var(--brand-navy, #1d2f52); }
+.dd-bar-name b { color: var(--brand-navy, #1d2f52); }
+.dd-bar-name small { margin-left: 8px; color: var(--text-dim); font-size: 13px; }
+.dd-track { position: relative; display: block; height: 8px; margin-top: 6px; border-radius: 4px; background: color-mix(in srgb, var(--gold-soft, #e2e7f0) 60%, transparent); overflow: hidden; }
+.dd-track i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 4px; background: #9fb0c9; }
+.dd-track i.visa { background: var(--brand-navy, #1d2f52); }
+.dd-key { margin: 10px 10px 0; color: var(--text-dim); font-size: 13.5px; }
+.dd-people { display: grid; gap: 4px; max-height: 420px; overflow: auto; }
+.dd-person { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 10px 12px; border-radius: 10px; color: inherit; text-decoration: none; }
+.dd-person:hover { background: color-mix(in srgb, var(--gold-soft, #e2e7f0) 55%, transparent); }
+.dd-person b { color: var(--brand-navy, #1d2f52); }
+.dd-person span { color: var(--text-dim); font-size: 14px; }

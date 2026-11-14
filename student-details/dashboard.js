@@ -274,76 +274,108 @@
 
 
 
-  // ---- where the applicants came from: Head Office, each branch and each agent ----
-  function fromCard() {
-    const c = card('ov-from', 'Where applicants came from', 'Head Office, each branch and each agent (Receiving Partner)');
-    const list = (apps && apps.list) || [];
-    if (!list.length) { c.append(el('p', 'ov-empty', 'No applicant has a Receiving Partner yet.')); return c; }
-    const max = Math.max(1, ...list.map((g) => g.applicants));
-    const box = el('div', 'ov-board-list');
-    const head = el('div', 'ov-from-row head'); ['', 'Applicants', 'Visas'].forEach((x) => head.append(el('span', x ? 'num' : '', x)));
-    box.append(head);
-    list.forEach((g) => {
-      const row = el('div', 'ov-from-row' + (g.kind === 'office' ? ' main' : ''));
-      const name = el('span', 'ov-board-name'); name.append(el('b', '', g.label)); if (g.kind === 'agent') name.append(el('small', '', 'Agent'));
-      const bar = el('i', 'ov-board-bar'); bar.style.width = Math.max(3, (g.applicants / max) * 100) + '%'; name.append(bar);
-      row.append(name, el('span', 'num strong', num(g.applicants)), el('span', 'num', num(g.visas)));
-      box.append(row);
+  // ---- drill-down charts (like a BI report): a donut of the groups; a click on a slice shows its parts as bars; a click on a bar
+  // shows the students behind it (a click on a name opens the card). A path at the top goes back up. ----
+  const PALETTE = ['#1d2f52', '#9a7b4f', '#3f6fa8', '#c9a46b', '#5a7d9a', '#7b8794', '#2e7d5b', '#b0705a', '#6b5b95', '#88a2bf'];
+  const share = (n, total) => (total ? Math.round((n / total) * 100) : 0);
+  function donut(groups, onPick) {
+    const total = groups.reduce((n, g) => n + g.students, 0) || 1;
+    const R = 70; const C = 2 * Math.PI * R; let at = 0;
+    const s = svg('svg', { viewBox: '0 0 180 180', class: 'dd-donut', role: 'img', 'aria-label': 'Share of students by group' });
+    groups.forEach((g, k) => {
+      const len = (g.students / total) * C;
+      const arc = svg('circle', { cx: 90, cy: 90, r: R, fill: 'none', stroke: PALETTE[k % PALETTE.length], 'stroke-width': 26, 'stroke-dasharray': `${Math.max(0, len - 1.5)} ${C}`, 'stroke-dashoffset': String(-at), transform: 'rotate(-90 90 90)', class: 'dd-slice', tabindex: '0' });
+      arc.addEventListener('click', () => onPick(g));
+      arc.addEventListener('keydown', (e) => { if (e.key === 'Enter') onPick(g); });
+      hover(arc, () => ({ title: g.label, rows: [{ name: 'Students', value: num(g.students) }, { name: 'Applied', value: num(g.applicants) }, { name: 'Visas', value: num(g.visas) }, { name: 'Share', value: share(g.students, total) + '%' }] }));
+      s.append(arc); at += len;
     });
-    c.append(box);
-    return c;
+    const mid = svg('text', { x: 90, y: 90, 'text-anchor': 'middle', class: 'dd-donut-num' }); mid.textContent = num(total);
+    const sub = svg('text', { x: 90, y: 110, 'text-anchor': 'middle', class: 'dd-donut-sub' }); sub.textContent = 'students';
+    s.append(mid, sub);
+    const legend = el('div', 'dd-legend');
+    groups.forEach((g, k) => {
+      const b = el('button', 'dd-legend-row'); b.type = 'button';
+      const dot = el('i', 'dd-dot'); dot.style.background = PALETTE[k % PALETTE.length];
+      b.append(dot, el('span', 'dd-legend-name', g.label), el('b', '', num(g.students)), el('small', '', `${share(g.students, total)}%`), el('span', 'dd-go', '›'));
+      b.addEventListener('click', () => onPick(g));
+      legend.append(b);
+    });
+    const wrap = el('div', 'dd-donut-wrap'); wrap.append(s, legend);
+    return wrap;
   }
-
-  // ---- a calm table: name (with a bar), then the figures; Head Office or a group can be highlighted ----
-  function table(rows, cols, { tag } = {}) {
-    const max = Math.max(1, ...rows.map((g) => g[cols[0][0]] || 0));
-    const box = el('div', 'ov-board-list');
-    const head = el('div', 'ov-t-row head'); head.style.setProperty('--n', cols.length);
-    head.append(el('span', '', ''), ...cols.map(([, label]) => el('span', 'num', label)));
+  function bars(rows, onPick) {
+    const max = Math.max(1, ...rows.map((g) => g.students));
+    const box = el('div', 'dd-bars');
+    const head = el('div', 'dd-bar-row head'); head.append(el('span', '', ''), el('span', 'num', 'Students'), el('span', 'num', 'Applied'), el('span', 'num', 'Visas'));
     box.append(head);
     rows.forEach((g) => {
-      const row = el('div', 'ov-t-row' + (g.main ? ' main' : '')); row.style.setProperty('--n', cols.length);
-      const name = el('span', 'ov-board-name'); name.append(el('b', '', g.label));
-      if (tag && tag(g)) name.append(el('small', '', tag(g)));
-      const bar = el('i', 'ov-board-bar'); bar.style.width = Math.max(3, ((g[cols[0][0]] || 0) / max) * 100) + '%'; name.append(bar);
-      row.append(name, ...cols.map(([k], n) => el('span', 'num' + (n === cols.length - 1 ? ' strong' : ''), num(g[k] || 0))));
-      box.append(row);
+      const b = el('button', 'dd-bar-row'); b.type = 'button';
+      const name = el('span', 'dd-bar-name'); name.append(el('b', '', g.label));
+      if (g.tag) name.append(el('small', '', g.tag));
+      const track = el('span', 'dd-track'); const fill = el('i'); fill.style.width = Math.max(2, (g.students / max) * 100) + '%';
+      const vis = el('i', 'visa'); vis.style.width = Math.max(0, (g.visas / max) * 100) + '%'; track.append(fill, vis); name.append(track);
+      b.append(name, el('span', 'num', num(g.students)), el('span', 'num', num(g.applicants)), el('span', 'num strong', num(g.visas)));
+      b.addEventListener('click', () => onPick(g));
+      box.append(b);
+    });
+    box.append(el('p', 'dd-key', 'The light bar is students, the dark part is visas. Click a row to see more.'));
+    return box;
+  }
+  function people(list) {
+    if (!list.length) return el('p', 'ov-empty', 'No students here.');
+    const box = el('div', 'dd-people');
+    list.forEach((p) => {
+      const a = el('a', 'dd-person'); a.href = '/student?id=' + encodeURIComponent(p.id);
+      a.addEventListener('click', (e) => { if (window.CardDrawer) { e.preventDefault(); window.CardDrawer.open(p.id); } });
+      a.append(el('b', '', p.name), el('span', '', p.university || ''), window.Portal.stagePill(p.stage));
+      box.append(a);
     });
     return box;
   }
-  const COLS = [['students', 'Students'], ['applicants', 'Applied'], ['visas', 'Visas']];
+  // A card with a path (All › Social Media › TikTok) and the level shown under it.
+  function drillCard(cls, title, sub, levels) {
+    const c = card(cls, title, sub);
+    const path = el('nav', 'dd-path'); path.setAttribute('aria-label', 'Where you are');
+    const body = el('div', 'dd-body');
+    c.append(path, body);
+    const show = (stack) => {
+      path.replaceChildren(...stack.flatMap((st, k) => {
+        const crumb = k === stack.length - 1 ? el('b', '', st.label) : (() => { const b = el('button', 'dd-crumb', st.label); b.type = 'button'; b.addEventListener('click', () => show(stack.slice(0, k + 1))); return b; })();
+        return k ? [el('span', 'dd-sep', '›'), crumb] : [crumb];
+      }));
+      body.replaceChildren(stack[stack.length - 1].draw((next) => show([...stack, next])));
+    };
+    show([levels]);
+    return c;
+  }
 
-  // ---- where the students came from: each source, and under it each event, platform, agent or branch ----
-  function sourcesCard() {
-    const c = card('ov-sources', 'Where students came from', 'Each Student Source, and under it exactly which event, platform, agent or branch');
-    const list = (apps && apps.sources) || [];
-    if (!list.length) { c.append(el('p', 'ov-empty', 'No student has a source yet.')); return c; }
-    const grid = el('div', 'ov-sources-grid');
-    list.forEach((g) => {
-      const block = el('div', 'ov-source');
-      const top = el('div', 'ov-source-head');
-      top.append(el('b', '', g.label), el('span', '', `${num(g.students)} students · ${num(g.applicants)} applied · ${num(g.visas)} visa${g.visas === 1 ? '' : 's'}`));
-      block.append(top);
-      if (g.details.length) block.append(table(g.details.slice(0, 8), COLS));
-      if (g.details.length > 8) block.append(el('p', 'ov-foot', `and ${g.details.length - 8} more`));
-      grid.append(block);
-    });
-    c.append(grid);
+  // Where students came from: by Student Source, or by who received the application.
+  function originCard() {
+    const a = apps || { sources: [], list: [] };
+    const tabs = el('div', 'dd-switch');
+    let mode = 'source';
+    const holder = el('div');
+    const render = () => {
+      tabs.querySelectorAll('button').forEach((b) => b.classList.toggle('on', b.dataset.m === mode));
+      if (mode === 'source') {
+        holder.replaceChildren(drillCard('dd-card', '', '', { label: 'All sources', draw: (go) => (a.sources.length ? donut(a.sources, (g) => go({ label: g.label, draw: (go2) => (g.details.length ? bars(g.details, (d) => go2({ label: d.label, draw: () => people(d.people) })) : people(g.people)) })) : el('p', 'ov-empty', 'No student has a source yet.')) }));
+      } else {
+        const list = a.list.map((g) => ({ ...g, students: g.applicants, tag: g.kind === 'office' ? '' : g.kind === 'branch' ? 'Branch' : 'Agent' }));
+        holder.replaceChildren(drillCard('dd-card', '', '', { label: 'Every applicant', draw: (go) => (list.length ? bars(list, (g) => go({ label: g.label, draw: () => people(g.people) })) : el('p', 'ov-empty', 'No applicant has a Receiving Partner yet.')) }));
+      }
+    };
+    [['source', 'By source'], ['received', 'By who received']].forEach(([m, t]) => { const b = el('button', '', t); b.type = 'button'; b.dataset.m = m; b.addEventListener('click', () => { mode = m; render(); }); tabs.append(b); });
+    const c = card('ov-origin', 'Where students came from', 'Click a slice or a row to go deeper, down to the students');
+    c.head.append(tabs);
+    render();
+    c.append(holder);
     return c;
   }
+  // Partners: each partner university and B2B partner; a click shows its universities, then the students.
   function partnersCard() {
-    const c = card('ov-partners', 'Partners', 'Students sent to each partner university and B2B partner (University Partner)');
-    const list = (apps && apps.partners) || [];
-    if (!list.length) { c.append(el('p', 'ov-empty', 'No student has a University Partner yet.')); return c; }
-    c.append(table(list.slice(0, 10), COLS, { tag: (g) => (g.kind === 'university' ? 'Partner university' : 'B2B partner') }));
-    return c;
-  }
-  function agentsCard() {
-    const c = card('ov-agents', 'Agents', 'Students each agent sent us, and how far they went');
-    const list = (apps && apps.agents) || [];
-    if (!list.length) { c.append(el('p', 'ov-empty', 'No student came through an agent in this intake yet.')); return c; }
-    c.append(table(list.slice(0, 10), COLS));
-    return c;
+    const list = ((apps && apps.partners) || []).map((g) => ({ ...g, tag: g.kind === 'university' ? 'Partner university' : 'B2B partner' }));
+    return drillCard('ov-partners', 'Partners', 'Where applications were sent. Click a partner to see its universities, then the students', { label: 'All partners', draw: (go) => (list.length ? bars(list, (g) => go({ label: g.label, draw: (go2) => (g.unis.length ? bars(g.unis, (u) => go2({ label: u.label, draw: () => people(u.people) })) : people(g.people)) })) : el('p', 'ov-empty', 'No student has a University Partner yet.')) });
   }
 
   // ---- the page: only what the head of the consultancy needs ----
@@ -351,13 +383,12 @@
     if (!ins || !dash || !window.DashText) return;
     const page = el('div', 'ov');
     page.append(kpis());
-    const r1 = el('div', 'ov-row ov-row-2'); r1.append(targetCard(), fromCard());
-    const r2 = el('div', 'ov-row'); r2.append(sourcesCard());
-    const r3 = el('div', 'ov-row ov-row-2'); r3.append(partnersCard(), agentsCard());
+    const r1 = el('div', 'ov-row ov-row-2'); r1.append(originCard(), targetCard());
+    const r3 = el('div', 'ov-row ov-row-2'); r3.append(partnersCard(), funnelCard());
     // Universities: only those recorded on the students (a blank University Name is not a row).
     const unis = (ins.universities.list || []).filter((g) => g.label && !/not recorded/i.test(g.label));
-    const r4 = el('div', 'ov-row ov-row-2'); r4.append(funnelCard(), leaderboard('Universities', 'Where the students are placed', unis, null, 'university'));
-    page.append(r1, r2, r3, r4);
+    const r4 = el('div', 'ov-row'); r4.append(leaderboard('Universities', 'Where the students are placed', unis, null, 'university'));
+    page.append(r1, r3, r4);
     if (ins.summary.low) page.append(el('p', 'ov-foot', 'This intake has fewer than 10 students, so a rate from it is a hint, not evidence.'));
     root.replaceChildren(page);
   }

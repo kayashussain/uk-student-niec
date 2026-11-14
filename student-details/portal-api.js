@@ -1231,7 +1231,9 @@ function createPortalApi({
       const allCards = cards.all();
       const events = planning.all().events;
       const directNames = new Set(direct.all().map((u) => squash(u.name)));
-      const bump = (map, key, label, extra = {}) => { const g = map.get(key) || { label, students: 0, applicants: 0, visas: 0, ...extra }; map.set(key, g); return g; };
+      const bump = (map, key, label, extra = {}) => { const g = map.get(key) || { label, students: 0, applicants: 0, visas: 0, people: [], ...extra }; map.set(key, g); return g; };
+      // The students behind a figure (for the deepest level of the Dashboard's drill-down): at most 80 per group.
+      const person = (row, stage, visa) => ({ id: row._id, name: nameOf(row), stage, university: text(row['UNIVERSITY NAME']), visa });
       const receiving = new Map(); const sources = new Map(); const partners = new Map(); const agentsMap = new Map();
       let applicants = 0;
       (sheet ? sheet.rows : []).forEach((row) => {
@@ -1239,7 +1241,8 @@ function createPortalApi({
         const stage = text(row[STATUS]);
         const applied = !['', 'Inquiry', 'Defer', 'Hold', 'Withdrawn'].includes(stage) || Boolean(text(row['APPLICATION SUBMISSION DATE']));
         const visa = stage === 'Visa Issued' || Boolean(text(row['VISA RECEIVED DATE']));
-        const add = (g) => { g.students += 1; if (applied) g.applicants += 1; if (visa) g.visas += 1; };
+        const me = person(row, stage, visa);
+        const add = (g) => { g.students += 1; if (applied) g.applicants += 1; if (visa) g.visas += 1; if (g.people.length < 80) g.people.push(me); };
         if (applied) applicants += 1;
         const card = allCards[row._id];
         // Where the student came from: the Student Source, and under it exactly which (the event, the platform, the agent ...).
@@ -1259,7 +1262,7 @@ function createPortalApi({
           if (k === squash('Head Office')) from = 'Head Office';
           else { const b = Fields.BRANCHES.find((x) => k === squash(x) || k === squash(Fields.branchValue(x))); if (b) from = Fields.branchValue(b); }
           const kind = from === 'Head Office' ? 'office' : Fields.isBranchValue(from) ? 'branch' : 'agent';
-          const g = bump(receiving, from, from, { kind }); g.students += 1; g.applicants += 1; if (visa) g.visas += 1;
+          const g = bump(receiving, from, from, { kind }); g.students += 1; g.applicants += 1; if (visa) g.visas += 1; if (g.people.length < 80) g.people.push(me);
         }
         // The agent who sent the student: the Receiving Partner when it is not the head office or a branch, else the Agent source.
         const rp = text(row['RECEIVING PARTNER']);
@@ -1267,7 +1270,10 @@ function createPortalApi({
         if (agent) add(bump(agentsMap, squash(agent), agent));
         // Where the application was sent: a Partner University or a B2B partner (the University Partner column).
         const up = text(row['UNIVERSITY PARTNER']);
-        if (up) { const k = squash(up); add(bump(partners, k, up, { kind: directNames.has(k) || /universit|college/i.test(up) ? 'university' : 'b2b' })); }
+        if (up) {
+          const k = squash(up); const pg = bump(partners, k, up, { kind: directNames.has(k) || /universit|college/i.test(up) ? 'university' : 'b2b', unis: new Map() }); add(pg);
+          const uni = text(row['UNIVERSITY NAME']); if (uni) add(bump(pg.unis, squash(uni), uni));
+        }
       });
       const list = (m) => [...m.values()].sort((x, y) => y.students - x.students || x.label.localeCompare(y.label));
       const order = { office: 0, branch: 1, agent: 2 };
@@ -1275,7 +1281,7 @@ function createPortalApi({
         intake: sheet ? sheet.name : '', applicants,
         list: [...receiving.values()].sort((x, y) => order[x.kind] - order[y.kind] || y.applicants - x.applicants),
         sources: list(sources).map((g) => ({ ...g, details: list(g.details) })),
-        partners: list(partners), agents: list(agentsMap),
+        partners: list(partners).map((g) => ({ ...g, unis: list(g.unis) })), agents: list(agentsMap),
       });
       return true;
     }
