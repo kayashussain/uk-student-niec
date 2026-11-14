@@ -246,8 +246,11 @@ const SHARED_FILES = {
   '/ui.css': 'text/css; charset=utf-8',
   '/theme.css': 'text/css; charset=utf-8',
   '/login.html': 'text/html; charset=utf-8',
+  // The one typeface of the portal (Inter, SIL Open Font License, see fonts/Inter-LICENSE.txt), kept here so every computer shows the same.
+  '/fonts/inter-latin.woff2': 'font/woff2',
+  '/fonts/inter-latin-ext.woff2': 'font/woff2',
 };
-const PUBLIC_SHARED = new Set(['/login.html']);
+const PUBLIC_SHARED = new Set(['/login.html', '/fonts/inter-latin.woff2', '/fonts/inter-latin-ext.woff2']);
 
 // Each file is read and compressed once, then kept in memory (the files only change with a deploy,
 // which restarts the server). Pages are always re-checked, so a deploy shows on a normal reload, but every
