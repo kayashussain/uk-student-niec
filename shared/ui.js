@@ -104,3 +104,37 @@
 
   root.NiecUI = { toast, confirm: confirmBox, alert: alertBox, isOpen: () => openDialogs > 0 };
 })(this);
+
+// Segmented controls (the card's tabs, the intake tabs under All Students, the Dashboard's switches): a light pill slides to the
+// chosen segment, as on a Mac. It only adds a decorative <span class="seg-thumb"> inside the control; nothing else changes.
+(function () {
+  if (typeof document === 'undefined' || !window.MutationObserver) return;
+  const BOXES = '.p-tabs, .sheet-tabs-list, .dd-switch';
+  const isOn = (c) => c.getAttribute('aria-selected') === 'true' || c.classList.contains('active') || c.classList.contains('on');
+  function sync(box, animate) {
+    let thumb = box.querySelector(':scope > .seg-thumb');
+    const on = [...box.children].find((c) => c !== thumb && isOn(c));
+    if (!on || !on.offsetWidth) { if (thumb) thumb.style.opacity = '0'; return; }
+    if (!thumb) {
+      thumb = document.createElement('span');
+      thumb.className = 'seg-thumb';
+      thumb.setAttribute('aria-hidden', 'true');
+      box.prepend(thumb);
+      box.classList.add('has-thumb');
+      animate = false;
+    }
+    thumb.style.transition = animate ? '' : 'none';
+    thumb.style.opacity = '1';
+    thumb.style.width = on.offsetWidth + 'px';
+    thumb.style.height = on.offsetHeight + 'px';
+    thumb.style.transform = `translate(${on.offsetLeft}px, ${on.offsetTop}px)`;
+    if (!animate) requestAnimationFrame(() => { thumb.style.transition = ''; });
+  }
+  const all = (animate) => document.querySelectorAll(BOXES).forEach((b) => sync(b, animate));
+  let queued = false;
+  const later = () => { if (queued) return; queued = true; requestAnimationFrame(() => { queued = false; all(true); }); };
+  new MutationObserver((list) => { if (list.some((m) => !(m.target.classList && m.target.classList.contains('seg-thumb')))) later(); })
+    .observe(document.documentElement, { subtree: true, childList: true, attributes: true, attributeFilter: ['class', 'aria-selected'] });
+  window.addEventListener('resize', () => all(false));
+  document.addEventListener('DOMContentLoaded', () => all(false));
+})();

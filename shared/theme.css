@@ -148,7 +148,6 @@ input.search { width: 260px; }
 .stat-card .stat-label { display: block; width: 100%; min-height: 2.5em; white-space: normal; line-height: 1.25; font-size: 12px; letter-spacing: .03em; color: var(--text-dim); font-weight: 600; overflow-wrap: normal; hyphens: manual; word-break: normal; }
 .stat-card.stat-total { background: var(--gold-soft); border-color: color-mix(in srgb, var(--gold) 50%, var(--border)); box-shadow: inset 0 -3px 0 var(--gold), var(--sh-1); }
 .stat-card.stat-total .stat-label { color: var(--gold-deep); }
-.stat-card.stat-rate { box-shadow: inset 0 -3px 0 #ff9f0a, var(--sh-1); }
 .stat-card .stat-visa { color: var(--gold-deep); }
 @media (max-width: 1100px) { .stat-group-cards { width: 100%; max-width: 100%; } }
 
@@ -701,7 +700,6 @@ input[type="date"]:not(.date-input) { min-height: 44px; border-radius: var(--r-s
 
 /* 🔴 CSS CHANGED (2026-11-13): the Student Details page, a calmer and more premium look (this page only; the side menu and every other page are unchanged) | from: the page title hidden; search, Undo, Redo and six actions scattered over two rows as plain grey words with a bright blue button; 13 separate number boxes in two uneven rows; a plain grey table heading; small grey intake tabs | to: a large serif title "Student Details" with the save note beside it and the search on the right; one tidy action row of outlined buttons with a deep ink "+ Add student", Undo and Redo at the right; the numbers in one soft panel divided by fine lines, with serif figures (Total and Conversion rate marked by a thin bronze line); a table heading with darker text and a firm line under it; the open intake tab in dark ink with a bronze line under it */
 body:has(#sheet) {
-  --serif: "Palatino Linotype", Palatino, "Book Antiqua", "Iowan Old Style", Georgia, serif;
   --lux-ink: var(--brand-navy);
   --lux-ink-2: var(--brand-navy-2);
   --lux-bronze: var(--brand-bronze);
@@ -731,12 +729,9 @@ body:has(#sheet) .topbar #delRow:hover:not(:disabled) { border-color: var(--red-
 body:has(#sheet) .status-summary { padding: 4px 32px 18px; background: transparent; }
 body:has(#sheet) .stat-group-cards { display: flex; flex-wrap: wrap; gap: 0; padding: 4px 0; border: 1px solid var(--lux-line); border-radius: 14px; background: var(--panel); box-shadow: 0 1px 2px rgba(20, 27, 41, .04); overflow: hidden; }
 body:has(#sheet) .stat-card, body:has(#sheet) .stat-card.stat-total { flex: 1 1 0; flex-direction: column; align-items: flex-start; justify-content: flex-start; gap: 2px; min-width: min-content; width: auto; padding: 10px 11px 12px; border: 0; border-radius: 0; background: transparent; box-shadow: none; text-align: left; position: relative; }
-body:has(#sheet) .stat-card + .stat-card::before { content: ""; position: absolute; left: 0; top: 14px; bottom: 14px; width: 1px; background: var(--lux-line); }
 body:has(#sheet) .stat-card .stat-value, body:has(#sheet) .stat-card.stat-total .stat-value { font-family: var(--serif); font-size: 26px; font-weight: 600; color: var(--lux-ink); letter-spacing: 0; line-height: 1.1; }
 body:has(#sheet) .stat-card .stat-label, body:has(#sheet) .stat-card.stat-total .stat-label { min-height: 0; width: auto; color: var(--text-dim); font-weight: 550; white-space: normal; line-height: 1.25; }
 body:has(#sheet) .stat-card.stat-total .stat-label { color: var(--lux-ink); font-weight: 650; }
-body:has(#sheet) .stat-card.stat-total::after, body:has(#sheet) .stat-card.stat-rate::after { content: ""; position: absolute; left: 11px; right: 11px; bottom: 4px; height: 2px; border-radius: 2px; background: var(--lux-bronze); }
-body:has(#sheet) .stat-card.stat-rate .stat-value { color: #7a5c2e; }
 @media (max-height: 820px) {
   body:has(#sheet) .stat-card, body:has(#sheet) .stat-card.stat-total { flex-direction: row; align-items: baseline; gap: 8px; padding: 6px 14px; }
   body:has(#sheet) .stat-card .stat-label, body:has(#sheet) .stat-card.stat-total .stat-label { white-space: nowrap; }
@@ -781,7 +776,6 @@ body.p-embed .p-fact dd, body.p-embed .p-fact dd a { overflow-wrap: break-word; 
 
 /* 🔴 CSS CHANGED (2026-11-13): the student card, a calm and clean premium look (the card that opens from All Students, and the same page opened on its own) | from: first a light panel with a blue stripe, a bright blue button and grey pill tabs; then a heavy deep navy band with ivory text, champagne links and a bronze button | to: a light, calm top panel (soft off-white with a fine bronze line along its top), the name in a large navy serif, the initials in a soft navy circle with a thin bronze ring, the stage as a soft navy tag and the source as a fine outlined tag, a slim progress line of the student's journey (navy for steps done, bronze for where the student is now, grey for what is still to come, with "Step 3 of 8, Mock Stage" under it, or a calm amber note for Withdrawn, Hold, Defer and Visa Rejected), the details as a quiet two-column list, a navy "Send a message" and an outlined "Edit details"; tabs with a bronze line under the open one; panels with fine borders and roomy spacing, navy "Add note" and similar buttons, bronze timeline dots and quiet underlined "Remove" links */
 body:has(.p-embed-bar) {
-  --serif: "Palatino Linotype", Palatino, "Book Antiqua", "Iowan Old Style", Georgia, serif;
   --lux-ink: var(--brand-navy);
   --lux-ink-2: var(--brand-navy-2);
   --lux-bronze: var(--brand-bronze);
@@ -852,11 +846,8 @@ body:has(.p-embed-bar) .p-timeline .p-link:hover { color: var(--red-fg); }
 .niec-avatar { background: var(--brand-navy); color: var(--brand-champagne); }
 body:has(#sheet) .stat-group-cards { display: flex; flex-wrap: wrap; gap: 8px; padding: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; overflow: visible; }
 body:has(#sheet) .stat-card, body:has(#sheet) .stat-card.stat-total { flex: 0 0 160px; width: 160px; min-width: 160px; height: 70px; flex-direction: column; align-items: flex-start; justify-content: center; gap: 2px; padding: 8px 14px; border: 1px solid var(--lux-line); border-radius: 12px; background: var(--panel); box-shadow: 0 1px 2px rgba(20, 27, 41, .04); }
-body:has(#sheet) .stat-card + .stat-card::before { display: none; }
 body:has(#sheet) .stat-card .stat-value, body:has(#sheet) .stat-card.stat-total .stat-value { font-size: 24px; }
 body:has(#sheet) .stat-card .stat-label, body:has(#sheet) .stat-card.stat-total .stat-label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; line-height: 1.25; }
-body:has(#sheet) .stat-card.stat-total, body:has(#sheet) .stat-card.stat-rate { border-color: color-mix(in srgb, var(--brand-bronze) 55%, var(--lux-line)); }
-body:has(#sheet) .stat-card.stat-total::after, body:has(#sheet) .stat-card.stat-rate::after { left: 14px; right: 14px; bottom: 6px; }
 @media (max-height: 820px) {
   body:has(#sheet) .stat-card, body:has(#sheet) .stat-card.stat-total { flex-direction: column; align-items: flex-start; gap: 2px; padding: 8px 14px; }
   body:has(#sheet) .stat-card .stat-value, body:has(#sheet) .stat-card.stat-total .stat-value { font-size: 24px; }
@@ -932,7 +923,6 @@ body:has(#sheet) .topbar .came-from:focus { border-color: var(--lux-ink-2); box-
 @media (max-width: 900px) { body:has(#sheet) .topbar .came-from { order: 5; width: 100%; max-width: none; } }
 
 /* 🔴 CSS CHANGED (2026-11-13): one brand look on every page (Today, Dashboard, Follow-up, Add many students, Fact File, B2B Partners, Agents, Users, Activity, Message templates, Incentive, and the pages already redone) | from: heavy black sans page titles, plain number tiles with black figures, grey rounded pill tabs, cards and tables that each looked a little different, plain grey initials circles | to: every page title in the same large navy serif as All Students and the student card, with a short dim intro under it; number tiles with navy serif figures and a thin bronze line under the first; tabs as clean underline tabs with a bronze line under the open one; cards with the same fine border, roomy padding, soft shadow and navy headings; table headings on a soft navy tint; initials circles in soft navy with a bronze ring; on Today the counts on the cards in navy; the Dashboard number cards with serif figures */
-:root { --brand-serif: "Palatino Linotype", Palatino, "Book Antiqua", "Iowan Old Style", Georgia, serif; }
 .p-head h1, .page-head h1, .ov-head h1 { font-family: var(--brand-serif); font-size: 36px; font-weight: 600; letter-spacing: 0; line-height: 1.15; color: var(--brand-navy); }
 .p-head h1 + p, .page-head h1 + p, .p-head p, .page-head p { color: var(--text-dim); font-size: 16px; line-height: 1.55; max-width: 70ch; }
 /* number tiles */
@@ -1199,59 +1189,7 @@ body:has(#sheet) #sheet td, body:has(#sheet) #sheet thead th { border-right: 1px
 body:has(#sheet) #sheet td { border-bottom: 1px solid #dde2e9; }
 body:has(#sheet) #sheet tbody tr.pad-row td { border: 0; }
 
-/* 🔴 CSS CHANGED (2026-11-14): the NIEC UK brand look on every page, calm and clean like a top global brand | from: navy (#1d2f52) and bronze (#9a7b4f), page titles and big numbers in a Palatino serif, a grey canvas (#e9ecf0), card shadows tinted navy, "ISR" in big letters at the top of the menu | to: near-black ink (#1d1d1f) titles and figures in the clean system display font (SF Pro on a Mac and iPhone, Segoe UI on Windows), slightly tighter letters; the NIEC logo blue (#0077c8) for buttons, links, the open tab and every small accent where bronze was; a lighter, cooler canvas (#eef0f3) with soft off-white panels (#fafbfc) and hairline borders (#e0e3e8); softer, wider shadows; a frosted menu with the NIEC logo, the short name (for example NIEC UK) and "International Student Recruitment" under it; the open page in the menu as a soft light pill with a blue icon */
-:root {
-  --display: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI Variable Display", "Segoe UI", "Helvetica Neue", Roboto, Arial, sans-serif;
-  --serif: var(--display);
-  --brand-serif: var(--display);
-  --ink: #1d1d1f; --text: #1d1d1f; --text-dim: #4b4f57;
-  --bg: #eef0f3; --panel: #fafbfc; --surface: #fafbfc; --ui-panel: #fafbfc; --edit-bg: #fdfdfe;
-  --soft: #e9ebef; --border: #e0e3e8; --border-strong: #c7cbd3; --header-bg: #f3f4f7; --head-ink: #4b4f57;
-  --row-alt: #f6f7f9; --row-hover: #edf4fb;
-  --brand-navy: #1d1d1f; --brand-navy-2: #3a3b40; --brand-bronze: #0077c8; --brand-champagne: #cfe5f6; --brand-ivory: #f4f8fc;
-  --gold: #0077c8; --gold-deep: #005e9f; --gold-soft: #e6f1fa; --navy: #1d1d1f; --navy-2: #3a3b40;
-  --primary: #0071bc; --primary-hover: #005e9f; --accent-strong: #0071bc; --accent-strong-hover: #005e9f;
-  --blue-bg: #e6f1fa; --blue-fg: #005e9f;
-  --focus: #0077c8; --focus-dim: #e6f1fa; --focus-strong: #c6e0f4; --range-tint: rgba(0, 119, 200, .10);
-  --lux-line: #e0e3e8;
-  --sh-1: 0 1px 2px rgba(0, 0, 0, .04);
-  --sh-2: 0 1px 2px rgba(0, 0, 0, .03), 0 12px 32px -18px rgba(0, 0, 0, .18);
-  --sh-3: 0 2px 4px rgba(0, 0, 0, .04), 0 22px 48px -24px rgba(0, 0, 0, .24);
-}
-body { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
-/* Titles: the display font, bold and a touch tighter, as on the big brands' sites. */
-h1, .p-head h1, .page-head h1, .ov-head h1, .td-hello h1, body:has(#sheet) .sheet-title { font-family: var(--display); font-weight: 700; letter-spacing: -.025em; color: var(--ink); }
-h2, .p-card > h2, .p-card-head h2, .md-card-head h2, .td-tasks-head h2, .td-attn-head h2, body:has(.p-embed-bar) #view .p-card:not(.p-hero) h2 { font-family: var(--display); font-weight: 650; letter-spacing: -.015em; color: var(--ink); }
-.td-hello h1 { font-size: 44px; }
-.p-kpi b, .md-kpi b, .md-week-item b, .ov-kpi b, .ov-kpi .ov-num, .ov-big, .ov-kpi-value { font-family: var(--display); font-weight: 700; letter-spacing: -.03em; color: var(--ink); }
-.td-kicker { color: var(--brand-bronze); letter-spacing: .14em; }
-/* Panels: hairline border, softer and wider shadow. */
-.p-card, .page .card, .md-card, .md-kpi, .td-attn, .p-kpi, .stat-tile { border-color: var(--border); box-shadow: var(--sh-2); }
-.td-tasks { background: linear-gradient(180deg, #f3f8fd 0, var(--panel) 140px); box-shadow: var(--sh-3); }
-.td-tasks::before { background: linear-gradient(180deg, #0077c8, rgba(0, 119, 200, .25)); }
-/* Buttons: the primary action in NIEC blue, the rest calm pills. */
-.btn-primary, button.btn-primary, .btn.btn-primary, .topbar .btn-primary,
-body:has(.p-embed-bar) .p-hero-actions .btn.btn-primary, body:has(.p-embed-bar) #view .p-card:not(.p-hero) .btn.btn-primary, body:has(#sheet) .topbar #addRow {
-  border-color: var(--primary); background: var(--primary); color: #fff; box-shadow: 0 8px 20px -12px rgba(0, 113, 188, .8);
-}
-.btn-primary:hover:not(:disabled), body:has(#sheet) .topbar #addRow:hover:not(:disabled), body:has(.p-embed-bar) .p-hero-actions .btn.btn-primary:hover { border-color: var(--primary-hover); background: var(--primary-hover); color: #fff; }
-a { text-decoration-color: color-mix(in srgb, var(--brand-bronze) 60%, transparent); }
-/* The menu: frosted, the NIEC logo and the short name at the top, the open page as a soft pill. */
-.niec-header { background: rgba(246, 247, 249, .78); -webkit-backdrop-filter: saturate(180%) blur(28px); backdrop-filter: saturate(180%) blur(28px); box-shadow: 1px 0 0 rgba(0, 0, 0, .07); }
-/* 🔴 CSS CHANGED (2026-11-14): the top of the menu | from: the NIEC logo, then "NIEC" in bold and "International Student Recruitment" under it | to: only the NIEC logo with "UK" beside it in bold (the part of the short name the logo does not already say) */
-.niec-brand { flex-direction: row; align-items: center; gap: 10px; padding: 4px 6px 16px; border-bottom-color: rgba(0, 0, 0, .08); }
-.niec-logo { display: block; width: 116px; height: auto; }
-.niec-logo[hidden] { display: none; }
-.niec-name b { font-family: var(--display); font-size: 24px; font-weight: 700; letter-spacing: -.01em; line-height: 1; color: var(--ink); }
-.niec-nav a { color: #3c4048; font-weight: 550; }
-.niec-nav a:hover { background: rgba(0, 0, 0, .045); color: var(--ink); }
-.niec-nav a[aria-current="page"] { background: rgba(255, 255, 255, .82); color: var(--ink); font-weight: 650; box-shadow: 0 1px 2px rgba(0, 0, 0, .06), 0 6px 16px -10px rgba(0, 0, 0, .25); }
-.niec-nav a[aria-current="page"] .niec-ico { color: #0077c8; }
-.niec-avatar { background: linear-gradient(135deg, #0077c8, #00a3e0); }
-.niec-mark { background: #0077c8; }
-html[data-nav="closed"] .niec-logo { display: none; }
-@media (max-width: 900px) { .niec-logo { width: 72px; } .niec-brand { flex-direction: row; } }
-
+/* 🔴 CSS CHANGED (2026-11-14): the earlier "NIEC UK brand look" layer removed (blue #0077c8 accents, a big "UK" beside the logo), now fully replaced by the Apple look below | from: two layers fighting over the same elements | to: one; nothing on screen changes */
 /* 🔴 CSS CHANGED (2026-11-14): EVERY page in the design language of Apple's website and apps (first made on All Students and the student card; the owner then asked for it everywhere) | from: navy and bronze, a Palatino serif for titles and big numbers, bluish greys, outlined buttons, bordered pills, a bronze line on cards, "UK" beside the logo | to: the system font first (SF Pro on a Mac, iPhone and iPad, where it is built in; Inter, kept with the code, elsewhere); Apple's light grey canvas (#f5f5f7), off-white rounded panels (#fbfbfd) with soft shadows instead of borders; near-black text (#1d1d1f), grey secondary text (#515154); main buttons as blue pills (#0071e3, hover #0077ed), the others as soft grey pills (#e8e8ed); links and focus in Apple's blue; titles a touch tighter; segmented controls for tabs; small spaced capitals for table headings; the charts in Apple's system colours; a frosted menu with only the NIEC logo at the top (no "UK"). Apple's own images, logo and font files are not copied: SF Pro is used only where the device already has it */
 @font-face { font-family: "Inter"; font-style: normal; font-weight: 100 900; font-display: swap; src: url("/fonts/inter-latin.woff2") format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
 @font-face { font-family: "Inter"; font-style: normal; font-weight: 100 900; font-display: swap; src: url("/fonts/inter-latin-ext.woff2") format("woff2"); unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+1E00-1E9F, U+20A0-20AB, U+20AD-20C0, U+2C60-2C7F, U+A720-A7FF; }
@@ -1407,3 +1345,63 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, .p-field inpu
 /* the cost figures and campaign tags on Events and marketing in the same look (the page's own styles come after this file, so these carry the body in front) */
 html body .ev-band .gold b, html body .ev-lrow.item .num.gold { color: #0071e3; }
 html body .ev-tag.mk { border-color: #d2d2d7; color: #515154; }
+
+/* 🔴 CSS CHANGED (2026-11-14): movement and the last pieces of the Apple look (the owner: "it should move like a Mac") | from: segmented controls that jumped from one segment to the next; the "Show numbers" boxes with serif figures, a blue line under Total and a bronze Conversion rate; pop-ups (Add student, Assign a task, Edit details ...) with a serif title and a hard line under the header; pages that appeared with no transition; buttons without press feedback | to: a white pill that slides to the chosen segment (card tabs, intake tabs, Dashboard switches); "Show numbers" as calm rounded tiles that slide in, figures in the system font, Total in blue and Conversion rate in green; pop-ups as Mac-style sheets that spring open and fade away, a large clean title, no header line, blurred background; a soft cross-fade between pages (Chrome and Edge); buttons that press in slightly; cards and rows that ease on hover; everything still at once for people who ask their computer for less motion */
+:root { --spring: cubic-bezier(.2, .9, .25, 1); --ease-out: cubic-bezier(.16, 1, .3, 1); }
+/* segmented controls: the sliding pill */
+.has-thumb { position: relative; isolation: isolate; }
+.has-thumb > :not(.seg-thumb) { position: relative; z-index: 1; }
+.seg-thumb { position: absolute; left: 0; top: 0; z-index: 0; border-radius: 9px; background: #fff; box-shadow: 0 1px 2px rgba(0, 0, 0, .08), 0 3px 10px -4px rgba(0, 0, 0, .14); pointer-events: none; transition: transform .38s var(--spring), width .38s var(--spring), height .38s var(--spring), opacity .2s; }
+.has-thumb > [aria-selected="true"], .has-thumb > .active, .has-thumb > .on { background: transparent !important; box-shadow: none !important; }
+.p-tabs button, body:has(#sheet) .sheet-tab, .dd-switch button { transition: color .25s var(--ease-out); }
+.dd-switch { position: relative; display: inline-flex; gap: 2px; padding: 3px; border: 0; border-radius: 12px; background: #e8e8ed; }
+.dd-switch button { border: 0; border-radius: 9px; background: transparent; color: #515154; font-weight: 500; }
+.dd-switch button.on { color: #1d1d1f; font-weight: 600; }
+/* "Show numbers" on All Students */
+body:has(#sheet) .status-summary:not([hidden]) { animation: isr-slide-down .45s var(--ease-out) both; }
+body:has(#sheet) .stat-card, body:has(#sheet) .stat-card.stat-total { border: 0; border-radius: 14px; background: var(--panel); box-shadow: 0 1px 2px rgba(0, 0, 0, .04), 0 2px 10px rgba(0, 0, 0, .04); transition: transform .25s var(--ease-out), box-shadow .25s var(--ease-out); }
+body:has(#sheet) .stat-card::after, body:has(#sheet) .stat-card.stat-total::after { content: none; }
+body:has(#sheet) .stat-card:hover { transform: translateY(-1px); box-shadow: 0 4px 16px rgba(0, 0, 0, .07); }
+body:has(#sheet) .stat-card .stat-value, body:has(#sheet) .stat-card.stat-total .stat-value { font-family: var(--font); font-size: 24px; font-weight: 600; letter-spacing: -.02em; color: #1d1d1f; }
+body:has(#sheet) .stat-card .stat-label, body:has(#sheet) .stat-card.stat-total .stat-label { color: #6e6e73; font-size: 13.5px !important; font-weight: 500; }
+body:has(#sheet) .stat-card.stat-total { box-shadow: 0 1px 2px rgba(0, 0, 0, .04), 0 2px 10px rgba(0, 0, 0, .04); }
+body:has(#sheet) .stat-card.stat-total .stat-value { color: #0071e3; }
+body:has(#sheet) .stat-card.stat-rate { box-shadow: 0 1px 2px rgba(0, 0, 0, .04), 0 2px 10px rgba(0, 0, 0, .04); }
+body:has(#sheet) .stat-card.stat-rate .stat-value { color: #248a3d; }
+/* pop-ups: Mac-style sheets */
+dialog.p-dialog, dialog.ui-dialog { border: 0; border-radius: 22px; background: var(--panel, #fbfbfd); color: #1d1d1f; box-shadow: 0 30px 80px -20px rgba(0, 0, 0, .35), 0 0 0 .5px rgba(0, 0, 0, .08); }
+dialog.p-dialog[open], dialog.ui-dialog[open] { animation: isr-sheet-in .42s var(--spring) both; }
+dialog.p-dialog.is-closing { animation: isr-sheet-out .16s ease-in both; }
+dialog.p-dialog::backdrop, dialog.ui-dialog::backdrop { background: rgba(0, 0, 0, .22); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); animation: isr-fade .3s ease both; }
+dialog.p-dialog.is-closing::backdrop { animation: isr-fade-out .16s ease-in both; }
+.p-dialog-head { padding: 22px 26px 6px; border-bottom: 0 !important; }
+.p-dialog-head h2, .ui-dialog h2, #ui-dialog-title { font-family: var(--font); font-size: 22px; font-weight: 600; letter-spacing: -.02em; color: #1d1d1f; }
+.p-dialog-body { padding: 10px 26px 24px; }
+.p-dialog-body h3 { font-family: var(--font); font-size: 15px; font-weight: 600; letter-spacing: -.01em; color: #1d1d1f; text-transform: none; }
+.p-x { width: 32px; height: 32px; border: 0; border-radius: 50%; background: #e8e8ed; color: #515154; font-size: 18px; line-height: 1; transition: background .2s; }
+.p-x:hover { background: #dcdce2; color: #1d1d1f; }
+.p-dialog-foot { border-top: 0 !important; }
+.ns-many { border: 0; border-radius: 14px; background: #f0f0f3; }
+/* toasts: Mac-style notifications */
+.ui-toast { border: 0; border-radius: 16px; background: rgba(251, 251, 253, .92); color: #1d1d1f; -webkit-backdrop-filter: saturate(180%) blur(20px); backdrop-filter: saturate(180%) blur(20px); box-shadow: 0 12px 40px -12px rgba(0, 0, 0, .3), 0 0 0 .5px rgba(0, 0, 0, .08); }
+/* press and hover feedback */
+.btn, button.btn, a.btn, .td-check, .p-x { transition: background-color .2s var(--ease-out), color .2s var(--ease-out), transform .15s var(--ease-out), box-shadow .2s var(--ease-out); }
+.btn:active:not(:disabled), a.btn:active { transform: scale(.97); }
+.td-task, .pu-card, .bp-card, .md-card, .md-kpi, .td-attn-student, .md-person { transition: transform .25s var(--ease-out), box-shadow .25s var(--ease-out), background-color .2s; }
+.td-task:hover, .pu-card:hover, .bp-card:hover { transform: translateY(-1px); }
+.niec-nav a { transition: background-color .2s var(--ease-out), color .2s var(--ease-out); }
+details.td-attn-row[open] .td-attn-list { animation: isr-slide-down .35s var(--ease-out) both; }
+/* a soft cross-fade from one page to the next; the menu stays still */
+@view-transition { navigation: auto; }
+.niec-header { view-transition-name: isr-menu; }
+::view-transition-old(root) { animation: isr-fade-out .18s ease-in both; }
+::view-transition-new(root) { animation: isr-fade .28s var(--ease-out) both; }
+@keyframes isr-slide-down { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
+@keyframes isr-sheet-in { from { opacity: 0; transform: translateY(14px) scale(.96); } to { opacity: 1; transform: none; } }
+@keyframes isr-sheet-out { to { opacity: 0; transform: translateY(6px) scale(.98); } }
+@keyframes isr-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes isr-fade-out { to { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .seg-thumb, .btn, .td-task, .pu-card, .bp-card, body:has(#sheet) .stat-card { transition: none !important; }
+  dialog.p-dialog[open], dialog.ui-dialog[open], body:has(#sheet) .status-summary:not([hidden]), details.td-attn-row[open] .td-attn-list, ::view-transition-old(root), ::view-transition-new(root) { animation: none !important; }
+}

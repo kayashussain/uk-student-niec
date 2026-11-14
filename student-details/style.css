@@ -599,8 +599,6 @@ tr.defer-warning-row td { background-color: var(--red-bg) !important; }
 .stat-card.stat-total { background: #164a98; border-color: #164a98; }
 .stat-card.stat-total .stat-value { color: #fff; }
 .stat-card.stat-total .stat-label { color: #fff; }
-.stat-card.stat-rate { border-left-color: var(--niec-orange); }
-.stat-card.stat-rate .stat-value { color: #b94a0b; }
 .stat-card .stat-visa { color: #15803d; font-weight: 600; }
 
 /* Column headings: light blue, with the NIEC blue line underneath. */

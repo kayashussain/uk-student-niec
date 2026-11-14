@@ -36,8 +36,6 @@ const serveStatic = createStaticServer(__dirname, {
   '/index.html': 'text/html; charset=utf-8',
   '/unlock.html': 'text/html; charset=utf-8',
   '/calc.js': 'text/javascript; charset=utf-8',
-  '/favicon.png': 'image/png',
-  '/apple-touch-icon.png': 'image/png',
 });
 
 // Files shared with the other pages (header, logo, session helper, ...).

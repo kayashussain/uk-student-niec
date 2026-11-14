@@ -136,7 +136,15 @@
     return new Promise((resolve) => {
       const d = el('dialog', `p-dialog${wide ? ' p-dialog-wide' : ''}`);
       let result;
-      const close = (value) => { result = value; d.close(); };
+      // Closes with a short fade and shrink (as a Mac sheet does); a person who prefers less motion gets it at once.
+      const close = (value) => {
+        result = value;
+        if (d.classList.contains('is-closing')) return;
+        const quick = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        if (quick) { d.close(); return; }
+        d.classList.add('is-closing');
+        setTimeout(() => d.close(), 160);
+      };
       const head = el('div', 'p-dialog-head');
       const x = h('button', { type: 'button', class: 'p-x', 'aria-label': 'Close', onclick: () => close() }, '×');
       head.append(el('h2', '', title), x);
