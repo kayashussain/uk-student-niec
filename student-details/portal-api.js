@@ -31,7 +31,7 @@ const MAX_CELL_CHARS = 5000;
 const NEW_STUDENT_COLUMNS = ['FIRST NAME', 'LAST NAME', 'EMAIL', 'CONTACT NUMBER', 'STUDENT SOURCE'];
 
 function createPortalApi({
-  getWorkbook, writeWorkbook, recordChanges, teamSave, cards, messages, courseLinks, sourceOptions, courseLinker = null, courseWatch = () => null, facts, direct, b2b, agents, planning, accounts, activity,
+  getWorkbook, writeWorkbook, recordChanges, teamSave, cards, messages, courseLinks, sourceOptions, courseLinker = null, courseWatch = () => null, facts, direct, b2b, agents, planning, accounts, activity, rates = null,
   insights = null, finder = null, calculated = [], userMail = null, officeMailSettings = () => ({}),
 }) {
   // ---- where to send a student's application: the portal link and email saved on Partner Universities ----
@@ -86,14 +86,41 @@ function createPortalApi({
   const currentIntake = () => { const wb = getWorkbook(); return wb ? Teams.newestSheet(wb.sheets.filter((s) => !s.hidden)) : null; };
   // The teams a person belongs to (department keys); a task given to one of them can be seen and marked by that person.
   const teamsOf = (user) => (Array.isArray(user && user.departments) ? user.departments : []);
-  const TASK_TEAMS = () => Object.entries(Teams.DEPARTMENTS).map(([id, d]) => ({ id, label: d.label }));
-  const teamLabel = (id) => (Teams.DEPARTMENTS[id] ? Teams.DEPARTMENTS[id].label : id);
+  // Tasks go to a team, or to the head of the consultancy (Admin): the Manager, every team and every branch can give Admin a task too
+  // (the owner, 14 Nov 2026). Admin is named by their own name and the title of the signature (Message templates), for example
+  // "SK Kayas Hussain (Head of Recruitment)".
+  const HEAD = 'head';
+  const headLabel = () => {
+    const admins = accounts && accounts.people ? accounts.people().filter((x) => x.access === 'Admin') : [];
+    const sig = (messages && messages.signature && messages.signature()) || {};
+    return `${(admins[0] && admins[0].name) || text(sig.name) || 'Admin'} (${text(sig.title) || 'Head of Recruitment'})`;
+  };
+  const TASK_TEAMS = () => [...Object.entries(Teams.DEPARTMENTS).map(([id, d]) => ({ id, label: d.label })), { id: HEAD, label: headLabel() }];
+  const teamLabel = (id) => (id === HEAD ? headLabel() : Teams.DEPARTMENTS[id] ? Teams.DEPARTMENTS[id].label : id);
   const canAssign = (user) => Teams.isAdmin(user) || Teams.isManager(user);
-  // A branch gives tasks too, about its own students, to the Application Team and the Mock Team (the owner, 14 Nov 2026). It removes
-  // only the tasks it gave; Admin and the Manager remove any.
+  // A branch gives tasks too, about its own students, to the Application Team and the Mock Team (the owner, 14 Nov 2026). Whoever gave
+  // a task removes it; Admin and the Manager remove any.
   const isBranchUser = (user) => teamsOf(user).some((d) => Teams.DEPARTMENTS[d] && Teams.DEPARTMENTS[d].source);
   const BRANCH_TASK_TEAMS = ['application', 'mock'];
-  const assignTeamsFor = (user) => (canAssign(user) ? TASK_TEAMS() : isBranchUser(user) ? TASK_TEAMS().filter((t) => BRANCH_TASK_TEAMS.includes(t.id)) : []);
+  const assignTeamsFor = (user) => {
+    if (Teams.isAdmin(user)) return TASK_TEAMS().filter((t) => t.id !== HEAD);
+    if (Teams.isManager(user)) return TASK_TEAMS();
+    if (Teams.isReadOnly(user)) return [];
+    return TASK_TEAMS().filter((t) => t.id === HEAD || (isBranchUser(user) && BRANCH_TASK_TEAMS.includes(t.id)));
+  };
+  // A task is for this person (their team's, or Admin's own); they gave it; and what is new on it for them (the red dots): the comments
+  // the others wrote since they last read it (or since their own last comment), and a task given to them in the last 3 days not read yet.
+  const forMe = (user, t) => teamsOf(user).includes(t.team) || (t.team === HEAD && Teams.isAdmin(user));
+  const gaveIt = (user, t) => Boolean(user && t.by && t.by === user.name);
+  function unreadOf(user, t, seen) {
+    if (!forMe(user, t) && !gaveIt(user, t)) return 0;
+    const comments = Array.isArray(t.comments) ? t.comments : [];
+    const ownLast = comments.filter((c) => c.by === user.name).map((c) => c.at).sort().pop() || '';
+    const since = [seen[t.id] || '', ownLast].sort().pop();
+    const fresh = comments.filter((c) => c.by !== user.name && String(c.at) > since).length;
+    const newTask = !t.done && forMe(user, t) && t.by !== user.name && !seen[t.id] && Date.now() - Date.parse(t.at) < 3 * 86400000 ? 1 : 0;
+    return fresh + newTask;
+  }
   const hasTaskFor = (user, rowId) => { const mine = teamsOf(user); if (!mine.length) return false; const c = cards.has(rowId) ? cards.get(rowId) : null; const recent = Date.now() - 7 * 86400000; return Boolean(c && (c.tasks || []).some((t) => mine.includes(t.team) && (!t.done || Date.parse(t.doneAt) > recent))); };
   function canSee(user, found) {
     if (!found) return false;
@@ -569,7 +596,7 @@ function createPortalApi({
     const day = (iso) => Math.round(Date.parse(iso + 'T00:00:00Z') / 86400000);
     const shaped = list.sort((a, b) => b.date.localeCompare(a.date)).map((e) => ({
       id: e.id, name: e.name, kind: e.kind || 'Event', type: e.type, channel: channelOf(e), place: e.place, date: e.date, endDate: e.endDate || '',
-      days: e.date ? (e.endDate ? day(e.endDate) - day(e.date) + 1 : 1) : 0, note: e.note, cost: e.cost, leads: e.leads, applied: e.applied, visas: e.visas,
+      days: e.date ? (e.endDate ? day(e.endDate) - day(e.date) + 1 : 1) : 0, note: e.note, cost: e.cost, costCurrency: e.costCurrency || 'NPR', costAmount: e.costAmount === undefined ? e.cost : e.costAmount, costRate: e.costRate || 0, leads: e.leads, applied: e.applied, visas: e.visas,
       costPerLead: e.cost > 0 && e.leads > 0 ? Math.round(e.cost / e.leads) : null, costPerVisa: e.cost > 0 && e.visas > 0 ? Math.round(e.cost / e.visas) : null,
       students: e.students, registered: e.registered, attended: e.attended,
     }));
@@ -594,7 +621,8 @@ function createPortalApi({
           can: { edit: editable, removeAnyNote: Teams.isAdmin(req.user), source: editable && Teams.canEdit(req.user, 'STUDENT SOURCE', found.row), assign: assignTeamsFor(req.user).length > 0, removeAnyTask: canAssign(req.user), myTeams: teamsOf(req.user) },
           taskTeams: TASK_TEAMS(),
           assignTeams: assignTeamsFor(req.user),
-          me: { name: req.user.name },
+          taskUnread: Object.fromEntries((card.tasks || []).map((t) => [t.id, unreadOf(req.user, t, cards.seenBy(req.user.username))]).filter(([, n]) => n > 0)),
+          me: { name: req.user.name, role: req.user.role },
           event: (() => { const e = eventOf(card.profile.sourceDetail); return e ? { name: e.name, kind: e.kind || 'Event', type: e.type, place: e.place, date: e.date, endDate: e.endDate } : null; })(),
           mail: mailInfo(req.user),
           apply: partnerRouteFor(found.row['UNIVERSITY PARTNER'], editable) || applyRouteFor(found.row['UNIVERSITY NAME'], editable),
@@ -621,25 +649,32 @@ function createPortalApi({
       let out;
       if (!sub) {
         const allowedTeams = assignTeamsFor(req.user).map((t) => t.id);
-        if (!allowedTeams.length) { sendJSON(res, 403, { error: 'Only Admin, the Manager and the branches give tasks.' }); return true; }
+        if (!allowedTeams.length) { sendJSON(res, 403, { error: 'Your account cannot give tasks.' }); return true; }
         if (!allowedTeams.includes(text(body.team))) { sendJSON(res, 400, { error: 'Choose the team.' }); return true; }
         out = cards.addTask(rowId, body, by(req));
         if (!out.error) note(req, [`${who2}: gave ${teamLabel(out.task.team)} a task: ${out.task.text.slice(0, 120)}`], 'Gave a task');
       } else {
         const task = (card.tasks || []).find((t) => t.id === sub);
         if (!task) { sendJSON(res, 404, { error: 'No such task.' }); return true; }
+        if (body.seen) {
+          // The person has read the task and its comments: its red dot goes.
+          if (!canAssign(req.user) && !gaveIt(req.user, task) && !forMe(req.user, task)) { sendJSON(res, 403, { error: 'This task is for another team.' }); return true; }
+          cards.markSeen(req.user.username, [task.id]);
+          sendJSON(res, 200, { ok: true });
+          return true;
+        }
         if (del) {
-          if (!canAssign(req.user) && !(isBranchUser(req.user) && task.by === by(req))) { sendJSON(res, 403, { error: 'Only Admin, the Manager or whoever gave the task removes it.' }); return true; }
+          if (!canAssign(req.user) && !gaveIt(req.user, task)) { sendJSON(res, 403, { error: 'Only Admin, the Manager or whoever gave the task removes it.' }); return true; }
           out = cards.removeTask(rowId, sub, by(req));
           if (!out.error) note(req, [`${who2}: removed the task for ${teamLabel(task.team)}`], 'Removed a task');
         } else if (body.comment !== undefined) {
           // The team and whoever gave the task (Admin, the Manager, or the branch that gave it) talk it through here.
-          const gaveIt = isBranchUser(req.user) && task.by === by(req);
-          if (!canAssign(req.user) && !gaveIt && !teamsOf(req.user).includes(task.team)) { sendJSON(res, 403, { error: 'This task is for another team.' }); return true; }
+          if (!canAssign(req.user) && !gaveIt(req.user, task) && !forMe(req.user, task)) { sendJSON(res, 403, { error: 'This task is for another team.' }); return true; }
           out = cards.commentTask(rowId, sub, body.comment, by(req));
+          if (!out.error) cards.markSeen(req.user.username, [task.id]);
           if (!out.error) note(req, [`${who2}: commented on the task for ${teamLabel(task.team)}: ${String(body.comment).slice(0, 120)}`], 'Task comment');
         } else {
-          if (!canAssign(req.user) && !teamsOf(req.user).includes(task.team)) { sendJSON(res, 403, { error: 'This task is for another team.' }); return true; }
+          if (!canAssign(req.user) && !forMe(req.user, task)) { sendJSON(res, 403, { error: 'This task is for another team.' }); return true; }
           out = cards.setTask(rowId, sub, Boolean(body.done), by(req));
           if (!out.error) note(req, [`${who2}: marked the task for ${teamLabel(task.team)} as ${body.done ? 'complete' : 'not complete'}`], 'Task');
         }
@@ -760,8 +795,10 @@ function createPortalApi({
     }
     // The card: where the student came from and the rest of what the form asked.
     const profile = body.profile && typeof body.profile === 'object' ? body.profile : {};
-    // The first inquiry day is the day the student is added.
-    const saved = cards.setProfile(rowId, { sourceDetail: profile.sourceDetail, sourceRemarks: profile.sourceRemarks || '', inquiryDate: cards.today() }, by(req));
+    // The first inquiry day is the day the student is added, unless the list it came from says when they enquired. A lead list can
+    // also say the level of study the student asked about.
+    const asked = /^\d{4}-\d{2}-\d{2}$/.test(text(profile.inquiryDate)) && text(profile.inquiryDate) <= cards.today() ? text(profile.inquiryDate) : cards.today();
+    const saved = cards.setProfile(rowId, { sourceDetail: profile.sourceDetail, sourceRemarks: profile.sourceRemarks || '', inquiryDate: asked, ...(Fields.STUDY_LEVELS.includes(profile.studyLevel) ? { studyLevel: profile.studyLevel } : {}) }, by(req));
     if (!saved.error && text(body.note)) cards.addNote(rowId, { text: body.note, kind: 'note' }, by(req));
     return { status: 200, json: { ok: true, id: rowId, sheetId: sheet.id, revision: getWorkbook().revision } };
   }
@@ -826,19 +863,39 @@ function createPortalApi({
     const seen = new Set();
     const out = [];
     const lines = (Array.isArray(body.rows) ? body.rows : []).filter((r) => r && typeof r === 'object').slice(0, 1000);
+    // The intake a lead asked for ("January 2027") is the intake tab with that month and year ("Jan Intake 2027"), if this account has
+    // one; otherwise (or "Later in 2027") the intake chosen on the page.
+    const wbNow = getWorkbook();
+    const tabs = wbNow ? Teams.viewFor(req.user, wbNow).sheets : [];
+    const MONTHS = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
+    const intakeFor = (asked) => {
+      const a = text(asked).toLowerCase();
+      const mon = MONTHS.find((m) => new RegExp(`\\b${m}`).test(a));
+      const year = (a.match(/\b20\d\d\b/) || [])[0];
+      if (!mon || !year) return null;
+      return tabs.find((sh) => { const n = sh.name.toLowerCase(); return new RegExp(`\\b${mon}`).test(n) && n.includes(year); }) || null;
+    };
+    const chosen = tabs.find((sh) => sh.id === body.sheetId);
     for (const r of lines) {
-      const first = text(r.first).slice(0, 80); const last = text(r.last).slice(0, 80);
-      const email = text(r.email).toLowerCase().slice(0, 120); const phone = text(r.phone).slice(0, 40);
+      // Names as people write them in a form are tidied: stray symbols at the start or end go, and each word gets a capital.
+      const tidy = (v) => text(v).replace(/^[^\p{L}]+|[^\p{L}.']+$/gu, '').replace(/\s+/g, ' ').replace(/(^|[\s'-])(\p{Ll})/gu, (m0, sp, ch) => sp + ch.toUpperCase()).slice(0, 80);
+      const first = tidy(r.first); const last = tidy(r.last);
+      const email = text(r.email).toLowerCase().slice(0, 120);
+      // A Nepal number is kept as people dial it here (98XXXXXXXX); a number from another country keeps its country code.
+      const rawPhone = text(r.phone).replace(/[^\d+]/g, '');
+      const phone = (/^\+?977(9\d{9})$/.test(rawPhone) ? rawPhone.replace(/^\+?977/, '') : rawPhone).slice(0, 40);
       const name = [first, last].filter(Boolean).join(' ');
       const d = digitsOf(phone).slice(-10);
-      const line = { name, first, last, email, phone };
+      const asked = intakeFor(r.intake);
+      const extra = { level: Fields.STUDY_LEVELS.includes(r.level) ? r.level : '', inquiryDate: /^\d{4}-\d{2}-\d{2}$/.test(text(r.inquiryDate)) ? text(r.inquiryDate) : '', extra: text(r.extra).slice(0, 600), sheetId: asked ? asked.id : '', intakeName: (asked || chosen || {}).name || '' };
+      const line = { name, first, last, email, phone, ...extra };
       if (!name) { out.push({ ...line, action: 'problem', note: 'No name' }); continue; }
       if (d.length < 7 && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { out.push({ ...line, action: 'problem', note: 'No phone or email to match the student by' }); continue; }
       const key = d.length >= 7 ? 'p' + d : 'e' + email;
       if (seen.has(key) || (email && seen.has('e' + email))) { out.push({ ...line, action: 'problem', note: 'Same phone or email as an earlier line' }); continue; }
       seen.add(key); if (email) seen.add('e' + email);
       const found = (d.length >= 7 && byPhone.get(d)) || (email && byEmail.get(email)) || null;
-      if (!found) { out.push({ ...line, action: 'new', note: 'Will be added at Inquiry' }); continue; }
+      if (!found) { out.push({ ...line, action: 'new', note: `Will be added at Inquiry${line.intakeName ? `, ${line.intakeName}` : ''}` }); continue; }
       const card = all[found.row._id];
       const tagged = card && eventFor(plan.events, card.profile.sourceDetail);
       const at = { id: found.row._id, intake: found.sheet.name, stage: text(found.row[STATUS]), name: nameOf(found.row) };
@@ -851,15 +908,17 @@ function createPortalApi({
     }
     const count = (a) => out.filter((x) => x.action === a).length;
     if (body.preview) return { status: 200, json: { preview: true, label, rows: out, counts: { new: count('new'), link: count('link'), already: count('already'), other: count('other'), problem: count('problem') } } };
-    // Carry out: add the new ones, tag the ones already on the sheet.
+    // Carry out: add the new ones, tag the ones already on the sheet. A campaign on social media (a Facebook advert, for example) is a
+    // Social Media source, so its students are found under Social Media too; any other event or campaign is an Events source.
+    const source = channelOf(ev) === 'Social media' ? 'Social Media' : 'Events';
     let added = 0; let linked = 0; const failed = [];
     for (const x of out) {
       if (x.action === 'new') {
-        const r = addStudent(req, { fields: { 'FIRST NAME': x.first, 'LAST NAME': x.last, EMAIL: x.email, 'CONTACT NUMBER': x.phone, 'STUDENT SOURCE': 'Events' }, profile: { sourceDetail: label }, stage: 'Inquiry', sheetId: body.sheetId, note: `Enquiry from ${ev.name}, from its enquiry list.` });
+        const r = addStudent(req, { fields: { 'FIRST NAME': x.first, 'LAST NAME': x.last, EMAIL: x.email, 'CONTACT NUMBER': x.phone, 'STUDENT SOURCE': source }, profile: { sourceDetail: label, studyLevel: x.level, inquiryDate: x.inquiryDate }, stage: 'Inquiry', sheetId: x.sheetId || body.sheetId, note: `Enquiry from ${ev.name}, from its enquiry list.${x.extra ? ` ${x.extra}.` : ''}` });
         if (r.status === 200) { added += 1; x.id = r.json.id; } else failed.push(`${x.name}: ${r.json.error || 'could not be added'}`);
       } else if (x.action === 'link') {
         const found = rowIndex().get(x.id);
-        const src = setColumns(req, found, { 'STUDENT SOURCE': 'Events' });
+        const src = setColumns(req, found, { 'STUDENT SOURCE': source });
         if (src.error) { failed.push(`${x.name}: ${src.error}`); continue; }
         const card = cards.get(x.id);
         cards.setProfile(x.id, { sourceDetail: label, sourceRemarks: [card.profile.sourceRemarks, x.before ? `Previous source: ${x.before}` : ''].filter(Boolean).join(' | ').slice(0, 160) }, by(req));
@@ -887,22 +946,41 @@ function createPortalApi({
     return out.sort((a, b) => a.name.localeCompare(b.name));
   }
 
-  // Which event or campaign each student came from, for the "Came from" filter of All Students: only the students the account
+  // Which event or campaign each student came from, for the Source filter of All Students: only the students the account
   // sees, and only the event's name and day (no cost).
   function eventTags(user) {
     const plan = planning.all();
     const all = cards.all();
     const rows = {};
     const used = new Map();
+    // Every student's source too, for the Source filter of All Students (the owner, 14 Nov 2026): the source (Social Media, Visitor,
+    // a branch ...) and exactly which (the platform, the event or campaign, the branch, the agent), so any team can show, for example,
+    // only the Visitor students or only the leads of one Facebook campaign, and call them.
+    const sources = {};
+    const groups = new Map();
     for (const { row } of visibleStudents(user)) {
       const card = all[row._id];
+      const stored = text(row['STUDENT SOURCE']);
+      const group = Fields.sourceGroup(stored) || 'Not recorded';
       const e = card && eventFor(plan.events, card.profile.sourceDetail);
+      const detail = group === 'Branch' ? Fields.branchName(stored) : e ? eventLabel(e.name, e.date) : text(card && card.profile.sourceDetail).slice(0, 120);
+      sources[row._id] = [group, detail];
+      const g = groups.get(group) || { group, count: 0, details: new Map() };
+      g.count += 1;
+      if (detail) g.details.set(detail, (g.details.get(detail) || 0) + 1);
+      groups.set(group, g);
       if (!e) continue;
       const label = eventLabel(e.name, e.date);
       rows[row._id] = label;
       used.set(label, { label, name: e.name, date: e.date, count: (used.get(label) || { count: 0 }).count + 1 });
     }
-    return { rows, events: [...used.values()].sort((a, b) => String(b.date).localeCompare(String(a.date))) };
+    const ORDER = ['Social Media', 'Visitor', 'Reference', 'Language Classes', 'Events', 'Agent', 'Branch', 'B2B Partner'];
+    const rank = (g) => (ORDER.includes(g) ? ORDER.indexOf(g) : g === 'Not recorded' ? 99 : 50);
+    return {
+      rows, events: [...used.values()].sort((a, b) => String(b.date).localeCompare(String(a.date))), sources,
+      groups: [...groups.values()].sort((a, b) => rank(a.group) - rank(b.group) || a.group.localeCompare(b.group))
+        .map((g) => ({ group: g.group, count: g.count, details: [...g.details].map(([detail, count]) => ({ detail, count })).sort((a, b) => b.count - a.count || a.detail.localeCompare(b.detail)) })),
+    };
   }
 
   // ---- lists across students ----
@@ -1024,6 +1102,34 @@ function createPortalApi({
       planning.saveSettings({ notPartners: next });
       activity.record(req, req.user, 'Edited partners', { app: 'B2B Partners', changes: [body.undo ? `${name}: shown again as a B2B partner` : `${name}: marked as not a B2B partner`] });
       sendJSON(res, 200, { notPartners: planning.all().settings.notPartners });
+      return true;
+    }
+    // A name that is really one of the universities NIEC works with directly (for example Navitas, the owner, 14 Nov 2026): it moves
+    // to Partner Universities with what was kept for it (status, agreement dates, contacts, how to submit, notes, the commission
+    // links and the agreement files) and leaves B2B Partners. The students keep the name in their University Partner column.
+    if (urlPath === '/api/b2b/to-university' && req.method === 'POST') {
+      if (!adminOnly(req, res, 'B2B Partners')) return true;
+      const body = await bodyOf(req, res, 4096);
+      if (!body) return true;
+      const id = /^[a-f0-9]{12}$/.test(text(body.id)) ? text(body.id) : '';
+      const p = id ? b2b.get(id) : null;
+      if (id && !p) { sendJSON(res, 404, { error: 'No such partner.' }); return true; }
+      const name = p ? p.name : text(body.name).replace(/\s+/g, ' ').slice(0, 120);
+      if (!name) { sendJSON(res, 400, { error: 'No name.' }); return true; }
+      if (direct.all().some((u) => squash(u.name) === squash(name))) { sendJSON(res, 400, { error: `${name} is already in Partner Universities.` }); return true; }
+      const made = direct.create(name, req.user.label);
+      if (made.error) { sendJSON(res, 400, { error: made.error }); return true; }
+      if (p) {
+        const links = (p.commissions || []).filter((c) => c.intake || c.link || c.note).map((c) => `Commission ${[c.intake, c.link, c.note].filter(Boolean).join(': ')}`);
+        direct.update(made.university.id, { name, status: p.status, type: 'Direct', agreementStart: p.agreementStart, agreementEnd: p.agreementEnd, contacts: p.contacts, applyPortal: p.applyPortal, applyEmail: p.applyEmail, applyUser: p.applyUser, applyPassword: p.applyPassword, notes: [p.city ? `City: ${p.city}` : '', p.notes, ...links].filter(Boolean).join('\n') }, req.user.label);
+        for (const a of p.agreements || []) {
+          const f = b2b.agreementFile(p.id, a.id);
+          if (f) direct.addAgreement(made.university.id, f.name, fs.readFileSync(f.path), req.user.label);
+        }
+        b2b.remove(p.id);
+      }
+      activity.record(req, req.user, 'Edited partners', { app: 'B2B Partners', changes: [`${name}: moved from B2B Partners to Partner Universities`] });
+      sendJSON(res, 200, { id: made.university.id, name });
       return true;
     } return handlePartnerStore(req, res, urlPath, { store: b2b, prefix: 'b2b', label: 'B2B Partners', kind: 'b2b' }); }
   async function handleAgents(req, res, urlPath) {
@@ -1154,6 +1260,23 @@ function createPortalApi({
       record(`Removed an entry from the ${label}`);
       sendJSON(res, 200, { ok: true });
       return true;
+    }
+    // The cost of an event or a campaign may be typed in dollars or pounds: it is kept in rupees at today's rate (the rate of the day
+    // it was first saved stays while the amount and currency are not changed), with what was typed beside it.
+    if (m[1] === 'events') {
+      const cur = ['USD', 'GBP'].includes(body.costCurrency) ? body.costCurrency : 'NPR';
+      const typed = String(body.costAmount ?? body.cost ?? '').replace(/[£$,\s]/g, '').replace(/^rs\.?/i, '');
+      const amt = Number(typed);
+      if (cur !== 'NPR' && typed && Number.isFinite(amt) && amt > 0) {
+        const old = body.id ? (planning.all().events || []).find((e) => e.id === body.id) : null;
+        let rate = old && old.costCurrency === cur && old.costAmount === Math.round(amt * 100) / 100 && old.costRate ? old.costRate : 0;
+        if (!rate) {
+          const r = rates ? await rates.toNpr(cur) : { ok: false, error: 'Exchange rates are not available here. Enter the cost in rupees.' };
+          if (!r.ok) { sendJSON(res, 400, { error: r.error }); return true; }
+          rate = r.rate;
+        }
+        Object.assign(body, { costCurrency: cur, costAmount: typed, costRate: rate, cost: String(Math.round(amt * rate)) });
+      } else Object.assign(body, { costCurrency: 'NPR', costAmount: typed, costRate: 0, cost: typed });
     }
     const out = planning.save(m[1], body, req.user.label);
     if (out.error) { sendJSON(res, 400, { error: out.error }); return true; }
@@ -1354,20 +1477,36 @@ function createPortalApi({
     // Tasks: a team member gets the tasks of their teams (and a branch the tasks it gave); Admin and the Manager get every task.
     if (urlPath === '/api/tasks' && req.method === 'GET') {
       const all = cards.all();
-      const mine = teamsOf(req.user);
       const everyone = canAssign(req.user);
+      const seen = cards.seenBy(req.user.username);
       const out = [];
       for (const { sheet, row } of rowIndex().values()) {
         const c = all[row._id];
         if (!c || !Array.isArray(c.tasks) || !c.tasks.length) continue;
-        // A branch also gets the tasks it gave (marked `given`), to see whether they are done.
-        const gaveIt = (t) => isBranchUser(req.user) && t.by === by(req);
-        c.tasks.forEach((t) => { if (everyone || mine.includes(t.team) || gaveIt(t)) out.push({ ...t, given: !everyone && !mine.includes(t.team), teamLabel: teamLabel(t.team), studentId: row._id, student: nameOf(row) || 'Student', stage: text(row[STATUS]), intake: sheet.name }); });
+        // Each task says whether it is for this person (`forMe`), whether they gave it (`given`, when it is not also theirs to do), who
+        // gave it and to whom, and how much is new on it for them (`unread`).
+        c.tasks.forEach((t) => {
+          const mine = forMe(req.user, t);
+          if (!everyone && !mine && !gaveIt(req.user, t)) return;
+          out.push({ ...t, forMe: mine, given: !mine && gaveIt(req.user, t), unread: unreadOf(req.user, t, seen), teamLabel: teamLabel(t.team), studentId: row._id, student: nameOf(row) || 'Student', stage: text(row[STATUS]), intake: sheet.name });
+        });
       }
       // Open first, then the one with the newest word (a comment, or the task itself) first.
       const lastWord = (t) => { const c = Array.isArray(t.comments) && t.comments.length ? t.comments[t.comments.length - 1].at : ''; return String(c > t.at ? c : t.at); };
       out.sort((a, b) => (a.done - b.done) || lastWord(b).localeCompare(lastWord(a)));
-      sendJSON(res, 200, { tasks: out.slice(0, 500), canAssign: everyone, teams: TASK_TEAMS() });
+      sendJSON(res, 200, { tasks: out.slice(0, 500), canAssign: everyone, me: req.user.name, headLabel: headLabel(), isHead: Teams.isAdmin(req.user), teams: TASK_TEAMS() });
+      return true;
+    }
+    // How much is new on the tasks for this person (the red dot on Today in the menu): new comments, and tasks just given to them.
+    if (urlPath === '/api/tasks/unread' && req.method === 'GET') {
+      const all = cards.all();
+      const seen = cards.seenBy(req.user.username);
+      let count = 0;
+      for (const { row } of rowIndex().values()) {
+        const c = all[row._id];
+        (c && Array.isArray(c.tasks) ? c.tasks : []).forEach((t) => { count += unreadOf(req.user, t, seen); });
+      }
+      sendJSON(res, 200, { count });
       return true;
     }
     if (urlPath === '/api/event-tags' && req.method === 'GET') { sendJSON(res, 200, eventTags(req.user)); return true; }

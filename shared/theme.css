@@ -1460,44 +1460,65 @@ body:has(.niec-demo) .ui-toasts { top: 60px; }
   ::view-transition-old(root), ::view-transition-new(root), dialog.ui-dialog.is-closing, .td-task.is-ticking { animation: none !important; }
 }
 
-/* 🔴 CSS CHANGED (2026-11-14): tasks without dates, and a conversation on every task | from: each task had a date pill on its right ("Due today", "Late, was due 3 days ago") and a red or amber edge; there was no way to talk about a task | to: the task fills the row (no date pill), with "Given by" and the day under it; under every task a "Comment" line opens a conversation in the style of Apple's Messages: your own comments in blue bubbles on the right, the other side's in grey bubbles on the left, a round text box with a blue send arrow; a reply from the other side shows a blue "Reply from Asha" badge and opens by itself; the conversation slides open and closed; a new comment pops in; the tick circle springs when pressed */
+/* 🔴 CSS CHANGED (2026-11-14): tasks, who gave them to whom, their comments, and red dots for what is new | from: a date pill on every task and, in the first try of comments, chat bubbles (blue on the right, grey on the left) with a text box inside a second box (it looked broken) | to: no date pill; under the task "From SK Kayas Hussain → Application Team · 14 Nov"; the comments as a calm record like Apple's own apps: a small round initial, the name in bold, the time in grey, the words under it, thin lines between them; one clean text box (no box inside a box) with a blue "Comment" pill; what is new for you is marked with a red dot with its number on the task, a red "2 new" on its comment line and its list, and a red badge on Today in the menu (it pops when something new arrives); the comment list slides open and closed; the tick circle springs when pressed */
 .td-task { grid-template-columns: 34px minmax(0, 1fr); }
 .td-task:has(.tk-thread.is-open):hover { transform: none; }
-.td-chip.is-new { background: #0071e3; color: #fff; }
-.tk-thread { margin-top: 10px; }
-.tk-toggle { display: inline-flex; align-items: center; gap: 7px; min-height: 32px; padding: 0 12px 0 10px; border: 0; border-radius: 980px; background: rgba(0, 0, 0, .045); color: #424245; font: inherit; font-size: 13.5px; font-weight: 600; cursor: pointer; transition: background-color .2s var(--ease-out), transform .15s var(--ease-out); }
+.td-task.has-unread { box-shadow: inset 3px 0 0 #ff3b30, 0 1px 2px rgba(0, 0, 0, .04); }
+.td-task-top { display: flex; align-items: flex-start; gap: 10px; }
+.td-task-top .td-task-text { flex: 1; min-width: 0; }
+.td-dot { flex: none; min-width: 22px; height: 22px; padding: 0 7px; border-radius: 11px; background: #ff3b30; color: #fff; font-size: 12.5px; font-weight: 700; line-height: 22px; text-align: center; box-shadow: 0 2px 8px -2px rgba(255, 59, 48, .6); animation: isr-pop .5s cubic-bezier(.34, 1.56, .64, 1) both; }
+.td-route { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 8px; margin-top: 6px; color: #6e6e73; font-size: 13.5px; }
+.td-route .td-from-who, .td-route .td-to-who { color: #1d1d1f; font-weight: 600; }
+.td-route .td-arrow { color: #86868b; }
+.td-route .td-when::before, .td-route .td-donemark::before { content: "\00b7"; margin-right: 8px; color: #86868b; }
+.td-route .td-donemark { color: #248a3d; font-weight: 600; }
+.td-route .p-link { margin-left: auto; }
+.td-group-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin: 0 0 4px; }
+.td-group-head h3 { margin: 0; color: #1d1d1f; font-size: 17px; font-weight: 650; letter-spacing: -.01em; text-transform: none; }
+.td-group-head p { margin: 2px 0 0; color: #6e6e73; font-size: 14px; }
+.td-group + .td-group { margin-top: 26px; padding-top: 22px; border-top: 1px solid rgba(0, 0, 0, .06); }
+.td-chip.is-new { background: #ff3b30; color: #fff; }
+.tk-thread { margin-top: 12px; }
+.tk-toggle { display: inline-flex; align-items: center; gap: 7px; min-height: 30px; padding: 0 12px 0 10px; border: 0; border-radius: 980px; background: rgba(0, 0, 0, .045); color: #424245; font: inherit; font-size: 13.5px; font-weight: 600; cursor: pointer; transition: background-color .2s var(--ease-out), transform .15s var(--ease-out); }
 .tk-toggle:hover { background: rgba(0, 0, 0, .08); color: #1d1d1f; }
 .tk-toggle:active { transform: scale(.96); }
-.tk-ico svg { width: 16px; height: 16px; display: block; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linejoin: round; }
-.tk-toggle.has-new { background: rgba(0, 113, 227, .1); color: #0066cc; }
-.tk-new { margin-left: 2px; padding: 2px 9px; border-radius: 980px; background: #0071e3; color: #fff; font-size: 12.5px; font-weight: 650; animation: isr-pop .5s cubic-bezier(.34, 1.56, .64, 1) both; }
+.tk-ico svg { width: 15px; height: 15px; display: block; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
+.tk-new { padding: 1px 8px; border-radius: 980px; background: #ff3b30; color: #fff; font-size: 12px; font-weight: 700; animation: isr-pop .5s cubic-bezier(.34, 1.56, .64, 1) both; }
 .tk-body { display: grid; grid-template-rows: 0fr; opacity: 0; transition: grid-template-rows .4s cubic-bezier(.32, .72, 0, 1), opacity .25s ease; }
 .tk-inner { min-height: 0; overflow: hidden; margin: 0 -5px; padding: 0 5px 5px; }
 .tk-thread.is-open .tk-body { grid-template-rows: 1fr; opacity: 1; }
 .tk-thread:not(.is-open) .tk-body { visibility: hidden; transition: grid-template-rows .3s cubic-bezier(.32, .72, 0, 1), opacity .2s ease, visibility 0s .3s; }
-.tk-list { list-style: none; margin: 12px 0 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
-.tk-msg { display: flex; flex-direction: column; align-items: flex-start; max-width: 82%; }
-.tk-msg.mine { align-self: flex-end; align-items: flex-end; }
-.tk-bubble { padding: 9px 14px; border-radius: 19px; border-bottom-left-radius: 6px; background: #e9e9eb; color: #1d1d1f; font-size: 15px; line-height: 1.42; white-space: pre-wrap; overflow-wrap: anywhere; }
-.tk-msg.mine .tk-bubble { border-bottom-left-radius: 19px; border-bottom-right-radius: 6px; background: #0071e3; color: #fff; }
-.tk-msg small { margin: 4px 6px 0; color: #6e6e73; font-size: 12px; }
-.tk-msg.is-new { animation: isr-bubble-in .45s cubic-bezier(.34, 1.4, .64, 1) both; transform-origin: bottom right; }
-.tk-empty { color: #6e6e73; font-size: 14px; }
-.tk-compose { display: flex; align-items: flex-end; gap: 8px; margin-top: 12px; padding: 5px 5px 5px 16px; border: 1px solid #d2d2d7; border-radius: 22px; background: #fff; transition: border-color .2s, box-shadow .2s; }
-.tk-compose:focus-within { border-color: #0071e3; box-shadow: 0 0 0 4px rgba(0, 113, 227, .15); }
-.tk-input { flex: 1; min-height: 34px; max-height: 160px; padding: 7px 0; border: 0; outline: 0; resize: none; background: transparent; color: #1d1d1f; font: inherit; font-size: 15px; line-height: 1.35; }
-.tk-send { flex: none; width: 32px; height: 32px; padding: 0; border: 0; border-radius: 50%; background: #0071e3; color: #fff; cursor: pointer; display: grid; place-items: center; transition: transform .2s cubic-bezier(.34, 1.56, .64, 1), opacity .2s, background-color .2s; }
-.tk-send svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
-.tk-send:hover:not(:disabled) { background: #0077ed; transform: scale(1.06); }
-.tk-send:active:not(:disabled) { transform: scale(.9); }
-.tk-send:disabled { opacity: .3; cursor: default; transform: scale(.9); }
+.tk-list { list-style: none; margin: 10px 0 0; padding: 0; border-radius: 14px; background: rgba(0, 0, 0, .025); }
+.tk-msg { display: flex; gap: 12px; align-items: flex-start; padding: 12px 14px; }
+.tk-msg + .tk-msg { border-top: 1px solid rgba(0, 0, 0, .06); }
+.tk-av { flex: none; width: 30px; height: 30px; border-radius: 50%; background: linear-gradient(180deg, #a1a1a6, #86868b); color: #fff; font-size: 12px; font-weight: 650; line-height: 30px; text-align: center; letter-spacing: .02em; }
+.tk-av.mine { background: linear-gradient(180deg, #3a8eef, #0071e3); }
+.tk-main { flex: 1; min-width: 0; }
+.tk-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.tk-head b { color: #1d1d1f; font-size: 14px; font-weight: 650; }
+.tk-head time { color: #86868b; font-size: 12.5px; }
+.tk-text { margin: 3px 0 0; color: #1d1d1f; font-size: 15px; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; }
+.tk-msg.is-new { animation: isr-rise-in .45s cubic-bezier(.32, .72, 0, 1) backwards; background: linear-gradient(90deg, rgba(255, 59, 48, .06), transparent 60%); }
+.tk-msg.is-posted { animation: isr-rise-in .45s cubic-bezier(.32, .72, 0, 1) backwards; }
+.tk-empty { padding: 14px 16px; color: #6e6e73; font-size: 14px; }
+.tk-compose { margin-top: 10px; border: 1px solid #d2d2d7; border-radius: 14px; background: #fff; transition: border-color .2s, box-shadow .2s; }
+.tk-compose:focus-within { border-color: #0071e3; box-shadow: 0 0 0 4px rgba(0, 113, 227, .14); }
+html body .tk-compose textarea.tk-input { display: block; width: 100%; min-height: 44px; max-height: 180px; margin: 0; padding: 12px 14px 4px; border: 0 !important; border-radius: 14px 14px 0 0; outline: 0 !important; box-shadow: none !important; resize: none; background: transparent !important; color: #1d1d1f; font: inherit; font-size: 15px; line-height: 1.45; }
+.tk-compose-bar { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 4px 6px 6px 14px; }
+.tk-compose-bar small { color: #a1a1a6; font-size: 12px; }
+.tk-send:disabled { opacity: .4; }
 .td-check:active:not(:disabled) { transform: scale(.86); }
 .td-task.is-ticking .td-check { animation: isr-pop .45s cubic-bezier(.34, 1.56, .64, 1) both; }
+/* the red badge on Today in the menu */
+.niec-nav a { position: relative; }
+.niec-badge { margin-left: auto; min-width: 20px; height: 20px; padding: 0 6px; border-radius: 10px; background: #ff3b30; color: #fff; font-size: 12px; font-weight: 700; line-height: 20px; text-align: center; box-shadow: 0 2px 6px -2px rgba(255, 59, 48, .7); }
+.niec-badge.pop { animation: isr-pop .55s cubic-bezier(.34, 1.56, .64, 1) both; }
+html[data-nav="closed"] .niec-badge { position: absolute; top: 4px; right: 4px; min-width: 16px; height: 16px; padding: 0 4px; font-size: 10.5px; line-height: 16px; }
+@media (max-width: 900px) { .niec-badge { position: absolute; top: 0; right: 0; min-width: 16px; height: 16px; padding: 0 4px; font-size: 10.5px; line-height: 16px; } }
 @keyframes isr-pop { 0% { transform: scale(.6); opacity: 0; } 100% { transform: none; opacity: 1; } }
-@keyframes isr-bubble-in { from { opacity: 0; transform: translateY(8px) scale(.9); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) {
-  .tk-body, .tk-toggle, .tk-send { transition: none !important; }
-  .tk-new, .tk-msg.is-new, .td-task.is-ticking .td-check { animation: none !important; }
+  .tk-body, .tk-toggle { transition: none !important; }
+  .tk-new, .td-dot, .niec-badge.pop, .tk-msg.is-new, .tk-msg.is-posted, .td-task.is-ticking .td-check { animation: none !important; }
 }
 
 /* 🔴 CSS CHANGED (2026-11-14): switching inside a page (a tab of the student card, the All, Campaigns and Events switch) and opening an event | from: the content was swapped at once, with nothing in between | to: a switch inside a page cross-fades in 0.2s; opening an event and going back to the list glide like moving to another page (the menu stays still) */
@@ -1523,4 +1544,23 @@ html.isr-swap-soft::view-transition-new(root) { animation: isr-fade .22s ease-ou
   html body .niec-header .niec-logo:not([hidden]) { display: block; height: 32px; }
   html body .niec-header .niec-mark { display: none; }
   html body .niec-header .niec-brand { padding: 0; border-bottom: 0; }
+}
+
+/* 🔴 CSS CHANGED (2026-11-14): more alive, as on Apple's own pages | from: bars, rings and sections appeared already drawn and stood still | to: the bars of the Dashboard, the team dashboards and the planning pages grow from the left when they appear (0.8s, one after another); the source ring and the target ring draw themselves round; the cards lower down a page rise softly into place as they are scrolled to (see shared/ui.js); the Today greeting has a slow, soft glow of colour behind it, like Apple's own; every part stays still for people who ask their computer for less motion */
+:is(.ov-funnel-fill, .ov-board-bar, .dd-track > i, .md-bar-fill, .p-bar-fill, .rk-fill) { transform-origin: left center; animation: isr-grow .8s cubic-bezier(.32, .72, 0, 1) backwards; }
+:is(.ov-funnel-row, .ov-board-row, .dd-bar-row, .md-bar, .p-bar-row):nth-child(2) :is(.ov-funnel-fill, .ov-board-bar, .dd-track > i, .md-bar-fill, .p-bar-fill, .rk-fill) { animation-delay: 50ms; }
+:is(.ov-funnel-row, .ov-board-row, .dd-bar-row, .md-bar, .p-bar-row):nth-child(3) :is(.ov-funnel-fill, .ov-board-bar, .dd-track > i, .md-bar-fill, .p-bar-fill, .rk-fill) { animation-delay: 100ms; }
+:is(.ov-funnel-row, .ov-board-row, .dd-bar-row, .md-bar, .p-bar-row):nth-child(4) :is(.ov-funnel-fill, .ov-board-bar, .dd-track > i, .md-bar-fill, .p-bar-fill, .rk-fill) { animation-delay: 150ms; }
+:is(.ov-funnel-row, .ov-board-row, .dd-bar-row, .md-bar, .p-bar-row):nth-child(n+5) :is(.ov-funnel-fill, .ov-board-bar, .dd-track > i, .md-bar-fill, .p-bar-fill, .rk-fill) { animation-delay: 200ms; }
+@keyframes isr-grow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+svg .dd-slice, svg circle[stroke-dasharray] { animation: isr-ring .9s cubic-bezier(.32, .72, 0, 1) backwards; }
+@keyframes isr-ring { from { stroke-dasharray: 0 1000; } }
+.isr-reveal { opacity: 0; transform: translateY(18px); }
+.isr-reveal.is-in { opacity: 1; transform: none; transition: opacity .7s ease, transform .8s cubic-bezier(.32, .72, 0, 1); }
+.td-hello { position: relative; isolation: isolate; }
+.td-hello::before { content: ""; position: absolute; z-index: -1; left: -80px; top: -70px; width: min(860px, 95vw); height: 320px; background: radial-gradient(38% 46% at 28% 50%, rgba(0, 113, 227, .13), rgba(0, 113, 227, 0) 100%), radial-gradient(32% 42% at 62% 56%, rgba(175, 82, 222, .10), rgba(175, 82, 222, 0) 100%), radial-gradient(26% 36% at 46% 74%, rgba(255, 149, 0, .08), rgba(255, 149, 0, 0) 100%); animation: isr-glow 18s ease-in-out infinite alternate; pointer-events: none; }
+@keyframes isr-glow { 0% { transform: translate(0, 0) scale(1); } 50% { transform: translate(40px, 10px) scale(1.08); } 100% { transform: translate(-20px, 20px) scale(.96); } }
+@media (prefers-reduced-motion: reduce) {
+  :is(.ov-funnel-fill, .ov-board-bar, .dd-track > i, .md-bar-fill, .p-bar-fill, .rk-fill), svg .dd-slice, svg circle[stroke-dasharray], .td-hello::before { animation: none !important; }
+  .isr-reveal { opacity: 1; transform: none; }
 }

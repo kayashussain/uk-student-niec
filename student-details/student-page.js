@@ -136,14 +136,16 @@
     dialog('Assign a task', (body, close) => {
       // Which team and what to do: no date to do it by (the owner, 14 Nov 2026). The team asks for anything it needs in the
       // task's comments, and ticks it when it is done.
-      const team = field('Which team should do it?', { kind: 'select', choices: (data.assignTeams || data.taskTeams || []).map((t) => [t.id, t.label]) });
+      // A team, or Admin (named with their title): the teams and branches can give Admin a task too.
+      const targets = (data.assignTeams || data.taskTeams || []).map((t) => [t.id, t.label]);
+      const team = field('Who should do it?', { kind: 'select', choices: targets, value: targets.length === 1 ? targets[0][0] : '' });
       const text = field('What should they do?', { kind: 'area', max: 2000, wide: true, placeholder: 'e.g. Submit the application to Coventry University.' });
       const msg = el('div', 'p-msg');
       const foot = el('div', 'p-dialog-foot');
       const ok = h('button', { class: 'btn btn-primary', type: 'button' }, 'Assign');
       ok.addEventListener('click', async () => {
-        if (!team.input.value) { msg.textContent = 'Choose the team.'; msg.className = 'p-msg error'; return; }
-        if (!text.input.value.trim()) { msg.textContent = 'Write what the team should do.'; msg.className = 'p-msg error'; return; }
+        if (!team.input.value) { msg.textContent = 'Choose who should do it.'; msg.className = 'p-msg error'; return; }
+        if (!text.input.value.trim()) { msg.textContent = 'Write what should be done.'; msg.className = 'p-msg error'; return; }
         ok.disabled = true;
         try { await save('tasks', { team: team.input.value, text: text.input.value }, 'Task assigned'); close(true); } catch (e) { ok.disabled = false; }
       });
@@ -166,9 +168,13 @@
     c.append(head);
     const label = (id) => ((data.taskTeams || []).find((t) => t.id === id) || { label: id }).label;
     const me = (data.me || {}).name || '';
+    const unread = data.taskUnread || {};
+    const fresh = Object.values(unread).reduce((n, x) => n + x, 0);
+    if (fresh) head.insertBefore(el('span', 'td-chip is-new', `${fresh} new`), head.lastChild);
     tasks.forEach((t) => {
-      const r = el('div', `td-task${t.done ? ' is-done' : ''}`);
-      const mine = data.can.removeAnyTask || (data.can.myTeams || []).includes(t.team);
+      const r = el('div', `td-task${t.done ? ' is-done' : ''}${unread[t.id] ? ' has-unread' : ''}`);
+      const forMe = (data.can.myTeams || []).includes(t.team) || (t.team === 'head' && (data.me || {}).role === 'admin');
+      const mine = data.can.removeAnyTask || forMe;
       const box = h('button', { class: 'td-check', type: 'button', 'aria-pressed': String(t.done), title: t.done ? 'Mark as not done' : 'Mark as done', 'aria-label': t.done ? 'Mark as not done' : 'Mark as done', disabled: !mine });
       box.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
       box.addEventListener('click', async () => {
@@ -177,12 +183,19 @@
         try { await save(`tasks/${t.id}`, { done: !t.done }, t.done ? 'Marked as not done' : 'Done. Well done.'); setTimeout(render, t.done ? 0 : 450); } catch (e) { r.classList.remove('is-ticking'); box.disabled = false; }
       });
       const mid = el('div', 'td-task-mid');
-      const who = el('div', 'td-task-who');
-      who.append(el('span', 'td-team', label(t.team)), el('span', 'td-from', t.done ? (t.doneBy ? `Done by ${t.doneBy}` : 'Done') : `Given by ${t.by}`));
-      if (data.can.removeAnyTask || (data.can.assign && t.by === me)) who.append(h('button', { class: 'p-link', type: 'button', onclick: async () => { if (await window.NiecUI.confirm('Remove this task and its comments?', { danger: true, confirmText: 'Remove' })) { await save(`tasks/${t.id}/delete`, {}, 'Task removed'); render(); } } }, 'Remove'));
-      const canWrite = mine || (data.can.assign && t.by === me);
-      mid.append(el('div', 'td-task-text', t.text), who, window.Portal.taskThread(t, { rowId: id, me, canWrite }));
+      const top = el('div', 'td-task-top');
+      top.append(el('div', 'td-task-text', t.text));
+      if (unread[t.id]) top.append(el('span', 'td-dot', String(unread[t.id])));
+      // From whom, to whom, and when.
+      const route = el('div', 'td-route');
+      route.append(el('span', 'td-from-who', t.by === me ? 'You' : t.by || 'Someone'), el('span', 'td-arrow', '\u2192'), el('span', 'td-to-who', forMe && t.team === 'head' ? 'you' : label(t.team)), el('span', 'td-when', t.at ? when(t.at) : ''));
+      if (t.done) route.append(el('span', 'td-donemark', t.doneBy ? `Done by ${t.doneBy}` : 'Done'));
+      if (data.can.removeAnyTask || t.by === me) route.append(h('button', { class: 'p-link', type: 'button', onclick: async () => { if (await window.NiecUI.confirm('Remove this task and its comments?', { danger: true, confirmText: 'Remove' })) { await save(`tasks/${t.id}/delete`, {}, 'Task removed'); render(); } } }, 'Remove'));
+      const canWrite = mine || t.by === me;
+      const thread = window.Portal.taskThread(t, { rowId: id, me, canWrite, unread: unread[t.id] || 0 });
+      mid.append(top, route, thread);
       r.append(box, mid);
+      if (unread[t.id]) r.addEventListener('pointerdown', () => thread.markRead());
       c.append(r);
     });
     return c;

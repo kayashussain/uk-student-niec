@@ -19,6 +19,10 @@ const amount = (v, max = 1e12) => {
   const n = Number(String(v ?? '').replace(/[£$,\s]/g, ''));
   return Number.isFinite(n) && n >= 0 && n <= max ? Math.round(n) : 0;
 };
+// An amount with up to two decimals (a cost in dollars or pounds), never negative: "1,250.50" is 1250.5.
+const money = (v) => { const n = Number(String(v ?? '').replace(/[£$,\s]/g, '').replace(/^rs\.?/i, '')); return Number.isFinite(n) && n >= 0 && n <= 1e12 ? Math.round(n * 100) / 100 : 0; };
+const rateOf = (v) => { const n = Number(v); return Number.isFinite(n) && n > 0 && n < 100000 ? n : 0; };
+const CURRENCIES = ['NPR', 'USD', 'GBP'];
 const month = (v) => (/^\d{4}-(0[1-9]|1[0-2])$/.test(str(v, 7)) ? str(v, 7) : '');
 
 // What was run to find students: events and marketing. The last six are marketing; the rest are events.
@@ -54,11 +58,16 @@ const LISTS = {
     max: 1000,
     clean: (x) => ({
       name: str(x.name, 120), date: isoDay(x.date), endDate: (isoDay(x.endDate) >= isoDay(x.date) ? isoDay(x.endDate) : ''), type: EVENT_TYPES.includes(x.type) ? x.type : 'Other', channel: channelOf(x), kind: MARKETING_CHANNELS.includes(channelOf(x)) ? 'Marketing' : 'Event', place: str(x.place, 120),
-      cost: amount(x.cost), registered: amount(x.registered, 1e6), attended: amount(x.attended, 1e6), universities: str(x.universities, 300), note: str(x.note, 600),
+      // The investment, always in rupees (`cost`, what every total adds up). When it was paid in dollars or pounds, what was typed is
+      // kept too (`costAmount` in `costCurrency`) with the rupees for one unit on the day it was saved (`costRate`). Older entries have
+      // only `cost`, in rupees.
+      cost: amount(x.cost), costCurrency: CURRENCIES.includes(x.costCurrency) ? x.costCurrency : 'NPR', costAmount: money(x.costAmount === undefined ? x.cost : x.costAmount), costRate: rateOf(x.costRate),
+      registered: amount(x.registered, 1e6), attended: amount(x.attended, 1e6), universities: str(x.universities, 300), note: str(x.note, 600),
     }),
     check: (x) => {
       if (x.endDate && x.date && isoDay(x.endDate) && isoDay(x.endDate) < isoDay(x.date)) return 'The end date is before the start date.';
-      if (x.cost !== undefined && x.cost !== null && String(x.cost).trim() !== '' && !/^[£$]?\s*\d[\d,\s]*(\.\d+)?$/.test(String(x.cost).trim())) return 'The cost must be a number, for example 25000.';
+      const typed = x.costAmount !== undefined ? x.costAmount : x.cost;
+      if (typed !== undefined && typed !== null && String(typed).trim() !== '' && !/^(rs\.?\s*|[£$]\s*)?\d[\d,\s]*(\.\d+)?$/i.test(String(typed).trim())) return 'The cost must be a number, for example 25000.';
       return null;
     },
     valid: (x) => (x.name && x.date ? null : 'An event or a marketing activity needs a name and a start date.'),

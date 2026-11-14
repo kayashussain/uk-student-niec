@@ -84,10 +84,10 @@ test('partners: the Manager sees the commission, the teams and branches do not, 
   const sheetId = (await admin('GET', '/api/data')).json.sheets[0].id;
   assert.strictEqual((await admin('POST', `/api/planning/targets/${sheetId}`, { visas: 40, byDate: '2027-01-10', startDate: '2027-01-20' })).status, 200);
 
-  // A branch gives its own student a task for the Application or the Mock Team (no other team), and removes only its own tasks.
+  // A branch gives its own student a task for the Application or the Mock Team, or for Admin (no other team), and removes only its own tasks.
   const id = (await admin('POST', '/api/students/new', { stage: 'Application Stage', fields: { 'FIRST NAME': 'Mina', 'LAST NAME': 'Example', 'CONTACT NUMBER': '9800000002', 'STUDENT SOURCE': 'Chitwan Branch' } })).json.id;
   const card = (await chitwan('GET', `/api/cards/${id}`)).json;
-  assert.deepStrictEqual(card.assignTeams.map((x) => x.id), ['application', 'mock']);
+  assert.deepStrictEqual(card.assignTeams.map((x) => x.id), ['application', 'mock', 'head']);
   assert.strictEqual((await chitwan('POST', `/api/cards/${id}/tasks`, { team: 'followup', text: 'x' })).status, 400);
   const given = await chitwan('POST', `/api/cards/${id}/tasks`, { team: 'application', text: 'Submit to Example University' });
   assert.strictEqual(given.status, 200);

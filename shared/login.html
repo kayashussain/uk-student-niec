@@ -94,7 +94,7 @@
 <script>
   // Only the consultancy's logo above the box; "ISR" if there is no logo. The menu remembered by this tab is forgotten here.
   (function () {
-    try { sessionStorage.removeItem('isrMe'); } catch (e) { /* nothing kept */ }
+    try { sessionStorage.removeItem('isrMe'); sessionStorage.removeItem('isrUnread'); } catch (e) { /* nothing kept */ }
     const logo = document.getElementById('brandLogo');
     logo.addEventListener('error', () => { logo.hidden = true; document.getElementById('brandName').hidden = false; });
   })();

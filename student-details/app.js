@@ -102,7 +102,8 @@
   // these two columns stays in the file and keeps working (branch students, the Dashboard, Incentive): the sheet just does not show them.
   const CARD_COLUMNS = new Set(['REMARKS', 'STUDENT SOURCE']);
   // Only columns whose values are a short list of choices get a filter. Dates, numbers, ids, names, emails and feedback do not.
-  const FILTER_COLUMNS = new Set(['APPLICATION STATUS', 'UNIVERSITY NAME', 'COURSE NAME', 'RECEIVING PARTNER', 'UNIVERSITY PARTNER', 'NOC', 'MEDICAL REPORT', 'E-VISA']);
+  // The name, email and phone columns have one too (the owner, 14 Nov 2026): its search box finds a student among the values.
+  const FILTER_COLUMNS = new Set(['APPLICATION STATUS', 'FIRST NAME', 'LAST NAME', 'EMAIL', 'CONTACT NUMBER', 'UNIVERSITY NAME', 'COURSE NAME', 'RECEIVING PARTNER', 'UNIVERSITY PARTNER', 'NOC', 'MEDICAL REPORT', 'E-VISA']);
   // A double-click on any of these opens the student card (Enter or F2 still types in the cell). Date cells are not among them: one
   // click on a date opens its calendar, and a double-click there used to open the calendar and the card at once.
   const CARD_OPEN_COLUMNS = new Set(['FIRST NAME', 'LAST NAME', 'EMAIL', 'CONTACT NUMBER', 'UNIVERSITY NAME', 'COURSE NAME']);
@@ -183,21 +184,47 @@
   // The number boxes are hidden each time the page opens; "Show numbers" shows them and "Hide numbers" hides them again.
   let statsOpen = false;
   const statsToggle = $('#toggleStats');
-  // "Came from": show only the students of one event or campaign (from its uploaded list, or picked when the student was added), so the
-  // follow-up team can work through them. The tags come from the server for the students this account sees; not remembered.
+  // "Source": show only the students of one source (Social Media, Visitor, Reference, a branch, an agent ...) or exactly which (a platform,
+  // an event or campaign, the branch, the agent), so any team can work through them, for example call every Visitor student or every
+  // lead of one Facebook campaign (the owner, 14 Nov 2026). The sources come from the server for the students this account sees; the
+  // choice is not remembered. A value is "g:<source>" or "d:<source>\u0001<which>".
   const cameFromEl = $('#cameFrom');
   let cameFrom = '';
-  let eventTags = { rows: {}, events: [] };
+  let eventTags = { rows: {}, events: [], sources: {}, groups: [] };
+  const SOURCE_NAMES = { Events: 'Events and marketing', Agent: 'Agents', Branch: 'Branches' };
+  const sourceName = (g) => SOURCE_NAMES[g] || g;
+  function sourceMatches(row) {
+    if (!cameFrom) return true;
+    const s = eventTags.sources && eventTags.sources[row._id];
+    if (!s) return false;
+    if (cameFrom.startsWith('g:')) return s[0] === cameFrom.slice(2);
+    const [g, d] = cameFrom.slice(2).split('\u0001');
+    return s[0] === g && s[1] === d;
+  }
+  function sourceText(v) {
+    if (!v) return '';
+    if (v.startsWith('g:')) return sourceName(v.slice(2));
+    const [g, d] = v.slice(2).split('\u0001');
+    return `${sourceName(g)}: ${d}`;
+  }
   async function loadEventTags() {
     try {
       const r = await fetch('/api/event-tags', { cache: 'no-store' });
       if (!r.ok) return;
       eventTags = await r.json();
       const keep = cameFrom;
-      cameFromEl.replaceChildren(new Option('Came from: every source', ''), ...eventTags.events.map((e) => new Option(`${e.label} (${e.count})`, e.label)));
-      cameFromEl.hidden = !eventTags.events.length && !keep;
-      if (keep && !eventTags.events.some((e) => e.label === keep)) cameFromEl.append(new Option(keep, keep));
+      const opts = [new Option('Source: every source', '')];
+      (eventTags.groups || []).forEach((g) => {
+        const og = document.createElement('optgroup');
+        og.label = sourceName(g.group);
+        og.append(new Option(`All ${sourceName(g.group)} (${g.count})`, 'g:' + g.group));
+        g.details.forEach((d) => og.append(new Option(`${d.detail} (${d.count})`, `d:${g.group}\u0001${d.detail}`)));
+        opts.push(og);
+      });
+      cameFromEl.replaceChildren(...opts);
+      if (keep && ![...cameFromEl.options].some((o) => o.value === keep)) cameFromEl.append(new Option(sourceText(keep), keep));
       cameFromEl.value = keep;
+      cameFromEl.hidden = false;
     } catch (e) { /* offline for a moment: the filter keeps what it had */ }
   }
   const undoBtn = $('#undoBtn');
@@ -1160,7 +1187,8 @@
     if (openFilterMenu && openFilterMenu.dataset.col === col) { closeFilterMenu(); return; }
     closeFilterMenu();
 
-    const uniqueValues = Array.from(new Set(rows.map((r) => (r[col] || '').trim())))
+    // Only the values of the students this account sees (a team never sees the names of students outside its own list).
+    const uniqueValues = Array.from(new Set(rows.filter((r) => !isTeam() || Teams.seesRow(me, r)).map((r) => (r[col] || '').trim())))
       .sort(FILTER_COLLATOR.compare);
     const currentAllowed = columnFilters[col] || new Set(uniqueValues);
 
@@ -1263,7 +1291,7 @@
     let indices = rows.map((_, i) => i);
     // A team sees only its stage's students (a student it just moved on drops out of its list).
     if (isTeam()) indices = indices.filter((i) => Teams.seesRow(me, rows[i]));
-    if (cameFrom) indices = indices.filter((i) => eventTags.rows[rows[i]._id] === cameFrom);
+    if (cameFrom) indices = indices.filter((i) => sourceMatches(rows[i]));
     if (q) {
       // A date is found as it is stored and as it is shown in its cell ("9/23/2026" is shown as 09/23/2026).
       const cellText = (r, c) => {
@@ -1392,7 +1420,7 @@
     bar.hidden = !cols.length && !searching && !cameFrom;
     if (bar.hidden) return;
     const parts = [];
-    if (cameFrom) { const ev = eventTags.events.find((e) => e.label === cameFrom); parts.push(`Came from “${cameFrom}”${ev ? ` (${ev.count} in every intake; another intake's students show on its tab)` : ''}`); }
+    if (cameFrom) parts.push(`Source “${sourceText(cameFrom)}” (in every intake; another intake's students show on its tab)`);
     if (cols.length) parts.push(`Filtered by ${cols.map(columnLabel).join(', ')}`);
     if (searching) parts.push(`searching for “${searchEl.value.trim()}”`);
     const total = rows.filter((r) => !isTeam() || Teams.seesRow(me, r)).length;
@@ -2982,7 +3010,7 @@
   setInterval(syncPresence, 5000);
   setInterval(() => { if (JSON.stringify(myPresence()) !== lastSent) syncPresence(); }, 50);
   document.addEventListener('visibilitychange', () => { if (!document.hidden) syncPresence(); });
-  // The University Partner choices (Partner Universities, then B2B Partners) and the Receiving Partner choices (head office and branches, then agents).
+  // The University Partner choices (Partner Universities, then B2B Partners) and the Receiving Partner choices (the head office, the branches, then agents).
   async function loadPartnerChoices() {
     try {
       const r = await fetch('/api/partner-choices', { cache: 'no-store' });
@@ -2994,7 +3022,8 @@
       SELECT_COLS[PARTNER_COL] = [...c.universities, ...c.partners.filter((n) => !c.universities.includes(n))];
       const recv = CHOICE_GROUP['RECEIVING PARTNER'];
       recv.clear();
-      (c.offices || []).forEach((n) => recv.set(n, 'Head office and branches'));
+      // In this order (the owner, 14 Nov 2026): the head office, then the branches (Chitwan, Pokhara, Palpa, Butwal), then the agents.
+      (c.offices || []).forEach((n) => recv.set(n, /branch$/i.test(n) ? 'Branches' : 'Head office'));
       (c.agents || []).forEach((n) => { if (!recv.has(n)) recv.set(n, 'Agents'); });
       SELECT_COLS['RECEIVING PARTNER'] = [...(c.offices || []), ...(c.agents || []).filter((n) => !(c.offices || []).includes(n))];
       if (rows.length) renderBody();

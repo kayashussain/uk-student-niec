@@ -59,7 +59,7 @@
     sel.value = data.selected;
     sel.addEventListener('change', () => { intake = sel.value; load(); });
     l.append(el('span', 'p-label', 'Intake'), sel);
-    wrap.append(l, el('span', 'p-muted p-small', `Figures as of ${data.today}. They refresh on their own.`));
+    wrap.append(l, el('span', 'p-muted p-small', `Figures as of ${window.Portal.day(data.today)}. They refresh on their own.`));
     return wrap;
   }
 

@@ -59,3 +59,7 @@ live-data/
 # Each person's own mailbox for emailing students (the password encrypted) and its key: private, kept with the data only.
 **/user-mail.json
 **/mail-key
+# Exchange rates kept for costs typed in dollars or pounds (refreshed hourly).
+**/exchange-rates.json
+# When each person last read each task (the red dots).
+**/task-seen.json

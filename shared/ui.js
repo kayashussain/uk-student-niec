@@ -198,3 +198,33 @@
   };
   new MutationObserver((list) => list.forEach((m) => m.addedNodes.forEach(scan))).observe(document.documentElement, { childList: true, subtree: true });
 })();
+
+// Cards lower down a page rise softly into place as they are scrolled to, as on Apple's website. Only cards that start below the
+// visible part of the window are held back, so nothing on the first screen ever waits; nothing moves for people who ask for less.
+(function () {
+  if (typeof document === 'undefined' || !window.IntersectionObserver || !window.MutationObserver) return;
+  if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const CARDS = '.p-card, .md-card, .td-attn, .ov-card, .ev-panel, .dd-card, .ff-card, .tp-panel';
+  const seen = new WeakSet();
+  const io = new IntersectionObserver((entries) => entries.forEach((e) => {
+    if (!e.isIntersecting) return;
+    e.target.classList.add('is-in');
+    io.unobserve(e.target);
+    setTimeout(() => e.target.classList.remove('isr-reveal', 'is-in'), 900);
+  }), { rootMargin: '0px 0px -8% 0px' });
+  const take = (el) => {
+    if (seen.has(el)) return;
+    seen.add(el);
+    if (el.closest('dialog, .card-drawer')) return;
+    const r = el.getBoundingClientRect();
+    if (r.top < window.innerHeight || r.height === 0) return; // on the first screen: shown at once
+    el.classList.add('isr-reveal');
+    io.observe(el);
+  };
+  const scan = (node) => {
+    if (!node || node.nodeType !== 1) return;
+    if (node.matches(CARDS)) take(node);
+    node.querySelectorAll(CARDS).forEach(take);
+  };
+  new MutationObserver((list) => list.forEach((m) => m.addedNodes.forEach(scan))).observe(document.documentElement, { childList: true, subtree: true });
+})();

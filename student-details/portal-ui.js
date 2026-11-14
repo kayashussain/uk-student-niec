@@ -186,39 +186,70 @@
     }
   }
 
-  // The conversation on a task (the owner, 14 Nov 2026): the team writes how it went, what it needs (a student's email, a document)
-  // or what is in the way, with or without ticking the task, and whoever gave the task answers. Shown on Today and on the student
-  // card; a reply from the other side opens the thread by itself. `me` is the reader's name; `rowId` the student's card.
+  // The comments on a task (the owner, 14 Nov 2026): the team writes how it went, what it needs (a student's email, a document) or what
+  // is in the way, with or without ticking the task, and whoever gave the task answers. Shown on Today and on the student card as a
+  // calm record (who, when, what), not a chat. What is new for the reader is marked with a red dot; opening the comments marks them
+  // read. `me` is the reader's name; `rowId` the student's card; `unread` how much is new for the reader.
   const openThreads = new Set();
-  function taskThread(task, { rowId, me, canWrite }) {
+  const initialsOf = (name) => String(name || '?').split(/\s+/).filter(Boolean).map((w) => w[0]).join('').slice(0, 2).toUpperCase();
+  function taskThread(task, { rowId, me, canWrite, unread = 0 }) {
     const box = el('div', 'tk-thread');
     const list = el('ol', 'tk-list');
     const comments = () => (Array.isArray(task.comments) ? task.comments : []);
-    const last = () => comments()[comments().length - 1];
-    const fromOther = () => Boolean(last() && last().by !== me);
+    // `pending`: everything new on the task for the reader (new comments, or the task itself just given to them); `fresh`: the new
+    // comments among it, shown on the comments line.
+    let pending = unread;
+    let fresh = Math.min(unread, comments().filter((c) => c.by !== me).length);
     const toggle = h('button', { class: 'tk-toggle', type: 'button', 'aria-expanded': 'false' });
     const body = el('div', 'tk-body');
+    // The line is changed in place (never rebuilt), so a press on it is never lost while it is being clicked.
+    const ico = el('span', 'tk-ico'); ico.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 6.5h14M5 11.5h14M5 16.5h9"/></svg>';
+    const words = el('span');
+    const badge = el('span', 'tk-new');
+    toggle.append(ico, words, badge);
     const label = () => {
       const n = comments().length;
-      toggle.replaceChildren();
-      const ico = el('span', 'tk-ico'); ico.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v11H9l-5 4V5z"/></svg>';
-      toggle.append(ico, el('span', '', n ? `${n} comment${n === 1 ? '' : 's'}` : (canWrite ? 'Comment' : 'No comments')));
-      if (n && fromOther() && !task.done) { toggle.append(el('span', 'tk-new', `Reply from ${String(last().by).split(/\s+/)[0] || 'the team'}`)); }
-      toggle.classList.toggle('has-new', Boolean(n && fromOther() && !task.done));
+      words.textContent = n ? `${n} comment${n === 1 ? '' : 's'}` : (canWrite ? 'Add a comment' : 'No comments');
+      badge.textContent = `${fresh} new`;
+      badge.hidden = !(fresh > 0);
+      toggle.classList.toggle('has-new', fresh > 0);
     };
-    const bubble = (c, fresh) => {
-      const li = el('li', `tk-msg${c.by === me ? ' mine' : ''}${fresh ? ' is-new' : ''}`);
-      li.append(el('div', 'tk-bubble', c.text), el('small', '', `${c.by === me ? 'You' : c.by || 'Someone'} \u00b7 ${when(c.at)}`));
+    const entry = (c, isNew, posted) => {
+      const li = el('li', `tk-msg${isNew ? ' is-new' : ''}${posted ? ' is-posted' : ''}`);
+      const av = el('span', `tk-av${c.by === me ? ' mine' : ''}`, initialsOf(c.by));
+      av.setAttribute('aria-hidden', 'true');
+      const main = el('div', 'tk-main');
+      const head = el('div', 'tk-head');
+      head.append(el('b', '', c.by === me ? 'You' : c.by || 'Someone'), el('time', '', when(c.at)));
+      main.append(head, el('p', 'tk-text', c.text));
+      li.append(av, main);
       return li;
     };
-    const draw = () => { list.replaceChildren(...comments().map((c) => bubble(c))); if (!comments().length) list.append(el('li', 'tk-empty', canWrite ? 'Ask for what you need, or say how it went.' : 'No comments yet.')); };
+    const draw = () => {
+      const all = comments();
+      list.replaceChildren(...all.map((c, i) => entry(c, i >= all.length - fresh && c.by !== me)));
+      if (!all.length) list.append(el('li', 'tk-empty', canWrite ? 'Write what you need, a question, or how it went. The other side sees it on Today.' : 'No comments yet.'));
+    };
+    // Read: the dot goes, here and in the menu (shared/header.js listens for "isr-tasks-read").
+    const markRead = () => {
+      if (pending <= 0) return;
+      pending = 0; fresh = 0; label();
+      api(`/api/cards/${encodeURIComponent(rowId)}/tasks/${task.id}`, { seen: true })
+        .then(() => window.dispatchEvent(new Event('isr-tasks-read'))).catch(() => { /* marked next time */ });
+      const row = box.closest('.td-task');
+      if (row) { row.classList.remove('has-unread'); const dot = row.querySelector('.td-dot'); if (dot) dot.remove(); }
+    };
     const setOpen = (open) => {
       if (open) openThreads.add(task.id); else openThreads.delete(task.id);
       toggle.setAttribute('aria-expanded', String(open));
       box.classList.toggle('is-open', open);
     };
-    toggle.addEventListener('click', () => { setOpen(!box.classList.contains('is-open')); if (box.classList.contains('is-open') && input) input.focus(); });
     let input = null;
+    // What is new opens by itself so it is seen, but counts as read only once the person deals with it: a click on the comments or
+    // on their line, or a comment of their own. So a red dot never disappears by itself.
+    toggle.addEventListener('click', () => { markRead(); const open = !box.classList.contains('is-open'); setOpen(open); if (open && input) setTimeout(() => input.focus(), 250); });
+    body.addEventListener('pointerdown', markRead);
+    body.addEventListener('focusin', markRead);
     const inner = el('div', 'tk-inner');
     body.append(inner);
     inner.append(list);
@@ -227,33 +258,38 @@
       input = el('textarea', 'tk-input');
       input.rows = 1; input.maxLength = 2000; input.placeholder = 'Write a comment';
       input.setAttribute('aria-label', 'Write a comment');
-      const grow = () => { input.style.height = 'auto'; input.style.height = Math.min(input.scrollHeight, 160) + 'px'; };
+      const grow = () => { input.style.height = 'auto'; input.style.height = Math.min(input.scrollHeight, 180) + 'px'; };
+      const send = h('button', { class: 'btn btn-primary btn-sm tk-send', type: 'button', disabled: true }, 'Comment');
       input.addEventListener('input', () => { grow(); send.disabled = !input.value.trim(); });
-      const send = h('button', { class: 'tk-send', type: 'button', 'aria-label': 'Send the comment', title: 'Send (Enter)', disabled: true });
-      send.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5M5.5 11.5L12 5l6.5 6.5"/></svg>';
       const post = async () => {
         const text = input.value.trim();
         if (!text) return;
         send.disabled = true; input.disabled = true;
         try {
           const out = await api(`/api/cards/${encodeURIComponent(rowId)}/tasks/${task.id}`, { comment: text });
-          const fresh = out && out.card && (out.card.tasks || []).find((t) => t.id === task.id);
-          task.comments = fresh ? fresh.comments || [] : [...comments(), { by: me, at: new Date().toISOString(), text }];
+          const now = out && out.card && (out.card.tasks || []).find((t) => t.id === task.id);
+          task.comments = now ? now.comments || [] : [...comments(), { by: me, at: new Date().toISOString(), text }];
           input.value = ''; grow();
+          fresh = 0;
           const empty = list.querySelector('.tk-empty'); if (empty) empty.remove();
-          list.append(bubble(last(), true));
+          list.append(entry(comments()[comments().length - 1], false, true));
           label();
+          window.dispatchEvent(new Event('isr-tasks-read'));
         } catch (e) { if (root.NiecUI) root.NiecUI.toast(e.message, { type: 'error' }); }
         input.disabled = false; send.disabled = !input.value.trim(); input.focus();
       };
       send.addEventListener('click', post);
-      input.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); post(); } });
-      form.append(input, send);
+      // Enter adds a line; Ctrl+Enter (or Cmd+Enter) posts, as in Apple's own apps.
+      input.addEventListener('keydown', (e) => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); post(); } });
+      const bar = el('div', 'tk-compose-bar');
+      bar.append(el('small', '', 'Ctrl+Enter to post'), send);
+      form.append(input, bar);
       inner.append(form);
     }
     label(); draw();
+    box.markRead = markRead; // a click anywhere on the task reads it too (Today and the student card)
     box.append(toggle, body);
-    setOpen(openThreads.has(task.id) || (fromOther() && !task.done));
+    setOpen(openThreads.has(task.id) || fresh > 0);
     return box;
   }
 

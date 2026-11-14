@@ -20,6 +20,10 @@
   };
   // A moment as its day here, written like every other date ("13 Sep 2026").
   const localDay = (iso) => { const d = new Date(iso); return Number.isNaN(d.getTime()) ? '' : day(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`); };
+  // A cost paid in dollars or pounds, as typed and at what rate it was turned into rupees: "$500 at Rs 135.20 a dollar".
+  const SIGN = { USD: '$', GBP: '\u00a3' };
+  const UNIT = { USD: 'dollar', GBP: 'pound' };
+  const paidIn = (a) => (a.costCurrency && a.costCurrency !== 'NPR' && a.costAmount ? `${SIGN[a.costCurrency]}${Number(a.costAmount).toLocaleString('en-US', { maximumFractionDigits: 2 })} at Rs ${Number(a.costRate).toFixed(2)} a ${UNIT[a.costCurrency]}` : '');
   const per = (cost, n) => (cost > 0 && n > 0 ? rupees(Math.round(cost / n)) : 'None yet');
   const tag = (a) => el('span', 'ev-tag' + (a.kind === 'Marketing' ? ' mk' : ''), a.channel || 'Other');
   function band(items) {
@@ -33,7 +37,7 @@
     const acts = data.activities;
     const t = acts.reduce((s, a) => ({ cost: s.cost + (a.cost || 0), leads: s.leads + a.leads, visas: s.visas + a.visas }), { cost: 0, leads: 0, visas: 0 });
     $('band').replaceWith(Object.assign(band([
-      ['Total investment', rupees(t.cost) || 'Rs 0', `Across ${acts.length} event${acts.length === 1 ? '' : 's'} and campaigns`],
+      ['Total investment', rupees(t.cost) || 'Rs 0', `Across ${acts.length} event${acts.length === 1 ? '' : 's'} and campaigns, in rupees${acts.some((a) => a.costCurrency && a.costCurrency !== 'NPR') ? ' (dollars and pounds at the day\u2019s rate)' : ''}`],
       ['Enquiries', number(t.leads)],
       ['Visas', number(t.visas)],
       ['Cost per enquiry', per(t.cost, t.leads), '', true],
@@ -81,7 +85,7 @@
     head.append(left);
     if (data.canEdit) head.append(h('button', { class: 'btn', type: 'button', onclick: () => form(a) }, 'Edit'));
     const figs = band([
-      ['Investment', a.cost ? rupees(a.cost) : 'Not entered'],
+      ['Investment', a.cost ? rupees(a.cost) : 'Not entered', paidIn(a) || (data.canEdit && !a.cost ? 'Add it with Edit' : '')],
       ['Enquiries', number(a.leads), `${number(a.applied)} applied`],
       ['Visas', number(a.visas)],
       ['Cost per enquiry', per(a.cost, a.leads), '', true],
@@ -143,7 +147,7 @@
       let lines;
       try { lines = await window.StudentFile.readFile(f, 1000); } catch (e) { out.replaceChildren(el('div', 'p-notice bad', 'Could not read the file: ' + e.message)); return; }
       if (!lines.length) { out.replaceChildren(el('div', 'p-notice bad', 'No names were found in that file.')); return; }
-      const rows = lines.map((r) => ({ first: r.first, last: r.last, email: r.email, phone: r.phone }));
+      const rows = lines.map((r) => ({ first: r.first, last: r.last, email: r.email, phone: r.phone, level: r.level || '', intake: r.intake || '', inquiryDate: r.inquiryDate || '', extra: r.extra || '' }));
       let pre;
       try { pre = await api(`/api/activities/${a.id}/students`, { rows, sheetId: intake.value, preview: true }); } catch (e) { out.replaceChildren(el('div', 'p-notice bad', e.message)); return; }
       out.replaceChildren(review(pre, async () => {
@@ -186,7 +190,7 @@
       const f = {
         name: field('Name', { value: a && a.name, max: 120, wide: true, placeholder: 'e.g. UK Education Fair, Kathmandu' }),
         place: field('Venue or page (optional)', { value: a && a.place, max: 120, placeholder: 'e.g. Hotel Annapurna' }),
-        cost: field('Investment (Rs)', { value: a && a.cost ? String(a.cost) : '', max: 12, placeholder: 'e.g. 25000' }),
+        cost: field('Investment', { value: a && (a.costAmount || a.cost) ? String(a.costAmount || a.cost) : '', max: 14, placeholder: 'e.g. 25000' }),
         date: field('Starts', { kind: 'date', value: a && a.date }),
         endDate: field('Ends (optional)', { kind: 'date', value: a && a.endDate }),
         note: field('Note (optional)', { kind: 'area', value: a && a.note, max: 600, wide: true }),
@@ -201,8 +205,29 @@
       });
       choices.append(...pills);
       const where = el('div', 'p-field ev-where'); where.append(el('span', 'ev-choice-label', 'Where it ran'), choices);
+      // The investment in rupees, US dollars or pounds: dollars and pounds are turned into rupees at today's rate when saved.
+      let currency = (a && a.costCurrency) || 'NPR';
+      const money = el('div', 'ev-money');
+      const cur = el('div', 'ev-cur');
+      cur.setAttribute('role', 'group'); cur.setAttribute('aria-label', 'Currency');
+      const curs = [['NPR', 'Rs'], ['USD', '$'], ['GBP', '\u00a3']].map(([k, t]) => {
+        const b = h('button', { type: 'button', class: k === currency ? 'on' : '', title: { NPR: 'Nepalese rupees', USD: 'US dollars', GBP: 'Pounds' }[k] }, t);
+        b.setAttribute('aria-pressed', String(k === currency));
+        b.addEventListener('click', () => { currency = k; curs.forEach((x) => { x.classList.toggle('on', x === b); x.setAttribute('aria-pressed', String(x === b)); }); hint(); });
+        return b;
+      });
+      cur.append(...curs);
+      const conv = el('small', 'ev-conv');
+      const hint = () => { conv.textContent = currency === 'NPR' ? 'In Nepalese rupees.' : `In ${currency === 'USD' ? 'US dollars' : 'pounds'}: turned into rupees at today\u2019s rate when you save, and every total is in rupees.`; };
+      hint();
+      f.cost.input.inputMode = 'decimal';
+      const line = el('div', 'ev-money-row');
+      f.cost.input.replaceWith(line);
+      line.append(f.cost.input, cur);
+      f.cost.wrap.append(conv);
+      money.append(f.cost.wrap);
       const grid = el('div', 'p-form p-form-2');
-      grid.append(f.name.wrap, where, f.place.wrap, f.cost.wrap, f.date.wrap, f.endDate.wrap, f.note.wrap);
+      grid.append(f.name.wrap, where, f.place.wrap, money, f.date.wrap, f.endDate.wrap, f.note.wrap);
       const msg = el('div', 'p-msg');
       const foot = el('div', 'p-dialog-foot');
       foot.append(h('button', { class: 'btn', type: 'button', onclick: () => close() }, 'Cancel'));
@@ -214,7 +239,8 @@
         ok.disabled = true;
         try {
           // The older "type" of an entry is sent back as it was, so nothing stored is lost.
-          await api('/api/planning/events', { ...(a ? { id: a.id, type: a.type } : {}), channel, ...Object.fromEntries(Object.entries(f).map(([k, x]) => [k, x.input.value])) });
+          const typed = Object.fromEntries(Object.entries(f).map(([k, x]) => [k, x.input.value]));
+          await api('/api/planning/events', { ...(a ? { id: a.id, type: a.type } : {}), channel, ...typed, costAmount: typed.cost, costCurrency: currency });
           close(true);
         } catch (e) { ok.disabled = false; msg.textContent = e.message; msg.className = 'p-msg error'; }
       });

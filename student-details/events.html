@@ -103,6 +103,13 @@
   .ev-choices button:active { transform: scale(.96); }
   .ev-choices button.on, .ev-choices button.on:hover { border-color: #0071e3; background: #0071e3; color: #fff; }
   .ev-where { grid-column: 1 / -1; }
+  /* 🔴 CSS CHANGED (2026-11-14): the investment of an event or campaign can be typed in rupees, dollars or pounds | from: one box "Investment (Rs)" | to: the amount box with a small segmented Rs, $ and £ switch on its right, and a grey line under it saying how it is counted */
+  .ev-money-row { display: flex; align-items: center; gap: 8px; }
+  .ev-money-row input { flex: 1; min-width: 0; }
+  .ev-cur { flex: none; display: inline-flex; gap: 2px; padding: 3px; border-radius: 10px; background: #e8e8ed; }
+  .ev-cur button { min-width: 36px; height: 30px; padding: 0 8px; border: 0; border-radius: 8px; background: transparent; color: #515154; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; transition: background-color .2s, color .2s, box-shadow .2s; }
+  .ev-cur button.on { background: #fff; color: #1d1d1f; box-shadow: 0 1px 2px rgba(0, 0, 0, .1), 0 2px 6px -3px rgba(0, 0, 0, .15); }
+  .ev-conv { display: block; margin-top: 6px; color: #6e6e73; font-size: 13px; }
   .ev-choice-label { display: block; margin-bottom: 8px; color: var(--brand-navy, #1d2f52); font-size: 14px; font-weight: 600; }
 </style>
 <!-- The first picture of the page waits until the menu has been drawn (see the marker at the end), so moving between pages never flashes an empty menu. -->

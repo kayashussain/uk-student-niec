@@ -306,7 +306,7 @@
       try { isAdmin = (await api('/api/me')).role === 'admin'; } catch (e) { isAdmin = false; }
       picker.replaceChildren(...i.intakes.map((x) => { const o = el('option', '', x.name); o.value = x.id; return o; }));
       picker.value = selected;
-      updated.textContent = `Figures as of ${ins.today}. They refresh on their own.`;
+      updated.textContent = `Figures as of ${window.Portal.day(ins.today)}. They refresh on their own.`;
       document.getElementById('page').classList.remove('first-load');
       draw();
     } catch (e) {

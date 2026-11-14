@@ -1,6 +1,7 @@
 // Today: the first screen, kept quiet on purpose. Two things only:
-//   1. the tasks: a team sees the tasks given to it; Admin and the Manager see the tasks they gave and whether each is done. Each task
-//      has its own comments, where the team and whoever gave it talk it through (the owner, 14 Nov 2026: no dates to do it by);
+//   1. the tasks: what is for this person (their team's, or for Admin the tasks the team gave them), what they gave, and (Admin and
+//      the Manager) what others gave; each says who gave it to whom, has its own comments, and a red dot marks what is new (the
+//      owner, 14 Nov 2026: no dates to do it by);
 //   2. what needs attention: one short list, a line per kind of work with how many students wait, opened with a click.
 // The numbers, charts and buttons live on the Dashboard and on All Students, not here.
 (function () {
@@ -13,13 +14,13 @@
   const greeting = () => { const hr = new Date().getHours(); return hr < 12 ? 'Good morning' : hr < 18 ? 'Good afternoon' : 'Good evening'; };
   const shortDay = (iso) => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
   let me = '';
-  const lastFromOther = (t) => { const c = Array.isArray(t.comments) ? t.comments : []; return Boolean(c.length && c[c.length - 1].by !== me); };
 
   let showDone = false;
-  function taskRow(t, canAssign, refresh) {
-    const r = el('div', `td-task${t.done ? ' is-done' : ''}`);
-    // A task a branch gave to another team is ticked by that team, not here.
-    const tick = h('button', { class: 'td-check', type: 'button', 'aria-pressed': String(t.done), title: t.given ? `${t.teamLabel} ticks it when it is done` : t.done ? 'Mark as not done' : 'Mark as done', 'aria-label': t.done ? 'Mark as not done' : 'Mark as done', disabled: Boolean(t.given) });
+  // One task: the tick (only for whoever the task is for), what to do, the student, who gave it to whom and when, and its comments.
+  function taskRow(t, refresh) {
+    const r = el('div', `td-task${t.done ? ' is-done' : ''}${t.unread ? ' has-unread' : ''}`);
+    const mayTick = t.forMe || (canAssignAll && !t.given);
+    const tick = h('button', { class: 'td-check', type: 'button', 'aria-pressed': String(t.done), title: mayTick ? (t.done ? 'Mark as not done' : 'Mark as done') : `${t.teamLabel} ticks it when it is done`, 'aria-label': t.done ? 'Mark as not done' : 'Mark as done', disabled: !mayTick });
     tick.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
     tick.addEventListener('click', async () => {
       tick.disabled = true;
@@ -30,65 +31,83 @@
       const folded = new Promise((ok) => setTimeout(ok, t.done || quick ? 0 : 520));
       try {
         await api(`/api/cards/${encodeURIComponent(t.studentId)}/tasks/${t.id}`, { done: !t.done });
-        window.NiecUI.toast(t.done ? 'Marked as not done' : 'Done. Well done. You can still add a comment under Done this week.', { type: 'success' });
+        window.NiecUI.toast(t.done ? 'Marked as not done' : 'Done. You can still add a comment under Done this week.', { type: 'success' });
         await folded;
         refresh(true);
       } catch (e) { r.classList.remove('is-ticking'); tick.disabled = false; window.NiecUI.toast(e.message, { type: 'error' }); }
     });
     const mid = el('div', 'td-task-mid');
-    mid.append(el('div', 'td-task-text', t.text));
+    const top = el('div', 'td-task-top');
+    top.append(el('div', 'td-task-text', t.text));
+    if (t.unread) top.append(el('span', 'td-dot', String(t.unread)));
+    mid.append(top);
+    // From whom, to whom, and when: "From SK Kayas Hussain to the Application Team · 14 Nov".
+    const route = el('div', 'td-route');
+    const fromName = t.by === me ? 'You' : t.by || 'Someone';
+    const toName = t.forMe ? (t.team === 'head' ? 'you' : `your team (${t.teamLabel})`) : t.teamLabel;
+    route.append(el('span', 'td-from-who', fromName), el('span', 'td-arrow', '\u2192'), el('span', 'td-to-who', toName), el('span', 'td-when', t.at ? shortDay(t.at) : ''));
+    if (t.done) route.append(el('span', 'td-donemark', t.doneBy ? `Done by ${t.doneBy}` : 'Done'));
     const who = el('div', 'td-task-who');
     who.append(h('a', { class: 'td-student', href: '/student?id=' + encodeURIComponent(t.studentId), title: 'Open the student card' }, t.student), stagePill(t.stage));
-    if (canAssign || t.given) who.append(el('span', 'td-team', t.teamLabel));
-    const given = t.at ? shortDay(t.at) : '';
-    who.append(el('span', 'td-from', t.done ? (t.doneBy ? `Done by ${t.doneBy}` : 'Done') : canAssign || t.given ? `Given ${given}` : `From ${t.by}${given ? ' \u00b7 ' + given : ''}`));
-    mid.append(who, taskThread(t, { rowId: t.studentId, me, canWrite: true }));
+    const thread = taskThread(t, { rowId: t.studentId, me, canWrite: true, unread: t.unread || 0 });
+    mid.append(route, who, thread);
     r.append(tick, mid);
+    if (t.unread) r.addEventListener('pointerdown', () => thread.markRead());
     return r;
   }
+  let canAssignAll = false;
 
-  function tasksPanel(t, refresh) {
-    const box = el('section', 'td-tasks');
-    // A branch also sees the tasks it gave to the Application and Mock Teams, in their own list below its own tasks.
-    const given = t.canAssign ? [] : t.tasks.filter((x) => x.given);
-    const ownTasks = t.canAssign ? t.tasks : t.tasks.filter((x) => !x.given);
-    const open = ownTasks.filter((x) => !x.done);
-    const done = ownTasks.filter((x) => x.done && Date.now() - Date.parse(x.doneAt || 0) < 7 * 86400000); // done in the last 7 days
-    const head = el('div', 'td-tasks-head');
-    const titles = el('div');
-    titles.append(el('h2', '', t.canAssign ? 'Tasks you have given' : 'Your tasks'), el('p', '', t.canAssign
-      ? 'Give a task from a student card (Assign a task). The team sees it on its Today, and you talk it through in the comments.'
-      : 'Given to your team. Comment to ask for what you need or to say how it went, and tick a task when it is done.'));
-    head.append(titles);
-    const sum = el('div', 'td-sum');
-    const replies = [...open, ...given.filter((x) => !x.done)].filter(lastFromOther).length;
-    if (replies) sum.append(el('span', 'td-chip is-new', `${replies} new ${replies === 1 ? 'reply' : 'replies'}`));
-    sum.append(el('span', 'td-chip', `${open.length} open`));
-    head.append(sum);
-    box.append(head);
+  // One list of tasks under its own heading, the newest word first; the ones done in the last 7 days fold away at the bottom.
+  function group(title, hint, list, refresh, emptyText) {
+    const g = el('div', 'td-group');
+    const open = list.filter((x) => !x.done);
+    const done = list.filter((x) => x.done && Date.now() - Date.parse(x.doneAt || 0) < 7 * 86400000);
+    const head = el('div', 'td-group-head');
+    const words = el('div');
+    words.append(el('h3', '', title));
+    if (hint) words.append(el('p', '', hint));
+    head.append(words);
+    const chips = el('div', 'td-sum');
+    const fresh = list.reduce((n, x) => n + (x.unread || 0), 0);
+    if (fresh) chips.append(el('span', 'td-chip is-new', `${fresh} new`));
+    chips.append(el('span', 'td-chip', `${open.length} open`));
+    head.append(chips);
+    g.append(head);
     if (!open.length) {
       const empty = el('div', 'td-empty');
       empty.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
-      empty.append(el('div', '', t.canAssign ? 'Every task you gave is done.' : 'Nothing open for your team. You are all caught up.'));
-      box.append(empty);
-    } else {
-      const g = el('div', 'td-group');
-      open.forEach((x) => g.append(taskRow(x, t.canAssign, refresh)));
-      box.append(g);
+      empty.append(el('div', '', emptyText));
+      g.append(empty);
     }
-    if (given.length) {
-      const g = el('div', 'td-group');
-      const waiting = given.filter((x) => !x.done);
-      g.append(el('h3', '', `Tasks you have given \u00b7 ${waiting.length} open, ${given.length - waiting.length} done`));
-      [...waiting, ...given.filter((x) => x.done)].slice(0, 30).forEach((x) => g.append(taskRow(x, false, refresh)));
-      box.append(g);
-    }
+    open.forEach((x) => g.append(taskRow(x, refresh)));
     if (done.length) {
-      const toggle = h('button', { class: 'td-done-toggle', type: 'button', 'aria-expanded': String(showDone) }, showDone ? 'Hide the tasks done this week' : `Done this week (${done.length})`);
-      toggle.addEventListener('click', () => { showDone = !showDone; refresh(); });
-      box.append(toggle);
-      if (showDone) { const g = el('div', 'td-group is-done'); done.forEach((x) => g.append(taskRow(x, t.canAssign, refresh))); box.append(g); }
+      const key = title;
+      const shown = showDone === key;
+      const toggle = h('button', { class: 'td-done-toggle', type: 'button', 'aria-expanded': String(shown) }, shown ? 'Hide the tasks done this week' : `Done this week (${done.length})`);
+      toggle.addEventListener('click', () => { showDone = shown ? false : key; refresh(); });
+      g.append(toggle);
+      if (shown) { const d = el('div', 'is-done'); done.forEach((x) => d.append(taskRow(x, refresh))); g.append(d); }
     }
+    return g;
+  }
+
+  function tasksPanel(t, refresh) {
+    canAssignAll = Boolean(t.canAssign);
+    if (t.me) me = t.me;
+    const box = el('section', 'td-tasks');
+    const head = el('div', 'td-tasks-head');
+    const titles = el('div');
+    titles.append(el('h2', '', 'Tasks'), el('p', '', 'Who gave each task to whom, and the comments on it. A red dot marks what is new for you.'));
+    head.append(titles);
+    box.append(head);
+    const forMe = t.tasks.filter((x) => x.forMe);
+    const gave = t.tasks.filter((x) => !x.forMe && (x.given || x.by === me));
+    const others = t.canAssign ? t.tasks.filter((x) => !x.forMe && x.by !== me) : [];
+    const any = forMe.length || gave.length || others.length;
+    if (t.isHead || forMe.length || !t.canAssign) box.append(group(t.isHead ? 'For you' : 'For your team', t.isHead ? `Tasks the team gave you, ${t.headLabel || 'Admin'}.` : 'Tick a task when it is done; comment to ask for what you need or to say how it went.', forMe, refresh, t.isHead ? 'Nothing for you. When the team gives you a task, it is here.' : 'Nothing open for your team. You are all caught up.'));
+    if (gave.length || t.canAssign) box.append(group('Tasks you have given', 'Give a task from a student card (Assign a task). Their comments come back here.', gave, refresh, 'Every task you gave is done.'));
+    if (others.length) box.append(group('Given by others', 'Tasks the Manager and the branches gave the teams.', others, refresh, 'Every one of them is done.'));
+    if (!any && !t.canAssign && !forMe.length) { /* the "For your team" list above already says so */ }
     return box;
   }
 

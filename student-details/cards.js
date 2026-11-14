@@ -156,7 +156,33 @@ function createCards(dir, { now = () => new Date() } = {}) {
     return { ...result, card };
   }
 
+  // When each person last read each task (its comments), for the red dots: { "<username>": { "<task id>": "<ISO time>" } }. Kept in
+  // task-seen.json beside the cards, apart from them, so reading a task never changes a student's card.
+  const seenFile = path.join(dir, 'task-seen.json');
+  let seenCache = null;
+  const seenAll = () => {
+    if (seenCache) return seenCache;
+    try { const d = JSON.parse(fs.readFileSync(seenFile, 'utf8')); seenCache = d && typeof d === 'object' && !Array.isArray(d) ? d : {}; } catch (e) { seenCache = {}; }
+    return seenCache;
+  };
+
   return {
+    hasSeen(username) { return Object.prototype.hasOwnProperty.call(seenAll(), String(username || '')); },
+    // When `username` last read each task: { taskId: ISO time }.
+    seenBy(username) { return { ...(seenAll()[String(username || '')] || {}) }; },
+    // `username` has read these tasks now.
+    markSeen(username, taskIds) {
+      const key = String(username || '');
+      if (!key) return;
+      const all = { ...seenAll() };
+      const mine = { ...(all[key] || {}) };
+      const stamp = now().toISOString();
+      [].concat(taskIds).filter((t) => /^[a-f0-9]{12}$/.test(String(t))).forEach((t) => { mine[t] = stamp; });
+      // Only the newest 2,000 reads a person made are kept.
+      all[key] = Object.fromEntries(Object.entries(mine).sort((a, b) => b[1].localeCompare(a[1])).slice(0, 2000));
+      seenCache = all;
+      try { fs.mkdirSync(dir, { recursive: true, mode: 0o700 }); writeFileAtomic(seenFile, JSON.stringify(all)); } catch (e) { /* kept in memory until the next save */ }
+    },
     // The card of a student (an empty one when nothing has been saved for them yet).
     get(rowId) {
       const data = load();

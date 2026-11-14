@@ -35,6 +35,7 @@ const { createB2b } = require('./b2b');
 const { createPortalApi } = require('./portal-api');
 const { partnerAccess, shapeDirect } = require('./partner-access');
 const { createUserMail } = require('./user-mail');
+const { createRates } = require('../shared/exchange-rates');
 const { buildInsights } = require('./insights-engine');
 const { createFinder } = require('./finder');
 
@@ -829,7 +830,7 @@ const courseWatch = createCourseWatch({ dir: DATA_DIR, getIndex: () => (portalRe
 const userMail = createUserMail(DATA_DIR);
 const portal = createPortalApi({
   getWorkbook: () => current, writeWorkbook, recordChanges, teamSave,
-  cards, messages, courseLinks, sourceOptions, courseLinker: courseFinder, courseWatch: () => courseWatch, facts, direct, b2b, agents, planning, accounts, activity,
+  cards, messages, courseLinks, sourceOptions, courseLinker: courseFinder, courseWatch: () => courseWatch, facts, direct, b2b, agents, planning, accounts, activity, rates: createRates(DATA_DIR),
   insights: servedInsights, finder: createFinder(), calculated: CALCULATED_COLUMNS,
   userMail, officeMailSettings: () => require('../shared/mailer').loadConfig(DATA_DIR),
 });

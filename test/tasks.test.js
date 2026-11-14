@@ -75,7 +75,29 @@ test('tasks: given by Admin, seen and ticked by that team only, listed for Admin
   assert.strictEqual(dash.kind, 'mock');
   assert.strictEqual(dash.kpis.length, 4);
   assert.deepStrictEqual([dash.tasks.open, dash.tasks.late], [1, undefined], 'the team sees its open tasks (no "late": tasks have no dates)');
+  // A team gives Admin a task too (the owner, 14 Nov 2026): Admin is named with the signature's title, sees it under "For you" with
+  // a red dot, and the dot goes once Admin reads it. A comment from the other side makes a new dot, for whoever gave the task too.
+  const sita = (await admin('POST', '/api/students/new', { stage: 'Application Stage', fields: { 'FIRST NAME': 'Gita', 'LAST NAME': 'Rai', 'CONTACT NUMBER': '9800000011' } })).json.id;
+  const appCard = (await app('GET', `/api/cards/${sita}`)).json;
+  assert.deepStrictEqual(appCard.assignTeams.map((x) => x.id), ['head'], 'a team gives tasks only to Admin');
+  assert.match(appCard.assignTeams[0].label, /^Owner \(Head of Recruitment\)$/);
+  assert.strictEqual((await app('POST', `/api/cards/${sita}/tasks`, { team: 'mock', text: 'x' })).status, 400, 'not to another team');
+  const toHead = await app('POST', `/api/cards/${sita}/tasks`, { team: 'head', text: 'Approve the scholarship letter' });
+  assert.strictEqual(toHead.status, 200);
+  const headTask = toHead.json.card.tasks.find((x) => x.team === 'head');
+  const forOwner = (await admin('GET', '/api/tasks')).json.tasks.find((x) => x.id === headTask.id);
+  assert.deepStrictEqual([forOwner.forMe, forOwner.unread, forOwner.by], [true, 1, 'asha'], 'Admin sees the new task for them, marked new');
+  assert.strictEqual((await admin('GET', '/api/tasks/unread')).json.count, 1);
+  assert.strictEqual((await admin('POST', `/api/cards/${sita}/tasks/${headTask.id}`, { seen: true })).status, 200);
+  assert.strictEqual((await admin('GET', '/api/tasks/unread')).json.count, 0, 'read: the dot goes');
+  await admin('POST', `/api/cards/${sita}/tasks/${headTask.id}`, { comment: 'Done, it is in your inbox.' });
+  assert.strictEqual((await app('GET', '/api/tasks/unread')).json.count, 1, 'the team that gave it sees the answer as new');
+  assert.strictEqual((await admin('GET', '/api/tasks/unread')).json.count, 0, 'their own comment is not new to Admin');
+  assert.strictEqual((await mock('POST', `/api/cards/${sita}/tasks/${headTask.id}`, { comment: 'x' })).status, 404, 'another team cannot see the student');
+  assert.strictEqual((await app('POST', `/api/cards/${sita}/tasks/${headTask.id}`, { done: true })).status, 403, 'only Admin ticks a task given to Admin');
+  assert.strictEqual((await admin('POST', `/api/cards/${sita}/tasks/${headTask.id}`, { done: true })).status, 200);
+  assert.strictEqual((await app('POST', `/api/cards/${sita}/tasks/${headTask.id}/delete`, {})).status, 200, 'whoever gave a task removes it');
   const app2 = (await app('GET', '/api/my-dashboard')).json;
-  assert.strictEqual(app2.stages.find((x) => x.stage === 'Application Stage').count, 0);
+  assert.strictEqual(app2.stages.find((x) => x.stage === 'Application Stage').count, 1, 'Gita, added above at Application Stage');
   assert.ok([...app2.wins, ...app2.upcoming].every((x) => x.name !== 'Sita Rai'), 'no student the team cannot see is named');
 });

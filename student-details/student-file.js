@@ -53,19 +53,38 @@
 
 
   // Rows of a spreadsheet (arrays of cells) to students. A first row with headings (First name, Last name, Name, Email, Phone ...) names the
-  // columns; without headings each row is read like a pasted line.
+  // columns; without headings each row is read like a pasted line. Other columns a lead list often has are kept too: the programme
+  // (as the study level), the day of the enquiry, the intake the student asked for, and anything else as a line for the first note.
+  const dayOf = (c, isDate) => {
+    if (c instanceof Date && !Number.isNaN(c.getTime())) return c.toISOString().slice(0, 10);
+    const n = Number(c);
+    // An Excel day number (46338.9 is 12 Nov 2026) in a column about a date.
+    if (isDate && Number.isFinite(n) && n > 20000 && n < 80000) return new Date(Date.UTC(1899, 11, 30) + Math.floor(n) * 86400000).toISOString().slice(0, 10);
+    const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(c || ''));
+    return m ? m[0] : '';
+  };
+  const levelOf = (v) => (/master|post\s*grad|msc|\bma\b|mba/i.test(v) ? 'Postgraduate' : /bachelor|under\s*grad|bsc|\bba\b|degree/i.test(v) ? 'Undergraduate' : /foundation/i.test(v) ? 'Foundation' : /top.?up/i.test(v) ? 'Top-up (final year)' : '');
   function fromGrid(grid, max = 200) {
-    const cells = grid.map((r) => r.map((c) => String(c === null || c === undefined ? '' : (c.text || c.result || c)).trim()));
-    const head = (cells[0] || []).map((c) => c.toLowerCase());
+    const heads = (grid[0] || []).map((c) => String(c === null || c === undefined ? '' : (c.text || c.result || c)).trim());
+    const head = heads.map((c) => c.toLowerCase());
     const find = (re) => head.findIndex((c) => re.test(c));
     const col = { first: find(/first\s*name|given/), last: find(/last\s*name|surname|family/), name: find(/^(full\s*)?name$|student/), email: find(/e-?mail/), phone: find(/phone|mobile|contact|whatsapp|number/) };
     const hasHead = Object.values(col).some((i) => i >= 0);
-    return (hasHead ? cells.slice(1) : cells).filter((r) => r.some(Boolean)).slice(0, max).map((r) => {
+    const more = { level: find(/programme|program|level|degree|course/), intake: find(/intake/), date: find(/date|when|time/) };
+    const used = new Set([...Object.values(col), ...Object.values(more)].filter((i) => i >= 0));
+    const cellText = (c) => String(c === null || c === undefined ? '' : (c instanceof Date ? dayOf(c) : (c.text || c.result || c))).trim();
+    return (hasHead ? grid.slice(1) : grid).filter((r) => r.some((c) => cellText(c))).slice(0, max).map((raw) => {
+      const r = raw.map(cellText);
       if (!hasHead) return parse(r.filter(Boolean).join('\t'), 1)[0] || { first: '', last: '', email: '', phone: '' };
       let first = col.first >= 0 ? r[col.first] : '';
       let last = col.last >= 0 ? r[col.last] : '';
       if (!first && !last && col.name >= 0) { const w = (r[col.name] || '').split(/\s+/); first = w[0] || ''; last = w.slice(1).join(' '); }
-      return { first, last, email: col.email >= 0 ? r[col.email] : '', phone: col.phone >= 0 ? r[col.phone] : '' };
+      const programme = more.level >= 0 ? r[more.level] : '';
+      const asked = more.intake >= 0 ? r[more.intake] : '';
+      const when = more.date >= 0 ? dayOf(raw[more.date], true) : '';
+      const extra = [programme && `${heads[more.level]}: ${programme}`, asked && `${heads[more.intake]}: ${asked}`,
+        ...heads.map((hd, i) => (!used.has(i) && hd && r[i] ? `${hd}: ${r[i]}` : '')).filter(Boolean)].filter(Boolean).join('. ');
+      return { first, last, email: col.email >= 0 ? r[col.email] : '', phone: col.phone >= 0 ? r[col.phone] : '', level: levelOf(programme), intake: asked, inquiryDate: when, extra };
     });
   }
   // A file the person chose: .xlsx is read with the Excel library (downloaded once, as for Export Excel), .csv as text.
@@ -80,5 +99,5 @@
     return fromGrid(grid, max);
   }
 
-  root.StudentFile = { readFile, checkRows, parse };
+  root.StudentFile = { readFile, checkRows, parse, fromGrid };
 })(this);

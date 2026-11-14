@@ -70,14 +70,14 @@ test('uploading an event list: found and tagged, added at Inquiry, skipped, noth
   const abc = (await acts()).activities.find((a) => a.name === 'ABC event');
   assert.deepStrictEqual([abc.leads, abc.costPerLead], [3, 6667], 'three students share the Rs 20,000');
   const card = (await admin('GET', `/api/cards/${early}`)).json;
-  assert.strictEqual(card.student.source, 'Events');
+  assert.strictEqual(card.student.source, 'Social Media', 'a campaign on social media is a Social Media source (the owner, 14 Nov 2026)');
   assert.match(card.card.profile.sourceDetail, /^ABC event/);
   assert.match(card.card.profile.sourceRemarks, /Previous source: Social Media: Facebook page/, 'the earlier source is kept');
   assert.match(card.card.notes.at(-1).text, /Linked to ABC event from its enquiry list/);
   const wb = (await admin('GET', '/api/data')).json;
   const all = wb.sheets.flatMap((s) => s.rows);
   assert.strictEqual(all.filter((r) => r['FIRST NAME'] === 'Early').length, 1, 'not added twice');
-  assert.ok(all.filter((r) => r['FIRST NAME'] === 'New').every((r) => r['APPLICATION STATUS'] === 'Inquiry' && r['STUDENT SOURCE'] === 'Events'));
+  assert.ok(all.filter((r) => r['FIRST NAME'] === 'New').every((r) => r['APPLICATION STATUS'] === 'Inquiry' && r['STUDENT SOURCE'] === 'Social Media'));
   assert.strictEqual((await acts()).activities.find((a) => a.name === 'Fair').leads, 1, 'the student of another event was not moved');
   // The same list again changes nothing.
   const again = (await admin('POST', `/api/activities/${ids['ABC event']}/students`, { rows: list, preview: true })).json;
@@ -89,4 +89,42 @@ test('uploading an event list: found and tagged, added at Inquiry, skipped, noth
   const tags = (await follow('GET', '/api/event-tags')).json;
   assert.ok(Object.values(tags.rows).every((label) => typeof label === 'string'));
   assert.ok(!JSON.stringify(tags).includes('20000'), 'no cost in the tags');
+  // The Source filter of All Students: each student's source and exactly which, and the sources with how many students each.
+  const sources = (await admin('GET', '/api/event-tags')).json;
+  assert.strictEqual(sources.sources[early][0], 'Social Media');
+  assert.match(sources.sources[early][1], /^ABC event/);
+  const social = sources.groups.find((g) => g.group === 'Social Media');
+  assert.ok(social && social.count >= 3 && social.details.some((d) => /^ABC event/.test(d.detail)), 'the campaign is under Social Media');
+  assert.ok(sources.groups.some((g) => g.group === 'Events' && g.details.some((d) => /^Fair/.test(d.detail))), 'the fair is under Events');
+
+  // A lead list as Meta gives it (the owner, 14 Nov 2026): the intake asked for picks the intake tab, the programme becomes the study
+  // level, the enquiry date the first inquiry day, the rest goes into the first note; names and Nepal numbers are tidied. Made-up people.
+  const wb0 = (await admin('GET', '/api/data')).json;
+  const jan = wb0.sheets.find((x) => /jan/i.test(x.name) && /2027/.test(x.name));
+  const leads = [{ first: '#anil', last: 'example', phone: '+9779811177788', level: 'Postgraduate', intake: 'January 2027', inquiryDate: '2026-11-10', extra: "Programme: Master's Degree. Intended UK Study Intake: January 2027" }];
+  const pre2 = (await admin('POST', `/api/activities/${ids['ABC event']}/students`, { rows: leads, sheetId: wb0.sheets[0].id, preview: true })).json;
+  assert.strictEqual(pre2.rows[0].name, 'Anil Example', 'the name is tidied');
+  assert.strictEqual(pre2.rows[0].phone, '9811177788', 'a Nepal number is kept as 98XXXXXXXX');
+  assert.strictEqual(pre2.rows[0].intakeName, (jan || wb0.sheets[0]).name, 'the intake asked for, when there is such a tab');
+  await admin('POST', `/api/activities/${ids['ABC event']}/students`, { rows: leads, sheetId: wb0.sheets[0].id });
+  const wb1 = (await admin('GET', '/api/data')).json;
+  const anil = wb1.sheets.find((x) => x.id === (jan || wb0.sheets[0]).id).rows.find((r) => r['FIRST NAME'] === 'Anil');
+  assert.ok(anil, 'added to the intake they asked for');
+  const anilCard = (await admin('GET', `/api/cards/${anil._id}`)).json.card;
+  assert.deepStrictEqual([anilCard.profile.studyLevel, anilCard.profile.inquiryDate], ['Postgraduate', '2026-11-10']);
+  assert.match(anilCard.notes[0].text, /Intended UK Study Intake: January 2027/);
+
+  // A cost in rupees is kept as typed; one in dollars needs today's rate (the test has no internet, so it is refused, nothing saved).
+  const usd = await admin('POST', '/api/planning/events', { id: ids.Fair, name: 'Fair', channel: 'Another venue (hall or hotel)', date: '2026-10-01', costAmount: '500', costCurrency: 'USD' });
+  if (usd.status === 200) assert.ok(usd.json.entry.cost > 500 && usd.json.entry.costCurrency === 'USD' && usd.json.entry.costRate > 1);
+  else assert.match(usd.json.error, /rate could not be found/);
+  const rs = await admin('POST', '/api/planning/events', { id: ids.Fair, name: 'Fair', channel: 'Another venue (hall or hotel)', date: '2026-10-01', costAmount: 'Rs 45,000', costCurrency: 'NPR' });
+  assert.deepStrictEqual([rs.json.entry.cost, rs.json.entry.costCurrency], [45000, 'NPR']);
+
+  // A name on B2B Partners that is really a Partner University (Navitas, for example) moves there. Admin only.
+  assert.strictEqual((await follow('POST', '/api/b2b/to-university', { name: 'Navitas' })).status, 403);
+  const moved = await admin('POST', '/api/b2b/to-university', { name: 'Navitas' });
+  assert.strictEqual(moved.status, 200);
+  assert.ok((await admin('GET', '/api/direct')).json.some((u) => u.name === 'Navitas'), 'now a Partner University');
+  assert.strictEqual((await admin('POST', '/api/b2b/to-university', { name: 'Navitas' })).status, 400, 'not twice');
 });

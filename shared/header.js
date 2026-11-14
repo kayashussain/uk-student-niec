@@ -221,13 +221,40 @@
     try { sessionStorage.setItem('isrDemo', d && d.demo ? '1' : '0'); } catch (e) { /* not kept */ }
     if (d && d.demo) demoBar();
   }).catch(() => { /* no banner */ });
+  // A red badge on Today in the menu when something is new on the person's tasks (a comment, a task just given to them), so nobody
+  // misses that the team, or whoever gave a task, wrote back (the owner, 14 Nov 2026). Checked on every page, every minute, and at
+  // once when the person reads a task (the comments send "isr-tasks-read").
+  let unread = 0;
+  try { unread = Number(sessionStorage.getItem('isrUnread')) || 0; } catch (e) { /* asked below */ }
+  const showUnread = () => {
+    const link = header.querySelector('.niec-nav a[href="/today"]');
+    if (!link) return;
+    let b = link.querySelector('.niec-badge');
+    if (!unread) { if (b) b.remove(); return; }
+    if (!b) { b = document.createElement('span'); b.className = 'niec-badge'; link.append(b); }
+    b.textContent = unread > 99 ? '99+' : String(unread);
+    b.setAttribute('aria-label', `${unread} new on your tasks`);
+    link.title = `Today: ${unread} new on your tasks`;
+  };
+  const askUnread = () => fetch('/api/tasks/unread', { cache: 'no-store' }).then((r) => (r.ok ? r.json() : null)).then((d) => {
+    if (!d) return;
+    const was = unread;
+    unread = Number(d.count) || 0;
+    try { sessionStorage.setItem('isrUnread', String(unread)); } catch (e) { /* asked again next page */ }
+    showUnread();
+    if (unread > was) { const b = header.querySelector('.niec-badge'); if (b) { b.classList.remove('pop'); void b.offsetWidth; b.classList.add('pop'); } }
+  }).catch(() => { /* asked again in a minute */ });
+  showUnread();
+  window.addEventListener('isr-tasks-read', () => setTimeout(askUnread, 300));
+  setInterval(() => { if (!document.hidden) askUnread(); }, 60000);
   fetch('/api/me', { cache: 'no-store' })
     .then((res) => (res.ok ? res.json() : null))
     .then((me) => {
       if (!me) return;
       const fresh = JSON.stringify({ name: me.name, username: me.username, role: me.role, roleLabel: me.roleLabel, departments: me.departments || [] });
       try { sessionStorage.setItem(MEMORY, fresh); } catch (e) { /* not kept */ }
-      if (fresh !== shown) render(JSON.parse(fresh));
+      if (fresh !== shown) { render(JSON.parse(fresh)); showUnread(); }
+      askUnread();
     })
     .catch(() => { /* the session helper sends a logged-out page to the login page */ });
 })();
