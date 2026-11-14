@@ -43,12 +43,21 @@ test('tasks: given by Admin, seen and ticked by that team only, listed for Admin
   const given = await admin('POST', `/api/cards/${id}/tasks`, { team: 'mock', text: 'Book the mock interview', due: '2026-11-20' });
   assert.strictEqual(given.status, 200);
   const taskId = given.json.card.tasks[0].id;
+  assert.strictEqual(given.json.card.tasks[0].due, undefined, 'a task has no date to do it by (the owner, 14 Nov 2026)');
   assert.strictEqual((await mock('GET', `/api/cards/${id}`)).status, 200, 'the mock team sees the student while the task is open');
   assert.strictEqual((await app('GET', `/api/cards/${id}`)).status, 404, 'another team does not');
   const mine = (await mock('GET', '/api/tasks')).json.tasks;
   assert.deepStrictEqual(mine.map((x) => x.text), ['Book the mock interview']);
   assert.strictEqual((await app('GET', '/api/tasks')).json.tasks.length, 0);
   assert.strictEqual((await mock('POST', `/api/cards/${id}/tasks/${taskId}/delete`, {})).status, 403, 'a team cannot remove a task');
+  // The team and whoever gave the task talk it through in its comments, with or without ticking it; another team cannot.
+  assert.strictEqual((await mock('POST', `/api/cards/${id}/tasks/${taskId}`, { comment: 'Please send the student email.' })).status, 200);
+  assert.strictEqual((await mock('POST', `/api/cards/${id}/tasks/${taskId}`, { comment: '   ' })).status, 400, 'an empty comment is refused');
+  assert.strictEqual((await app('POST', `/api/cards/${id}/tasks/${taskId}`, { comment: 'x' })).status, 404, 'another team cannot see the student');
+  const answered = await admin('POST', `/api/cards/${id}/tasks/${taskId}`, { comment: 'Sent it to your inbox.' });
+  assert.deepStrictEqual(answered.json.card.tasks[0].comments.map((c) => [c.by, c.text]), [['bikram', 'Please send the student email.'], ['Owner', 'Sent it to your inbox.']]);
+  assert.strictEqual(answered.json.card.tasks[0].done, false, 'a comment does not tick the task');
+  assert.strictEqual((await mock('GET', '/api/tasks')).json.tasks[0].comments.length, 2, 'the team sees the conversation on Today');
   assert.strictEqual((await mock('POST', `/api/cards/${id}/tasks/${taskId}`, { done: true })).status, 200);
   const all = (await admin('GET', '/api/tasks')).json.tasks;
   assert.deepStrictEqual([all[0].done, all[0].doneBy, all[0].teamLabel], [true, 'bikram', 'Mock Team']);
@@ -61,11 +70,11 @@ test('tasks: given by Admin, seen and ticked by that team only, listed for Admin
   assert.strictEqual((await mock('GET', '/my-dashboard')).status, 200);
   assert.strictEqual((await admin('GET', '/my-dashboard')).location, '/dashboard', 'Admin keeps the full Dashboard');
   assert.strictEqual((await admin('GET', '/api/my-dashboard')).status, 403);
-  await admin('POST', `/api/cards/${id}/tasks`, { team: 'mock', text: 'Late one', due: '2020-01-01' });
+  await admin('POST', `/api/cards/${id}/tasks`, { team: 'mock', text: 'Another one' });
   const dash = (await mock('GET', '/api/my-dashboard')).json;
   assert.strictEqual(dash.kind, 'mock');
   assert.strictEqual(dash.kpis.length, 4);
-  assert.deepStrictEqual([dash.tasks.open, dash.tasks.late], [1, 1], 'the team sees its open and late tasks');
+  assert.deepStrictEqual([dash.tasks.open, dash.tasks.late], [1, undefined], 'the team sees its open tasks (no "late": tasks have no dates)');
   const app2 = (await app('GET', '/api/my-dashboard')).json;
   assert.strictEqual(app2.stages.find((x) => x.stage === 'Application Stage').count, 0);
   assert.ok([...app2.wins, ...app2.upcoming].every((x) => x.name !== 'Sita Rai'), 'no student the team cannot see is named');

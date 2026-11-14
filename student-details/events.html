@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <meta name="robots" content="noindex, nofollow" />
 <title>Events and marketing · ISR</title>
+<link rel="preload" href="/fonts/inter-latin.woff2" as="font" type="font/woff2" crossorigin />
 <link rel="icon" type="image/png" href="favicon.png" />
 <link rel="stylesheet" href="header.css" />
 <link rel="stylesheet" href="ui.css" />
@@ -21,23 +22,29 @@
   .ev-band small { display: block; margin-top: 4px; color: var(--text-dim); font-size: 14px; }
   .ev-band .gold b { color: #6f5631; }
   @media (max-width: 1000px) { .ev-band { grid-template-columns: repeat(2, minmax(0, 1fr)); } .ev-band > div + div { border-left: 0; } .ev-band > div { border-top: 1px solid var(--border); } }
-  .ev-note { margin: 0 0 18px; padding: 14px 18px; border: 1px solid color-mix(in srgb, var(--amber-fg) 25%, transparent); border-radius: 14px; background: var(--amber-bg); color: var(--amber-fg); font-size: 15px; line-height: 1.5; }
+  .ev-note { display: flex; align-items: baseline; gap: 10px; margin: 0 0 18px; padding: 14px 18px; border: 0; border-radius: 14px; background: var(--panel, #fbfbfd); color: #1d1d1f; font-size: 15px; line-height: 1.5; box-shadow: 0 1px 2px rgba(0, 0, 0, .04), 0 2px 10px rgba(0, 0, 0, .04); }
+  .ev-note::before { content: ""; flex: none; width: 8px; height: 8px; border-radius: 50%; background: #ff9500; transform: translateY(-1px); }
   .ev-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin: 4px 0 12px; }
-  .ev-pills { display: inline-flex; gap: 6px; padding: 4px; border: 1px solid var(--border); border-radius: 999px; background: var(--panel); }
-  .ev-pills button { min-height: 38px; padding: 0 16px; border: 0; border-radius: 999px; background: transparent; font: inherit; font-size: 14.5px; font-weight: 600; color: var(--text-dim); cursor: pointer; }
-  .ev-pills button.on { background: var(--brand-navy, #1d2f52); color: var(--brand-ivory, #f6f3ec); }
+  /* 🔴 CSS CHANGED (2026-11-14): the Events and marketing page brought to the same Apple look as the other pages | from: the All, Campaigns and Events switch with a black pill on the chosen one; a yellow bordered warning box; navy names; names of enquiries underlined; the columns of the enquiry list not lined up from row to row; a bronze arrow; the event title in a serif | to: the same grey segmented switch as everywhere, with a white pill that slides to the chosen one; a soft off-white notice with an orange dot; near-black names; enquiry names in near-black that turn blue on hover; columns that line up on every row; a grey arrow that moves right on hover; marketing campaigns tagged in soft orange instead of a bronze outline; the chosen place in the new event form in Apple blue instead of navy; rows that rise in one after another when the list opens; the title in the system font */
+  .ev-pills { display: inline-flex; gap: 2px; padding: 3px; border: 0; border-radius: 12px; background: #e8e8ed; }
+  .ev-pills button { min-height: 34px; padding: 0 16px; border: 0; border-radius: 9px; background: transparent; font: inherit; font-size: 14.5px; font-weight: 500; color: #515154; cursor: pointer; transition: color .25s ease; }
+  .ev-pills button.on { background: #fff; color: #1d1d1f; font-weight: 600; box-shadow: 0 1px 2px rgba(0, 0, 0, .08), 0 2px 8px -4px rgba(0, 0, 0, .12); }
   /* the ledger */
   .ev-ledger { border: 1px solid var(--border); border-radius: 18px; background: var(--panel); overflow: hidden; box-shadow: 0 1px 2px rgba(20, 27, 41, .04); }
   .ev-lrow { display: grid; grid-template-columns: minmax(260px, 2.4fr) repeat(5, minmax(96px, 1fr)) 28px; gap: 12px; align-items: center; padding: 16px 22px; border-top: 1px solid var(--border); }
   .ev-lrow.head { border-top: 0; padding-top: 12px; padding-bottom: 12px; background: color-mix(in srgb, var(--gold-soft, #e2e7f0) 45%, var(--panel)); color: var(--text-dim); font-size: 14px; font-weight: 650; }
-  .ev-lrow.item { cursor: pointer; transition: background-color .15s ease; }
-  .ev-lrow.item:hover, .ev-lrow.item:focus-visible { background: color-mix(in srgb, var(--gold-soft, #e2e7f0) 35%, var(--panel)); outline: none; }
+  .ev-lrow.item { cursor: pointer; transition: background-color .2s ease; animation: isr-row-in .45s cubic-bezier(.32, .72, 0, 1) backwards; animation-delay: calc(var(--i, 0) * 35ms); }
+  .ev-lrow.item:hover, .ev-lrow.item:focus-visible { background: rgba(0, 0, 0, .025); outline: none; }
+  .ev-lrow.item:active { background: rgba(0, 0, 0, .05); }
+  .ev-lrow.item:hover .ev-go { color: #0071e3; transform: translateX(3px); }
+  @keyframes isr-row-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+  @media (prefers-reduced-motion: reduce) { .ev-lrow.item { animation: none; } }
   .ev-lrow .num { text-align: right; font-variant-numeric: tabular-nums; }
   .ev-lrow.item .num { font-size: 15.5px; font-weight: 600; color: var(--brand-navy, #1d2f52); }
   .ev-lrow.item .num.gold { color: #6f5631; }
-  .ev-lname { font-size: 16.5px; font-weight: 700; color: var(--brand-navy, #1d2f52); }
+  .ev-lname { font-size: 16.5px; font-weight: 600; color: #1d1d1f; }
   .ev-lmeta { display: flex; align-items: center; gap: 6px 10px; flex-wrap: wrap; margin-top: 4px; color: var(--text-dim); font-size: 14px; }
-  .ev-go { color: var(--brand-bronze, #9a7b4f); font-size: 18px; text-align: right; }
+  .ev-go { color: #86868b; font-size: 18px; text-align: right; transition: transform .25s cubic-bezier(.32, .72, 0, 1), color .2s; }
   @media (max-width: 1000px) {
     .ev-lrow { grid-template-columns: repeat(3, minmax(0, 1fr)); }
     .ev-lrow.head { display: none; }
@@ -47,13 +54,13 @@
     .ev-go { display: none; }
   }
   .ev-tag { display: inline-block; padding: 2px 11px; border-radius: 999px; background: var(--gold-soft, #e2e7f0); color: var(--brand-navy, #1d2f52); font-size: 13.5px; font-weight: 650; }
-  .ev-tag.mk { background: transparent; border: 1px solid color-mix(in srgb, var(--brand-bronze, #9a7b4f) 55%, transparent); color: #6f5631; }
+  .ev-tag.mk { background: rgba(255, 149, 0, .12); border: 0; color: #b25000; }
   .ev-empty { padding: 40px; text-align: center; color: var(--text-dim); }
   /* one event */
-  .ev-back { display: inline-flex; align-items: center; gap: 8px; margin: 0 0 14px; padding: 0; border: 0; background: none; font: inherit; font-size: 15px; font-weight: 600; color: var(--brand-navy, #1d2f52); cursor: pointer; }
+  .ev-back { display: inline-flex; align-items: center; gap: 8px; margin: 0 0 14px; padding: 0; border: 0; background: none; font: inherit; font-size: 15px; font-weight: 500; color: #0066cc; cursor: pointer; }
   .ev-back:hover { text-decoration: underline; }
   .ev-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
-  .ev-head h2 { margin: 0; font-family: var(--serif); font-size: 34px; font-weight: 600; line-height: 1.15; color: var(--brand-navy, #1d2f52); }
+  .ev-head h2 { margin: 0; font-family: var(--font); font-size: 34px; font-weight: 650; letter-spacing: -.025em; line-height: 1.15; color: #1d1d1f; }
   .ev-head .ev-lmeta { margin-top: 10px; font-size: 15px; }
   .ev-panel { margin: 0 0 18px; padding: 24px 26px; border: 1px solid var(--border); border-radius: 18px; background: var(--panel); box-shadow: 0 1px 2px rgba(20, 27, 41, .04); }
   .ev-panel h3 { margin: 0 0 4px; font-size: 18px; font-weight: 700; color: var(--brand-navy, #1d2f52); }
@@ -81,9 +88,10 @@
   @media (max-width: 800px) { .ev-rline { grid-template-columns: minmax(0, 1fr); } }
   .ev-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 16px; }
   .ev-people { border: 1px solid var(--border); border-radius: 14px; overflow: hidden; }
-  .ev-person { display: grid; grid-template-columns: minmax(180px, 1.4fr) minmax(120px, 1fr) minmax(130px, auto) minmax(120px, 1fr) minmax(0, 2.2fr); gap: 12px; align-items: center; padding: 12px 16px; border-top: 1px solid var(--border); font-size: 15px; }
+  .ev-person { display: grid; grid-template-columns: minmax(170px, 1.3fr) 130px 180px 140px minmax(0, 2.2fr); gap: 12px; align-items: center; padding: 12px 16px; border-top: 1px solid var(--border); font-size: 15px; }
   .ev-person.head { border-top: 0; background: color-mix(in srgb, var(--gold-soft, #e2e7f0) 45%, var(--panel)); color: var(--text-dim); font-size: 14px; font-weight: 650; }
-  .ev-person .who { padding: 0; border: 0; background: none; font: inherit; font-weight: 650; color: var(--brand-navy, #1d2f52); text-align: left; cursor: pointer; text-decoration: underline; text-decoration-color: color-mix(in srgb, var(--brand-bronze, #9a7b4f) 50%, transparent); text-underline-offset: 4px; }
+  .ev-person .who { padding: 0; border: 0; background: none; font: inherit; font-weight: 600; color: #1d1d1f; text-align: left; cursor: pointer; transition: color .2s; }
+  .ev-person .who:hover { color: #0066cc; }
   .ev-person .last { color: var(--text-dim); font-size: 14px; overflow-wrap: anywhere; }
   .ev-person .last b { color: var(--text); font-weight: 600; }
   @media (max-width: 900px) { .ev-person { grid-template-columns: minmax(0, 1fr); } .ev-person.head { display: none; } }
@@ -91,7 +99,9 @@
   /* the form */
   .ev-choices { display: flex; flex-wrap: wrap; gap: 8px; }
   .ev-choices button { min-height: 40px; padding: 0 16px; border: 1px solid var(--border); border-radius: 999px; background: var(--panel); font: inherit; font-size: 14.5px; font-weight: 600; color: var(--text); cursor: pointer; }
-  .ev-choices button.on, .ev-choices button.on:hover { border-color: var(--brand-navy, #1d2f52); background: var(--brand-navy, #1d2f52); color: var(--brand-ivory, #f6f3ec); }
+  .ev-choices button { transition: background-color .2s, color .2s, border-color .2s, transform .15s; }
+  .ev-choices button:active { transform: scale(.96); }
+  .ev-choices button.on, .ev-choices button.on:hover { border-color: #0071e3; background: #0071e3; color: #fff; }
   .ev-where { grid-column: 1 / -1; }
   .ev-choice-label { display: block; margin-bottom: 8px; color: var(--brand-navy, #1d2f52); font-size: 14px; font-weight: 600; }
 </style>

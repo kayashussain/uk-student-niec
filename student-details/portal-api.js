@@ -520,12 +520,12 @@ function createPortalApi({
     }
     // The tasks of this person's teams.
     const mine = teamsOf(user);
-    let open = 0; let late = 0; let doneWeek = 0;
+    let open = 0; let doneWeek = 0;
     for (const { row } of rowIndex().values()) {
       const c = all[row._id];
       (c && c.tasks ? c.tasks : []).forEach((x) => {
         if (!mine.includes(x.team)) return;
-        if (!x.done) { open += 1; if (x.due && x.due < today) late += 1; } else if (x.doneAt && now - dayNo(localDate(new Date(x.doneAt))) < 7) doneWeek += 1;
+        if (!x.done) open += 1; else if (x.doneAt && now - dayNo(localDate(new Date(x.doneAt))) < 7) doneWeek += 1;
       });
     }
     const intake = intakeSheet;
@@ -535,7 +535,7 @@ function createPortalApi({
       week: plan.week.map(([key, label]) => ({ key, label, now: weekNow[key] || 0, before: weekBefore[key] || 0 })),
       stages: [...stageCount.entries()].map(([stage, count]) => ({ stage, count })),
       stagesNote: scope === students ? 'Your students, by stage.' : 'Everyone in this intake, by stage (the numbers only).',
-      tasks: { open, late, doneWeek },
+      tasks: { open, doneWeek },
       upcoming: upcoming.sort((a, b) => a.date.localeCompare(b.date)).slice(0, 8),
       wins: wins.sort((a, b) => b.date.localeCompare(a.date)).slice(0, 8),
     };
@@ -632,6 +632,12 @@ function createPortalApi({
           if (!canAssign(req.user) && !(isBranchUser(req.user) && task.by === by(req))) { sendJSON(res, 403, { error: 'Only Admin, the Manager or whoever gave the task removes it.' }); return true; }
           out = cards.removeTask(rowId, sub, by(req));
           if (!out.error) note(req, [`${who2}: removed the task for ${teamLabel(task.team)}`], 'Removed a task');
+        } else if (body.comment !== undefined) {
+          // The team and whoever gave the task (Admin, the Manager, or the branch that gave it) talk it through here.
+          const gaveIt = isBranchUser(req.user) && task.by === by(req);
+          if (!canAssign(req.user) && !gaveIt && !teamsOf(req.user).includes(task.team)) { sendJSON(res, 403, { error: 'This task is for another team.' }); return true; }
+          out = cards.commentTask(rowId, sub, body.comment, by(req));
+          if (!out.error) note(req, [`${who2}: commented on the task for ${teamLabel(task.team)}: ${String(body.comment).slice(0, 120)}`], 'Task comment');
         } else {
           if (!canAssign(req.user) && !teamsOf(req.user).includes(task.team)) { sendJSON(res, 403, { error: 'This task is for another team.' }); return true; }
           out = cards.setTask(rowId, sub, Boolean(body.done), by(req));
@@ -1358,7 +1364,9 @@ function createPortalApi({
         const gaveIt = (t) => isBranchUser(req.user) && t.by === by(req);
         c.tasks.forEach((t) => { if (everyone || mine.includes(t.team) || gaveIt(t)) out.push({ ...t, given: !everyone && !mine.includes(t.team), teamLabel: teamLabel(t.team), studentId: row._id, student: nameOf(row) || 'Student', stage: text(row[STATUS]), intake: sheet.name }); });
       }
-      out.sort((a, b) => (a.done - b.done) || String(a.due || '9999').localeCompare(String(b.due || '9999')) || String(b.at).localeCompare(String(a.at)));
+      // Open first, then the one with the newest word (a comment, or the task itself) first.
+      const lastWord = (t) => { const c = Array.isArray(t.comments) && t.comments.length ? t.comments[t.comments.length - 1].at : ''; return String(c > t.at ? c : t.at); };
+      out.sort((a, b) => (a.done - b.done) || lastWord(b).localeCompare(lastWord(a)));
       sendJSON(res, 200, { tasks: out.slice(0, 500), canAssign: everyone, teams: TASK_TEAMS() });
       return true;
     }

@@ -17,7 +17,7 @@ const crypto = require('crypto');
 const { writeFileAtomic, snapshotDaily, localDate } = require('../shared/server-utils');
 const Fields = require('./card-fields');
 
-const LIMITS = { tasks: 200, notes: 500, noteText: 4000, options: 40, messages: 400, short: 300, text: 2000, cards: 50000 };
+const LIMITS = { tasks: 200, comments: 200, notes: 500, noteText: 4000, options: 40, messages: 400, short: 300, text: 2000, cards: 50000 };
 const ROW_ID = /^[\w-]{1,64}$/;
 const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -82,7 +82,8 @@ function normalize(raw) {
     notes: (Array.isArray(c.notes) ? c.notes : []).filter((n) => n && n.id && n.text).slice(-LIMITS.notes),
     options: (Array.isArray(c.options) ? c.options : []).filter((o) => o && o.id && (o.university || o.course)).slice(0, LIMITS.options),
     messages: (Array.isArray(c.messages) ? c.messages : []).filter((m) => m && m.id).slice(-LIMITS.messages),
-    // Tasks Admin or the Manager gave a team for this student: { id, team, text, due, by, at, done, doneBy, doneAt }.
+    // Tasks given to a team about this student: { id, team, text, by, at, done, doneBy, doneAt, comments: [{ id, by, at, text }] }
+    // (older tasks may also have `due`, the date they were once given with, no longer shown).
     tasks: (Array.isArray(c.tasks) ? c.tasks : []).filter((t) => t && t.id && t.team && t.text).slice(-LIMITS.tasks),
     createdAt: str(c.createdAt, 40), createdBy: str(c.createdBy, 80), updatedAt: str(c.updatedAt, 40), updatedBy: str(c.updatedBy, 80),
   };
@@ -175,10 +176,11 @@ function createCards(dir, { now = () => new Date() } = {}) {
       const team = str(input && input.team, 40);
       if (!team) return { error: 'Choose the team.' };
       if (!text) return { error: 'Write what the team should do.' };
-      const due = isoDay(input && input.due);
+      // No date to do it by (the owner, 14 Nov 2026): a task says which team and what to do; the team and whoever gave it talk it
+      // through in the task's comments. Older tasks keep the date they were given with; it is simply not shown.
       let task;
       const out = update(rowId, by, (card, stamp) => {
-        task = { id: newId(), team, text, due, by: by || '', at: stamp, done: false, doneBy: '', doneAt: '' };
+        task = { id: newId(), team, text, by: by || '', at: stamp, done: false, doneBy: '', doneAt: '', comments: [] };
         card.tasks = [...card.tasks, task].slice(-LIMITS.tasks);
       });
       return out.error ? out : { ...out, task };
@@ -192,6 +194,20 @@ function createCards(dir, { now = () => new Date() } = {}) {
         return null;
       });
       return out.error ? out : { ...out, task };
+    },
+    // A comment on a task: the team writes how it went, what it needs or what is in the way, and whoever gave the task answers.
+    commentTask(rowId, taskId, input, by) {
+      const text = str(input, LIMITS.text);
+      if (!text) return { error: 'Write the comment first.' };
+      let comment;
+      const out = update(rowId, by, (card, stamp) => {
+        const task = card.tasks.find((t) => t.id === taskId);
+        if (!task) return { error: 'No such task.' };
+        comment = { id: newId(), by: by || '', at: stamp, text };
+        task.comments = [...(Array.isArray(task.comments) ? task.comments : []), comment].slice(-LIMITS.comments);
+        return null;
+      });
+      return out.error ? out : { ...out, comment };
     },
     removeTask(rowId, taskId, by) {
       const out = update(rowId, by, (card) => {

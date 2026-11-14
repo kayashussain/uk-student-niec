@@ -110,14 +110,28 @@
     title: o.title || 'Please note', message, confirmText: o.confirmText || 'OK', cancelText: null, danger: false,
   }).then(() => undefined);
 
-  root.NiecUI = { toast, confirm: confirmBox, alert: alertBox, isOpen: () => openDialogs > 0 };
+  // Changes the page in one smooth step, as moving to another page does (see the page transitions in theme.css): the old picture
+  // fades away and the new one glides in. `soft` is for a switch inside a page (a tab, a filter): a quick cross-fade only. Where the
+  // browser cannot (or the person prefers less motion) the change is simply made at once.
+  function swap(change, { soft = false } = {}) {
+    const quick = root.matchMedia && root.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (quick || !document.startViewTransition || document.hidden) { change(); return Promise.resolve(); }
+    const html = document.documentElement;
+    html.classList.toggle('isr-swap-soft', soft);
+    let t;
+    try { t = document.startViewTransition(change); } catch (e) { change(); return Promise.resolve(); }
+    t.ready.catch(() => {});
+    return t.finished.catch(() => {}).then(() => { html.classList.remove('isr-swap-soft'); });
+  }
+
+  root.NiecUI = { toast, confirm: confirmBox, alert: alertBox, swap, isOpen: () => openDialogs > 0 };
 })(this);
 
 // Segmented controls (the card's tabs, the intake tabs under All Students, the Dashboard's switches): a light pill slides to the
 // chosen segment, as on a Mac. It only adds a decorative <span class="seg-thumb"> inside the control; nothing else changes.
 (function () {
   if (typeof document === 'undefined' || !window.MutationObserver) return;
-  const BOXES = '.p-tabs, .sheet-tabs-list, .dd-switch, .tabs';
+  const BOXES = '.p-tabs, .sheet-tabs-list, .dd-switch, .tabs, .ev-pills';
   const isOn = (c) => c.getAttribute('aria-selected') === 'true' || c.classList.contains('active') || c.classList.contains('on');
   function sync(box, animate) {
     let thumb = box.querySelector(':scope > .seg-thumb');
@@ -145,4 +159,42 @@
     .observe(document.documentElement, { subtree: true, childList: true, attributes: true, attributeFilter: ['class', 'aria-selected'] });
   window.addEventListener('resize', () => all(false));
   document.addEventListener('DOMContentLoaded', () => all(false));
+})();
+
+// Big figures count up from zero the first time they appear (the Dashboard, the team dashboards, Events and marketing, the partner
+// pages), as Apple's own pages do: about 0.7s, fast at first and settling gently. The number written in the page is never changed:
+// it is only shown rising to it. Nothing moves for a person who asks their computer for less motion.
+(function () {
+  if (typeof document === 'undefined' || !window.MutationObserver || !window.requestAnimationFrame) return;
+  if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const FIGURES = '.ov-kpi-value, .md-kpi > b, .ev-band b, .pu-num, .bp-num';
+  const seen = new WeakSet();
+  function rise(el) {
+    if (seen.has(el) || el.children.length) return;
+    seen.add(el);
+    const m = /^(\D*?)(\d[\d,]*)(\D*)$/.exec(el.textContent.trim());
+    if (!m) return;
+    const target = Number(m[2].replace(/,/g, ''));
+    if (!(target >= 2) || target > 1e12) return;
+    const grouping = !m[2].includes(',') ? null : /\d,\d\d,\d{3}/.test(m[2]) ? 'en-IN' : 'en-US';
+    const shown = (n) => m[1] + (grouping ? n.toLocaleString(grouping) : String(n)) + m[3];
+    const final = el.textContent;
+    let last = shown(0);
+    el.textContent = last;
+    const start = performance.now();
+    const step = (now) => {
+      if (el.textContent !== last) return; // the page wrote something new: leave it
+      const k = Math.min(1, (now - start) / 700);
+      last = k < 1 ? shown(Math.round(target * (1 - Math.pow(1 - k, 3)))) : final;
+      el.textContent = last;
+      if (k < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  }
+  const scan = (node) => {
+    if (!node || node.nodeType !== 1) return;
+    if (node.matches(FIGURES)) rise(node);
+    node.querySelectorAll(FIGURES).forEach(rise);
+  };
+  new MutationObserver((list) => list.forEach((m) => m.addedNodes.forEach(scan))).observe(document.documentElement, { childList: true, subtree: true });
 })();

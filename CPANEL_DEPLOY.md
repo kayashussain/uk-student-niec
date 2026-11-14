@@ -125,7 +125,7 @@ Mock Teams** look at Partner Universities, B2B Partners and Agents **without the
 commission lists, agreement files, notes or portal login), and read Message templates. **Branches** look at Partner Universities
 the same way (without the commission) and read Message templates. The **Follow-up Team** has none of these pages. A **branch** can
 give a task about its own student to the Application Team or the Mock Team (Assign a task on the student card), sees on Today
-whether it is done, and removes only the tasks it gave.
+whether it is done, talks it through in the task's comments, and removes only the tasks it gave.
 
 Every team can add a new student with **+ Add student**: it starts at the team's own stage (Application Stage,
 Mock Stage or Inquiry), and the team can also fill in its name, email, contact number and student

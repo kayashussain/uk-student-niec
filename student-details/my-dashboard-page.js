@@ -79,10 +79,10 @@
     page.append(kpis);
 
     // The tasks of the team, in one line, with the way to Today where they are ticked.
-    const tk = el('a', `md-taskline${d.tasks.late ? ' has-late' : ''}`);
+    const tk = el('a', 'md-taskline');
     tk.href = '/today';
     tk.append(el('b', '', d.tasks.open ? `${num(d.tasks.open)} open task${d.tasks.open === 1 ? '' : 's'}` : 'No open task'),
-      el('span', '', [d.tasks.late ? `${d.tasks.late} late` : '', `${num(d.tasks.doneWeek)} done this week`].filter(Boolean).join(' · ')),
+      el('span', '', `${num(d.tasks.doneWeek)} done this week`),
       el('span', 'md-taskline-go', 'Open on Today'));
     page.append(tk);
 

@@ -1455,7 +1455,72 @@ body:has(.niec-demo) .ui-toasts { top: 60px; }
 .td-task.is-ticking { pointer-events: none; animation: isr-task-out .3s cubic-bezier(.32, .72, 0, 1) .22s both; }
 .td-task.is-ticking .td-check { background: #0071e3; border-color: #0071e3; color: #fff; opacity: 1; }
 .td-task.is-ticking .td-check svg { stroke: #fff; opacity: 1; }
-@keyframes isr-task-out { from { max-height: 320px; } to { opacity: 0; transform: scale(.98); margin-top: 0; padding-top: 0; padding-bottom: 0; max-height: 0; border-width: 0; } }
+@keyframes isr-task-out { from { max-height: 900px; } to { opacity: 0; transform: scale(.98); margin-top: 0; padding-top: 0; padding-bottom: 0; max-height: 0; border-width: 0; } }
 @media (prefers-reduced-motion: reduce) {
   ::view-transition-old(root), ::view-transition-new(root), dialog.ui-dialog.is-closing, .td-task.is-ticking { animation: none !important; }
+}
+
+/* 🔴 CSS CHANGED (2026-11-14): tasks without dates, and a conversation on every task | from: each task had a date pill on its right ("Due today", "Late, was due 3 days ago") and a red or amber edge; there was no way to talk about a task | to: the task fills the row (no date pill), with "Given by" and the day under it; under every task a "Comment" line opens a conversation in the style of Apple's Messages: your own comments in blue bubbles on the right, the other side's in grey bubbles on the left, a round text box with a blue send arrow; a reply from the other side shows a blue "Reply from Asha" badge and opens by itself; the conversation slides open and closed; a new comment pops in; the tick circle springs when pressed */
+.td-task { grid-template-columns: 34px minmax(0, 1fr); }
+.td-task:has(.tk-thread.is-open):hover { transform: none; }
+.td-chip.is-new { background: #0071e3; color: #fff; }
+.tk-thread { margin-top: 10px; }
+.tk-toggle { display: inline-flex; align-items: center; gap: 7px; min-height: 32px; padding: 0 12px 0 10px; border: 0; border-radius: 980px; background: rgba(0, 0, 0, .045); color: #424245; font: inherit; font-size: 13.5px; font-weight: 600; cursor: pointer; transition: background-color .2s var(--ease-out), transform .15s var(--ease-out); }
+.tk-toggle:hover { background: rgba(0, 0, 0, .08); color: #1d1d1f; }
+.tk-toggle:active { transform: scale(.96); }
+.tk-ico svg { width: 16px; height: 16px; display: block; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linejoin: round; }
+.tk-toggle.has-new { background: rgba(0, 113, 227, .1); color: #0066cc; }
+.tk-new { margin-left: 2px; padding: 2px 9px; border-radius: 980px; background: #0071e3; color: #fff; font-size: 12.5px; font-weight: 650; animation: isr-pop .5s cubic-bezier(.34, 1.56, .64, 1) both; }
+.tk-body { display: grid; grid-template-rows: 0fr; opacity: 0; transition: grid-template-rows .4s cubic-bezier(.32, .72, 0, 1), opacity .25s ease; }
+.tk-inner { min-height: 0; overflow: hidden; margin: 0 -5px; padding: 0 5px 5px; }
+.tk-thread.is-open .tk-body { grid-template-rows: 1fr; opacity: 1; }
+.tk-thread:not(.is-open) .tk-body { visibility: hidden; transition: grid-template-rows .3s cubic-bezier(.32, .72, 0, 1), opacity .2s ease, visibility 0s .3s; }
+.tk-list { list-style: none; margin: 12px 0 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.tk-msg { display: flex; flex-direction: column; align-items: flex-start; max-width: 82%; }
+.tk-msg.mine { align-self: flex-end; align-items: flex-end; }
+.tk-bubble { padding: 9px 14px; border-radius: 19px; border-bottom-left-radius: 6px; background: #e9e9eb; color: #1d1d1f; font-size: 15px; line-height: 1.42; white-space: pre-wrap; overflow-wrap: anywhere; }
+.tk-msg.mine .tk-bubble { border-bottom-left-radius: 19px; border-bottom-right-radius: 6px; background: #0071e3; color: #fff; }
+.tk-msg small { margin: 4px 6px 0; color: #6e6e73; font-size: 12px; }
+.tk-msg.is-new { animation: isr-bubble-in .45s cubic-bezier(.34, 1.4, .64, 1) both; transform-origin: bottom right; }
+.tk-empty { color: #6e6e73; font-size: 14px; }
+.tk-compose { display: flex; align-items: flex-end; gap: 8px; margin-top: 12px; padding: 5px 5px 5px 16px; border: 1px solid #d2d2d7; border-radius: 22px; background: #fff; transition: border-color .2s, box-shadow .2s; }
+.tk-compose:focus-within { border-color: #0071e3; box-shadow: 0 0 0 4px rgba(0, 113, 227, .15); }
+.tk-input { flex: 1; min-height: 34px; max-height: 160px; padding: 7px 0; border: 0; outline: 0; resize: none; background: transparent; color: #1d1d1f; font: inherit; font-size: 15px; line-height: 1.35; }
+.tk-send { flex: none; width: 32px; height: 32px; padding: 0; border: 0; border-radius: 50%; background: #0071e3; color: #fff; cursor: pointer; display: grid; place-items: center; transition: transform .2s cubic-bezier(.34, 1.56, .64, 1), opacity .2s, background-color .2s; }
+.tk-send svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+.tk-send:hover:not(:disabled) { background: #0077ed; transform: scale(1.06); }
+.tk-send:active:not(:disabled) { transform: scale(.9); }
+.tk-send:disabled { opacity: .3; cursor: default; transform: scale(.9); }
+.td-check:active:not(:disabled) { transform: scale(.86); }
+.td-task.is-ticking .td-check { animation: isr-pop .45s cubic-bezier(.34, 1.56, .64, 1) both; }
+@keyframes isr-pop { 0% { transform: scale(.6); opacity: 0; } 100% { transform: none; opacity: 1; } }
+@keyframes isr-bubble-in { from { opacity: 0; transform: translateY(8px) scale(.9); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) {
+  .tk-body, .tk-toggle, .tk-send { transition: none !important; }
+  .tk-new, .tk-msg.is-new, .td-task.is-ticking .td-check { animation: none !important; }
+}
+
+/* 🔴 CSS CHANGED (2026-11-14): switching inside a page (a tab of the student card, the All, Campaigns and Events switch) and opening an event | from: the content was swapped at once, with nothing in between | to: a switch inside a page cross-fades in 0.2s; opening an event and going back to the list glide like moving to another page (the menu stays still) */
+html.isr-swap-soft::view-transition-old(root) { animation: isr-fade-out .12s ease-out both; }
+html.isr-swap-soft::view-transition-new(root) { animation: isr-fade .22s ease-out .04s both; }
+
+/* 🔴 CSS CHANGED (2026-11-14): pages that feel alive | from: the figure tiles and partner cards appeared all at once, standing still | to: the figure tiles (Dashboard, team dashboards, Events and marketing) and the partner cards rise in one after another (35ms apart), their numbers count up from zero (see shared/ui.js) in figures of equal width so they do not wobble; the tiles lift slightly under the mouse and press in when clicked */
+.ov-kpi, .md-kpi, .ev-band > div, .pu-card, .bp-card { animation: isr-rise-in .5s cubic-bezier(.32, .72, 0, 1) backwards; }
+:is(.ov-kpi, .md-kpi, .ev-band > div, .pu-card, .bp-card):nth-child(2) { animation-delay: 35ms; }
+:is(.ov-kpi, .md-kpi, .ev-band > div, .pu-card, .bp-card):nth-child(3) { animation-delay: 70ms; }
+:is(.ov-kpi, .md-kpi, .ev-band > div, .pu-card, .bp-card):nth-child(4) { animation-delay: 105ms; }
+:is(.ov-kpi, .md-kpi, .ev-band > div, .pu-card, .bp-card):nth-child(5) { animation-delay: 140ms; }
+:is(.ov-kpi, .md-kpi, .ev-band > div, .pu-card, .bp-card):nth-child(n+6) { animation-delay: 175ms; }
+.ov-kpi-value, .md-kpi > b, .ev-band b, .pu-num, .bp-num { font-variant-numeric: tabular-nums; }
+.ov-kpi, .md-kpi { transition: transform .3s cubic-bezier(.32, .72, 0, 1), box-shadow .3s; }
+.ov-kpi:hover, .md-kpi:hover { transform: translateY(-2px); box-shadow: 0 10px 30px -12px rgba(0, 0, 0, .18); }
+.ov-kpi:active, .md-kpi:active, .pu-card:active, .bp-card:active { transform: scale(.985); }
+@keyframes isr-rise-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .ov-kpi, .md-kpi, .ev-band > div, .pu-card, .bp-card { animation: none !important; transition: none !important; } }
+
+/* 🔴 CSS CHANGED (2026-11-14): the top bar on a phone | from: a blue "ISR" badge where the logo should be, with a stray line under it | to: the consultancy's logo (32px high), as on a computer, and no line (the owner: only the logo at the top) */
+@media (max-width: 900px) {
+  html body .niec-header .niec-logo:not([hidden]) { display: block; height: 32px; }
+  html body .niec-header .niec-mark { display: none; }
+  html body .niec-header .niec-brand { padding: 0; border-bottom: 0; }
 }

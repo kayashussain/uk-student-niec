@@ -50,6 +50,7 @@
   ];
   // The stages at which a lost reason is asked for.
   const LOST_STAGES = ['Withdrawn', 'Hold', 'Defer', 'Visa Rejected'];
+  // The kinds notes were once kept with. A new note is always a plain note (the owner, 14 Nov 2026); the others stay readable.
   const NOTE_KINDS = [
     { key: 'note', text: 'Note' }, { key: 'call', text: 'Phone call' }, { key: 'meeting', text: 'Office visit' }, { key: 'message', text: 'Message' },
   ];

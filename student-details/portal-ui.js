@@ -186,5 +186,76 @@
     }
   }
 
-  root.Portal = { el, h, api, day, when, fromToday, stageKind, stagePill, initials, number, rupees, percent, richText, field, datalist, dialog, copy, waitFor };
+  // The conversation on a task (the owner, 14 Nov 2026): the team writes how it went, what it needs (a student's email, a document)
+  // or what is in the way, with or without ticking the task, and whoever gave the task answers. Shown on Today and on the student
+  // card; a reply from the other side opens the thread by itself. `me` is the reader's name; `rowId` the student's card.
+  const openThreads = new Set();
+  function taskThread(task, { rowId, me, canWrite }) {
+    const box = el('div', 'tk-thread');
+    const list = el('ol', 'tk-list');
+    const comments = () => (Array.isArray(task.comments) ? task.comments : []);
+    const last = () => comments()[comments().length - 1];
+    const fromOther = () => Boolean(last() && last().by !== me);
+    const toggle = h('button', { class: 'tk-toggle', type: 'button', 'aria-expanded': 'false' });
+    const body = el('div', 'tk-body');
+    const label = () => {
+      const n = comments().length;
+      toggle.replaceChildren();
+      const ico = el('span', 'tk-ico'); ico.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v11H9l-5 4V5z"/></svg>';
+      toggle.append(ico, el('span', '', n ? `${n} comment${n === 1 ? '' : 's'}` : (canWrite ? 'Comment' : 'No comments')));
+      if (n && fromOther() && !task.done) { toggle.append(el('span', 'tk-new', `Reply from ${String(last().by).split(/\s+/)[0] || 'the team'}`)); }
+      toggle.classList.toggle('has-new', Boolean(n && fromOther() && !task.done));
+    };
+    const bubble = (c, fresh) => {
+      const li = el('li', `tk-msg${c.by === me ? ' mine' : ''}${fresh ? ' is-new' : ''}`);
+      li.append(el('div', 'tk-bubble', c.text), el('small', '', `${c.by === me ? 'You' : c.by || 'Someone'} \u00b7 ${when(c.at)}`));
+      return li;
+    };
+    const draw = () => { list.replaceChildren(...comments().map((c) => bubble(c))); if (!comments().length) list.append(el('li', 'tk-empty', canWrite ? 'Ask for what you need, or say how it went.' : 'No comments yet.')); };
+    const setOpen = (open) => {
+      if (open) openThreads.add(task.id); else openThreads.delete(task.id);
+      toggle.setAttribute('aria-expanded', String(open));
+      box.classList.toggle('is-open', open);
+    };
+    toggle.addEventListener('click', () => { setOpen(!box.classList.contains('is-open')); if (box.classList.contains('is-open') && input) input.focus(); });
+    let input = null;
+    const inner = el('div', 'tk-inner');
+    body.append(inner);
+    inner.append(list);
+    if (canWrite) {
+      const form = el('div', 'tk-compose');
+      input = el('textarea', 'tk-input');
+      input.rows = 1; input.maxLength = 2000; input.placeholder = 'Write a comment';
+      input.setAttribute('aria-label', 'Write a comment');
+      const grow = () => { input.style.height = 'auto'; input.style.height = Math.min(input.scrollHeight, 160) + 'px'; };
+      input.addEventListener('input', () => { grow(); send.disabled = !input.value.trim(); });
+      const send = h('button', { class: 'tk-send', type: 'button', 'aria-label': 'Send the comment', title: 'Send (Enter)', disabled: true });
+      send.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5M5.5 11.5L12 5l6.5 6.5"/></svg>';
+      const post = async () => {
+        const text = input.value.trim();
+        if (!text) return;
+        send.disabled = true; input.disabled = true;
+        try {
+          const out = await api(`/api/cards/${encodeURIComponent(rowId)}/tasks/${task.id}`, { comment: text });
+          const fresh = out && out.card && (out.card.tasks || []).find((t) => t.id === task.id);
+          task.comments = fresh ? fresh.comments || [] : [...comments(), { by: me, at: new Date().toISOString(), text }];
+          input.value = ''; grow();
+          const empty = list.querySelector('.tk-empty'); if (empty) empty.remove();
+          list.append(bubble(last(), true));
+          label();
+        } catch (e) { if (root.NiecUI) root.NiecUI.toast(e.message, { type: 'error' }); }
+        input.disabled = false; send.disabled = !input.value.trim(); input.focus();
+      };
+      send.addEventListener('click', post);
+      input.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); post(); } });
+      form.append(input, send);
+      inner.append(form);
+    }
+    label(); draw();
+    box.append(toggle, body);
+    setOpen(openThreads.has(task.id) || (fromOther() && !task.done));
+    return box;
+  }
+
+  root.Portal = { taskThread, el, h, api, day, when, fromToday, stageKind, stagePill, initials, number, rupees, percent, richText, field, datalist, dialog, copy, waitFor };
 })(this);

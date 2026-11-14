@@ -18,7 +18,9 @@
     const from = day(a.date);
     return a.date.slice(0, 4) === a.endDate.slice(0, 4) ? `${from.replace(/\s\d{4}$/, '')} to ${day(a.endDate)}` : `${from} to ${day(a.endDate)}`;
   };
-  const per = (cost, n) => (cost > 0 && n > 0 ? rupees(Math.round(cost / n)) : '-');
+  // A moment as its day here, written like every other date ("13 Sep 2026").
+  const localDay = (iso) => { const d = new Date(iso); return Number.isNaN(d.getTime()) ? '' : day(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`); };
+  const per = (cost, n) => (cost > 0 && n > 0 ? rupees(Math.round(cost / n)) : 'None yet');
   const tag = (a) => el('span', 'ev-tag' + (a.kind === 'Marketing' ? ' mk' : ''), a.channel || 'Other');
   function band(items) {
     const b = el('div', 'ev-band');
@@ -49,13 +51,14 @@
     ['Event or campaign', 'Investment', 'Enquiries', 'Visas', 'Per enquiry', 'Per visa', ''].forEach((x, i) => head.append(el('div', i && i < 6 ? 'num' : '', x)));
     list.replaceChildren(head, ...shown.map((a) => {
       const r = el('div', 'ev-lrow item');
+      r.style.setProperty('--i', String(Math.min(shown.indexOf(a), 12)));
       r.tabIndex = 0; r.setAttribute('role', 'button'); r.setAttribute('aria-label', `Open ${a.name}`);
       const who = el('div');
       const meta = el('div', 'ev-lmeta'); meta.append(tag(a), el('span', '', `${ran(a)} · ${a.days} day${a.days === 1 ? '' : 's'}`));
       who.append(el('div', 'ev-lname', a.name), meta);
       const num = (label, v, gold) => { const d = el('div', 'num' + (gold ? ' gold' : ''), v); d.dataset.label = label; return d; };
-      r.append(who, num('Investment', a.cost ? rupees(a.cost) : '-'), num('Enquiries', number(a.leads)), num('Visas', number(a.visas)), num('Per enquiry', per(a.cost, a.leads), true), num('Per visa', per(a.cost, a.visas), true), el('div', 'ev-go', '→'));
-      const go = () => openEvent(a.id);
+      r.append(who, num('Investment', a.cost ? rupees(a.cost) : '-'), num('Enquiries', number(a.leads)), num('Visas', number(a.visas)), num('Per enquiry', per(a.cost, a.leads), a.cost > 0 && a.leads > 0), num('Per visa', per(a.cost, a.visas), a.cost > 0 && a.visas > 0), el('div', 'ev-go', '→'));
+      const go = () => window.NiecUI.swap(() => { openEvent(a.id); window.scrollTo({ top: 0 }); });
       r.addEventListener('click', go);
       r.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } });
       return r;
@@ -69,10 +72,10 @@
     open = a;
     $('listView').hidden = true;
     const v = $('eventView'); v.hidden = false;
-    const back = h('button', { class: 'ev-back', type: 'button', onclick: closeEvent }, '← Events and campaigns');
+    const back = h('button', { class: 'ev-back', type: 'button', onclick: () => window.NiecUI.swap(closeEvent) }, '← Events and campaigns');
     const head = el('div', 'ev-head');
     const left = el('div');
-    const meta = el('div', 'ev-lmeta'); meta.append(tag(a), el('span', '', `${ran(a)} · ${a.days} day${a.days === 1 ? '' : 's'}`)); if (a.place) meta.append(el('span', '', `\u00b7 ${a.place}`));
+    const meta = el('div', 'ev-lmeta'); meta.append(tag(a), el('span', '', [ran(a), `${a.days} day${a.days === 1 ? '' : 's'}`, a.place].filter(Boolean).join(' \u00b7 ')));
     left.append(el('h2', '', a.name), meta);
     if (a.note) left.append(el('p', 'p-muted', a.note));
     head.append(left);
@@ -109,7 +112,7 @@
         const r = el('div', 'ev-person');
         const who = h('button', { class: 'who', type: 'button', onclick: () => window.CardDrawer.open(s.id, { onClose: () => refresh() }) }, s.name);
         const last = el('div', 'last');
-        if (s.lastNote) last.append(el('b', '', `${new Date(s.lastNote.at).toLocaleDateString()}${s.lastNote.by ? ', ' + s.lastNote.by : ''}: `), s.lastNote.text); else last.textContent = 'No note yet';
+        if (s.lastNote) last.append(el('b', '', `${localDay(s.lastNote.at)}${s.lastNote.by ? ', ' + s.lastNote.by : ''}: `), s.lastNote.text); else last.textContent = 'No note yet';
         const stage = el('div'); stage.append(window.Portal.stagePill(s.stage));
         r.append(who, el('div', '', s.phone || '-'), stage, el('div', '', s.intake), last);
         return r;
@@ -234,7 +237,7 @@
   document.querySelectorAll('#filter button').forEach((b) => b.addEventListener('click', () => {
     show = b.dataset.f;
     document.querySelectorAll('#filter button').forEach((x) => { x.classList.toggle('on', x === b); x.setAttribute('aria-pressed', String(x === b)); });
-    if (data) draw();
+    if (data) window.NiecUI.swap(draw, { soft: true });
   }));
   refresh().catch((e) => { $('list').replaceChildren(h('div', { class: 'p-notice bad' }, e.message)); });
 })();

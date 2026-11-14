@@ -103,8 +103,9 @@
   const CARD_COLUMNS = new Set(['REMARKS', 'STUDENT SOURCE']);
   // Only columns whose values are a short list of choices get a filter. Dates, numbers, ids, names, emails and feedback do not.
   const FILTER_COLUMNS = new Set(['APPLICATION STATUS', 'UNIVERSITY NAME', 'COURSE NAME', 'RECEIVING PARTNER', 'UNIVERSITY PARTNER', 'NOC', 'MEDICAL REPORT', 'E-VISA']);
-  // A double-click on any of these opens the student card (Enter or F2 still types in the cell).
-  const CARD_OPEN_COLUMNS = new Set(['FIRST NAME', 'LAST NAME', 'EMAIL', 'CONTACT NUMBER', 'APPLICATION SUBMISSION DATE', 'OFFER RECEIVED DATE', 'UNIVERSITY NAME', 'COURSE NAME']);
+  // A double-click on any of these opens the student card (Enter or F2 still types in the cell). Date cells are not among them: one
+  // click on a date opens its calendar, and a double-click there used to open the calendar and the card at once.
+  const CARD_OPEN_COLUMNS = new Set(['FIRST NAME', 'LAST NAME', 'EMAIL', 'CONTACT NUMBER', 'UNIVERSITY NAME', 'COURSE NAME']);
   const visibleColumns = (sheet) => {
     const hidden = new Set(HIDDEN_COLUMNS_BY_SHEET.filter((h) => h.matches(sheet.name || '')).flatMap((h) => h.columns));
     return sheet.columns.filter((c) => !CARD_COLUMNS.has(c) && (!hidden.has(c) || (isTeam() && canEditCol(c))));
@@ -2799,7 +2800,7 @@
     const td = e.target.closest('td');
     // A double-click on the row number opens that student's card.
     if (td && body.contains(td) && td.classList.contains('col-idx') && !td.parentElement.classList.contains('pad-row')) { openCardOfRow(Number(td.parentElement.dataset.rowIdx)); return; }
-    // A double-click on the name, email, number, dates, university or course opens the card too; Enter or F2 still edits the cell.
+    // A double-click on the name, email, number, university or course opens the card too; Enter or F2 still edits the cell.
     if (td && body.contains(td) && !td.parentElement.classList.contains('pad-row') && !e.target.closest('select, input')
       && CARD_OPEN_COLUMNS.has(columns[Number(td.dataset.colIndex)])) { openCardOfRow(Number(td.parentElement.dataset.rowIdx)); return; }
     if (!td || !body.contains(td) || td.classList.contains('col-idx') || e.target.closest('select, input')

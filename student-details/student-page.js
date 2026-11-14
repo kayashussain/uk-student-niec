@@ -134,33 +134,30 @@
   // ---- tasks given to a team about this student ----
   function assignTask() {
     dialog('Assign a task', (body, close) => {
+      // Which team and what to do: no date to do it by (the owner, 14 Nov 2026). The team asks for anything it needs in the
+      // task's comments, and ticks it when it is done.
       const team = field('Which team should do it?', { kind: 'select', choices: (data.assignTeams || data.taskTeams || []).map((t) => [t.id, t.label]) });
-      const text = field('What should they do?', { kind: 'area', max: 2000, wide: true, placeholder: 'e.g. Call the student and book the mock interview for next week.' });
-      const due = field('By (optional)', { kind: 'date' });
+      const text = field('What should they do?', { kind: 'area', max: 2000, wide: true, placeholder: 'e.g. Submit the application to Coventry University.' });
       const msg = el('div', 'p-msg');
       const foot = el('div', 'p-dialog-foot');
       const ok = h('button', { class: 'btn btn-primary', type: 'button' }, 'Assign');
       ok.addEventListener('click', async () => {
         if (!team.input.value) { msg.textContent = 'Choose the team.'; msg.className = 'p-msg error'; return; }
         if (!text.input.value.trim()) { msg.textContent = 'Write what the team should do.'; msg.className = 'p-msg error'; return; }
-        try { await save('tasks', { team: team.input.value, text: text.input.value, due: due.input.value }, 'Task assigned'); close(true); } catch (e) { /* shown */ }
+        ok.disabled = true;
+        try { await save('tasks', { team: team.input.value, text: text.input.value }, 'Task assigned'); close(true); } catch (e) { ok.disabled = false; }
       });
       foot.append(h('button', { class: 'btn', type: 'button', onclick: () => close() }, 'Cancel'), ok);
-      const g = el('div', 'p-form p-form-2'); g.append(team.wrap, due.wrap, text.wrap);
+      const g = el('div', 'p-form'); g.append(team.wrap, text.wrap);
       body.append(g, msg, foot);
+      setTimeout(() => text.input.focus(), 0);
     }).then((done) => { if (done) render(); });
   }
-  // The tasks about this student, in the same look as Today: shown only when there is one (the "Assign a task" button is at the top).
-  function dueOf(t) {
-    if (t.done) return { group: 'done', text: t.doneBy ? `Done by ${t.doneBy}` : 'Done' };
-    if (!t.due) return { group: 'later', text: 'No date' };
-    const days = Math.round((Date.parse(t.due + 'T12:00:00Z') - Date.parse((data.today || new Date().toISOString().slice(0, 10)) + 'T12:00:00Z')) / 86400000);
-    if (days < 0) return { group: 'late', text: `Late, was due ${day(t.due)}` };
-    if (days === 0) return { group: 'today', text: 'Due today' };
-    return { group: 'soon', text: `Due ${day(t.due)}` };
-  }
+  // The tasks about this student, in the same look as Today, each with its comments: shown only when there is one (the "Assign a
+  // task" button is at the top).
   function tasksCard() {
-    const tasks = (data.card.tasks || []).slice().sort((a, b) => (a.done - b.done) || String(a.due || '9999').localeCompare(String(b.due || '9999')));
+    const lastAt = (t) => { const c = t.comments || []; return String(c.length ? c[c.length - 1].at : t.at); };
+    const tasks = (data.card.tasks || []).slice().sort((a, b) => (a.done - b.done) || lastAt(b).localeCompare(lastAt(a)));
     if (!tasks.length) return null;
     const c = el('section', 'p-card p-tasks');
     const head = el('div', 'p-card-head');
@@ -168,21 +165,24 @@
     head.append(el('h2', '', 'Tasks'), el('span', 'td-chip', open ? `${open} open` : 'All done'));
     c.append(head);
     const label = (id) => ((data.taskTeams || []).find((t) => t.id === id) || { label: id }).label;
+    const me = (data.me || {}).name || '';
     tasks.forEach((t) => {
-      const due = dueOf(t);
-      const r = el('div', `td-task is-${due.group}`);
+      const r = el('div', `td-task${t.done ? ' is-done' : ''}`);
       const mine = data.can.removeAnyTask || (data.can.myTeams || []).includes(t.team);
       const box = h('button', { class: 'td-check', type: 'button', 'aria-pressed': String(t.done), title: t.done ? 'Mark as not done' : 'Mark as done', 'aria-label': t.done ? 'Mark as not done' : 'Mark as done', disabled: !mine });
       box.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
-      box.addEventListener('click', async () => { await save(`tasks/${t.id}`, { done: !t.done }, t.done ? 'Marked as not done' : 'Done. Well done.'); render(); });
+      box.addEventListener('click', async () => {
+        box.disabled = true;
+        if (!t.done) r.classList.add('is-ticking');
+        try { await save(`tasks/${t.id}`, { done: !t.done }, t.done ? 'Marked as not done' : 'Done. Well done.'); setTimeout(render, t.done ? 0 : 450); } catch (e) { r.classList.remove('is-ticking'); box.disabled = false; }
+      });
       const mid = el('div', 'td-task-mid');
       const who = el('div', 'td-task-who');
-      who.append(el('span', 'td-team', label(t.team)), el('span', 'td-from', `Given by ${t.by}`));
-      mid.append(el('div', 'td-task-text', t.text), who);
-      const side = el('div', 'td-task-side');
-      side.append(el('span', `td-due is-${due.group}`, due.text));
-      if (data.can.removeAnyTask || (data.can.assign && t.by === (data.me || {}).name)) side.append(h('button', { class: 'p-link', type: 'button', onclick: async () => { if (await window.NiecUI.confirm('Remove this task?', { danger: true })) { await save(`tasks/${t.id}/delete`, {}, 'Task removed'); render(); } } }, 'Remove'));
-      r.append(box, mid, side);
+      who.append(el('span', 'td-team', label(t.team)), el('span', 'td-from', t.done ? (t.doneBy ? `Done by ${t.doneBy}` : 'Done') : `Given by ${t.by}`));
+      if (data.can.removeAnyTask || (data.can.assign && t.by === me)) who.append(h('button', { class: 'p-link', type: 'button', onclick: async () => { if (await window.NiecUI.confirm('Remove this task and its comments?', { danger: true, confirmText: 'Remove' })) { await save(`tasks/${t.id}/delete`, {}, 'Task removed'); render(); } } }, 'Remove'));
+      const canWrite = mine || (data.can.assign && t.by === me);
+      mid.append(el('div', 'td-task-text', t.text), who, window.Portal.taskThread(t, { rowId: id, me, canWrite }));
+      r.append(box, mid);
       c.append(r);
     });
     return c;
@@ -251,30 +251,28 @@
   }
 
   // ---- Notes (replace the Remarks column of the sheet) ----
-  const KIND_TEXT = Object.fromEntries(F.NOTE_KINDS.map((k) => [k.key, k.text]));
+  // A note is a note (the owner, 14 Nov 2026): no kinds to choose (phone call, office visit, message); notes kept with a kind
+  // before still show, all simply as notes. Notes are about the student (IELTS booked, the CAS result, money ready); the talk with
+  // a team about a piece of work is in the comments of its task.
   function notes() {
     const wrap = el('section', 'p-card');
     wrap.append(el('h2', '', 'Notes'));
-    wrap.append(el('p', '', 'What was said and agreed, so anyone can pick the student up. The newest is first.'));
+    wrap.append(el('p', '', 'About the student: what was said and agreed, dates booked, results, money and documents. The newest is first.'));
     if (can()) {
       const box = el('div', 'p-note-box');
-      const kind = el('select', 'p-input');
-      F.NOTE_KINDS.forEach((k) => kind.append(h('option', { value: k.key }, k.text)));
-      kind.style.width = 'auto';
-      kind.setAttribute('aria-label', 'Kind of note');
       const text = el('textarea', 'p-input');
-      text.placeholder = 'Called the student. Documents will come on Friday.';
+      text.placeholder = 'e.g. IELTS booked for 6 December. The bank statement will be ready next week.';
       text.setAttribute('aria-label', 'Write a note');
       text.maxLength = 4000;
       const bar = el('div', 'p-bar');
       bar.style.marginTop = '0';
       const add = h('button', { class: 'btn btn-primary', type: 'button' }, 'Add note');
       add.addEventListener('click', async () => {
-        if (!text.value.trim()) return;
+        if (!text.value.trim()) { text.focus(); return; }
         add.disabled = true;
-        try { await save('notes', { text: text.value, kind: kind.value }, 'Note added'); render(); } catch (e) { add.disabled = false; }
+        try { await save('notes', { text: text.value, kind: 'note' }, 'Note added'); render(); } catch (e) { add.disabled = false; }
       });
-      bar.append(kind, add);
+      bar.append(add);
       box.append(text, bar);
       wrap.append(box);
     }
@@ -284,9 +282,9 @@
     const remark = data.student.remarks;
     if (!all.length && !remark) list.append(el('li', '', 'No notes yet.'));
     items.forEach((n) => {
-      const li = el('li', `kind-${n.kind}`);
+      const li = el('li');
       const head = el('div', 'p-when');
-      head.append(el('b', '', n.by || 'Someone'), el('span', '', KIND_TEXT[n.kind] || (n.kind === 'followup' ? 'Follow-up' : 'Note')), el('span', '', when(n.at)));
+      head.append(el('b', '', n.by || 'Someone'), el('span', '', when(n.at)));
       if (can() && (n.by === data.me.name || data.can.removeAnyNote)) head.append(h('button', { class: 'p-link', type: 'button', onclick: async () => { if (await window.NiecUI.confirm('Remove this note?', { danger: true })) { await save('notes/' + n.id + '/delete', {}, 'Note removed'); render(); } } }, 'Remove'));
       li.append(head, el('p', '', n.text));
       list.append(li);
@@ -485,9 +483,12 @@
 
   const openCompose = (template) => { (window.top || window).location.href = `/compose?id=${encodeURIComponent(id)}&template=${encodeURIComponent(template)}`; };
   function select(name, template) {
+    const changed = name !== tab;
     tab = name;
     history.replaceState(null, '', location.pathname + location.search + '#' + name);
-    render(template);
+    // Another tab cross-fades in, as on a Mac; the same tab again is redrawn at once.
+    if (changed && window.NiecUI && window.NiecUI.swap) window.NiecUI.swap(() => render(template), { soft: true });
+    else render(template);
   }
   function render(template) {
     document.title = `${data.student.name} · Student · ISR`;

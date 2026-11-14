@@ -33,7 +33,7 @@
       const rest = [];
       if (admin) rest.push(make('stage', 'Stage', { kind: 'select', choices: lists.stages.length ? lists.stages : [defaultStage], value: defaultStage }));
       else if (lists.departments.length > 1) rest.push(make('dept', 'Add the student for', { kind: 'select', choices: lists.departments.map((d) => [d.id, `${d.label} (starts at ${d.start})`]), value: lists.departments[0].id }));
-      if (rest.length) group('Stage', ...rest);
+      if (rest.length) group(admin ? 'Where the student starts' : 'Stage', ...rest);
       const note = make('note', 'Note (optional)', { kind: 'area', wide: true, max: 2000, placeholder: 'What was discussed at the first contact.' });
       form.append(note.wrap);
       body.append(form);
