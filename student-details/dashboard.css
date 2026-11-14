@@ -49,8 +49,7 @@ html { scrollbar-gutter: stable; }
 .ov-card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
 .ov-card h2 { margin: 0; font-size: 17px; font-weight: 650; letter-spacing: -.01em; }
 .ov-card-head p { margin: 2px 0 0; color: var(--ink-2); font-size: 14px; }
-.ov-empty, .ov-ok { margin: 8px 0; color: var(--ink-2); font-size: 15px; }
-.ov-ok { color: var(--ok); font-weight: 600; }
+.ov-empty { margin: 8px 0; color: var(--ink-2); font-size: 15px; }
 .ov-foot { margin: 14px 0 0; padding-top: 12px; border-top: 1px solid var(--ov-grid); color: var(--ink-2); font-size: 14px; }
 .ov-row { display: grid; gap: 18px; align-items: stretch; }
 .ov-row-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -63,7 +62,6 @@ html { scrollbar-gutter: stable; }
 .ov-kpi-value { font-family: var(--serif, Georgia, serif); font-size: 38px; font-weight: 600; line-height: 1.1; letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
 .ov-kpi-hint { font-size: 14px; color: var(--ink-2); }
 
-.ov-delta-text, .ov-delta-none { font-size: 13px; color: var(--ink-3); }
 
 .ov-spark { display: block; width: 100%; height: 34px; margin-top: 8px; }
 
@@ -87,19 +85,10 @@ html { scrollbar-gutter: stable; }
 
 /* the week by week chart */
 
-.ov-legend-btn { display: inline-flex; align-items: center; gap: 8px; font: inherit; font-size: 14px; padding: 4px 12px; border: 1px solid var(--border); border-radius: 999px; background: var(--surface); color: var(--ink); cursor: pointer; }
-.ov-legend-btn[aria-pressed="false"] { color: var(--ink-3); text-decoration: line-through; background: transparent; }
 
 /* ranked bars: sources and speed */
 
-.ov-rank-row { display: grid; grid-template-columns: minmax(110px, 34%) minmax(0, 1fr) 84px auto; align-items: center; gap: 12px; padding: 4px 0; border-radius: 8px; }
-.ov-rank-row:hover { background: color-mix(in srgb, var(--s1) 5%, transparent); }
-.ov-rank-label { font-size: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-.ov-rank-fill { display: block; height: 100%; border-radius: 999px; background: var(--s1); }
-.ov-rank-fill.alt { background: var(--s4); }
-.ov-rank-value { font-size: 15px; text-align: right; font-variant-numeric: tabular-nums; }
-.ov-rank-note { font-size: 13px; color: var(--ink-3); white-space: nowrap; }
 
 /* leaderboards */
 .ov-board-list { display: grid; gap: 2px; }
@@ -115,16 +104,10 @@ html { scrollbar-gutter: stable; }
 .ov-board-bar { display: block; height: 5px; border-radius: 999px; background: var(--s1); opacity: .55; }
 
 /* attention and lost */
-.ov-attn-chips { display: grid; gap: 8px; }
 
-.ov-donut-wrap { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
 
-.ov-donut-legend { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; flex: 1; min-width: 190px; }
-.ov-donut-legend li { display: flex; align-items: center; gap: 10px; font-size: 15px; }
-.ov-donut-legend li span { flex: 1; min-width: 0; }
 
 /* money */
-.ov-money-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 14px; }
 
 @media (max-width: 1100px) {
   .ov-kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); }
@@ -134,8 +117,6 @@ html { scrollbar-gutter: stable; }
   .ov-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
   .ov-kpi { padding: 14px 14px 12px; }
   .ov-kpi-value { font-size: 30px; }
-  .ov-rank-row { grid-template-columns: minmax(0, 1fr) 70px; }
-  .ov-rank-note { display: none; }
   .ov-funnel-row { grid-template-columns: 78px minmax(0, 1fr) 44px 44px; gap: 8px; }
   .ov-board-row { grid-template-columns: minmax(0, 1fr) repeat(4, 44px); }
 
@@ -173,11 +154,6 @@ details.rates summary { cursor: pointer; color: var(--brand-text); font-weight: 
 /* 🔴 CSS CHANGED (2026-11-13): the Dashboard, rebuilt for decisions | from: six headline cards compared with the last intake, a ring with jargon, many lists; long cards of text on Decisions, Universities and Intake plan; a seven-page proposal with no charts | to: four headline cards, a target ring with one plain sentence, a short "needs a decision" list, a funnel, two lines for the week, the top five sources and universities; Decisions as numbered cards with one line of what is seen and one of what to do; Universities as ranked bars; Intake plan with the target at the top and progress bars; and a two-page A4 proposal with bar charts */
 .ov-kpis { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .ov-target-text { margin: 0; font-size: 16px; line-height: 1.5; color: var(--ink); }
-.ov-decide-list { margin: 0; padding: 0; list-style: none; counter-reset: dec; display: grid; gap: 12px; }
-.ov-decide-list li { counter-increment: dec; position: relative; display: grid; gap: 2px; padding-left: 38px; font-size: 15px; line-height: 1.45; }
-.ov-decide-list li::before { content: counter(dec); position: absolute; left: 0; top: 0; display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; background: var(--s1); color: #fff; font-weight: 700; font-size: 14px; }
-.ov-decide-list b { font-size: 16px; }
-.ov-decide-list span { color: var(--ink-2); }
 
 /* Decisions */
 .dc { padding: 16px 0 14px; border-top: 1px solid var(--ov-grid); }
@@ -254,8 +230,7 @@ details.rates summary { cursor: pointer; color: var(--brand-text); font-weight: 
 .page .prop-stat b { font-size: 30px; }
 .page .rk-nums b { font-size: 20px; }
 
-.page .ov-decide-list b { font-size: 16px; }
-.page .ov-funnel-count, .page .ov-rank-value { font-size: 16px; }
+.page .ov-funnel-count { font-size: 16px; }
 .page .dc-head h3 { font-size: 18px; text-transform: none; letter-spacing: -.01em; margin: 0; }
 .page .nd-row b { font-size: 15px; }
 

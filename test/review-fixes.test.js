@@ -4,21 +4,9 @@ const assert = require('node:assert');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const { readGrade } = require('../student-details/eligibility');
-const { placesIn } = require('../student-details/places');
 const { migrateWorkbook, isValidWorkbook } = require('../student-details/workbook');
 const { createCards } = require('../student-details/cards');
 const { eventFor, eventLabel } = require('../student-details/source-options');
-
-test('a typed grade of 65 percent is read as 65, not 6', () => {
-  assert.deepStrictEqual(readGrade('65'), { percent: 65 });
-  assert.deepStrictEqual(readGrade('65 percent'), { percent: 65 });
-  assert.deepStrictEqual(readGrade('2.9 GPA'), { gpa: 2.9 });
-});
-
-test('hyphenated place names are found', () => {
-  assert.deepStrictEqual(placesIn('Stoke-on-Trent'), placesIn('Stoke on Trent'));
-});
 
 test('an older data file with missing ids and empty rows is made whole, not treated as damaged', () => {
   const wb = migrateWorkbook({ revision: 7, sheets: [{ name: 'S', columns: ['NAME'], rows: [null, { _id: 'a', NAME: 'x' }, { _id: 'a', NAME: 'y' }] }] });

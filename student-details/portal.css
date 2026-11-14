@@ -145,10 +145,7 @@ html:has(body.p-body) { scrollbar-gutter: stable; }
 .p-chosen-item header { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
 .p-chosen-item h4 { margin: 0 0 8px; font-size: 14px; font-weight: 600; overflow-wrap: anywhere; }
 
-.p-thinking { display: flex; align-items: center; gap: 10px; color: var(--text-dim); font-size: 13.5px; }
-.p-thinking::before { content: ""; width: 16px; height: 16px; border-radius: 50%; border: 2px solid var(--border-strong); border-top-color: var(--niec-blue); animation: p-spin .8s linear infinite; }
 @keyframes p-spin { to { transform: rotate(360deg); } }
-@media (prefers-reduced-motion: reduce) { .p-thinking::before { animation: none; } }
 
 /* the sheet's details on the card, read only */
 
@@ -185,12 +182,7 @@ body.p-embed .p-embed-bar { display: flex; }
 
 /* ---- follow-ups ---- */
 
-.p-due-who { display: flex; align-items: center; gap: 10px; min-width: 0; }
-.p-due-who > div { min-width: 0; }
-.p-due-name { font-weight: 600; }
 
-.p-due-act { display: flex; gap: 6px; justify-content: flex-end; flex-wrap: wrap; }
-@media (max-width: 860px) { .p-due-act { justify-content: flex-start; } }
 
 .p-kpi { display: flex; flex-direction: column; gap: 2px; padding: 14px 16px; background: var(--panel); border: 1px solid var(--border); border-radius: var(--r-lg); box-shadow: var(--sh-1); }
 .p-kpi b { font-family: var(--serif); font-weight: 500; font-size: 28px; line-height: 1.15; letter-spacing: -.02em; color: var(--ink); }

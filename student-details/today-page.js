@@ -5,7 +5,7 @@
 //   2. what needs attention: one short list, a line per kind of work with how many students wait, opened with a click.
 // The numbers, charts and buttons live on the Dashboard and on All Students, not here.
 (function () {
-  const { el, h, api, initials, stagePill, taskThread, taskRoute, handOn } = window.Portal;
+  const { el, h, api, initials, stagePill, taskThread, taskRoute, handOn, taskActions } = window.Portal;
   const view = document.getElementById('view');
   if (new URLSearchParams(location.search).get('notice') === 'admin') {
     history.replaceState(null, '', location.pathname);
@@ -47,7 +47,11 @@
     // The way it went, when it was handed on: "From SK → Mock Team → Application Team".
     const route = taskRoute(t, { fromName, toName, teams: allTeams });
     route.append(el('span', 'td-when', t.at ? shortDay(t.at) : ''));
-    if (t.mayHand) route.append(h('button', { class: 'p-link', type: 'button', onclick: async () => { if (await handOn(t, { rowId: t.studentId, teams: allTeams })) { window.NiecUI.toast(`Handed on. It is with the new team now, and you can still comment.`, { type: 'success' }); refresh(true); } } }, 'Hand on'));
+    const acts = taskActions([
+      t.mayHand && ['Reassign', async () => { if (await handOn(t, { rowId: t.studentId, teams: allTeams })) { window.NiecUI.toast('Reassigned. You can still follow it here.', { type: 'success' }); refresh(true); } }],
+      (canAssignAll || t.by === me) && ['Remove', async () => { if (await window.NiecUI.confirm('Remove this task and its updates?', { danger: true, confirmText: 'Remove' })) { try { await api(`/api/cards/${encodeURIComponent(t.studentId)}/tasks/${t.id}/delete`, {}); refresh(true); } catch (e) { window.NiecUI.toast(e.message, { type: 'error' }); } } }, true],
+    ]);
+    if (acts) top.append(acts);
     if (t.done) route.append(el('span', 'td-donemark', t.doneBy ? `Done by ${t.doneBy}` : 'Done'));
     const who = el('div', 'td-task-who');
     who.append(h('a', { class: 'td-student', href: '/student?id=' + encodeURIComponent(t.studentId), title: 'Open the student card' }, t.student), stagePill(t.stage));

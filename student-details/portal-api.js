@@ -1,5 +1,5 @@
 // The requests behind the portal pages around the sheet: the student card (notes, university options, messages), adding a
-// student from the card form, the course finder over the
+// student from the card form, the course search over the
 // Fact File, the message templates, the B2B partners and the management records of the Dashboard.
 //
 // Who may see or change a student here is decided by the very same rules as on the sheet (shared/teams.js): Admin
@@ -32,7 +32,7 @@ const NEW_STUDENT_COLUMNS = ['FIRST NAME', 'LAST NAME', 'EMAIL', 'CONTACT NUMBER
 
 function createPortalApi({
   getWorkbook, writeWorkbook, recordChanges, teamSave, cards, messages, courseLinks, sourceOptions, courseLinker = null, courseWatch = () => null, facts, direct, b2b, agents, planning, accounts, activity, rates = null,
-  insights = null, finder = null, calculated = [], userMail = null, officeMailSettings = () => ({}), safetyCopy = () => null,
+  insights = null, calculated = [], userMail = null, officeMailSettings = () => ({}), safetyCopy = () => null,
 }) {
   // ---- where to send a student's application: the portal link and email saved on Partner Universities ----
   // The student's university is matched to a partner by name, ignoring case, spaces and punctuation; a partner name with a
@@ -687,8 +687,8 @@ function createPortalApi({
           out = cards.removeTask(rowId, sub, by(req));
           if (!out.error) note(req, [`${who2}: removed the task for ${teamLabel(task.team)}`], 'Removed a task');
         } else if (body.handTo !== undefined) {
-          if (!mayHand(req.user, task)) { sendJSON(res, 403, { error: 'Only the team the task is with, whoever gave it, Admin or the Manager hands it on.' }); return true; }
-          if (!TASK_TEAMS().some((t) => t.id === text(body.handTo))) { sendJSON(res, 400, { error: 'Choose the team to hand it to.' }); return true; }
+          if (!mayHand(req.user, task)) { sendJSON(res, 403, { error: 'Only the team the task is with, whoever gave it, Admin or the Manager can reassign it.' }); return true; }
+          if (!TASK_TEAMS().some((t) => t.id === text(body.handTo))) { sendJSON(res, 400, { error: 'Choose the team.' }); return true; }
           const from = task.team;
           out = cards.handTask(rowId, sub, { team: text(body.handTo), reason: body.reason }, by(req));
           if (!out.error) { cards.markSeen(req.user.username, [task.id]); note(req, [`${who2}: handed the task from ${teamLabel(from)} to ${teamLabel(out.task.team)}: ${String(body.reason).slice(0, 120)}`], 'Handed a task on'); }
@@ -1327,7 +1327,7 @@ function createPortalApi({
     return out.slice(0, 30);
   }
 
-  // ---- the course finder over the Fact File ----
+  // ---- every course of the Fact File, for the course search ----
   let courseCache = { facts: null, links: null, index: [] };
   function courseIndex() {
     const all = facts.all();
@@ -1981,7 +1981,6 @@ function createPortalApi({
       send(res, 200, insights(req.user, query().get('intake') || ''), { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
       return true;
     }
-    // The Fact File assistant: describe a student, get the options they are eligible for (finder.js, eligibility.js).
     // The weekly check of the course pages: the warnings, and a person confirming one.
     if (urlPath === '/api/course-watch' && req.method === 'GET') {
       const w = courseWatch();
@@ -2027,15 +2026,6 @@ function createPortalApi({
       const found = courseLinker ? await courseLinker.lookup({ university, course, hosts: uni ? hostsOf(uni) : [] }) : { link: '', error: 'Not available.' };
       if (found.link && (!uni || !hostsOf(uni).length || onHosts(found.link, hostsOf(uni)))) courseLinks.remember(body.universityId, course, found.link);
       sendJSON(res, 200, found);
-      return true;
-    }
-    if (urlPath === '/api/finder' && req.method === 'POST') {
-      const body = await bodyOf(req, res);
-      if (!body) return true;
-      const student = body.studentId && ROW_ID.test(String(body.studentId)) ? rowIndex().get(body.studentId) : null;
-      const seen = student && canSee(req.user, student) ? student : null;
-      const out = await finder({ body, index: courseIndex(), card: seen ? cards.get(seen.row._id) : null });
-      sendJSON(res, out.error ? 400 : 200, out);
       return true;
     }
     return false;

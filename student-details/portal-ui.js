@@ -210,7 +210,7 @@
     toggle.append(ico, words, badge);
     const label = () => {
       const n = comments().length;
-      words.textContent = n ? `${n} comment${n === 1 ? '' : 's'}` : (canWrite ? 'Add a comment' : 'No comments');
+      words.textContent = n ? `${n} update${n === 1 ? '' : 's'}` : (canWrite ? 'Add an update' : 'No updates');
       badge.textContent = `${fresh} new`;
       badge.hidden = !(fresh > 0);
       toggle.classList.toggle('has-new', fresh > 0);
@@ -223,14 +223,14 @@
       const head = el('div', 'tk-head');
       head.append(el('b', '', c.by === me ? 'You' : c.by || 'Someone'), el('time', '', when(c.at)));
       // A hand-on reads as one plain line in the thread: "Mock Team handed this to Application Team", then the reason.
-      if (c.handoff) { li.classList.add('is-handoff'); main.append(head, el('p', 'tk-hand', `${labelOf(c.handoff.from)} handed this to ${labelOf(c.handoff.to)}`), el('p', 'tk-text', c.text)); } else main.append(head, el('p', 'tk-text', c.text));
+      if (c.handoff) { li.classList.add('is-handoff'); main.append(head, el('p', 'tk-hand', `Reassigned: ${labelOf(c.handoff.from)} \u2192 ${labelOf(c.handoff.to)}`), el('p', 'tk-text', c.text)); } else main.append(head, el('p', 'tk-text', c.text));
       li.append(av, main);
       return li;
     };
     const draw = () => {
       const all = comments();
       list.replaceChildren(...all.map((c, i) => entry(c, i >= all.length - fresh && c.by !== me)));
-      if (!all.length) list.append(el('li', 'tk-empty', canWrite ? 'Write what you need, a question, or how it went. The other side sees it on Today.' : 'No comments yet.'));
+      if (!all.length) list.append(el('li', 'tk-empty', canWrite ? 'Progress, a question or what is needed. Everyone on the task sees it on Today.' : 'No updates yet.'));
     };
     // Read: the dot goes, here and in the menu (shared/header.js listens for "isr-tasks-read").
     const markRead = () => {
@@ -258,10 +258,10 @@
     if (canWrite) {
       const form = el('div', 'tk-compose');
       input = el('textarea', 'tk-input');
-      input.rows = 1; input.maxLength = 2000; input.placeholder = 'Write a comment';
-      input.setAttribute('aria-label', 'Write a comment');
+      input.rows = 1; input.maxLength = 2000; input.placeholder = 'Write an update';
+      input.setAttribute('aria-label', 'Write an update');
       const grow = () => { input.style.height = 'auto'; input.style.height = Math.min(input.scrollHeight, 180) + 'px'; };
-      const send = h('button', { class: 'btn btn-primary btn-sm tk-send', type: 'button', disabled: true }, 'Comment');
+      const send = h('button', { class: 'btn btn-primary btn-sm tk-send', type: 'button', disabled: true }, 'Post');
       input.addEventListener('input', () => { grow(); send.disabled = !input.value.trim(); });
       const post = async () => {
         const text = input.value.trim();
@@ -306,17 +306,17 @@
   }
   // Hand a task on to another team, in the same task (the owner, 14 Nov 2026): choose the team and say why. Resolves true once done.
   function handOn(task, { rowId, teams = [] }) {
-    return dialog('Hand this task on', (body, close) => {
+    return dialog('Reassign task', (body, close) => {
       const choices = teams.filter((t) => t.id !== task.team).map((t) => [t.id, t.label]);
-      body.append(el('p', 'p-muted p-small', 'The task moves to the team you choose, with everything said so far. The teams it was with still see it and can comment.'));
-      const team = field('Hand it to', { kind: 'select', choices });
-      const why = field('Why, and what they should do', { kind: 'area', max: 2000, wide: true, placeholder: 'e.g. The mock is done and passed: please submit the CAS request.' });
+      body.append(el('p', 'p-muted p-small', 'The task and its updates move to the new team. Earlier teams keep access.'));
+      const team = field('Reassign to', { kind: 'select', choices });
+      const why = field('Reason and next step', { kind: 'area', max: 2000, wide: true, placeholder: 'e.g. Mock passed. Please request the CAS.' });
       const msg = el('div', 'p-msg');
       const foot = el('div', 'p-dialog-foot');
-      const ok = h('button', { class: 'btn btn-primary', type: 'button' }, 'Hand on');
+      const ok = h('button', { class: 'btn btn-primary', type: 'button' }, 'Reassign');
       ok.addEventListener('click', async () => {
         if (!team.input.value) { msg.textContent = 'Choose the team.'; msg.className = 'p-msg error'; return; }
-        if (!why.input.value.trim()) { msg.textContent = 'Write why, so the next team knows what to do.'; msg.className = 'p-msg error'; return; }
+        if (!why.input.value.trim()) { msg.textContent = 'Add the reason and next step.'; msg.className = 'p-msg error'; return; }
         ok.disabled = true;
         try { await api(`/api/cards/${encodeURIComponent(rowId)}/tasks/${task.id}`, { handTo: team.input.value, reason: why.input.value.trim() }); close(true); } catch (e) { msg.textContent = e.message; msg.className = 'p-msg error'; ok.disabled = false; }
       });
@@ -325,5 +325,11 @@
       body.append(g, msg, foot);
     });
   }
-  root.Portal = { taskThread, taskRoute, handOn, el, h, api, day, when, fromToday, stageKind, stagePill, initials, number, rupees, percent, richText, field, datalist, dialog, copy, waitFor };
+  // A task's actions, side by side at its top right (Reassign, Remove): small, quiet buttons, never spread across the row.
+  function taskActions(list) {
+    const box = el('div', 'td-acts');
+    list.filter(Boolean).forEach(([label, onClick, danger]) => box.append(h('button', { class: `td-act${danger ? ' danger' : ''}`, type: 'button', onclick: onClick }, label)));
+    return box.childNodes.length ? box : null;
+  }
+  root.Portal = { taskThread, taskRoute, handOn, taskActions, el, h, api, day, when, fromToday, stageKind, stagePill, initials, number, rupees, percent, richText, field, datalist, dialog, copy, waitFor };
 })(this);

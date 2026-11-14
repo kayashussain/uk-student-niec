@@ -105,15 +105,10 @@
     mid.append(journey(s.stage));
     const facts = el('dl', 'p-facts');
     const fact = (k, v, href) => { if (!v) return; const d = el('div', 'p-fact'); const dd = el('dd'); if (href) { const a = el('a', '', v); a.href = href; dd.append(a); } else dd.textContent = v; d.append(el('dt', '', k), dd); facts.append(d); };
-    fact('Email', s.email, s.email ? 'mailto:' + s.email : '');
-    fact('WhatsApp', s.phone, F.whatsappNumber(s.phone) ? 'https://wa.me/' + F.whatsappNumber(s.phone) : '');
-    fact('University', s.university);
-    fact('Course', s.course);
-    fact('Application submitted', s.row['APPLICATION SUBMISSION DATE'] ? day(s.row['APPLICATION SUBMISSION DATE']) : '');
-    fact('Offer received', s.row['OFFER RECEIVED DATE'] ? day(s.row['OFFER RECEIVED DATE']) : '');
-    // From the passport (the owner, 14 Nov 2026): kept on the student's card beside the sheet's columns.
+    // The order the owner asked for (14 Nov 2026): who the student is (email and the passport details), then how to reach them, then
+    // the application.
     const pp = profile();
-    // The age the student was when they applied (else when they first asked): it stays the same years later (the owner, 14 Nov 2026).
+    // The age the student was when they applied (else when they first asked): it stays the same years later.
     const applied = String(s.row['APPLICATION SUBMISSION DATE'] || '').slice(0, 10);
     const on = /^\d{4}-\d{2}-\d{2}$/.test(applied) ? applied : /^\d{4}-\d{2}-\d{2}$/.test(pp.inquiryDate || '') ? pp.inquiryDate : '';
     const age = (() => {
@@ -121,14 +116,20 @@
       const [y, m, d] = pp.dob.split('-').map(Number);
       const t = on ? on.split('-').map(Number) : [new Date().getFullYear(), new Date().getMonth() + 1, new Date().getDate()];
       let a = t[0] - y; if (t[1] < m || (t[1] === m && t[2] < d)) a -= 1;
-      return a > 0 && a < 100 ? ` (${a}${on === applied && on ? ' when applied' : on ? ' when they first asked' : ''})` : '';
+      return a > 0 && a < 100 ? ` (${a}${on && on === applied ? ' when applied' : on ? ' at first inquiry' : ''})` : '';
     })();
-    // Always shown: an empty one says "Missing" in orange, and from Application Stage on it is needed (Today lists them too).
+    // The passport details are always shown: an empty one says "Missing" in orange (needed from Application Stage on; Today lists them).
     const missing = (k) => { const d = el('div', 'p-fact'); const dd = el('dd'); dd.append(el('span', 'p-missing', 'Missing')); d.append(el('dt', '', k), dd); facts.append(d); };
     const must = (k, v) => (v ? fact(k, v) : missing(k));
+    fact('Email', s.email, s.email ? 'mailto:' + s.email : '');
     must('Date of birth', pp.dob ? day(pp.dob) + age : '');
     must('Passport number', pp.passportNo);
     must('Address (passport)', pp.address);
+    fact('WhatsApp', s.phone, F.whatsappNumber(s.phone) ? 'https://wa.me/' + F.whatsappNumber(s.phone) : '');
+    fact('University', s.university);
+    fact('Course', s.course);
+    fact('Application submitted', s.row['APPLICATION SUBMISSION DATE'] ? day(s.row['APPLICATION SUBMISSION DATE']) : '');
+    fact('Offer received', s.row['OFFER RECEIVED DATE'] ? day(s.row['OFFER RECEIVED DATE']) : '');
     if (pp.nationality && pp.nationality !== 'Nepali') fact('Nationality', pp.nationality);
     // Where to send the application, from Partner Universities (the portal opens in a new tab).
     if (data.apply && (data.apply.portal || data.apply.email)) {
@@ -217,9 +218,12 @@
       const route = window.Portal.taskRoute(t, { fromName: t.by === me ? 'You' : t.by || 'Someone', toName: forMe && t.team === 'head' ? 'you' : label(t.team), teams: data.taskTeams || [] });
       route.append(el('span', 'td-when', t.at ? when(t.at) : ''));
       if (t.done) route.append(el('span', 'td-donemark', t.doneBy ? `Done by ${t.doneBy}` : 'Done'));
-      // Hand it on to another team: the team it is with, whoever gave it, Admin and the Manager.
-      if (!data.can.readOnly && (mine || t.by === me)) route.append(h('button', { class: 'p-link', type: 'button', onclick: async () => { if (await window.Portal.handOn(t, { rowId: id, teams: data.taskTeams || [] })) { say('Handed on'); data = await api('/api/cards/' + encodeURIComponent(id)); render(); } } }, 'Hand on'));
-      if (data.can.removeAnyTask || t.by === me) route.append(h('button', { class: 'p-link', type: 'button', onclick: async () => { if (await window.NiecUI.confirm('Remove this task and its comments?', { danger: true, confirmText: 'Remove' })) { await save(`tasks/${t.id}/delete`, {}, 'Task removed'); render(); } } }, 'Remove'));
+      // Reassign (the team it is with, whoever gave it, Admin and the Manager) and Remove, together at the task's top right.
+      const acts = window.Portal.taskActions([
+        !data.can.readOnly && (mine || t.by === me) && ['Reassign', async () => { if (await window.Portal.handOn(t, { rowId: id, teams: data.taskTeams || [] })) { say('Reassigned'); data = await api('/api/cards/' + encodeURIComponent(id)); render(); } }],
+        (data.can.removeAnyTask || t.by === me) && ['Remove', async () => { if (await window.NiecUI.confirm('Remove this task and its updates?', { danger: true, confirmText: 'Remove' })) { await save(`tasks/${t.id}/delete`, {}, 'Task removed'); render(); } }, true],
+      ]);
+      if (acts) top.append(acts);
       const had = (t.route || []).some((x) => (data.can.myTeams || []).includes(x) || (x === 'head' && (data.me || {}).role === 'admin'));
       const canWrite = !data.can.readOnly && (mine || t.by === me || had);
       const thread = window.Portal.taskThread(t, { rowId: id, me, canWrite, unread: unread[t.id] || 0, teams: data.taskTeams || [] });
@@ -408,8 +412,8 @@
     c.append(w);
     return c;
   }
-  // University options (the owner, 14 Nov 2026): the study level, a course search and remarks, nothing more. Each course found
-  // has Add (to this student's options) and Open (its university's page in the Fact File). What is typed is kept on the card.
+  // University options (the owner, 14 Nov 2026): the study level, a course search with its own Search button, and remarks. Each course
+  // found has Add (to this student's options) and Open (its university's page in the Fact File). What is typed is kept on the card.
   function optionsTab() {
     const wrap = el('div');
     wrap.append(chosenOptions());
@@ -417,19 +421,19 @@
     const lock = !can();
     const box = el('section', 'p-card');
     box.append(el('h2', '', 'Find a course'));
-    const form = el('div', 'p-form');
-    const lv = field('Study level', { kind: 'select', choices: F.STUDY_LEVELS, value: F.OLDER_STUDY_LEVELS[p.studyLevel] || p.studyLevel, disabled: lock });
-    const q = field('Course name', { placeholder: 'e.g. cyber security, nursing, business', value: p.subject || '', max: 160, disabled: lock });
+    const form = el('form', 'p-find');
+    const lv = field('Study level', { kind: 'select', choices: [['', 'Any level'], ...F.STUDY_LEVELS.map((x) => [x, x])], value: F.OLDER_STUDY_LEVELS[p.studyLevel] || p.studyLevel });
+    const q = field('Course name', { placeholder: 'e.g. Cyber Security, Nursing, Business', value: p.subject || '', max: 160 });
     q.input.type = 'search';
-    form.append(lv.wrap, q.wrap);
-    const remarks = field('Remarks', { kind: 'area', wide: true, value: p.optionRemarks || '', max: 1500, disabled: lock, placeholder: 'e.g. wants Manchester or London, 5 universities, a 2 year study gap' });
+    const go = h('button', { class: 'btn btn-primary', type: 'submit' }, 'Search');
+    form.append(lv.wrap, q.wrap, go);
+    const remarks = field('Remarks', { kind: 'area', wide: true, value: p.optionRemarks || '', max: 1500, disabled: lock, placeholder: 'e.g. Prefers Manchester or London, 5 options, 2 year study gap' });
+    remarks.input.rows = 2;
     const out = el('div', 'p-option-results');
-    out.style.marginTop = '12px';
     box.append(form, remarks.wrap, out);
     wrap.append(box);
-    let timer;
     let saved = JSON.stringify([p.studyLevel || '', p.subject || '', p.optionRemarks || '']);
-    // Typing is kept on the card a moment after it stops, only when something changed.
+    // What was searched and the remarks are kept on the card, only when something changed.
     const keep = () => {
       if (lock) return;
       const now = [lv.input.value, q.input.value.trim(), remarks.input.value.trim()];
@@ -439,18 +443,20 @@
     };
     const run = async () => {
       keep();
+      go.disabled = true;
+      out.replaceChildren(el('div', 'p-muted p-small', 'Searching…'));
       try {
         const r = await api('/api/courses?' + new URLSearchParams({ q: q.input.value, level: lv.input.value }));
-        out.replaceChildren(el('div', 'p-muted p-small', r.total ? `${r.total} course${r.total === 1 ? '' : 's'} found${r.total > r.options.length ? `, the first ${r.options.length} shown` : ''}` : 'No course found. Try fewer words or another study level.'));
+        out.replaceChildren(el('div', 'p-muted p-small p-found', r.total ? `${r.total} course${r.total === 1 ? '' : 's'}${r.total > r.options.length ? `, the first ${r.options.length} shown` : ''}` : 'No course found. Try fewer words or another level.'));
         r.options.forEach((o) => out.append(optionCard(o)));
       } catch (e) { out.replaceChildren(el('div', 'p-notice bad', e.message)); }
+      go.disabled = false;
     };
-    const later = (ms) => { clearTimeout(timer); timer = setTimeout(run, ms); };
-    q.input.addEventListener('input', () => later(250));
-    lv.input.addEventListener('change', () => later(0));
-    remarks.input.addEventListener('change', keep);
+    form.addEventListener('submit', (e) => { e.preventDefault(); run(); });
+    lv.input.addEventListener('change', run);
     remarks.input.addEventListener('blur', keep);
-    run();
+    if (p.subject || p.studyLevel) run();
+    else out.append(el('p', 'p-muted p-small', 'Choose a level or type a course, then Search.'));
     return wrap;
   }
 

@@ -430,7 +430,6 @@ h1 .p-chip, h1 .pill, h1 #adminOnly { font-size: 13px; }
 .p-option .p-uni,
 .p-option .p-money,
 .p-option .p-why,
-.p-thinking,
 .p-dialog-body h3,
 .p-kpi span,
 .p-kpi small,
@@ -584,7 +583,7 @@ label span, .p-card label span { font-size: 14px; }
 @media (max-width: 760px) { #dashTabs.p-tabs { flex-wrap: wrap; overflow: visible; } }
 /* 🔴 CSS CHANGED (2026-11-13): amber "missing commission" flag, small Dashboard text, Dashboard lists on a phone | from: the missing-commission flag looked like plain blue link text; chips, notes and chart numbers on the Dashboard were 13px; the university lists on a phone ran their headings together | to: the flag is an amber pill; those texts are 14px; on a phone the lists show Students and Visas only, with room to read */
 .p-pill.p-link.p-pill-amber { background: var(--amber-bg, #fdf0d2); color: var(--amber-fg, #7a4a00); cursor: pointer; padding: 4px 12px; border-radius: 999px; font-weight: 650; }
-.ov-delta-text, .ov-delta-none, .ov-funnel-conv, .ov-rank-note, .ov-board-row.head { font-size: 14px; }
+.ov-funnel-conv, .ov-board-row.head { font-size: 14px; }
 @media (max-width: 560px) {
   .ov-board-row { grid-template-columns: minmax(0, 1fr) 70px 70px; gap: 6px; }
   .ov-board-row > :nth-child(3), .ov-board-row > :nth-child(4) { display: none; }
@@ -623,7 +622,6 @@ dialog.p-dialog { max-height: 94vh; overflow: auto; }
 .p-table-wrap > .p-table { min-width: 760px; }
 .p-table td button, .p-table td .p-link, .p-table td a { white-space: nowrap; }
 .p-table-wrap { box-shadow: inset -12px 0 10px -10px rgba(0,0,0,.16); }
-.ov-rank-label { white-space: normal; overflow: visible; text-overflow: clip; }
 nav.toc { flex-wrap: wrap; overflow: visible; }
 /* 🔴 CSS CHANGED (2026-11-13): the side menu on short screens, the team note and card tabs on a phone, phone numbers in tables | from: the side menu was cut off at short heights with a hidden scroll bar (Today, Incentive and Log out out of reach); the "Application Team: ..." note ran off the screen on a phone; the student card tabs were cut at the right; phone numbers broke in the middle in tables | to: the menu gets a thin visible scroll bar, tighter spacing on short screens and a Log out area that stays at the bottom; the note and the tabs wrap onto more lines; phone numbers stay whole */
 .niec-header { scrollbar-width: thin; scrollbar-color: rgba(20,30,50,.28) transparent; }
@@ -776,7 +774,7 @@ body:has(.p-embed-bar) .p-hero .p-facts { margin-top: 18px; padding-top: 16px; g
 body:has(.p-embed-bar) .p-hero .p-fact dt { color: var(--text-dim); font-size: 13.5px; letter-spacing: .01em; }
 body:has(.p-embed-bar) .p-hero .p-fact dd { margin-top: 2px; color: var(--ink); font-weight: 550; font-size: 15px; }
 body:has(.p-embed-bar) .p-hero .p-fact dd a { color: var(--lux-ink); text-decoration: underline; text-decoration-color: color-mix(in srgb, var(--lux-bronze) 55%, transparent); text-underline-offset: 4px; }
-body:has(.p-embed-bar) .p-hero .p-fact:has(a[href^="mailto:"]) { grid-column: span 2; }
+/* 🔴 CSS CHANGED (2026-11-14): student card, the email | from: the email took two of the three columns, leaving a gap before Date of birth | to: one column like the others (a long email wraps), so the details read in the order asked: Email, Date of birth, Passport number, Address, WhatsApp ... */
 @media (max-width: 460px) { body:has(.p-embed-bar) .p-hero .p-fact:has(a[href^="mailto:"]) { grid-column: auto; } }
 body:has(.p-embed-bar) .p-hero-actions { margin-top: 6px; }
 body:has(.p-embed-bar) .p-hero-actions .btn { min-height: 44px; padding: 0 22px; border-radius: 12px; border: 1px solid var(--lux-line); background: var(--panel); color: var(--lux-ink-2); box-shadow: none; font-weight: 600; }
@@ -1044,14 +1042,11 @@ body:has(.p-embed-bar) .p-tabs + div > .p-card.p-tasks { grid-column: 1 / -1 !im
 .td-tasks-head p, .td-attn-head p { margin: 4px 0 0; color: var(--text-dim); font-size: 14.5px; }
 .td-sum { display: flex; gap: 8px; flex-wrap: wrap; padding-top: 4px; }
 .td-chip { display: inline-flex; align-items: center; min-height: 30px; padding: 0 12px; border-radius: 999px; background: var(--soft); color: var(--brand-navy); font-size: 13.5px; font-weight: 700; }
-.td-chip.is-late { background: var(--red-bg); color: var(--red-fg); }
 .td-chip.is-today { background: var(--amber-bg); color: var(--amber-fg); }
 .td-group { margin-top: 18px; }
 .td-group h3 { margin: 0 0 8px; color: var(--text-dim); font-size: 12.5px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }
-.td-group.is-late h3 { color: var(--red-fg); }
 .td-task { display: grid; grid-template-columns: 34px minmax(0, 1fr) auto; align-items: start; gap: 14px; margin-top: 8px; padding: 16px 18px; border: 1px solid var(--border); border-radius: 16px; background: var(--edit-bg); transition: box-shadow .2s var(--ease), border-color .2s var(--ease); }
 .td-task:hover { border-color: var(--border-strong); box-shadow: 0 12px 26px -22px rgba(29, 47, 82, .6); }
-.td-task.is-late { border-left: 3px solid var(--red-fg); }
 .td-task.is-today { border-left: 3px solid #c08a1e; }
 .td-check { width: 30px; height: 30px; margin-top: 1px; padding: 0; border: 1.5px solid color-mix(in srgb, var(--brand-navy) 40%, var(--border)); border-radius: 50%; background: var(--panel); cursor: pointer; display: grid; place-items: center; }
 .td-check svg { width: 16px; height: 16px; fill: none; stroke: var(--brand-navy); stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; opacity: 0; transition: opacity .15s; }
@@ -1064,12 +1059,6 @@ body:has(.p-embed-bar) .p-tabs + div > .p-card.p-tasks { grid-column: 1 / -1 !im
 .td-task-who { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 8px; }
 .td-student { color: var(--brand-navy); font-size: 15px; font-weight: 700; text-decoration: none; }
 .td-student:hover { text-decoration: underline; text-decoration-color: var(--brand-bronze); text-underline-offset: 4px; }
-.td-team { padding: 2px 10px; border: 1px solid var(--border); border-radius: 999px; color: var(--text-dim); font-size: 13px; font-weight: 600; }
-.td-task-side { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; text-align: right; }
-.td-due { padding: 4px 11px; border-radius: 999px; background: var(--soft); color: var(--brand-navy); font-size: 13.5px; font-weight: 700; white-space: nowrap; }
-.td-due.is-late { background: var(--red-bg); color: var(--red-fg); }
-.td-due.is-today { background: var(--amber-bg); color: var(--amber-fg); }
-.td-due.is-done { background: var(--green-bg); color: var(--green-fg); }
 .td-from { color: var(--text-dim); font-size: 13px; white-space: nowrap; }
 .td-empty { display: flex; align-items: center; gap: 14px; margin-top: 16px; padding: 18px 20px; border: 1px dashed var(--border-strong); border-radius: 16px; color: var(--text-dim); font-size: 15.5px; }
 .td-empty svg { flex: 0 0 34px; width: 34px; height: 34px; padding: 7px; border-radius: 50%; background: var(--green-bg); fill: none; stroke: var(--green-fg); stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; }
@@ -1098,7 +1087,6 @@ body:has(.p-embed-bar) .p-tabs + div > .p-card.p-tasks { grid-column: 1 / -1 !im
   .td-hello h1 { font-size: 32px; }
   .td-tasks, .td-attn { padding: 20px 18px; }
   .td-task { grid-template-columns: 30px minmax(0, 1fr); }
-  .td-task-side { grid-column: 2; flex-direction: row; align-items: center; justify-content: flex-start; }
   .td-attn-list { grid-template-columns: 1fr; }
 }
 
@@ -1111,7 +1099,6 @@ body:has(.p-embed-bar) .p-tabs + div > .p-card.p-tasks { grid-column: 1 / -1 !im
 .md-kpi b { font-family: var(--brand-serif); font-size: 40px; font-weight: 600; line-height: 1.1; color: var(--brand-navy); font-variant-numeric: tabular-nums; }
 .md-kpi small { color: var(--text-dim); font-size: 13.5px; }
 .md-taskline { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-bottom: 22px; padding: 14px 20px; border: 1px solid var(--border); border-left: 4px solid var(--brand-bronze); border-radius: 14px; background: color-mix(in srgb, var(--brand-ivory) 60%, var(--panel)); color: var(--ink); text-decoration: none; }
-.md-taskline.has-late { border-left-color: var(--red-fg); }
 .md-taskline b { color: var(--brand-navy); font-size: 16px; }
 .md-taskline span { color: var(--text-dim); font-size: 14.5px; }
 .md-taskline .md-taskline-go { margin-left: auto; color: var(--brand-navy); font-weight: 700; text-decoration: underline; text-decoration-color: var(--brand-bronze); text-underline-offset: 4px; }
@@ -1264,12 +1251,11 @@ h2, h3, .p-card > h2, .p-card-head h2, .md-card-head h2, .td-tasks-head h2, .td-
 .td-task:hover { border-color: var(--border-strong); box-shadow: 0 4px 16px rgba(0, 0, 0, .05); }
 .md-kpi:first-child { box-shadow: inset 0 -3px 0 #0071e3, var(--sh-2); }
 .md-taskline { border: 0; border-left: 3px solid #0071e3; background: var(--panel); box-shadow: var(--sh-2); }
-.md-taskline.has-late { border-left-color: var(--red-fg); }
 
 .md-bar-fill { background: #0071e3; }
 .td-attn-count { background: #e8e8ed; color: #1d1d1f; }
 .td-av, .p-avatar:not(.p-hero .p-avatar), .uni-mono { background: #e8e8ed; color: #1d1d1f; box-shadow: none; border: 0; }
-.td-chip, .td-due, .td-team, .md-date, .p-pill, .p-chip, .pill, .bp-status, .pu-tag { border-radius: 980px; }
+.td-chip, .md-date, .p-pill, .p-chip, .pill, .bp-status, .pu-tag { border-radius: 980px; }
 /* buttons: blue pills for the main action, soft grey pills for the rest */
 .btn, button.btn, a.btn { min-height: 36px; padding: 0 16px; border: 0; border-radius: 980px; background: #e8e8ed; color: #1d1d1f; font-weight: 500; letter-spacing: -.01em; box-shadow: none; }
 .btn:hover:not(:disabled), a.btn:hover { background: #dcdce2; color: #1d1d1f; border-color: transparent; }
@@ -1380,7 +1366,7 @@ details.td-attn-row[open] .td-attn-list { animation: isr-slide-down .35s var(--e
 div.intake { border: 0 !important; border-left: 0 !important; border-radius: 18px; background: var(--panel); box-shadow: var(--sh-2); }
 .doc h2::before { background: #0071e3 !important; }
 dl.glance dt { color: #6e6e73; }
-.chips .chip, .intake-chips .chip { background: #e8f2fd; color: #0058b9; }
+.chips .chip { background: #e8f2fd; color: #0058b9; }
 button.find-link { border: 0 !important; background: transparent !important; color: #0066cc !important; padding-left: 0; padding-right: 0; }
 button.find-link:hover { text-decoration: underline; }
 thead th, .p-table th { font-size: 13px !important; }
@@ -1393,15 +1379,15 @@ button.p-link, body:has(.p-embed-bar) .p-timeline .p-link { color: #0066cc; text
 button.p-link:hover, body:has(.p-embed-bar) .p-timeline .p-link:hover { text-decoration: underline; color: #0066cc; }
 body:has(.p-embed-bar) .p-hero .p-fact dt { font-size: 13px; letter-spacing: .04em; }
 /* tasks and Today: no coloured bars, the status pills say it */
-.td-task.is-late, .td-task.is-today { border-left: 1px solid var(--border); }
+.td-task.is-today { border-left: 1px solid var(--border); }
 .td-tasks::before { content: none; }
-.md-taskline, .md-taskline.has-late { border-left: 0; }
+.md-taskline { border-left: 0; }
 .md-kpi:first-child { box-shadow: var(--sh-2); }
 .td-kicker, .td-group h3 { font-size: 13px; }
 .td-done-toggle { color: #0066cc; text-decoration: none; }
 .td-done-toggle:hover { text-decoration: underline; }
 /* one size for page titles */
-h1, .p-head h1, .page-head h1, .ov-head h1, body:has(#sheet) .sheet-title, body:has(.p-embed-bar) .p-hero h1 { font-size: 36px; }
+h1, .p-head h1, .page-head h1, body:has(#sheet) .sheet-title, body:has(.p-embed-bar) .p-hero h1 { font-size: 36px; }
 .td-hello h1 { font-size: 40px; }
 /* All Students: filter menu, intake tab menu */
 .filter-menu .filter-menu-actions button { color: #0066cc; }
@@ -1418,7 +1404,7 @@ body:has(#sheet) .stat-card.stat-total .stat-value { color: #1d1d1f; }
 dialog.ui-dialog .ui-ok, dialog.ui-dialog button { border-radius: 980px; }
 dialog.ui-dialog button:not(.ui-ok) { border: 0; background: #e8e8ed; color: #1d1d1f; }
 dialog.ui-dialog .ui-ok { border: 0; background: #0071e3; color: #fff; }
-dialog.ui-dialog .ui-ok.danger, dialog.ui-dialog .ui-ok.ui-danger { background: #d70015; }
+dialog.ui-dialog .ui-ok.danger { background: #d70015; }
 .fly-pal-back { background: rgba(0, 0, 0, .25); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); }
 .fly-pal { background: var(--panel); color: #1d1d1f; border-radius: 22px; }
 .fly-pal-input { background: var(--panel); color: #1d1d1f; }
@@ -1434,7 +1420,6 @@ dialog.ui-dialog .ui-ok.danger, dialog.ui-dialog .ui-ok.ui-danger { background: 
 /* 🔴 CSS CHANGED (2026-11-14): two phone layout fixes from the crash and layout review | from: on a phone (390px) the two-column forms (My email, Assign a task, the Add student pop-up) squeezed each box to half the width and cut the hints; the "Given 8 Nov" note on a task ran past its card and showed as "Given 8 No" | to: on a narrow screen these forms use one column; the task's due tag and "Given" note wrap onto their own line inside the card */
 @media (max-width: 600px) {
   .p-form-2 { grid-template-columns: minmax(0, 1fr); }
-  .td-task-side { flex-wrap: wrap; text-align: left; }
   .td-from { white-space: normal; }
 }
 
@@ -1468,7 +1453,6 @@ body:has(.niec-demo) .ui-toasts { top: 60px; }
 .td-route .td-arrow { color: #86868b; }
 .td-route .td-when::before, .td-route .td-donemark::before { content: "\00b7"; margin-right: 8px; color: #86868b; }
 .td-route .td-donemark { color: #248a3d; font-weight: 600; }
-.td-route .p-link { margin-left: auto; }
 .td-group-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin: 0 0 4px; }
 .td-group-head h3 { margin: 0; color: #1d1d1f; font-size: 17px; font-weight: 650; letter-spacing: -.01em; text-transform: none; }
 .td-group-head p { margin: 2px 0 0; color: #6e6e73; font-size: 14px; }
@@ -1599,7 +1583,7 @@ html.isr-cal-on input[type="date"]:hover::-webkit-calendar-picker-indicator { ba
 /* 🔴 CSS CHANGED (2026-11-14): the clean-up from the full page review | from: buttons side by side touching each other on partner cards; an outlined box inside each partner card; the count above a list pressed against it | to: 8px between buttons, which wrap neatly; the inner box a soft grey panel with no outline; 14px between a count and its list */
 .bp-foot { gap: 8px; flex-wrap: wrap; }
 .bp-submit, .pu-submit { border: 0 !important; background: rgba(0, 0, 0, .035) !important; border-radius: 14px !important; }
-.pu-count, #count, .bp-count { margin-bottom: 14px; }
+#count { margin-bottom: 14px; }
 /* 🔴 CSS CHANGED (2026-11-14): date boxes in forms | from: the browser's "mm/dd/yyyy" in the box (month first, which reads wrongly in Nepal and the UK) | to: the date written "14 Nov 2026", or "Choose a date" in grey when empty; the browser's day, month and year boxes show only while a date is being typed */
 .p-date { position: relative; display: block; }
 .p-date input[type="date"] { width: 100%; }
@@ -1691,7 +1675,6 @@ select option { color: #1d1d1f; }
 .tr-key { display: inline-flex; align-items: center; gap: 7px; padding: 4px 11px 4px 9px; border: 0; border-radius: 980px; background: rgba(0, 0, 0, .04); color: #1d1d1f; font: inherit; font-size: 13px; cursor: pointer; transition: background-color .15s, opacity .2s; }
 .tr-key:hover { background: rgba(0, 0, 0, .07); }
 .tr-key.off { opacity: .4; }
-.tr-key.static { cursor: default; background: transparent; }
 .tr-key i { width: 10px; height: 10px; border-radius: 3px; }
 .tr-key i.line { width: 10px; height: 10px; border-radius: 2px; background: #1d1d1f; }
 .tr-key i.line.offer { background: #a1a1a6; }
@@ -1701,9 +1684,7 @@ select option { color: #1d1d1f; }
 .tr-axis { fill: #86868b; font: 11px var(--font); }
 .tr-axis.strong { fill: #424245; font-weight: 600; }
 .tr-col { transform-box: fill-box; }
-.tr-col .tr-bar, .tr-col .tr-app, .tr-col .tr-offer { transform-box: fill-box; transform-origin: bottom; animation: isr-bar-up .7s cubic-bezier(.32, .72, 0, 1) backwards; animation-delay: var(--d, 0ms); }
-.tr-app { fill: #1d1d1f; }
-.tr-offer { fill: #a1a1a6; }
+.tr-col .tr-bar { transform-box: fill-box; transform-origin: bottom; animation: isr-bar-up .7s cubic-bezier(.32, .72, 0, 1) backwards; animation-delay: var(--d, 0ms); }
 .tr-hit { fill: transparent; cursor: crosshair; }
 .tr-col.hot .tr-hit { fill: rgba(0, 113, 227, .06); }
 .tr-mark-line { stroke: #ff9500; stroke-width: 1.2; stroke-dasharray: 3 4; }
@@ -1730,7 +1711,7 @@ select option { color: #1d1d1f; }
 .tr-top li i { grid-column: 1 / -1; display: block; height: 4px; border-radius: 2px; background: #ff3b30; opacity: .8; transform-origin: left; animation: isr-grow .7s cubic-bezier(.32, .72, 0, 1) backwards; }
 .tr-top.ages li i { background: #0071e3; }
 @media (max-width: 900px) { .tr-map-body { grid-template-columns: minmax(0, 1fr); } }
-@media (prefers-reduced-motion: reduce) { .tr-col .tr-bar, .tr-col .tr-app, .tr-col .tr-offer, .tr-dot, .tr-dot.top .tr-dot-halo, .tr-top li i { animation: none !important; } }
+@media (prefers-reduced-motion: reduce) { .tr-col .tr-bar, .tr-dot, .tr-dot.top .tr-dot-halo, .tr-top li i { animation: none !important; } }
 .tr-head > div:first-child { flex: 1 1 420px; min-width: 0; }
 /* 🔴 CSS CHANGED (2026-11-14): a student who is already in ISR, found while adding them | from: a red line of text | to: a soft panel with an orange dot, the student's name in bold, and two pills under it: Open their card, and Fill in what is missing (blue) */
 .p-msg.ns-dup { display: block; margin-top: 10px; padding: 14px 16px; border-radius: 14px; background: var(--panel, #fbfbfd); color: #1d1d1f; box-shadow: 0 1px 2px rgba(0, 0, 0, .04), 0 2px 10px rgba(0, 0, 0, .05); }
@@ -1789,3 +1770,16 @@ select option { color: #1d1d1f; }
 /* 🔴 CSS CHANGED (2026-11-14): Business growth table on a phone (a bug fix) | from: the Visas and Visa rate columns were cut off at the right edge | to: the table slides sideways inside its card, so every column can be read */
 .tr-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
 .tr-table-wrap .tr-table { min-width: 560px; }
+/* 🔴 CSS CHANGED (2026-11-14): a task's actions (a bug fix: Hand on and Remove sat far apart, one in the middle of the row and one at the far right) | from: two blue text links spread across the "who to whom" line | to: "Reassign" and "Remove" side by side at the task's top right, as small grey pills (30px high, 13.5px semibold); Remove turns red on hover */
+.td-acts { display: flex; flex: none; gap: 6px; margin-left: auto; }
+.td-act { min-height: 30px; padding: 0 12px; border: 0; border-radius: 999px; background: #e8e8ed; color: #1d1d1f; font: 600 13.5px/30px var(--font); cursor: pointer; transition: background .2s, color .2s; }
+.td-act:hover { background: #dcdce1; }
+.td-act.danger { color: #6e6e73; }
+.td-act.danger:hover { background: #ffe5e3; color: #d70015; }
+.td-act:focus-visible { outline: 3px solid rgba(0, 113, 227, .45); outline-offset: 2px; }
+/* 🔴 CSS CHANGED (2026-11-14): University options, Find a course | from: two boxes and a remarks box with no Search button (results changed as you typed) | to: one row: Study level, Course name and a blue Search button lined up at the bottom; the remarks box below is two lines high; the count of courses found sits above the results */
+.p-find { display: grid; grid-template-columns: minmax(180px, 1fr) minmax(220px, 2fr) auto; gap: 12px; align-items: end; }
+.p-find > .btn { min-height: 44px; padding: 0 26px; }
+.p-option-results { display: grid; gap: 12px; margin-top: 14px; }
+.p-found { margin-bottom: -2px; }
+@media (max-width: 700px) { .p-find { grid-template-columns: 1fr; } .p-find > .btn { width: 100%; } }

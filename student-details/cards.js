@@ -252,7 +252,7 @@ function createCards(dir, { now = () => new Date() } = {}) {
     // A comment on a task: the team writes how it went, what it needs or what is in the way, and whoever gave the task answers.
     commentTask(rowId, taskId, input, by) {
       const text = str(input, LIMITS.text);
-      if (!text) return { error: 'Write the comment first.' };
+      if (!text) return { error: 'Write the update first.' };
       let comment;
       const out = update(rowId, by, (card, stamp) => {
         const task = card.tasks.find((t) => t.id === taskId);
@@ -269,8 +269,8 @@ function createCards(dir, { now = () => new Date() } = {}) {
     handTask(rowId, taskId, input, by) {
       const team = str(input && input.team, 40);
       const reason = str(input && input.reason, LIMITS.text);
-      if (!team) return { error: 'Choose the team to hand it to.' };
-      if (!reason) return { error: 'Write why, so the next team knows what to do.' };
+      if (!team) return { error: 'Choose the team.' };
+      if (!reason) return { error: 'Add the reason and next step.' };
       let task;
       const out = update(rowId, by, (card, stamp) => {
         task = card.tasks.find((t) => t.id === taskId);

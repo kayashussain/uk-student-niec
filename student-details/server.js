@@ -37,7 +37,6 @@ const { partnerAccess, shapeDirect, seesLogins } = require('./partner-access');
 const { createUserMail } = require('./user-mail');
 const { createRates } = require('../shared/exchange-rates');
 const { buildInsights } = require('./insights-engine');
-const { createFinder } = require('./finder');
 
 const PORT = process.env.PORT || 4173;
 const ROOT = __dirname;
@@ -833,7 +832,7 @@ const userMail = createUserMail(DATA_DIR);
 const portal = createPortalApi({
   getWorkbook: () => current, writeWorkbook, recordChanges, teamSave,
   cards, messages, courseLinks, sourceOptions, courseLinker: courseFinder, courseWatch: () => courseWatch, facts, direct, b2b, agents, planning, accounts, activity, rates: createRates(DATA_DIR),
-  insights: servedInsights, finder: createFinder(), calculated: CALCULATED_COLUMNS,
+  insights: servedInsights, calculated: CALCULATED_COLUMNS,
   userMail, officeMailSettings: () => require('../shared/mailer').loadConfig(DATA_DIR),
   safetyCopy: () => backups.create('manual'),
 });

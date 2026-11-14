@@ -1,5 +1,5 @@
 // The portal around the sheet: student cards, message templates and sending, university options from the Fact File,
-// the option finder, B2B partners, the management records and the Dashboard's decision figures.
+// B2B partners, the management records and the Dashboard's decision figures.
 // The stores and the figures are tested on their own; the access rules are tested through the real server.
 const test = require('node:test');
 const assert = require('node:assert');
@@ -15,8 +15,6 @@ const { buildIndex, searchCourses, pickLine, levelOf, parseCourses, createCourse
 const { createPlanning } = require('../student-details/planning');
 const { createB2b } = require('../student-details/b2b');
 const { createFacts } = require('../student-details/facts');
-const { createFinder, feeFloor } = require('../student-details/finder');
-const E = require('../student-details/eligibility');
 const { buildInsights, intakeSeason, workBack, NONE } = require('../student-details/insights-engine');
 const { buildDemo } = require('../scripts/demo-data');
 const { buildMessage } = require('../shared/mailer');
@@ -186,52 +184,6 @@ test('every course of the starting Fact File can be found with its fee, and a ty
   const again = index.find((o) => o.universityId === uwl.universityId && o.course === uwl.course);
   assert.strictEqual(again.link, 'https://www.uwl.ac.uk/course/postgraduate/cyber-security');
   assert.ok(again.linkIsCourse);
-});
-
-// ---- the option finder ----
-
-test('the Fact File assistant reads a description of the student and judges it against the entry rules', async () => {
-  const dir = tmp();
-  const universities = createFacts(dir).all();
-  const index = buildIndex(universities, {});
-  assert.strictEqual(feeFloor('From £18,792 - £19,854'), 18792);
-  const read = E.readStudent('Student with 2.4 GPA and a 6 year gap, IELTS 5.5 (5.5 each band), wants a business course in London under 16,000 pounds for the January 2027 intake');
-  assert.deepStrictEqual([read.gpa, read.gapYears, read.ielts, read.ieltsBand, read.budget, read.intake], [2.4, 6, 5.5, 5.5, 16000, 'January 2027']);
-  assert.strictEqual(E.readStudent('62% in bachelor, no IELTS, MOI, visa refusal before, PTE 55').noEnglish, true);
-  assert.strictEqual(E.readStudent('62% in bachelor').level, '', 'a bachelor already studied is not the level wanted');
-
-  // The rules as the Fact File writes them.
-  const noWaiver = E.englishRules('IELTS: 6.0 overall / 5.5 in each band; PTE: 59 overall / 59 in each band; English waiver: N/A');
-  assert.deepStrictEqual([noWaiver.ielts, noWaiver.pte, noWaiver.waiver, noWaiver.waiverKind], [{ overall: 6, band: 5.5 }, { overall: 59, band: 59 }, false, 'none']);
-  assert.strictEqual(E.englishRules('IELTS: 6.0 overall; English waiver: UK Affiliated Degrees - 2020 Onwards').waiverKind, 'uk', 'a waiver for UK degrees only does not help a Nepal qualification');
-  assert.strictEqual(E.englishRules('IELTS: 6.0 overall; English waiver: 12th Grade English 60% or above').waiverKind, 'yes');
-  assert.deepStrictEqual(E.academicRules('12th Grade: 60% or above / GPA 2.75 or above'), { gpa: [2.75], percent: [60] });
-  assert.deepStrictEqual(E.gapRule('Gap: Upto 2 Years of GAP Accepted'), { years: 2, since: null, text: 'Gap: Upto 2 Years of GAP Accepted' });
-  assert.strictEqual(E.gapRule('- GAP: 2023 onwards').since, 2023);
-  const course = { academic: '12th Grade: 60% or above / GPA 2.75 or above; Gap: Upto 2 Years of GAP Accepted', english: 'IELTS: 6.0 overall / 5.5 in each band; PTE: 59 overall / 59 in each band' };
-  const weak = E.judge(E.readStudent('2.4 gpa 6 year gap ielts 5.5'), course);
-  assert.strictEqual(weak.status, 'not');
-  assert.strictEqual(weak.fails.length, 3, 'the grade, the gap and the English score each rule it out');
-  assert.strictEqual(E.judge(E.readStudent('2.9 gpa 1 year gap ielts 6.5'), course).status, 'eligible');
-  const partial = E.judge(E.readStudent('2.9 gpa ielts 6.5'), course);
-  assert.deepStrictEqual([partial.status, partial.missing], ['likely', ['the study gap']]);
-  assert.strictEqual(E.judge(E.readStudent('2.9 gpa 1 year gap'), { ...course, english: 'IELTS: 6.0 overall / 5.5 in each band; English waiver: MOI accepted' }).status, 'likely', 'no test, but a waiver exists');
-  assert.strictEqual(E.judge(E.readStudent('2.9 gpa'), { academic: '', english: '' }).status, 'unstated', 'a course with no readable rule gets no made-up verdict');
-
-  const find = createFinder();
-  assert.ok((await find({ body: {}, index })).error);
-  const answer = await find({ body: { request: '2.9 GPA, 1 year gap, IELTS 6.5, wants MSc cyber security' }, index });
-  assert.ok(answer.understood.includes('GPA 2.9') && answer.understood.includes('IELTS 6.5'), 'it says what it understood');
-  assert.ok(answer.results.length >= 5);
-  assert.ok(answer.results.every((r) => r.fit !== 'Not eligible' && r.fee !== undefined && r.why));
-  assert.ok(answer.notEligible.every((r) => r.fit === 'Not eligible' && r.why), 'the ruled-out courses say why');
-  assert.match(answer.summary, /can be offered/);
-  const hopeless = await find({ body: { request: '1.8 GPA, 12 year gap, IELTS 4.5, wants an MBA' }, index });
-  assert.ok(hopeless.results.every((r) => r.fit === 'Entry rules not in the Fact File'), 'with these details only courses whose rules the Fact File does not state remain, and they are marked so');
-  assert.ok(hopeless.notEligible.length >= 5 && hopeless.notEligible.every((r) => r.why));
-  // The student's own card fills what the words leave out.
-  const fromCard = await find({ body: { request: 'cyber security' }, index, card: { profile: { studyLevel: 'Postgraduate', grade: '2.9 GPA', englishTest: 'IELTS Academic', englishScore: '6.5', passedYear: '2025' } } });
-  assert.ok(fromCard.understood.includes('GPA 2.9') && fromCard.understood.includes('IELTS 6.5'));
 });
 
 // ---- management records ----
@@ -477,11 +429,6 @@ test('on the real server: cards follow the rules of the sheet, messages are reco
   // A link typed on a card that is not on the university's own website is not shared with every other student.
   assert.ok(!(await app('GET', `/api/courses?q=${encodeURIComponent(pick.course)}`)).json.options.some((o) => o.linkIsCourse && o.link === 'https://example.org/course'));
 
-  // The Fact File assistant, with the details of the student's card.
-  const found = await app('POST', '/api/finder', { request: 'nursing top up', studentId: sitaId });
-  assert.strictEqual(found.status, 200);
-  assert.ok(found.json.results.length > 0 && found.json.understood.length > 0);
-
   // Templates: everyone reads, Admin changes.
   assert.ok((await app('GET', '/api/templates')).json.templates.length === 6);
   assert.strictEqual((await app('POST', '/api/templates/offer_received', { name: 'x', subject: 'y', body: 'z' })).status, 403);
@@ -589,23 +536,6 @@ test('on the real server: cards follow the rules of the sheet, messages are reco
   assert.strictEqual((await admin('GET', `/api/cards/${sitaId}`)).json.card.notes.length, 2, 'the cards are back as they were in the backup');
 });
 
-// ---- the map of the UK and the assistant's remarks ----
-
-test('the assistant reads a place, a number of universities and the deposit from the remarks, and shows only universities near the place', async () => {
-  const P = require('../student-details/places');
-  assert.ok(P.readWhere('student wants to study near Manchester'), 'a place is understood');
-  assert.strictEqual(P.readWhere('nothing about a place here'), null);
-  const { createFacts } = require('../student-details/facts');
-  const { buildIndex } = require('../student-details/course-index');
-  const { createFinder } = require('../student-details/finder');
-  const index = buildIndex(createFacts(tmp()).all(), {});
-  const out = await createFinder()({ body: { request: 'wants 3 universities near Manchester, show the minimum cash deposit and the full tuition fee', level: 'Postgraduate', subject: 'business', grade: '2.9 GPA', englishTest: 'IELTS Academic', englishScore: '6.5' }, index });
-  assert.ok(out.results.length > 0 && out.results.length <= 3, 'at most the 3 universities asked for');
-  assert.strictEqual(new Set(out.results.map((r) => r.universityId)).size, out.results.length, 'one course for each university');
-  assert.ok(out.results.every((r) => r.showDeposit && r.showFullFee));
-  assert.ok(out.understood.some((x) => /Manchester/.test(x)) && out.understood.some((x) => /3 universities/.test(x)) && out.understood.some((x) => /deposit/.test(x)));
-});
-
 test('the signature picture travels inside the email, shown in the text of the email by its content id', () => {
   const html = '<p>Hi</p><img src="cid:niec-signature">';
   const mime = buildMessage({ from: 'office@example.org', to: 'sita@example.com', subject: 'Hello', text: 'Hi', html, auto: false, inline: [{ cid: 'niec-signature', type: 'image/png', data: Buffer.from('PNGDATA') }] });
@@ -614,16 +544,6 @@ test('the signature picture travels inside the email, shown in the text of the e
   assert.ok(mime.includes(Buffer.from('PNGDATA').toString('base64')));
   const rendered = Messages.renderEmail({ subject: 'S', body: 'Hello', values: {}, signature: { name: 'Kayas' } });
   assert.match(rendered.html, /src="cid:niec-signature"/);
-});
-
-test('a student with an English waiver is only offered universities whose waiver is open to a Nepal qualification', async () => {
-  const { createFacts } = require('../student-details/facts');
-  const { buildIndex } = require('../student-details/course-index');
-  const { createFinder } = require('../student-details/finder');
-  const index = buildIndex(createFacts(tmp()).all(), {});
-  const out = await createFinder()({ body: { level: 'Undergraduate', subject: 'business', grade: '64%', englishTest: 'MOI or waiver', request: '' }, index });
-  assert.ok(out.results.length > 0);
-  assert.ok(!out.results.some((r) => /Portsmouth/.test(r.university)), 'the Portsmouth waiver is for UK affiliated degrees only');
 });
 
 test('the course page is looked up on a university address and the best match is taken', async () => {
@@ -675,14 +595,6 @@ test('the weekly check warns about a page that is gone, no longer about the cour
   watch.confirm(changed.key);
   assert.ok(!watch.warnings().some((w) => w.course === 'MSc Cyber Security'), 'a confirmed warning goes quiet');
   assert.strictEqual(watch.summary().noLink, 1);
-});
-
-test('finder reads negations, word numbers and k budgets', () => {
-  const { readStudent } = require('../student-details/eligibility.js');
-  assert.equal(readStudent('no visa refusal').refusal, false);
-  assert.equal(readStudent('three year gap').gapYears, 3);
-  assert.equal(readStudent('no gap').gapYears, 0);
-  assert.equal(readStudent('budget 16k').budget, 16000);
 });
 
 test('a template with an unknown or unclosed placeholder is refused', () => {
