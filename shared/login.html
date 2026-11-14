@@ -152,9 +152,9 @@
   .hero-brand { display: flex; align-items: center; gap: 18px; align-self: flex-start; }
   .hero-logo { display: block; width: 128px; height: auto; padding: 10px 14px; border-radius: 18px; background: rgba(250, 251, 252, .9); box-shadow: 0 1px 2px rgba(0, 0, 0, .05), 0 14px 30px -20px rgba(0, 0, 0, .25); }
   .hero-logo[hidden] { display: none; }
-  .hero-name { display: grid; gap: 2px; }
-  .hero-name b { font-size: 26px !important; font-weight: 700 !important; letter-spacing: -.025em !important; color: #1d1d1f !important; }
-  .hero-name span { font-size: 14px; color: #4b4f57; }
+  .hero-brand .hero-name { display: grid; gap: 2px; align-self: center; }
+  /* 🔴 CSS CHANGED (2026-11-14): beside the logo on the login page | from: "NIEC" in bold and "International Student Recruitment Portal" under it | to: only "UK" in bold beside the NIEC logo, a little larger (30px) */
+  .hero-name b { font-size: 30px !important; font-weight: 700 !important; letter-spacing: -.025em !important; color: #1d1d1f !important; }
   .hero h2 { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI Variable Display", "Segoe UI", sans-serif !important; color: #1d1d1f !important; font-weight: 700 !important; letter-spacing: -.035em !important; }
   .hero { background: radial-gradient(80% 55% at 0% 0%, rgba(0, 119, 200, .10) 0%, rgba(0, 119, 200, 0) 70%), linear-gradient(180deg, #f3f4f7 0%, #eceef2 100%) !important; }
   .hero ul li::before { background: #0077c8 !important; box-shadow: 0 0 0 4px rgba(0, 119, 200, .16) !important; }
@@ -169,13 +169,13 @@
 </head>
 <body>
 <aside class="hero" aria-hidden="true">
-  <div class="hero-brand"><img class="hero-logo" src="/brand-logo.png" alt="" width="198" height="96" /><span class="hero-name"><b id="heroShort">ISR</b><span>International Student Recruitment Portal</span></span></div>
+  <div class="hero-brand"><img class="hero-logo" src="/brand-logo.png" alt="" width="198" height="96" /><span class="hero-name"><b id="heroShort"></b></span></div>
   <div>
     <h2>Welcome back to your team’s workspace.</h2>
     <p>Everything your team needs to guide students from first inquiry to visa, in one place. </p>
     <ul><li>Applications, mock interviews and visas, step by step</li><li>An up-to-date list of university partners and university fact files</li><li>One place for every team</li></ul>
   </div>
-  <small id="heroTag">International Student Recruitment Portal</small>
+  <small id="heroTag"></small>
 </aside>
 <div class="panel">
 <main class="card">
@@ -222,11 +222,14 @@
 </main>
 </div>
 <script>
-  // The consultancy's short name (for example NIEC UK) beside its logo; the logo hides itself if there is none.
+  // The logo, and beside it only what it does not already say ("UK" for NIEC UK); without a logo, the whole short name.
   (function () {
     const logo = document.querySelector('.hero-logo');
-    if (logo) logo.addEventListener('error', () => { logo.hidden = true; });
-    fetch('/api/brand').then((r) => (r.ok ? r.json() : null)).then((b) => { if (b && (b.short || b.company)) document.getElementById('heroShort').textContent = b.short || b.company; }).catch(() => {});
+    const name = document.getElementById('heroShort');
+    let brand = null;
+    const fill = () => { if (brand) name.textContent = logo && !logo.hidden ? (brand.besideLogo || '') : (brand.short || brand.company || 'ISR'); };
+    if (logo) logo.addEventListener('error', () => { logo.hidden = true; fill(); });
+    fetch('/api/brand').then((r) => (r.ok ? r.json() : null)).then((b) => { brand = b; fill(); }).catch(() => {});
   })();
 (function () {
   const $ = (id) => document.getElementById(id);

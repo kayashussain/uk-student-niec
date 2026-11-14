@@ -15,16 +15,20 @@
     <button type="button" class="niec-toggle" aria-label="Open or close the menu" aria-expanded="true" title="Open or close the menu"><span class="niec-burger-ico" aria-hidden="true"></span></button>
     <a class="niec-brand" href="/today" title="Home" id="niecHome">
       <img class="niec-logo" src="/brand-logo.png" alt="" width="198" height="96" />
-      <span class="niec-name"><b id="niecShort">ISR</b><small>International Student Recruitment</small></span>
+      <span class="niec-name"><b id="niecShort"></b></span>
       <span class="niec-mark" aria-hidden="true">ISR</span>
     </a>
     <button type="button" class="niec-burger" aria-expanded="false" aria-controls="niecNav"><span class="niec-burger-ico" aria-hidden="true"></span><span class="niec-burger-lbl">Menu</span></button>
     <nav class="niec-nav" id="niecNav" aria-label="Pages"></nav>
     <div class="niec-account"></div>`;
-  // The consultancy's short name (Admin sets it on Message templates, Email signature: Short name, for example "NIEC UK"), under its logo.
+  // The logo, and beside it only what the logo does not already say (Admin's Short name "NIEC UK" with the NIEC logo shows "UK").
+  // Without a logo, the whole short name.
   const logo = header.querySelector('.niec-logo');
-  logo.addEventListener('error', () => { logo.hidden = true; });
-  fetch('/api/brand').then((r) => (r.ok ? r.json() : null)).then((b) => { if (b && (b.short || b.company)) header.querySelector('#niecShort').textContent = b.short || b.company; }).catch(() => {});
+  const short = header.querySelector('#niecShort');
+  let brand = null;
+  const fill = () => { if (brand) short.textContent = logo.hidden ? (brand.short || brand.company || 'ISR') : (brand.besideLogo || ''); };
+  logo.addEventListener('error', () => { logo.hidden = true; fill(); });
+  fetch('/api/brand').then((r) => (r.ok ? r.json() : null)).then((b) => { brand = b; fill(); }).catch(() => {});
 
 
   // ---- Quick search (Ctrl+K, or the Search button): jump to a page or a student from anywhere, with the keyboard ----

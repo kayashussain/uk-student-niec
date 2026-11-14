@@ -445,5 +445,6 @@ function documentLists(card) {
 }
 
 module.exports = {
+  initialsOf,
   createMessages, renderEmail, renderWhatsApp, valuesFor, documentLists, cleanTemplate, cleanSignature, longDate, DEFAULTS, FIELDS, COMPANY,
 };

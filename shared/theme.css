@@ -1238,11 +1238,11 @@ body:has(.p-embed-bar) .p-hero-actions .btn.btn-primary, body:has(.p-embed-bar) 
 a { text-decoration-color: color-mix(in srgb, var(--brand-bronze) 60%, transparent); }
 /* The menu: frosted, the NIEC logo and the short name at the top, the open page as a soft pill. */
 .niec-header { background: rgba(246, 247, 249, .78); -webkit-backdrop-filter: saturate(180%) blur(28px); backdrop-filter: saturate(180%) blur(28px); box-shadow: 1px 0 0 rgba(0, 0, 0, .07); }
-.niec-brand { flex-direction: column; align-items: flex-start; gap: 10px; padding: 4px 6px 16px; border-bottom-color: rgba(0, 0, 0, .08); }
+/* 🔴 CSS CHANGED (2026-11-14): the top of the menu | from: the NIEC logo, then "NIEC" in bold and "International Student Recruitment" under it | to: only the NIEC logo with "UK" beside it in bold (the part of the short name the logo does not already say) */
+.niec-brand { flex-direction: row; align-items: center; gap: 10px; padding: 4px 6px 16px; border-bottom-color: rgba(0, 0, 0, .08); }
 .niec-logo { display: block; width: 116px; height: auto; }
 .niec-logo[hidden] { display: none; }
-.niec-name b { font-family: var(--display); font-size: 21px; font-weight: 700; letter-spacing: -.02em; color: var(--ink); }
-.niec-name small { display: block; margin-top: 2px; color: #5b6069; font-size: 12.5px; font-weight: 500; letter-spacing: 0; }
+.niec-name b { font-family: var(--display); font-size: 24px; font-weight: 700; letter-spacing: -.01em; line-height: 1; color: var(--ink); }
 .niec-nav a { color: #3c4048; font-weight: 550; }
 .niec-nav a:hover { background: rgba(0, 0, 0, .045); color: var(--ink); }
 .niec-nav a[aria-current="page"] { background: rgba(255, 255, 255, .82); color: var(--ink); font-weight: 650; box-shadow: 0 1px 2px rgba(0, 0, 0, .06), 0 6px 16px -10px rgba(0, 0, 0, .25); }
