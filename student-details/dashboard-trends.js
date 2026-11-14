@@ -116,7 +116,9 @@
       tr.append(el('td', '', v.students ? `${rate(v)}%` : '-'));
       table.append(tr);
     });
-    card.append(table);
+    // On a phone the table slides sideways inside the card, so no column is cut off.
+    const scroller = el('div', 'tr-table-wrap'); scroller.append(table);
+    card.append(scroller);
     card.append(el('p', 'ov-foot', `Visa rate: of every 100 students in the intake, how many got their visa (visas ÷ students).${list.length > 1 ? ` ${list[list.length - 1].name} is still running, so its payments and visas are still coming in.` : ''}`));
     return card;
   }

@@ -7,6 +7,8 @@ To find every marked change in the code, search the project for `CSS CHANGED`.
 
 Format: **date · file · what · from → to · why**
 
+- **2026-11-14 · shared/theme.css (dashboard-trends.js) · Business growth table on a phone (a bug fix) · from: the Visas and Visa rate columns were cut off at the right edge · to: the table slides sideways inside its card · why: found in the phone check.**
+
 - **2026-11-14 · shared/theme.css (dashboard-trends.js) · Business growth by intake made simple · from: one chart with five coloured columns per intake and a green line over them, and a "Visas per 100 students" column · to: two plain charts side by side, "Students in each intake" in blue and "Visas in each intake" in green, one rounded bar per intake with its number printed above it in bold; one plain sentence on the last closed intake; the table's last column is "Visa rate" in % with a line under the table saying what it means · why: the owner said the bar chart was confusing for the CEO and the chairman.**
 
 - **2026-11-14 · shared/theme.css (shared/ui.js) · the title bar across the top is gone · from: once the big title scrolled away, a frosted bar with the page title slid down across the top · to: after scrolling down a screen, a small round off-white button with an up arrow fades in at the bottom right; a click glides back to the top · why: the owner did not like the bar and asked for an up button on the right instead.**

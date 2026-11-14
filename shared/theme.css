@@ -1786,3 +1786,6 @@ select option { color: #1d1d1f; }
 .td-route .td-was { color: #6e6e73; }
 .tk-msg.is-handoff .tk-main { padding: 8px 12px; border-radius: 12px; background: rgba(0, 113, 227, .07); }
 .tk-hand { margin: 3px 0 0; color: #0058b0; font-size: 14.5px; font-weight: 600; }
+/* 🔴 CSS CHANGED (2026-11-14): Business growth table on a phone (a bug fix) | from: the Visas and Visa rate columns were cut off at the right edge | to: the table slides sideways inside its card, so every column can be read */
+.tr-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.tr-table-wrap .tr-table { min-width: 560px; }
