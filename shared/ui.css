@@ -1,10 +1,8 @@
 /* Shared polish for every page (shared/ui.js adds the notices and confirmation boxes): one look for
    keyboard focus, gentle motion, loading placeholders and empty states. Self-contained, with its own
-   colours, so it works the same on every page and in dark mode. */
+   colours, so it works the same on every page (there is one light look only). */
 :root {
   --ui-blue: #164a98;
-  --ui-orange: #cc4a0a;
-  --ui-orange-dark: #b54008;
   --ui-text: #1c2126;
   --ui-dim: #6b7280;
   --ui-panel: #ffffff;

@@ -206,7 +206,6 @@ function judge(student, course, now = new Date()) {
   return { status, fails, passes, missing };
 }
 
-const LEVEL_PRIORITY = ['Eligible', 'Likely eligible'];
 function fitOf(j) { return { eligible: 'Eligible', likely: 'Likely eligible', unstated: 'Entry rules not in the Fact File', not: 'Not eligible' }[j.status]; }
 
 // The one-line "what I understood", for the counselor to check.
@@ -228,4 +227,4 @@ function understood(s) {
   return out;
 }
 
-module.exports = { readStudent, readGrade, subjectOf, judge, fitOf, understood, academicRules, gapRule, englishRules, LEVEL_PRIORITY };
+module.exports = { readStudent, readGrade, subjectOf, judge, fitOf, understood, academicRules, gapRule, englishRules };

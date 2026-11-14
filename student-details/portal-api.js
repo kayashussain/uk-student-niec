@@ -927,7 +927,7 @@ function createPortalApi({
     return courseCache.index;
   }
 
-  // ---- B2B partners (Admin only): the list, one partner, its agreement files ----
+  // ---- B2B partners and agents (Admin changes them, others look as partner-access.js allows): the list, one partner, its files ----
   function readRaw(req, maxBytes) {
     return new Promise((resolve, reject) => {
       const chunks = [];

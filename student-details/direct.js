@@ -1,6 +1,6 @@
 // The Partner Universities list: the universities NIEC has a direct agreement with, each with its campuses,
 // commission slabs and the other details a consultancy needs (agreement, contacts, payment terms, conditions).
-// Admin only: the server refuses every other account (see server.js). Kept in direct-universities.json in the
+// Admin changes it; the Manager, the Application and Mock Teams and the branches look at it, with what partner-access.js allows. Kept in direct-universities.json in the
 // data folder, written whole and atomically. Nothing here is shared with the Advisor connector or the Fact File.
 
 const fs = require('fs');
@@ -137,7 +137,7 @@ const summary = (u) => ({
   // The first contact person is shown in the list; the rest are on the university's page.
   contact: u.contacts[0] || { name: '', email: '', phone: '' }, contactCount: u.contacts.length,
   applyPortal: u.applyPortal || '', applyEmail: u.applyEmail || '', applyLogin: Boolean(u.applyUser || u.applyPassword),
-  // The list is Admin only: it carries the portal login so it can be copied without opening the university.
+  // The portal login is in the list for Admin, to copy without opening the university; partner-access.js removes it for everyone else.
   applyUser: u.applyUser || '', applyPassword: u.applyPassword || '', agreementStart: u.agreementStart || '',
 });
 

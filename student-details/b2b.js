@@ -1,6 +1,6 @@
 // The B2B Partners list: the other businesses NIEC works with to recruit students or to apply to universities. Each has its contact
-// people, agreement dates and files, the commission structure of each intake and notes. Admin only, like the Partner Universities:
-// the server refuses every other account. Kept in b2b-partners.json in the data folder, with the agreement files in b2b-files/
+// people, agreement dates and files, the commission structure of each intake and notes. Admin changes them; the Manager and the
+// Application and Mock Teams look at them, with what partner-access.js allows. Kept in b2b-partners.json in the data folder, with the agreement files in b2b-files/
 // (never in git, never served as pages). The store itself is the one the Partner Universities use (direct.js).
 
 const { createDirect, applyRoute, STATUSES, LIMITS } = require('./direct');
@@ -38,7 +38,7 @@ const summary = (p) => ({
   id: p.id, name: p.name, status: p.status, city: p.city,
   agreementStart: p.agreementStart, agreementEnd: p.agreementEnd, agreementCount: p.agreements.length, updatedAt: p.updatedAt,
   contact: p.contacts[0] || { name: '', email: '', phone: '' }, contactCount: p.contacts.length, commissionCount: (p.commissions || []).length,
-  // The page is Admin only: the login is carried so it can be copied from the list.
+  // The login is carried for Admin, to copy from the list; partner-access.js removes it for everyone else.
   applyPortal: p.applyPortal || '', applyEmail: p.applyEmail || '', applyUser: p.applyUser || '', applyPassword: p.applyPassword || '',
   commissions: (p.commissions || []).map((c) => { const f = (p.agreements || []).find((a) => a.id === c.fileId); return { intake: c.intake, link: c.link || '', fileId: c.fileId || '', fileName: f ? f.name : '' }; }),
 });

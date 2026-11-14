@@ -246,7 +246,7 @@ const SHARED_FILES = {
   '/ui.css': 'text/css; charset=utf-8',
   '/theme.css': 'text/css; charset=utf-8',
   '/login.html': 'text/html; charset=utf-8',
-  // The one typeface of the portal (Inter, SIL Open Font License, see fonts/Inter-LICENSE.txt), kept here so every computer shows the same.
+  // The portal's typeface where the computer has no SF Pro (Inter, SIL Open Font License, see fonts/Inter-LICENSE.txt).
   '/fonts/inter-latin.woff2': 'font/woff2',
   '/fonts/inter-latin-ext.woff2': 'font/woff2',
 };

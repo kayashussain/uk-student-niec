@@ -33,8 +33,6 @@
   --rc-green: #bbf0c8; --rc-yellow: #fdf0a6; --rc-orange: #fdd5a8; --rc-red: #fbc4c4; --rc-blue: #c3dafc; --rc-purple: #ddd0fa; --rc-grey: #d6dae0;
 }
 
-
-
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
 
@@ -521,7 +519,6 @@ tr.defer-warning-row td { background-color: var(--red-bg) !important; }
 .sheet-menu-item:hover { background: var(--row-hover); }
 .sheet-menu-item.danger { color: var(--danger); }
 
-
 .all-sheets-heading { padding: 6px 10px 4px; color: var(--text-dim); font-size: 11px; }
 
 .sheet-tab-input {
@@ -565,9 +562,6 @@ tr.defer-warning-row td { background-color: var(--red-bg) !important; }
 #body td.peer-cell:hover::after, #body td.peer-editing::after { opacity: 1; }
 #body td.peer-editing { background: color-mix(in srgb, var(--peer-color) 12%, transparent); }
 
-.stat-card .stat-visa { font-size: 11px; font-weight: 500; color: var(--orange); margin-top: 1px; }
-
-
 /* Colour key in the footer, matching the row/cell highlights above. */
 .legend { display: flex; flex-wrap: wrap; gap: 4px 14px; }
 .legend > span { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
@@ -575,7 +569,6 @@ tr.defer-warning-row td { background-color: var(--red-bg) !important; }
 .legend .key-calc { background: var(--focus-dim); }
 .legend .key-dup { background: #fff176; }
 .legend .key-defer { background: var(--red-bg); }
-
 
 /* ---------------------------------------------------------------------------------------------
    NIEC brand theme, after niec.edu.np: a white header with a light-blue line,
@@ -599,7 +592,6 @@ tr.defer-warning-row td { background-color: var(--red-bg) !important; }
 .stat-card.stat-total { background: #164a98; border-color: #164a98; }
 .stat-card.stat-total .stat-value { color: #fff; }
 .stat-card.stat-total .stat-label { color: #fff; }
-.stat-card .stat-visa { color: #15803d; font-weight: 600; }
 
 /* Column headings: light blue, with the NIEC blue line underneath. */
 thead th {
@@ -617,12 +609,8 @@ thead .filter-btn.active { color: var(--niec-orange); }
 /* Sheet tabs: the open intake in NIEC blue with an orange underline. */
 .sheet-tab.active { color: var(--niec-blue-text); box-shadow: inset 0 -2px 0 var(--niec-orange); }
 
-
-
 /* Exporting the whole sheet is for Admin and the Manager only. */
 body:not([data-role="admin"]):not([data-role="manager"]) #exportExcel { display: none; }
-
-
 
 /* Teams: cells outside their own columns are read-only, and the sheet-wide tools are Admin's (teams can add students). */
 td.locked { color: var(--text-dim); cursor: default; }
@@ -652,9 +640,6 @@ body:not([data-role="admin"]) .sheet-tab-menu-btn { display: none; }
   font-size: 12px; font-weight: 600; white-space: nowrap;
 }
 .view-only[hidden] { display: none; }
-.dept-menu { min-width: 210px; }
-.dept-menu .sheet-menu-item small { color: var(--text-dim); }
-
 
 /* While the first load is under way: grey bars where the rows will be. And a friendly note on an empty sheet. */
 .sheet-loading { display: flex; flex-direction: column; gap: 10px; padding: 18px 16px; }

@@ -5,85 +5,92 @@
 /* ---------- 1. Tokens ---------- */
 /* 🔴 CSS CHANGED (2026-11-13): one brand colour for the whole portal | from: a bright blue (#1f5fc0) for buttons, links, the open menu item, focus and the blue status pills, while the sheet and the student card used near-black ink and bronze, and the menu avatar was blue-to-purple | to: one deep navy (#1d2f52) everywhere (buttons, links, the open menu item, the blue status pills, the first chart colour), a slightly brighter navy (#2e4c84) for the focus ring so it stays easy to see, and bronze (#9a7b4f) with champagne (#e6cfa3) as the accent; green, amber and red keep their meaning */
 :root {
+  /* 🔴 CSS CHANGED (2026-11-14): the one set of colours, sizes and fonts every page reads, now the Apple look itself | from: the old navy (#1d2f52), bronze (#9a7b4f), champagne and orange values here, overridden later on <body> (so colours worked out here, like --accent and --blue, stayed navy) | to: these values are the Apple ones, in one place; the second copy on <body> is gone */
   color-scheme: light;
-  --font: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI Variable Display", "Segoe UI", system-ui, BlinkMacSystemFont, Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Inter", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   --serif: var(--font);
+  --brand-serif: var(--font);
 
-  --navy: #16223b;
-  --navy-2: #22324f;
-  --gold: #1d2f52;
-  --gold-deep: #1d2f52;
-  --gold-soft: #e2e7f0;
-  --brand-navy: #1d2f52;
-  --brand-navy-2: #273d68;
-  --brand-bronze: #9a7b4f;
-  --brand-champagne: #e6cfa3;
-  --brand-ivory: #f6f3ec;
-
-  --ink: #1a2230;
+  --ink: #1d1d1f;
   --text: var(--ink);
-  --text-dim: #424c5b;
-  --bg: #e9ecf0;
-  --panel: #f7f8fa;
-  --surface: #f7f8fa;
-  --ui-panel: #f7f8fa;
-  --soft: #e7eaef;
-  --border: #d5dae2;
-  --border-strong: #bfc6d1;
+  --text-dim: #515154;
+  --head-ink: #515154;
+  --bg: #f5f5f7;
+  --panel: #fbfbfd;
+  --surface: #fbfbfd;
+  --ui-panel: #fbfbfd;
+  --edit-bg: #fdfdfe;
+  --soft: #e8e8ed;
+  --border: #e3e3e8;
+  --border-strong: #d2d2d7;
+  --header-bg: #f7f7f9;
+  --row-alt: #fafafc;
+  --row-hover: #f0f6fd;
 
-  --header-bg: #eceff3;
-  --head-ink: #424c5b;
-  --row-alt: #f2f4f7;
-  --row-hover: #e6eaf2;
-  --edit-bg: #fbfcfd;
-
-  --focus: #2e4c84;
-  --focus-dim: #e1e7f2;
-  --focus-strong: #c8d3e6;
-  --range-tint: rgba(46, 76, 132, .12);
-
-  /* the brand accent keeps its old variable names, which other stylesheets still use */
-  --niec-blue: var(--gold);
-  --niec-blue-text: var(--gold-deep);
-  --blue-text: var(--gold-deep);
-  --brand-text: var(--gold-deep);
-  --accent: var(--gold);
-  --brand: var(--gold);
-  --blue: var(--gold);
-  --blue-tint: var(--gold-soft);
-  --accent-strong: var(--navy-2);
-  --accent-strong-hover: var(--navy);
-  --on-accent: #ffffff;
-  --primary: #1d2f52;
-  --primary-hover: #273d68;
+  /* the accent: Apple blue for actions and focus, near-black for strong text (older names kept, other stylesheets use them) */
+  --primary: #0071e3;
+  --primary-hover: #0077ed;
   --on-primary: #ffffff;
+  --on-accent: #ffffff;
+  --link: #0066cc;
+  --focus: #0071e3;
+  --focus-dim: #e8f2fd;
+  --focus-strong: #c6dffa;
+  --range-tint: rgba(0, 113, 227, .08);
+  --navy: #1d1d1f;
+  --navy-2: #3a3a3c;
+  --gold: #0071e3;
+  --gold-deep: #0066cc;
+  --gold-soft: #eef2f7;
+  --brand-navy: #1d1d1f;
+  --brand-navy-2: #3a3a3c;
+  --brand-bronze: #0071e3;
+  --brand-champagne: #ffffff;
+  --brand-ivory: #ffffff;
+  --niec-blue: #0071e3;
+  --niec-blue-text: #0066cc;
+  --blue-text: #0066cc;
+  --brand-text: #0066cc;
+  --accent: #0071e3;
+  --brand: #0071e3;
+  --blue: #0071e3;
+  --blue-tint: #e8f2fd;
+  --accent-strong: #0071e3;
+  --accent-strong-hover: #0077ed;
+  --orange: #c45a00;
+  --niec-orange: #c45a00;
+  --lux-ink: #1d1d1f;
+  --lux-ink-2: #3a3a3c;
+  --lux-bronze: #0071e3;
+  --lux-line: #e3e3e8;
 
-  --green-bg: #dcefe3; --green-fg: #14633a;
-  --blue-bg: #e2e7f0;  --blue-fg: #1d2f52;
-  --amber-bg: #f9e9c4; --amber-fg: #6a4500;
-  --gray-bg: #e3e7ec;  --gray-fg: #3d4653;
-  --red-bg: #f9dedb;   --red-fg: #9c1f18;
+  --green-bg: #e7f5ec; --green-fg: #1d6b3a;
+  --blue-bg: #e8f2fd;  --blue-fg: #0058b9;
+  --amber-bg: #fdf3dc; --amber-fg: #7a5200;
+  --gray-bg: #f0f0f3;  --gray-fg: #48484e;
+  --red-bg: #fdeceb;   --red-fg: #b42318;
   --ok-bg: var(--green-bg); --ok: var(--green-fg);
   --warn-bg: var(--amber-bg); --warn: var(--amber-fg);
   --wait-bg: var(--amber-bg); --wait: var(--amber-fg);
   --bad-bg: var(--red-bg); --bad: var(--red-fg);
 
-  --r-sm: 12px; --r-md: 18px; --r-lg: 24px;
-  /* spacing scale, in steps of 4px: use these for gaps and padding */
-  --s-1: 4px; --s-2: 8px; --s-3: 12px; --s-4: 16px; --s-5: 24px; --s-6: 32px; --s-7: 48px;
-  --orange: #b86a00; --niec-orange: #b86a00; --s1: #1d2f52; --s2: #b86a00; --s3: #1f8a52;
-  --sh-1: 0 1px 2px rgba(20, 30, 50, .06);
-  --sh-2: 0 2px 6px rgba(20, 30, 50, .05), 0 12px 28px -14px rgba(20, 30, 50, .16);
-  --sh-3: 0 4px 12px rgba(20, 30, 50, .08), 0 26px 60px -24px rgba(20, 30, 50, .30);
+  /* chart colours: Apple's system colours */
+  --s1: #0071e3; --s2: #ff9f0a; --s3: #30b350; --s4: #5e5ce6; --s5: #5ac8fa;
+  --grid: #e8e8ed; --axis: #d2d2d7; --ov-track: #ececf0; --ov-grid: #ececf0;
+
+  --r-sm: 12px; --r-md: 18px; --r-lg: 22px;
+  --sh-1: none;
+  --sh-2: 0 2px 12px rgba(0, 0, 0, .04);
+  --sh-3: 0 4px 24px rgba(0, 0, 0, .06);
   --ease: cubic-bezier(.2, .7, .2, 1);
 }
 
 /* ---------- 2. Base ---------- */
 html, body, button, input, select, textarea, table, th, td, dialog, a, .ui-toast, .ui-dialog, .ui-dialog * { font-family: var(--font); }
 body { background: var(--bg); color: var(--text); letter-spacing: 0; -webkit-font-smoothing: antialiased; font-size: 15px; line-height: 1.5; }
-h1, .kpi-value, .hero-value, .stat-card .stat-value, .summary-title, .summary-row.final .value { font-family: var(--serif); }
+h1, .stat-card .stat-value, .summary-title, .summary-row.final .value { font-family: var(--serif); }
 h1 { color: var(--ink); font-weight: 650; letter-spacing: -.03em; }
-.hero-value { font-weight: 600; letter-spacing: -.04em; }
+
 ::selection { background: color-mix(in srgb, var(--gold) 28%, transparent); }
 a { color: var(--gold-deep); }
 :focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
@@ -148,7 +155,7 @@ input.search { width: 260px; }
 .stat-card .stat-label { display: block; width: 100%; min-height: 2.5em; white-space: normal; line-height: 1.25; font-size: 12px; letter-spacing: .03em; color: var(--text-dim); font-weight: 600; overflow-wrap: normal; hyphens: manual; word-break: normal; }
 .stat-card.stat-total { background: var(--gold-soft); border-color: color-mix(in srgb, var(--gold) 50%, var(--border)); box-shadow: inset 0 -3px 0 var(--gold), var(--sh-1); }
 .stat-card.stat-total .stat-label { color: var(--gold-deep); }
-.stat-card .stat-visa { color: var(--gold-deep); }
+
 @media (max-width: 1100px) { .stat-group-cards { width: 100%; max-width: 100%; } }
 
 .table-wrap { background: var(--panel); border-top: 1px solid var(--border); }
@@ -197,7 +204,7 @@ input.search { width: 260px; }
 .status-select { padding-left: 11px; min-height: 26px; transition: box-shadow .15s ease, border-color .15s ease; }
 .status-select:hover { box-shadow: var(--sh-1); border-color: color-mix(in srgb, currentColor 45%, transparent); }
 .filter-menu, .ui-dialog { border-radius: var(--r-md); border: 1px solid var(--border-strong); box-shadow: var(--sh-3); }
-.save-status, .help-btn, .footbar, .all-sheets-heading, .filter-btn, .lang-test-flag, .defer-warning-flag, .bar-value small { font-size: 12px; }
+.save-status, .help-btn, .footbar, .all-sheets-heading, .filter-btn, .lang-test-flag, .defer-warning-flag { font-size: 12px; }
 
 /* ---------- 4b. Menus and dropdowns (filters, sheet menus, selects) ---------- */
 .glance dt { color: var(--gold-deep); }
@@ -247,8 +254,7 @@ select:not(.status-select):disabled { opacity: .5; cursor: not-allowed; }
 .page-head .search { align-self: flex-end; }
 .card, .kpi, .uni-card, .summary-card, .table-card, .hero { background: var(--panel); border: 1px solid color-mix(in srgb, var(--ink) 6%, transparent); border-radius: var(--r-lg); box-shadow: var(--sh-2); transition: box-shadow .25s var(--ease), transform .25s var(--ease), border-color .25s ease; }
 .kpi { padding: 22px 24px; }
-.kpi-value { font-weight: 600; letter-spacing: -.035em; }
-.kpi-label { letter-spacing: .01em; color: var(--text-dim); }
+
 .kpi:hover, .hero:hover { transform: translateY(-3px); border-color: color-mix(in srgb, var(--gold) 50%, var(--border)); box-shadow: 0 28px 48px -26px rgba(10, 10, 20, .35), 0 0 0 1px color-mix(in srgb, var(--gold) 22%, transparent); }
 .uni-card { position: relative; padding: 22px 24px 20px; gap: 8px; }
 .uni-card h2 { padding-right: 46px; font-weight: 650; letter-spacing: -.015em; font-size: 17px; }
@@ -264,8 +270,7 @@ p.count:empty { display: none; }
 .glance { background: color-mix(in srgb, var(--gold-soft) 60%, var(--panel)); }
 .toc a { transition: background-color .15s ease, border-color .15s ease, color .15s ease; }
 .toc a:hover, .toc a:focus-visible { background: var(--gold-soft); border-color: var(--gold); color: var(--gold-deep); }
-.open-link { color: var(--text); font-weight: 550; }
-.open-link:hover { color: var(--text); text-decoration: underline; text-decoration-color: var(--gold); text-underline-offset: 3px; }
+
 .page-head h1 .pill, h1 .pill { font-family: var(--font); font-weight: 650; letter-spacing: 0; }
 .row > .btn { justify-self: start; }
 
@@ -368,8 +373,7 @@ dialog .p-field, .ui-dialog .p-field, .p-form .p-field { margin-bottom: 12px; }
 .p-head p { font-size: 16px; }
 .p-table { font-size: 14.5px; }
 .p-table th { font-size: 13px; }
-.bar-label { white-space: normal; overflow: visible; text-overflow: clip; line-height: 1.3; }
-.bar-row { grid-template-columns: minmax(130px, 42%) 1fr; }
+
 .p-hero-line .p-chip, .p-facts dd, .p-fact a { overflow-wrap: anywhere; }
 .p-tabs { overflow-x: auto; scrollbar-width: none; }
 @media (max-width: 900px) {
@@ -386,8 +390,8 @@ dialog .p-field, .ui-dialog .p-field, .p-form .p-field { margin-bottom: 12px; }
 h1 .p-chip, h1 .pill, h1 #adminOnly { font-family: var(--font); font-size: 12px; font-weight: 650; letter-spacing: .02em; line-height: 1; padding: 6px 10px; margin-left: 10px; vertical-align: middle; white-space: nowrap; border-radius: 999px; }
 
 /* 🔴 CSS CHANGED (2026-11-12): small text on the portal pages | from: labels, hints, table headings, chips and captions at 12px | to: 14px (hints and labels) and 13px (chips, table headings, small captions) so older eyes can read them */
-.p-label, .p-hint, .p-fact dt, .p-sheet-grid dt, .p-kpi small, .p-finding .p-area, .p-small, .p-muted.p-small { font-size: 14px; }
-.p-table th, .p-card h3, .p-dialog-body h3, .p-pill, .p-chip, .p-prio, .p-count, .p-month b, .save-status, .stat-card .stat-label, .stat-group-title { font-size: 13px; }
+.p-label, .p-hint, .p-fact dt, .p-kpi small, .p-small, .p-muted.p-small { font-size: 14px; }
+.p-table th, .p-card h3, .p-dialog-body h3, .p-pill, .p-chip, .p-count, .save-status, .stat-card .stat-label, .stat-group-title { font-size: 13px; }
 h1 .p-chip, h1 .pill, h1 #adminOnly { font-size: 13px; }
 
 /* 🔴 CSS CHANGED (2026-11-12): tables on Users, Partner Universities and similar pages at tablet width | from: wide tables scrolled sideways inside their card, so Edit, Reset password and Remove were cut off | to: cells wrap, so everything fits and the buttons are in view */
@@ -397,7 +401,7 @@ h1 .p-chip, h1 .pill, h1 #adminOnly { font-size: 13px; }
   .page .card td:last-child .btn, .table-card td:last-child .btn { margin: 2px 4px 2px 0; }
 }
 /* 🔴 CSS CHANGED (2026-11-12): remaining small text (menu user name, fold button, dialog labels, error and status notes, counts) | from: 12 to 13px | to: 14px */
-.niec-nav .user, .niec-nav .role, .niec-fold, .p-msg, .msg, .error, .p-count, .ui-dialog label, .eg-box label, .footbar, .help-btn { font-size: 14px; }
+.niec-nav .user, .niec-nav .role, .p-msg, .msg, .error, .p-count, .ui-dialog label, .eg-box label, .footbar, .help-btn { font-size: 14px; }
 
 /* 🔴 CSS CHANGED (2026-11-12): a reading-size floor for the whole portal | from: many labels, notes, hints, table headings and sub-lines at 10 to 13px | to: 14px for all reading text, 15px for table headings, so nothing is below 14px (the sheet's own cells stay at 15px) */
 .p-small,
@@ -420,7 +424,6 @@ h1 .p-chip, h1 .pill, h1 #adminOnly { font-size: 13px; }
 .p-back,
 .p-hero-line,
 .p-fact dt,
-.p-follow,
 .p-when,
 .p-wa-preview,
 .p-sent,
@@ -428,20 +431,10 @@ h1 .p-chip, h1 .pill, h1 #adminOnly { font-size: 13px; }
 .p-option .p-money,
 .p-option .p-why,
 .p-thinking,
-.p-sheet-grid dt,
 .p-dialog-body h3,
-.p-due-sub,
-.p-due-what,
 .p-kpi span,
 .p-kpi small,
-.p-prio,
-.p-finding .p-area,
-.p-finding dl,
-.p-finding dt,
 .p-bar-row,
-.p-month,
-.p-month b,
-.p-steps li,
 .t-title p,
 .conflict-banner,
 html,
@@ -468,20 +461,12 @@ body,
 .filter-bar,
 .filters label,
 .updated,
-.hero-label,
-.hero-sub,
-.kpi-label,
-.kpi-sub,
 .alert,
 figcaption p,
 .toggle,
-.bar-label,
-.bar-value,
-.group-title,
 .legend button,
 table.data,
 .tip,
-.fc-label,
 .method,
 details.rates,
 .notes,
@@ -529,7 +514,7 @@ thead th,
 table.data th,
 th { font-size: 15px; }
 /* menu: account line, brand line, fold and nav labels */
-.niec-brand-sub, .niec-account-role, .niec-menu-head span, .niec-fold, .niec-caret { font-size: 14px; }
+.niec-account-role, .niec-menu-head span, .niec-caret { font-size: 14px; }
 .niec-account, .niec-account-name { font-size: 15px; }
 .niec-lbl { font-size: 15px; }
 @media (max-width: 900px) { .niec-lbl { font-size: 14px; } }
@@ -540,8 +525,7 @@ th { font-size: 15px; }
 .niec-account-text { font-size: 15px; }
 /* 🔴 CSS CHANGED (2026-11-12): last small items | from: avatar initials 12px, Dashboard bar notes 12px, chart labels 11px | to: 14px, 14px and 13px */
 .niec-avatar, .p-avatar { font-size: 14px !important; }
-.bar-value small, .bar-value { font-size: 14px !important; }
-.ov-chart text, .line-body text { font-size: 14px !important; }
+
 /* 🔴 CSS CHANGED (2026-11-12): the last items under 14px found by measuring every page | from: small buttons 13.5px, sheet column headings 13px, row numbers 12.5px, stat tile labels 13px, dropdown options 13px, bold names 13.5px, code boxes 13px, chips 13px, university initials 12px | to: 14px for all of these and 15px for the sheet column headings */
 .btn-sm, .btn.btn-sm, button.btn-sm, a.btn-sm { font-size: 14px !important; }
 .stat-label, .stat-group-title, .stat-card .stat-label { font-size: 14px !important; }
@@ -600,12 +584,11 @@ label span, .p-card label span { font-size: 14px; }
 @media (max-width: 760px) { #dashTabs.p-tabs { flex-wrap: wrap; overflow: visible; } }
 /* 🔴 CSS CHANGED (2026-11-13): amber "missing commission" flag, small Dashboard text, Dashboard lists on a phone | from: the missing-commission flag looked like plain blue link text; chips, notes and chart numbers on the Dashboard were 13px; the university lists on a phone ran their headings together | to: the flag is an amber pill; those texts are 14px; on a phone the lists show Students and Visas only, with room to read */
 .p-pill.p-link.p-pill-amber { background: var(--amber-bg, #fdf0d2); color: var(--amber-fg, #7a4a00); cursor: pointer; padding: 4px 12px; border-radius: 999px; font-weight: 650; }
-.ov-chip, .ov-delta-text, .ov-delta-none, .ov-funnel-conv, .ov-rank-note, .ov-axis, .ov-board-row.head, .ov-compare-row.head, .ov-money-item small { font-size: 14px; }
+.ov-delta-text, .ov-delta-none, .ov-funnel-conv, .ov-rank-note, .ov-board-row.head { font-size: 14px; }
 @media (max-width: 560px) {
   .ov-board-row { grid-template-columns: minmax(0, 1fr) 70px 70px; gap: 6px; }
   .ov-board-row > :nth-child(3), .ov-board-row > :nth-child(4) { display: none; }
-  .ov-compare-row { grid-template-columns: minmax(0, 1fr) 64px 64px; }
-  .ov-compare-row > :nth-child(3), .ov-compare-row > :nth-child(4), .ov-compare-row > :nth-child(5), .ov-compare-row > :nth-child(7) { display: none; }
+
   .ov-board-name b { white-space: normal; }
 }
 /* 🔴 CSS CHANGED (2026-11-13): the Student Details sheet on short screens (a zoomed-in browser) | from: on a short screen the number tiles and toolbar used all the height, so the sheet itself shrank to nothing and no student could be seen or opened (this is the "everything cancels" the owner saw at 150% and more) | to: the sheet always keeps room for at least about 8 rows, the page scrolls when the screen is very short, and on a short screen the number tiles become small one-line chips */
@@ -630,7 +613,7 @@ html:has(#sheet) { overflow-y: auto; }
   .niec-nav a { padding: 12px 14px; font-size: 16px; }
   .niec-lbl { font-size: 16px; }
   .niec-ico { display: grid; }
-  .niec-fold { display: none; }
+
   .niec-sep { display: block; margin: 6px 8px 2px; padding-top: 8px; }
 }
 /* 🔴 CSS CHANGED (2026-11-13): Add student and other pop-up forms on short screens | from: the Cancel and Add buttons sat below the visible part of the pop-up, reachable only by scrolling inside the form | to: the buttons stay fixed at the bottom of the pop-up and the fields scroll above them */
@@ -652,7 +635,7 @@ nav.toc { flex-wrap: wrap; overflow: visible; }
   .niec-nav a { padding: 6px 12px; }
   .niec-nav { margin-top: 4px; gap: 1px; }
   .niec-sep { margin-top: 6px; padding-top: 6px; }
-  .niec-fold { padding: 4px 12px; }
+
 }
 @media (max-width: 600px) {
   .team-note, .view-only { white-space: normal; max-width: 100%; }
@@ -699,12 +682,6 @@ input[type="date"]:not(.date-input) { min-height: 44px; border-radius: var(--r-s
 .niec-demo { position: sticky; top: 0; z-index: 100; padding: 8px 16px; background: #b3261e; color: #fff; font-size: 15px; font-weight: 700; text-align: center; }
 
 /* 🔴 CSS CHANGED (2026-11-13): the Student Details page, a calmer and more premium look (this page only; the side menu and every other page are unchanged) | from: the page title hidden; search, Undo, Redo and six actions scattered over two rows as plain grey words with a bright blue button; 13 separate number boxes in two uneven rows; a plain grey table heading; small grey intake tabs | to: a large serif title "Student Details" with the save note beside it and the search on the right; one tidy action row of outlined buttons with a deep ink "+ Add student", Undo and Redo at the right; the numbers in one soft panel divided by fine lines, with serif figures (Total and Conversion rate marked by a thin bronze line); a table heading with darker text and a firm line under it; the open intake tab in dark ink with a bronze line under it */
-body:has(#sheet) {
-  --lux-ink: var(--brand-navy);
-  --lux-ink-2: var(--brand-navy-2);
-  --lux-bronze: var(--brand-bronze);
-  --lux-line: #d9dde4;
-}
 /* title row: title and save note on the left, search on the right; then one row of actions */
 body:has(#sheet) .topbar { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 10px; padding: 22px 32px 14px; }
 body:has(#sheet) .topbar::before { content: ""; order: 5; flex-basis: 100%; height: 0; }
@@ -775,12 +752,6 @@ body.p-embed .p-fact dd, body.p-embed .p-fact dd a { overflow-wrap: break-word; 
 .ns-many { display: flex; align-items: center; justify-content: space-between; gap: 10px 14px; flex-wrap: wrap; margin: 0 0 18px; padding: 12px 16px; border: 1px solid var(--border); border-radius: var(--r-sm); background: var(--soft); color: var(--text-dim); }
 
 /* 🔴 CSS CHANGED (2026-11-13): the student card, a calm and clean premium look (the card that opens from All Students, and the same page opened on its own) | from: first a light panel with a blue stripe, a bright blue button and grey pill tabs; then a heavy deep navy band with ivory text, champagne links and a bronze button | to: a light, calm top panel (soft off-white with a fine bronze line along its top), the name in a large navy serif, the initials in a soft navy circle with a thin bronze ring, the stage as a soft navy tag and the source as a fine outlined tag, a slim progress line of the student's journey (navy for steps done, bronze for where the student is now, grey for what is still to come, with "Step 3 of 8, Mock Stage" under it, or a calm amber note for Withdrawn, Hold, Defer and Visa Rejected), the details as a quiet two-column list, a navy "Send a message" and an outlined "Edit details"; tabs with a bronze line under the open one; panels with fine borders and roomy spacing, navy "Add note" and similar buttons, bronze timeline dots and quiet underlined "Remove" links */
-body:has(.p-embed-bar) {
-  --lux-ink: var(--brand-navy);
-  --lux-ink-2: var(--brand-navy-2);
-  --lux-bronze: var(--brand-bronze);
-  --lux-line: #d9dde4;
-}
 body:has(.p-embed-bar) .p-embed-bar { justify-content: flex-end; margin-bottom: 14px; padding-bottom: 0; border-bottom: 0; }
 body:has(.p-embed-bar) .p-embed-bar .btn { border: 1px solid var(--lux-line); background: var(--panel); color: var(--lux-ink-2); box-shadow: none; }
 body:has(.p-embed-bar) .p-embed-bar .btn:hover:not(:disabled) { border-color: var(--lux-ink-2); color: var(--lux-ink); }
@@ -923,29 +894,26 @@ body:has(#sheet) .topbar .came-from:focus { border-color: var(--lux-ink-2); box-
 @media (max-width: 900px) { body:has(#sheet) .topbar .came-from { order: 5; width: 100%; max-width: none; } }
 
 /* 🔴 CSS CHANGED (2026-11-13): one brand look on every page (Today, Dashboard, Follow-up, Add many students, Fact File, B2B Partners, Agents, Users, Activity, Message templates, Incentive, and the pages already redone) | from: heavy black sans page titles, plain number tiles with black figures, grey rounded pill tabs, cards and tables that each looked a little different, plain grey initials circles | to: every page title in the same large navy serif as All Students and the student card, with a short dim intro under it; number tiles with navy serif figures and a thin bronze line under the first; tabs as clean underline tabs with a bronze line under the open one; cards with the same fine border, roomy padding, soft shadow and navy headings; table headings on a soft navy tint; initials circles in soft navy with a bronze ring; on Today the counts on the cards in navy; the Dashboard number cards with serif figures */
-.p-head h1, .page-head h1, .ov-head h1 { font-family: var(--brand-serif); font-size: 36px; font-weight: 600; letter-spacing: 0; line-height: 1.15; color: var(--brand-navy); }
+.p-head h1, .page-head h1 { font-family: var(--brand-serif); font-size: 36px; font-weight: 600; letter-spacing: 0; line-height: 1.15; color: var(--brand-navy); }
 .p-head h1 + p, .page-head h1 + p, .p-head p, .page-head p { color: var(--text-dim); font-size: 16px; line-height: 1.55; max-width: 70ch; }
 /* number tiles */
-.p-kpi, .stat-tile { position: relative; padding: 18px 22px 20px; border: 1px solid var(--border); border-radius: 18px; background: var(--panel); box-shadow: 0 1px 2px rgba(20, 27, 41, .04), 0 14px 30px -28px rgba(29, 47, 82, .5); }
+.p-kpi { position: relative; padding: 18px 22px 20px; border: 1px solid var(--border); border-radius: 18px; background: var(--panel); box-shadow: 0 1px 2px rgba(20, 27, 41, .04), 0 14px 30px -28px rgba(29, 47, 82, .5); }
 .p-kpi b { font-family: var(--brand-serif); font-size: 32px; font-weight: 600; letter-spacing: 0; color: var(--brand-navy); }
 .p-kpi span { color: var(--text-dim); font-size: 14px; font-weight: 600; }
-.p-kpis > .p-kpi:first-child::after { content: ""; position: absolute; left: 22px; right: 22px; bottom: 0; height: 3px; border-radius: 3px 3px 0 0; background: var(--brand-bronze); }
-.ov-kpi b, .ov-kpi .ov-num, .ov-big, .ov-kpi-value { font-family: var(--brand-serif); color: var(--brand-navy); letter-spacing: 0; }
+
+.ov-kpi b, .ov-kpi-value { font-family: var(--brand-serif); color: var(--brand-navy); letter-spacing: 0; }
 /* cards */
 .p-card, .page .card { border: 1px solid var(--border); border-radius: 18px; background: var(--panel); box-shadow: 0 1px 2px rgba(20, 27, 41, .04), 0 16px 34px -30px rgba(29, 47, 82, .45); }
 .p-card h2, .page .card h2, .t-title b, .t-title strong { color: var(--brand-navy); }
 
 .p-avatar:not(.p-hero .p-avatar), .uni-mono { background: var(--gold-soft); color: var(--brand-navy); box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--brand-bronze) 55%, transparent); }
-/* tabs: underline, bronze under the open one */
-.p-tabs:not(body:has(.p-embed-bar) .p-tabs) { gap: 4px; padding: 0; border-radius: 0; background: transparent; border-bottom: 1px solid var(--border); width: 100%; }
-.p-tabs:not(body:has(.p-embed-bar) .p-tabs) button, .p-tabs:not(body:has(.p-embed-bar) .p-tabs) a { padding: 10px 16px 12px; border-radius: 0; font-size: 15px; font-weight: 550; color: var(--text-dim); }
-.p-tabs:not(body:has(.p-embed-bar) .p-tabs) button[aria-selected="true"], .p-tabs:not(body:has(.p-embed-bar) .p-tabs) a[aria-current="page"] { background: transparent; box-shadow: inset 0 -2px 0 var(--brand-bronze); color: var(--brand-navy); font-weight: 700; }
+/* 🔴 CSS CHANGED (2026-11-14): the old underline tabs (bronze under the open one) removed here | from: they beat the Apple segmented control on every page but the student card | to: every .p-tabs is the segmented control */
 /* tables */
 .p-table thead th, .page .card thead th, .table-card thead th { background: color-mix(in srgb, var(--gold-soft) 45%, var(--panel)); color: var(--brand-navy); font-weight: 650; border-bottom: 1px solid var(--border); }
 /* Fact File cards */
 .uni-card { border-radius: 18px; border: 1px solid var(--border); box-shadow: 0 1px 2px rgba(20, 27, 41, .04), 0 14px 30px -28px rgba(29, 47, 82, .45); }
 .uni-card:hover { border-color: color-mix(in srgb, var(--brand-navy) 35%, var(--border)); }
-.uni-card h3, .uni-card .uni-name, .uni-card strong { color: var(--brand-navy); }
+.uni-card h3, .uni-card strong { color: var(--brand-navy); }
 
 /* 🔴 CSS CHANGED (2026-11-13): B2B Partners and Agents rebuilt calm and premium | from: three plain number tiles and one table (name, status, agreement ends, commission, contact person, number, visas), and one long editor form under it | to: a summary band divided by fine lines (active partners, visas, ready to submit); a search box; each partner as a soft card (name in navy, city and visas under it, a status tag), on B2B Partners a navy-tinted "Application submission" box (Open portal with the username and the password, dots until Show, each with Copy, or the email with Copy and Write email), then Commission of the current intake, Contact and Agreement; the editor as its own view in numbered steps with a Save bar that stays at the bottom */
 .bp-page { max-width: 1480px; }
@@ -1028,7 +996,7 @@ body:has(#sheet) .topbar .came-from:focus { border-color: var(--lux-ink-2); box-
 
 /* 🔴 CSS CHANGED (2026-11-13): tasks | from: nothing | to: on Today a soft panel "Today's tasks" (a team) or "Assigned tasks" (Admin, Manager) above the work lists, one row per task with a round tick (navy with a white tick when done), the student's name in navy with the stage tag, the task, and a small line (team, by when, from whom, done by; amber when overdue); done tasks greyed; "Show done"; on the student card a "Tasks" panel with the same rows and "Assign a task"; a small "Needs attention" / "Your work lists" heading above the work lists */
 
-body:has(.p-embed-bar) .p-tasks-wide, body:has(.p-embed-bar) .p-tabs + div > .p-card.p-tasks { grid-column: 1 / -1 !important; grid-row: auto !important; }
+body:has(.p-embed-bar) .p-tabs + div > .p-card.p-tasks { grid-column: 1 / -1 !important; grid-row: auto !important; }
 
 /* 🔴 CSS CHANGED (2026-11-14): Message templates rebuilt calm and premium | from: two plain columns (a list of template boxes with the email signature form under it, and one long editor with a grid of stage tick boxes and a "Words you can use" fold-out), and a long yellow notice | to: a short soft notice; two underline tabs (Templates, Email signature); a slim list on the left with a search, each template a quiet row (name in navy, its stages under it, an "Edited" or "Yours" tag) and the open one marked with a bronze line; the editor in calm panels (Name and stages with the stages as pills, Email with the subject, the message and the fill-in words as chips, WhatsApp) and a Save bar that stays at the bottom; the signature on its own tab in three panels */
 .tp-page { max-width: 1480px; }
@@ -1193,20 +1161,7 @@ body:has(#sheet) #sheet tbody tr.pad-row td { border: 0; }
 /* 🔴 CSS CHANGED (2026-11-14): EVERY page in the design language of Apple's website and apps (first made on All Students and the student card; the owner then asked for it everywhere) | from: navy and bronze, a Palatino serif for titles and big numbers, bluish greys, outlined buttons, bordered pills, a bronze line on cards, "UK" beside the logo | to: the system font first (SF Pro on a Mac, iPhone and iPad, where it is built in; Inter, kept with the code, elsewhere); Apple's light grey canvas (#f5f5f7), off-white rounded panels (#fbfbfd) with soft shadows instead of borders; near-black text (#1d1d1f), grey secondary text (#515154); main buttons as blue pills (#0071e3, hover #0077ed), the others as soft grey pills (#e8e8ed); links and focus in Apple's blue; titles a touch tighter; segmented controls for tabs; small spaced capitals for table headings; the charts in Apple's system colours; a frosted menu with only the NIEC logo at the top (no "UK"). Apple's own images, logo and font files are not copied: SF Pro is used only where the device already has it */
 @font-face { font-family: "Inter"; font-style: normal; font-weight: 100 900; font-display: swap; src: url("/fonts/inter-latin.woff2") format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
 @font-face { font-family: "Inter"; font-style: normal; font-weight: 100 900; font-display: swap; src: url("/fonts/inter-latin-ext.woff2") format("woff2"); unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+1E00-1E9F, U+20A0-20AB, U+20AD-20C0, U+2C60-2C7F, U+A720-A7FF; }
-body {
-  --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Inter", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  --serif: var(--font); --brand-serif: var(--font);
-  --ink: #1d1d1f; --text: #1d1d1f; --text-dim: #515154; --head-ink: #515154;
-  --bg: #f5f5f7; --panel: #fbfbfd; --surface: #fbfbfd; --ui-panel: #fbfbfd; --edit-bg: #fdfdfe;
-  --soft: #e8e8ed; --border: #e3e3e8; --border-strong: #d2d2d7; --header-bg: #f7f7f9; --row-alt: #fafafc; --row-hover: #f0f6fd;
-  --brand-navy: #1d1d1f; --brand-navy-2: #3a3a3c; --brand-bronze: #0071e3; --gold-soft: #eef2f7; --brand-ivory: #ffffff;
-  --lux-ink: #1d1d1f; --lux-ink-2: #3a3a3c; --lux-bronze: #0071e3; --lux-line: #e3e3e8;
-  --primary: #0071e3; --primary-hover: #0077ed; --on-primary: #fff;
-  --focus: #0071e3; --focus-dim: #e8f2fd; --focus-strong: #c6dffa; --range-tint: rgba(0, 113, 227, .08);
-  --blue-bg: #e8f2fd; --blue-fg: #0058b9; --green-bg: #e7f5ec; --green-fg: #1d6b3a; --amber-bg: #fdf3dc; --amber-fg: #7a5200;
-  --red-bg: #fdeceb; --red-fg: #b42318; --gray-bg: #f0f0f3; --gray-fg: #48484e;
-  background: var(--bg); color: var(--ink); font-family: var(--font); -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;
-}
+body { background: var(--bg); color: var(--ink); font-family: var(--font); -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
 body :is(button, input, select, textarea, table, th, td, dialog) { font-family: var(--font); }
 
 /* ---- the menu: frosted and calm, only the NIEC logo at the top ---- */
@@ -1297,17 +1252,15 @@ body:has(.p-embed-bar) .p-hero .p-fact dd a { color: #0066cc; text-decoration: n
 body:has(.p-embed-bar) .p-hero .p-fact dd a:hover { text-decoration: underline; }
 
 /* ---- every page: titles, panels, buttons, fields, pills, tabs and tables in the same Apple-like look ---- */
-:root { --sh-1: none; --sh-2: 0 2px 12px rgba(0, 0, 0, .04); --sh-3: 0 4px 24px rgba(0, 0, 0, .06); --s1: #0071e3; --s2: #ff9f0a; --s3: #34c759; --s4: #5e5ce6; --s5: #64d2ff; }
-body { --s1: #0071e3; --s2: #ff9f0a; --s3: #30b350; --s4: #5e5ce6; --s5: #5ac8fa; --grid: #e8e8ed; --axis: #d2d2d7; --ov-track: #ececf0; --ov-grid: #ececf0; }
 body .ov { --ov-track: #ececf0; }
-h1, .p-head h1, .page-head h1, .ov-head h1, .td-hello h1 { font-family: var(--font); font-weight: 600; letter-spacing: -.02em; color: var(--ink); }
+h1, .p-head h1, .page-head h1, .td-hello h1 { font-family: var(--font); font-weight: 600; letter-spacing: -.02em; color: var(--ink); }
 .td-hello h1 { font-size: 44px; }
 h2, h3, .p-card > h2, .p-card-head h2, .md-card-head h2, .td-tasks-head h2, .td-attn-head h2, body:has(.p-embed-bar) #view .p-card:not(.p-hero) h2 { font-family: var(--font); font-weight: 600; letter-spacing: -.015em; color: var(--ink); }
 .p-card-head h2, .p-card > h2 { font-size: 19px; }
-.p-kpi b, .md-kpi b, .md-week-item b, .ov-kpi b, .ov-kpi .ov-num, .ov-big, .ov-kpi-value, .stat-value { font-family: var(--font); font-weight: 600; letter-spacing: -.025em; color: var(--ink); }
+.p-kpi b, .md-kpi b, .md-week-item b, .ov-kpi b, .ov-kpi-value, .stat-value { font-family: var(--font); font-weight: 600; letter-spacing: -.025em; color: var(--ink); }
 .td-kicker { color: #6e6e73; letter-spacing: .08em; }
 /* panels: no hard borders, soft shadow, generous corners */
-.p-card, .page .card, .md-card, .md-kpi, .td-attn, .td-tasks, .p-kpi, .stat-tile, .bp-card, .pu-card, .ov-card, .tp-panel, .tp-list, .bp-band, .ev-band, .p-table-wrap, .admin-card, .fact-card { border-color: rgba(0, 0, 0, .05) !important; border-radius: 20px; background: var(--panel); box-shadow: var(--sh-2); }
+.p-card, .page .card, .md-card, .md-kpi, .td-attn, .td-tasks, .p-kpi, .bp-card, .pu-card, .ov-card, .tp-panel, .tp-list, .bp-band, .ev-band, .p-table-wrap { border-color: rgba(0, 0, 0, .05) !important; border-radius: 20px; background: var(--panel); box-shadow: var(--sh-2); }
 .td-tasks { background: var(--panel); box-shadow: var(--sh-3); }
 .td-tasks::before { width: 3px; background: #0071e3; }
 .td-task { border-color: var(--border); background: #fdfdfe; border-radius: 14px; }
@@ -1315,7 +1268,7 @@ h2, h3, .p-card > h2, .p-card-head h2, .md-card-head h2, .td-tasks-head h2, .td-
 .md-kpi:first-child { box-shadow: inset 0 -3px 0 #0071e3, var(--sh-2); }
 .md-taskline { border: 0; border-left: 3px solid #0071e3; background: var(--panel); box-shadow: var(--sh-2); }
 .md-taskline.has-late { border-left-color: var(--red-fg); }
-.p-kpis > .p-kpi:first-child::after { background: #0071e3; }
+
 .md-bar-fill { background: #0071e3; }
 .td-attn-count { background: #e8e8ed; color: #1d1d1f; }
 .td-av, .p-avatar:not(.p-hero .p-avatar), .uni-mono { background: #e8e8ed; color: #1d1d1f; box-shadow: none; border: 0; }
@@ -1339,7 +1292,7 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, .p-field inpu
 .p-tabs button { padding: 7px 16px; border: 0; border-radius: 9px; background: transparent; color: #515154; font-weight: 500; box-shadow: none; }
 .p-tabs button[aria-selected="true"] { background: #fff; color: #1d1d1f; font-weight: 600; box-shadow: 0 1px 2px rgba(0, 0, 0, .08), 0 2px 8px -4px rgba(0, 0, 0, .12); }
 /* tables on the other pages: headings in small spaced capitals */
-.p-table th, .page table th, .admin-table th { background: #f7f7f9; color: #6e6e73; font-size: 12.5px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; border-bottom: 1px solid var(--border-strong); }
+.p-table th, .page table th { background: #f7f7f9; color: #6e6e73; font-size: 12.5px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; border-bottom: 1px solid var(--border-strong); }
 .p-table td, .page table td { border-color: #ececf0; }
 .p-notice, .tp-note { border-radius: 14px; }
 /* the cost figures and campaign tags on Events and marketing in the same look (the page's own styles come after this file, so these carry the body in front) */
@@ -1405,3 +1358,73 @@ details.td-attn-row[open] .td-attn-list { animation: isr-slide-down .35s var(--e
   .seg-thumb, .btn, .td-task, .pu-card, .bp-card, body:has(#sheet) .stat-card { transition: none !important; }
   dialog.p-dialog[open], dialog.ui-dialog[open], body:has(#sheet) .status-summary:not([hidden]), details.td-attn-row[open] .td-attn-list, ::view-transition-old(root), ::view-transition-new(root) { animation: none !important; }
 }
+
+/* 🔴 CSS CHANGED (2026-11-14): the last old pieces found by the page-by-page design review, now in the Apple look | from: Users, Activity and Incentive tabs as navy text with an orange underline; navy access chips, counts and "Logged in" pills; navy-barred tiles on Activity; orange step circles, an orange bar on the intake box and navy markers on the Fact File university page; bronze note-type pills, a navy bar on the chosen university option and black underlined links on the student card; coloured bars on the left of task rows, the task panel, the task strip and the first figure card; champagne initials in the account circle; navy filter-menu buttons and checkboxes; a square ⋮ on the intake tabs; a square navy "Add payment" and navy bars on the Incentive totals; square confirm buttons; a navy-tinted Ctrl+K search; small 11 to 12.5px labels; page titles of four different sizes; coloured stubs on the Dashboard cards | to: every tab row a segmented control with the sliding pill; chips and counts as soft grey or soft blue pills; no coloured bars anywhere (the status pills say late or due); Apple blue for links, step numbers and switched-on chips; white initials; a blue pill "Add payment"; pill buttons in every confirm box; a neutral blurred Ctrl+K; labels at least 13px; page titles 36px everywhere (the Today greeting 40px) */
+.niec-avatar { color: #fff !important; }
+/* tabs on Users, Activity and Incentive: segmented control */
+.tabs[role="tablist"], #tabs.tabs { display: inline-flex; flex-wrap: wrap; gap: 2px; width: auto; padding: 3px; border: 0; border-radius: 12px; background: #e8e8ed; box-shadow: none; }
+.tabs > button, .tabs > .tab { margin: 0; padding: 7px 16px; border: 0 !important; border-radius: 9px; background: transparent; color: #515154; font-weight: 500; box-shadow: none !important; }
+.tabs > button[aria-selected="true"], .tabs > .tab.active { color: #1d1d1f; font-weight: 600; }
+.tabs:not(.has-thumb) > button[aria-selected="true"], .tabs:not(.has-thumb) > .tab.active { background: #fff; }
+.tabs .count { margin-left: 6px; padding: 1px 8px; border-radius: 980px; background: rgba(0, 0, 0, .06); color: #515154; font-weight: 600; }
+/* chips and pills */
+.chip-admin, .chip-manager, .chip { border: 0; border-radius: 980px; background: #e8e8ed; color: #1d1d1f; }
+.activity-action.cat-logins { background: #e8f2fd; color: #0058b9; }
+#summary .tile { border: 0 !important; border-left: 0 !important; border-radius: 18px; background: var(--panel); box-shadow: var(--sh-2); }
+#view-only, #viewOnly.view-only, .view-only { border: 0; border-radius: 980px; background: #e8e8ed; color: #515154; }
+/* Fact File university page */
+.doc ol li::before { background: #e8f2fd !important; color: #0058b9 !important; border: 0 !important; }
+div.intake { border: 0 !important; border-left: 0 !important; border-radius: 18px; background: var(--panel); box-shadow: var(--sh-2); }
+.doc h2::before { background: #0071e3 !important; }
+dl.glance dt { color: #6e6e73; }
+.chips .chip, .intake-chips .chip { background: #e8f2fd; color: #0058b9; }
+button.find-link { border: 0 !important; background: transparent !important; color: #0066cc !important; padding-left: 0; padding-right: 0; }
+button.find-link:hover { text-decoration: underline; }
+thead th, .p-table th { font-size: 13px !important; }
+/* student card */
+body:has(.p-embed-bar) .p-when span:first-of-type { border: 0; background: #f0f0f3; color: #48484e; }
+.p-chosen-item { border-left: 0 !important; box-shadow: var(--sh-2); }
+.p-chosen-item a, .p-option a { color: #0066cc; text-decoration: none; }
+.p-chosen-item a:hover, .p-option a:hover { text-decoration: underline; }
+button.p-link, body:has(.p-embed-bar) .p-timeline .p-link { color: #0066cc; text-decoration: none; }
+button.p-link:hover, body:has(.p-embed-bar) .p-timeline .p-link:hover { text-decoration: underline; color: #0066cc; }
+body:has(.p-embed-bar) .p-hero .p-fact dt { font-size: 13px; letter-spacing: .04em; }
+/* tasks and Today: no coloured bars, the status pills say it */
+.td-task.is-late, .td-task.is-today { border-left: 1px solid var(--border); }
+.td-tasks::before { content: none; }
+.md-taskline, .md-taskline.has-late { border-left: 0; }
+.md-kpi:first-child { box-shadow: var(--sh-2); }
+.td-kicker, .td-group h3 { font-size: 13px; }
+.td-done-toggle { color: #0066cc; text-decoration: none; }
+.td-done-toggle:hover { text-decoration: underline; }
+/* one size for page titles */
+h1, .p-head h1, .page-head h1, .ov-head h1, body:has(#sheet) .sheet-title, body:has(.p-embed-bar) .p-hero h1 { font-size: 36px; }
+.td-hello h1 { font-size: 40px; }
+/* All Students: filter menu, intake tab menu */
+.filter-menu .filter-menu-actions button { color: #0066cc; }
+.filter-menu-item input[type="checkbox"], input[type="checkbox"] { accent-color: #0071e3; }
+.filter-menu-title { font-size: 13px; }
+.sheet-tab-menu-btn { border-radius: 980px; }
+body:has(#sheet) .stat-card.stat-total .stat-value { color: #1d1d1f; }
+/* Incentive */
+#payAdd, .pay-add { border: 0 !important; border-radius: 980px !important; background: #0071e3 !important; color: #fff !important; }
+#payAdd:hover, .pay-add:hover { background: #0077ed !important; }
+.summary-row.final { box-shadow: none !important; }
+.synced-badge { font-size: 13px; }
+/* confirm boxes, Ctrl+K, toasts, account menu */
+dialog.ui-dialog .ui-ok, dialog.ui-dialog button { border-radius: 980px; }
+dialog.ui-dialog button:not(.ui-ok) { border: 0; background: #e8e8ed; color: #1d1d1f; }
+dialog.ui-dialog .ui-ok { border: 0; background: #0071e3; color: #fff; }
+dialog.ui-dialog .ui-ok.danger, dialog.ui-dialog .ui-ok.ui-danger { background: #d70015; }
+.fly-pal-back { background: rgba(0, 0, 0, .25); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); }
+.fly-pal { background: var(--panel); color: #1d1d1f; border-radius: 22px; }
+.fly-pal-input { background: var(--panel); color: #1d1d1f; }
+.fly-pal-item { color: #1d1d1f; }
+.fly-pal-item.on, .fly-pal-item:hover { background: #e8f2fd; }
+.fly-pal-kind { font-size: 13px; color: #6e6e73; }
+.ui-toast button { border-radius: 50%; }
+.niec-menu .niec-logout:hover { background: #fdeceb; border-radius: 8px; }
+/* Message templates: switched-on stages */
+.tp-stage.on { border-color: #0071e3; background: #0071e3; color: #fff; }
+/* Dashboard: no coloured stubs on the figure cards */
+.ov-kpi::before { content: none !important; }

@@ -10,7 +10,6 @@
   const updated = document.getElementById('updated');
   const REFRESH_MS = 45000;
   const COLORS = { inquiry: 'var(--s5)', applied: 'var(--s1)', offer: 'var(--s4)', paid: 'var(--s2)', visa: 'var(--s3)' };
-  const TREND_LABEL = { inquiry: 'Inquiries', applied: 'Applications', offer: 'Offers', paid: 'Payments', visa: 'Visas' };
   let selected = (() => { try { return decodeURIComponent(location.hash.slice(1)).replace(/^tab=.*/, ''); } catch (e) { return ''; } })();
   let dash = null;
   let ins = null;
@@ -18,15 +17,11 @@
   let isAdmin = false; // only Admin sets the visa target
   let seq = 0;
   let timer = null;
-  const hidden = new Set(['inquiry', 'offer']); // trend lines switched off (two lines to start with, the others with one click)
-  let channelMetric = 'students';
 
   // ---- small helpers ----
   const svg = (tag, attrs = {}) => { const e = document.createElementNS(SVG, tag); Object.entries(attrs).forEach(([k, v]) => e.setAttribute(k, v)); return e; };
   const num = (v) => (v === null || v === undefined ? 'n/a' : number(v));
   const pct = (v) => (v === null || v === undefined ? 'n/a' : `${v}%`);
-  const compact = (v) => (v >= 1e7 ? `${(v / 1e7).toFixed(1).replace(/\.0$/, '')} Cr` : v >= 1e5 ? `${(v / 1e5).toFixed(1).replace(/\.0$/, '')} L` : v >= 1e3 ? `${(v / 1e3).toFixed(1).replace(/\.0$/, '')}K` : String(v));
-  const shortDay = (iso) => { const d = new Date(iso + 'T00:00:00Z'); return `${d.getUTCDate()} ${['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][d.getUTCMonth()]}`; };
 
   // The hover readout.
   const tip = document.getElementById('tip');
@@ -67,21 +62,6 @@
     return s;
   }
 
-  // ---- the headline numbers ----
-  // The intake before the chosen one (in the order of the sheet), for "compared with".
-  function previous() {
-    const list = ins.compare || [];
-    const i = list.findIndex((c) => c.id === ins.selected);
-    return i > 0 ? list[i - 1] : null;
-  }
-  // Last intake's figure beside this one, in plain words. No arrows or colours: an intake that is still running is not
-  // comparable with one that has finished, so the page does not call a difference good or bad.
-  function deltaNode(cur, prev, prevLabel, { isPercentPoints = false } = {}) {
-    const d = el('div', 'ov-delta');
-    if (prev === null || prev === undefined) { d.append(el('span', 'ov-delta-none', 'No earlier intake to compare')); return d; }
-    d.append(el('span', 'ov-delta-text', `${prevLabel}: ${isPercentPoints ? prev + '%' : number(prev)}`));
-    return d;
-  }
   function kpis() {
     const s = ins.summary;
     const trend = ins.trend || [];
@@ -143,22 +123,6 @@
     return c;
   }
 
-  // ---- what needs a decision: the top three, in plain words ----
-  function decisionCard() {
-    const c = card('ov-decide', 'Needs a decision', 'The most important things the figures say today');
-    const list = ins.findings.slice(0, 3);
-    if (!list.length && !dash.attention.length) { c.append(el('p', 'ov-ok', 'Nothing needs a decision right now.')); return c; }
-    const ol = el('ol', 'ov-decide-list');
-    list.forEach((f) => { const li = el('li'); li.append(el('b', '', f.title), el('span', '', f.decision)); ol.append(li); });
-    c.append(ol);
-    if (dash.attention.length) {
-      const w = el('div', 'ov-wait'); w.append(el('h3', '', 'Students waiting too long'));
-      dash.attention.slice(0, 3).forEach((a) => { const r = el('div', 'ov-wait-row'); r.append(el('b', '', String(a.count)), el('span', '', a.text)); w.append(r); });
-      c.append(w);
-    }
-    const more = el('button', 'p-link ov-more', 'See every decision'); more.type = 'button'; more.addEventListener('click', () => { const b = document.querySelector('#dashTabs [data-tab="decisions"]'); if (b) b.click(); }); c.append(more);
-    return c;
-  }
 
   // ---- the funnel ----
   function funnelCard() {
@@ -179,70 +143,7 @@
     return c;
   }
 
-  // ---- the trend ----
-  function trendCard() {
-    const rows = ins.trend || [];
-    const c = card('ov-trend', 'Week by week', 'What happened each week in the last 12 weeks, by the date entered on each student');
-    const legend = el('div', 'ov-legend', '');
-    legend.setAttribute('role', 'group'); legend.setAttribute('aria-label', 'Show or hide a line');
-    Object.keys(TREND_LABEL).forEach((k) => {
-      const b = el('button', 'ov-legend-btn', '');
-      b.type = 'button'; b.setAttribute('aria-pressed', String(!hidden.has(k)));
-      const dot = el('i', 'ov-dot'); dot.style.background = COLORS[k];
-      b.append(dot, TREND_LABEL[k]);
-      b.addEventListener('click', () => { if (hidden.has(k)) hidden.delete(k); else hidden.add(k); draw(); });
-      legend.append(b);
-    });
-    c.head.append(legend);
-    const W = 720; const H = 250; const pad = { l: 36, r: 14, t: 12, b: 28 };
-    const shown = Object.keys(TREND_LABEL).filter((k) => !hidden.has(k));
-    const max = Math.max(4, ...rows.flatMap((r) => shown.map((k) => r[k])));
-    const top = Math.ceil(max / 4) * 4;
-    const x = (i) => pad.l + (rows.length > 1 ? (i / (rows.length - 1)) * (W - pad.l - pad.r) : (W - pad.l - pad.r) / 2);
-    const y = (v) => H - pad.b - (v / top) * (H - pad.t - pad.b);
-    const s = svg('svg', { viewBox: `0 0 ${W} ${H}`, class: 'ov-chart', role: 'img', 'aria-label': 'Week by week chart' });
-    for (let g = 0; g <= 4; g += 1) {
-      const v = (top / 4) * g;
-      s.append(svg('line', { x1: pad.l, x2: W - pad.r, y1: y(v), y2: y(v), stroke: 'var(--ov-grid)', 'stroke-width': 1 }));
-      const t = svg('text', { x: pad.l - 8, y: y(v) + 4, 'text-anchor': 'end', class: 'ov-axis' }); t.textContent = String(Math.round(v)); s.append(t);
-    }
-    rows.forEach((r, i) => {
-      if (i % 2 === 0 || rows.length < 7) { const t = svg('text', { x: x(i), y: H - 8, 'text-anchor': 'middle', class: 'ov-axis' }); t.textContent = shortDay(r.start); s.append(t); }
-    });
-    shown.forEach((k) => {
-      const pts = rows.map((r, i) => [x(i), y(r[k])]);
-      if (!pts.length) return;
-      const d = pts.map((p, i) => `${i ? 'L' : 'M'}${p[0].toFixed(1)} ${p[1].toFixed(1)}`).join(' ');
-      if (shown.length <= 2) s.append(svg('path', { d: `${d} L${pts[pts.length - 1][0]} ${H - pad.b} L${pts[0][0]} ${H - pad.b} Z`, fill: COLORS[k], opacity: '.1' }));
-      s.append(svg('path', { d, fill: 'none', stroke: COLORS[k], 'stroke-width': 2.5, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }));
-    });
-    // One invisible column per week carries the readout.
-    rows.forEach((r, i) => {
-      const colW = (W - pad.l - pad.r) / Math.max(1, rows.length - 1);
-      const hit = svg('rect', { x: x(i) - colW / 2, y: pad.t, width: colW, height: H - pad.t - pad.b, fill: 'transparent' });
-      hover(hit, () => ({ title: `${shortDay(r.start)} to ${shortDay(r.end)}`, rows: shown.map((k) => ({ name: TREND_LABEL[k], value: num(r[k]), color: COLORS[k] })) }));
-      s.append(hit);
-    });
-    c.append(s);
-    return c;
-  }
 
-  // ---- where students come from ----
-  function channelsCard() {
-    const c = card('ov-channels', 'Where students come from', 'The five biggest sources, and how many of their students reached a visa');
-    const list = ins.channels.sources.filter((g) => !g.spendOnly).slice(0, 5);
-    const max = Math.max(1, ...list.map((g) => g.students));
-    const box = el('div', 'ov-rank');
-    list.forEach((g) => {
-      const row = el('div', 'ov-rank-row');
-      const track = el('span', 'ov-rank-track'); const fill = el('i', 'ov-rank-fill'); fill.style.width = Math.max(2, (g.students / max) * 100) + '%'; track.append(fill);
-      row.append(el('span', 'ov-rank-label', g.label), track, el('b', 'ov-rank-value', num(g.students)), el('span', 'ov-rank-note', `${num(g.visas)} ${g.visas === 1 ? 'visa' : 'visas'}`));
-      hover(row, () => ({ title: g.label, rows: [{ name: 'Students', value: num(g.students) }, { name: 'Paid', value: num(g.paid) }, { name: 'Visas', value: num(g.visas) }, ...(g.costPerVisa ? [{ name: 'Cost per visa', value: rupees(g.costPerVisa) }] : [])] }));
-      box.append(row);
-    });
-    c.append(box);
-    return c;
-  }
 
   // ---- universities and partners ----
   function leaderboard(title, sub, list, concentration, what) {
@@ -414,6 +315,6 @@
     timer = setTimeout(() => { if (!document.hidden && !root.hidden) load(); }, REFRESH_MS);
   }
   picker.addEventListener('change', () => { selected = picker.value; history.replaceState(null, '', location.pathname); load(); });
-  window.DashboardOverview = { load, intake: () => selected, setIntake: (v) => { selected = v; } };
+  window.DashboardOverview = { load };
   if (!(location.hash.match(/tab=(\w+)/) || [])[1]) load();
 })();

@@ -29,13 +29,9 @@
   label { margin-top: 10px; font-size: 14px; font-weight: 500; color: var(--dim); }
   input { font: inherit; height: 52px; padding: 0 16px; border: 1px solid var(--line); border-radius: 12px; background: #fff; color: var(--ink); transition: border-color .15s, box-shadow .15s; }
   input:focus { outline: none; border-color: var(--blue); box-shadow: 0 0 0 4px rgba(0, 113, 227, .2); }
-  input.code { font-size: 22px; letter-spacing: .3em; text-align: center; font-variant-numeric: tabular-nums; }
   .note { margin: 0 0 6px; padding: 12px 14px; border-radius: 12px; background: var(--note-bg); font-size: 15px; }
   .note ol { margin: 4px 0 0; padding-left: 18px; }
   .hint { margin: 2px 0 0; color: var(--dim); font-size: 14px; }
-  .qr { display: flex; justify-content: center; margin: 10px 0 4px; }
-  .qr canvas, .qr img { padding: 8px; background: #fff; border-radius: 8px; }
-  .secret { font: 600 13px/1.4 ui-monospace, Menlo, Consolas, monospace; word-break: break-all; text-align: center; padding: 6px; border: 1px dashed var(--line); border-radius: 6px; user-select: all; }
   .error { margin: 12px 0 0; color: var(--danger); font-size: 15px; text-align: center; }
   .error[hidden] { display: none; }
   button { margin-top: 22px; height: 50px; padding: 0 22px; border: 0; border-radius: 980px; background: var(--blue); color: #fff; font: inherit; font-weight: 500; cursor: pointer; transition: background .15s; }
@@ -166,7 +162,7 @@
         show(await handler());
       } catch (err) {
         showError(err.message || 'Could not reach the server. Check your connection and try again.');
-        const pw = form.querySelector('input[type=password], input.code');
+        const pw = form.querySelector('input[type=password]');
         if (pw) pw.select();
       }
       submit.textContent = label;

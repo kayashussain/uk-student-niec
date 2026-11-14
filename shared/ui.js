@@ -109,7 +109,7 @@
 // chosen segment, as on a Mac. It only adds a decorative <span class="seg-thumb"> inside the control; nothing else changes.
 (function () {
   if (typeof document === 'undefined' || !window.MutationObserver) return;
-  const BOXES = '.p-tabs, .sheet-tabs-list, .dd-switch';
+  const BOXES = '.p-tabs, .sheet-tabs-list, .dd-switch, .tabs';
   const isOn = (c) => c.getAttribute('aria-selected') === 'true' || c.classList.contains('active') || c.classList.contains('on');
   function sync(box, animate) {
     let thumb = box.querySelector(':scope > .seg-thumb');

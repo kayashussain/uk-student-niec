@@ -22,8 +22,6 @@ body.p-embed { padding-left: 0 !important; }
 .niec-name { display: block; min-width: 0; }
 .niec-name b { display: block; font-size: 30px; font-weight: 800; letter-spacing: -.03em; line-height: 1.1; color: var(--h-text); }
 .niec-mark { display: none; flex: 0 0 44px; width: 44px; height: 44px; border-radius: 12px; background: var(--h-gold); color: #fff; font-size: 15px; font-weight: 800; letter-spacing: .02em; place-items: center; }
-.niec-brand-name { display: block; font-weight: 700; font-size: 26px; line-height: 1; letter-spacing: -.04em; color: var(--h-text); }
-.niec-brand-sub { display: block; font-size: 12px; color: var(--h-dim); }
 
 .niec-nav { display: flex; flex-direction: column; align-items: stretch; align-self: stretch; gap: 3px; margin: 10px 0 0; min-width: 0; }
 .niec-nav a {
@@ -36,7 +34,6 @@ body.p-embed { padding-left: 0 !important; }
 .niec-nav a[aria-current="page"]::before { content: none; }
 .niec-ico { display: grid; place-items: center; flex: 0 0 22px; width: 22px; height: 22px; }
 .niec-ico svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
-
 
 .niec-account { margin-top: auto; position: relative; padding-top: 12px; border-top: 1px solid var(--h-border); }
 .niec-account-btn { display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px; border: 1px solid transparent; border-radius: 14px; background: rgba(20, 30, 50, .05); color: inherit; font: inherit; cursor: pointer; text-align: left; }
@@ -57,8 +54,6 @@ body.p-embed { padding-left: 0 !important; }
 .niec-menu .niec-logout { color: #c0392b; border-top: 1px solid #d5dae2; border-radius: 0 0 8px 8px; margin-top: 4px; padding-top: 10px; }
 
 /* Folded: icons only (on a wide window; a phone always has the bar across the top). */
-@media (min-width: 901px) {
-}
 
 /* Phones and small windows: the menu goes back to a bar across the top. */
 @media (max-width: 900px) {
@@ -68,7 +63,7 @@ body.p-embed { padding-left: 0 !important; }
   .niec-brand { flex-direction: row; align-items: center; padding: 0; border: 0; }
   .niec-name { display: none; }
   .niec-mark { display: grid; width: 34px; height: 34px; flex-basis: 34px; font-size: 13px; }
-  .niec-account-text, .niec-caret, .niec-fold { display: none; }
+  .niec-account-text, .niec-caret { display: none; }
   .niec-nav { flex-direction: row; margin: 0; overflow-x: auto; scrollbar-width: none; flex: 1; }
   .niec-nav a { padding: 8px 10px; }
   .niec-nav a[aria-current="page"]::before { content: none; }
@@ -92,5 +87,4 @@ body.p-embed { padding-left: 0 !important; }
 .fly-pal-empty { padding: 22px; text-align: center; color: #5a6781; }
 .fly-pal-foot { display: flex; gap: 18px; padding: 10px 18px; border-top: 1px solid #d5dae2; background: #eceff3; font-size: 12px; color: #5a6781; }
 .fly-pal-foot kbd { margin-right: 4px; padding: 1px 6px; border: 1px solid #d3d9e6; border-radius: 6px; background: #fff; font: 11px/1.5 inherit; }
-
 
