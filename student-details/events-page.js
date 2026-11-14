@@ -139,7 +139,17 @@
     const l2 = el('label'); l2.append('File (Excel or CSV)', file);
     row.append(l1, l2);
     const out = el('div');
-    p.append(row, out);
+    // Take the list back (the owner, 14 Nov 2026): remove the enquiries this list added, to upload a better one, without deleting
+    // the event. Only those nobody has worked on go; the review says who stays and why, and a copy of everything is saved first.
+    const takeBack = h('button', { class: 'btn', type: 'button' }, 'Remove the enquiries this list added');
+    takeBack.addEventListener('click', async () => {
+      takeBack.disabled = true;
+      try { out.replaceChildren(removal(a, await api(`/api/activities/${a.id}/students/remove`, { preview: true }), () => out.replaceChildren())); } catch (e) { say(e.message, true); }
+      takeBack.disabled = false;
+    });
+    const more = el('div', 'ev-actions'); more.style.marginTop = '10px';
+    more.append(takeBack, el('span', 'p-muted', 'To fix a list: remove its enquiries, then upload the corrected file.'));
+    p.append(row, more, out);
     file.addEventListener('change', async () => {
       const f = file.files && file.files[0];
       if (!f) return;
@@ -195,6 +205,33 @@
     ok.addEventListener('click', async () => { ok.disabled = true; try { await onOk(); } catch (e) { say(e.message, true); ok.disabled = false; } });
     const actions = el('div', 'ev-actions'); actions.append(ok, h('button', { class: 'btn', type: 'button', onclick: onCancel }, 'Cancel'), el('span', 'p-muted', 'Nothing is saved until you confirm.'));
     box.append(counts, ...(gone ? [gone] : []), list, actions);
+    return box;
+  }
+
+  // The review before a list's enquiries are removed: who goes, who stays and why.
+  function removal(a, pre, onCancel) {
+    const box = el('div');
+    const counts = el('div', 'ev-counts');
+    [['other', `${pre.remove.length} will be removed`], ['already', `${pre.worked.length} worked on, stay`], ['already', `${pre.before.length} in ISR before the list, stay`]]
+      .forEach(([k, t]) => counts.append(el('span', `ev-count ${k}`, t)));
+    const list = el('div', 'ev-review');
+    const line = (x, what, look, why) => { const r = el('div', 'ev-rline'); r.append(el('span', `what ${look}`, what), el('b', '', x.name), el('span', '', `${x.intake}, ${x.stage || 'no stage'}`), el('span', 'why', why)); list.append(r); };
+    pre.remove.forEach((x) => line(x, 'Remove', 'other', 'Added by this list, not worked on yet'));
+    pre.worked.forEach((x) => line(x, 'Stays', 'already', x.why));
+    pre.before.forEach((x) => line(x, 'Stays', 'already', x.why));
+    const ok = h('button', { class: 'btn btn-danger', type: 'button', disabled: !pre.remove.length }, pre.remove.length ? `Remove ${pre.remove.length} enquir${pre.remove.length === 1 ? 'y' : 'ies'}` : 'Nothing to remove');
+    ok.addEventListener('click', async () => {
+      if (!(await window.NiecUI.confirm(`Remove the ${pre.remove.length} enquir${pre.remove.length === 1 ? 'y' : 'ies'} this list added, with their cards? A copy of everything is saved first (Admin, Restore), and you can upload the corrected list straight after.`, { danger: true, confirmText: 'Remove' }))) return;
+      ok.disabled = true;
+      try {
+        const done = await api(`/api/activities/${a.id}/students/remove`, {});
+        say(`${done.removed} removed. Upload the corrected list now.`);
+        onCancel();
+        await refresh();
+      } catch (e) { say(e.message, true); ok.disabled = false; }
+    });
+    const actions = el('div', 'ev-actions'); actions.append(ok, h('button', { class: 'btn', type: 'button', onclick: onCancel }, 'Cancel'), el('span', 'p-muted', 'Nothing is removed until you confirm.'));
+    box.append(counts, list, actions);
     return box;
   }
 

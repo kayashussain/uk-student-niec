@@ -835,6 +835,7 @@ const portal = createPortalApi({
   cards, messages, courseLinks, sourceOptions, courseLinker: courseFinder, courseWatch: () => courseWatch, facts, direct, b2b, agents, planning, accounts, activity, rates: createRates(DATA_DIR),
   insights: servedInsights, finder: createFinder(), calculated: CALCULATED_COLUMNS,
   userMail, officeMailSettings: () => require('../shared/mailer').loadConfig(DATA_DIR),
+  safetyCopy: () => backups.create('manual'),
 });
 
 try {

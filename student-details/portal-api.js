@@ -32,7 +32,7 @@ const NEW_STUDENT_COLUMNS = ['FIRST NAME', 'LAST NAME', 'EMAIL', 'CONTACT NUMBER
 
 function createPortalApi({
   getWorkbook, writeWorkbook, recordChanges, teamSave, cards, messages, courseLinks, sourceOptions, courseLinker = null, courseWatch = () => null, facts, direct, b2b, agents, planning, accounts, activity, rates = null,
-  insights = null, finder = null, calculated = [], userMail = null, officeMailSettings = () => ({}),
+  insights = null, finder = null, calculated = [], userMail = null, officeMailSettings = () => ({}), safetyCopy = () => null,
 }) {
   // ---- where to send a student's application: the portal link and email saved on Partner Universities ----
   // The student's university is matched to a partner by name, ignoring case, spaces and punctuation; a partner name with a
@@ -836,7 +836,7 @@ function createPortalApi({
     // The first inquiry day is the day the student is added, unless the list it came from says when they enquired. A lead list can
     // also say the level of study the student asked about.
     const asked = /^\d{4}-\d{2}-\d{2}$/.test(text(profile.inquiryDate)) && text(profile.inquiryDate) <= cards.today() ? text(profile.inquiryDate) : cards.today();
-    const saved = cards.setProfile(rowId, { sourceDetail: profile.sourceDetail, sourceRemarks: profile.sourceRemarks || '', inquiryDate: asked, ...(asked === text(profile.inquiryDate) && /^\d{1,2}:\d{2} (am|pm)$/.test(text(profile.inquiryTime)) ? { inquiryTime: text(profile.inquiryTime) } : {}), ...(Fields.STUDY_LEVELS.includes(profile.studyLevel) ? { studyLevel: profile.studyLevel } : {}), ...(Fields.DISTRICTS.includes(profile.livesIn) ? { livesIn: profile.livesIn } : {}),
+    const saved = cards.setProfile(rowId, { sourceDetail: profile.sourceDetail, sourceRemarks: profile.sourceRemarks || '', inquiryDate: asked, ...(asked === text(profile.inquiryDate) && /^\d{1,2}:\d{2} (am|pm)$/.test(text(profile.inquiryTime)) ? { inquiryTime: text(profile.inquiryTime) } : {}), ...(Fields.STUDY_LEVELS.includes(profile.studyLevel) ? { studyLevel: profile.studyLevel } : {}), ...(Fields.DISTRICTS.includes(profile.livesIn) ? { livesIn: profile.livesIn } : {}), ...(/^[a-f0-9]{12}$/.test(text(profile.fromList)) ? { fromList: text(profile.fromList) } : {}),
       // From the passport, and how a Social Media student came (cleanProfile keeps only what is valid).
       ...Object.fromEntries(['dob', 'passportNo', 'address', 'nationality', 'sourcePlatform', 'sourceWay'].filter((k) => text(profile[k])).map((k) => [k, text(profile[k])])) }, by(req));
     if (!saved.error && text(body.note)) cards.addNote(rowId, { text: body.note, kind: 'note' }, by(req));
@@ -1095,7 +1095,7 @@ function createPortalApi({
     let added = 0; let linked = 0; let updated = 0; const failed = [];
     for (const x of out) {
       if (x.action === 'new') {
-        const r = addStudent(req, { fields: { 'FIRST NAME': x.first, 'LAST NAME': x.last, EMAIL: x.email, 'CONTACT NUMBER': x.phone, 'STUDENT SOURCE': source }, profile: { sourceDetail: label, studyLevel: x.level, inquiryDate: x.inquiryDate, inquiryTime: x.inquiryDate ? x.inquiryTime : '', livesIn: x.livesIn }, stage: 'Inquiry', sheetId: x.sheetId || body.sheetId, note: `Enquiry from ${ev.name}, from its enquiry list.${x.extra ? ` ${x.extra}.` : ''}` });
+        const r = addStudent(req, { fields: { 'FIRST NAME': x.first, 'LAST NAME': x.last, EMAIL: x.email, 'CONTACT NUMBER': x.phone, 'STUDENT SOURCE': source }, profile: { sourceDetail: label, studyLevel: x.level, inquiryDate: x.inquiryDate, inquiryTime: x.inquiryDate ? x.inquiryTime : '', livesIn: x.livesIn, fromList: ev.id }, stage: 'Inquiry', sheetId: x.sheetId || body.sheetId, note: `Enquiry from ${ev.name}, from its enquiry list.${x.extra ? ` ${x.extra}.` : ''}` });
         if (r.status === 200) { added += 1; x.id = r.json.id; } else failed.push(`${x.name}: ${r.json.error || 'could not be added'}`);
       } else if (x.action === 'link') {
         const found = rowIndex().get(x.id);
@@ -1124,6 +1124,52 @@ function createPortalApi({
     cards.rememberLeads(remember);
     note(req, [`${ev.name}: uploaded its list (${added} added at Inquiry, ${linked} already on the sheet tagged with it, ${updated} already there given the new details from the list, ${count('already')} already tagged with nothing new, ${count('other')} in another event left as they were, ${count('problem')} lines skipped)`], 'Uploaded event students');
     return { status: 200, json: { done: true, added, linked, updated, failed, rows: shown(), missing, counts: counts() } };
+  }
+
+  // Takes back the students an event's or campaign's list added, so a better list can be uploaded (the owner, 14 Nov 2026), without
+  // deleting the event. Only what the list itself made goes, and only while nobody has worked on it:
+  //   removed: added by this list (its own mark, or the list's first note "Enquiry from <event>, from its enquiry list"), still at
+  //            Inquiry, with no university, no application date, no task, no university option, no message sent and no note from a
+  //            person (the list's own notes do not count). Its row and its card go, so the next list adds it again as new.
+  //   kept (worked on): added by this list, but someone has worked on the student since: never removed here; listed with the reason.
+  //   kept (in ISR before): linked by the list but in ISR before it: stays as it is.
+  // { preview: true } only lists them. Before anything is removed, a copy of everything is saved (Admin, Restore, a "manual" copy).
+  const LIST_NOTE = /^(Enquiry from .*, from its enquiry list|More from the list of |From the updated list of |Linked to .* from its enquiry list)/;
+  function eventRemoval(req, ev, body) {
+    const plan = planning.all();
+    const all = cards.all();
+    const remove = []; const worked = []; const before = [];
+    for (const { sheet, row } of rowIndex().values()) {
+      const card = all[row._id];
+      const e = card && eventFor(plan.events, card.profile.sourceDetail);
+      if (!e || e.id !== ev.id) continue;
+      const who = { id: row._id, name: nameOf(row) || 'Student with no name', intake: sheet.name, stage: text(row[STATUS]) };
+      const byList = card.profile.fromList === ev.id || (card.notes || []).some((n) => String(n.text || '').startsWith(`Enquiry from ${ev.name}, from its enquiry list`));
+      if (!byList) { before.push({ ...who, why: 'In ISR before the list: stays' }); continue; }
+      const why = [];
+      if (who.stage && who.stage !== 'Inquiry') why.push(`now at ${who.stage}`);
+      if (text(row['UNIVERSITY NAME']) || isoDate(row['APPLICATION SUBMISSION DATE'])) why.push('has a university or an application');
+      if ((card.tasks || []).length) why.push('has a task');
+      if ((card.options || []).length) why.push('has university options');
+      if ((card.messages || []).length) why.push('was sent a message');
+      if ((card.notes || []).some((n) => !LIST_NOTE.test(String(n.text || '')))) why.push('has notes from the team');
+      if (why.length) worked.push({ ...who, why: `Worked on (${why.join(', ')}): stays` });
+      else remove.push(who);
+    }
+    const byName = (a, b) => a.name.localeCompare(b.name);
+    const lists = { remove: remove.sort(byName), worked: worked.sort(byName), before: before.sort(byName) };
+    if (body.preview) return { status: 200, json: { preview: true, ...lists } };
+    if (!remove.length) return { status: 200, json: { done: true, removed: 0, ...lists } };
+    let copy = null;
+    try { copy = safetyCopy(); } catch (e) { return { status: 500, json: { error: 'A safety copy could not be saved first, so nothing was removed.' } }; }
+    const wb = getWorkbook();
+    const gone = new Set(remove.map((x) => x.id));
+    const next = { ...wb, revision: wb.revision + 1, sheets: wb.sheets.map((sh) => (sh.rows.some((r) => gone.has(r._id)) ? { ...sh, rows: sh.rows.filter((r) => !gone.has(r._id)) } : sh)) };
+    try { writeWorkbook(next); } catch (e) { console.error('[remove list]', e); return { status: 500, json: { error: 'save failed' } }; }
+    recordChanges(req, wb, next);
+    cards.forget([...gone]);
+    note(req, [`${ev.name}: removed the ${gone.size} student${gone.size === 1 ? '' : 's'} its list had added (${worked.length} worked on and ${before.length} in ISR before were kept)${copy ? `; a copy was saved first (${copy})` : ''}`], 'Removed an event list');
+    return { status: 200, json: { done: true, removed: gone.size, copy, ...lists } };
   }
 
   // Every student of one event, for its page on Events and marketing: who, the phone, the stage, the intake and the latest note, so the
@@ -1788,6 +1834,17 @@ function createPortalApi({
       return true;
     }
     if (urlPath === '/api/event-tags' && req.method === 'GET') { sendJSON(res, 200, eventTags(req.user)); return true; }
+    { const m = /^\/api\/activities\/([a-f0-9]{12})\/students\/remove$/.exec(urlPath);
+      if (m && req.method === 'POST') {
+        if (!Teams.isAdmin(req.user)) { sendJSON(res, 403, { error: 'Only Admin can remove the students of a list.' }); return true; }
+        const ev = planning.all().events.find((e) => e.id === m[1]);
+        if (!ev) { sendJSON(res, 404, { error: 'No such event or marketing.' }); return true; }
+        const body = await bodyOf(req, res);
+        if (!body) return true;
+        const r = eventRemoval(req, ev, body);
+        sendJSON(res, r.status, r.json);
+        return true;
+      } }
     { const m = /^\/api\/activities\/([a-f0-9]{12})\/students$/.exec(urlPath);
       if (m && req.method === 'GET') {
         if (!managers(req, res, 'Events and marketing')) return true;

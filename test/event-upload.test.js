@@ -203,4 +203,23 @@ test('uploading an event list: found and tagged, added at Inquiry, skipped, noth
   else assert.match(usd.json.error, /rate could not be found/);
   const rs = await admin('POST', '/api/planning/events', { id: ids.Fair, name: 'Fair', channel: 'Another venue (hall or hotel)', date: '2026-10-01', costAmount: 'Rs 45,000', costCurrency: 'NPR' });
   assert.deepStrictEqual([rs.json.entry.cost, rs.json.entry.costCurrency], [45000, 'NPR']);
+  // Taking a list back to upload a better one (the owner, 14 Nov 2026): only the enquiries the list added and nobody worked on go; a
+  // copy is saved first; the event stays; the same leads uploaded again are added as new (not "removed before").
+  const rows0 = (await admin('GET', '/api/data')).json.sheets.flatMap((x) => x.rows);
+  const newTwo = rows0.find((r) => r.EMAIL === 'new.two@example.com');
+  await admin('POST', `/api/cards/${newTwo._id}/notes`, { text: 'Called, interested in nursing' });
+  assert.strictEqual((await follow('POST', `/api/activities/${ids['ABC event']}/students/remove`, { preview: true })).status, 403, 'only Admin');
+  const plan = (await admin('POST', `/api/activities/${ids['ABC event']}/students/remove`, { preview: true })).json;
+  assert.deepStrictEqual(plan.remove.map((x) => x.name).sort(), ['Anil Example', 'New One', 'Twin Line']);
+  assert.deepStrictEqual([plan.worked.map((x) => x.name), plan.before.map((x) => x.name)], [['New Two'], ['Early Person']]);
+  assert.match(plan.worked[0].why, /notes from the team/);
+  const gone = (await admin('POST', `/api/activities/${ids['ABC event']}/students/remove`, {})).json;
+  assert.strictEqual(gone.removed, 3);
+  assert.match(gone.copy, /^manual-/, 'a copy was saved first');
+  const rows1 = (await admin('GET', '/api/data')).json.sheets.flatMap((x) => x.rows);
+  assert.ok(!rows1.some((r) => ['New One', 'Twin Line'].includes(`${r['FIRST NAME']} ${r['LAST NAME']}`)));
+  assert.ok(rows1.some((r) => r._id === newTwo._id) && rows1.some((r) => r._id === early), 'the worked-on student and the one in ISR before stay');
+  assert.ok((await acts()).activities.some((a) => a.name === 'ABC event'), 'the event stays');
+  const again3 = (await admin('POST', `/api/activities/${ids['ABC event']}/students`, { rows: [{ first: 'New', last: 'One', phone: '9811122233' }], preview: true })).json;
+  assert.strictEqual(again3.rows[0].action, 'new', 'uploaded again, it is added as new');
 });

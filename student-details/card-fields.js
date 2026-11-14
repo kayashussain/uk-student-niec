@@ -110,6 +110,8 @@
     { key: 'optionRemarks', label: 'Remarks for the university options', max: 1500 },
     // The phone (last 10 digits), email and name a lead list gave, kept so a student removed from the sheet is not added back by a list.
     { key: 'leadContact', label: 'Phone and email from a lead list', max: 300 },
+    // The event or campaign whose uploaded list added this student (so its students can be removed again to upload a better list).
+    { key: 'fromList', label: 'Added by the list of', max: 20 },
     { key: 'lostReason', label: 'Why the student did not go on', list: 'LOST_REASONS' },
     // From the passport (the owner, 14 Nov 2026): the date of birth, the passport number, the address as written in it and the
     // nationality. The address gives the district for the Dashboard's map; the nationality counts the students from outside Nepal.

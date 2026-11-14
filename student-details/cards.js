@@ -170,6 +170,15 @@ function createCards(dir, { now = () => new Date() } = {}) {
   return {
     // The phone, email and name a list gave for many students at once, in one save: { rowId: "phone|email|name" }. Kept on the card
     // (which stays when its row is deleted from the sheet), so a list uploaded later never brings back a student removed on purpose.
+    // Forgets the cards of students removed on purpose (an event's list taken back to be uploaded again), in one save.
+    forget(rowIds) {
+      const data = load();
+      const next = { ...data.cards };
+      let gone = 0;
+      [].concat(rowIds || []).forEach((id) => { if (Object.prototype.hasOwnProperty.call(next, id)) { delete next[id]; gone += 1; } });
+      if (gone) write({ ...data, cards: next });
+      return { gone };
+    },
     rememberLeads(entries) {
       const data = load();
       const next = { ...data.cards };
