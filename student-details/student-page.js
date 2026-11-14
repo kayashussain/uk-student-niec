@@ -134,7 +134,7 @@
   // ---- tasks given to a team about this student ----
   function assignTask() {
     dialog('Assign a task', (body, close) => {
-      const team = field('Team', { kind: 'select', choices: (data.taskTeams || []).map((t) => [t.id, t.label]) });
+      const team = field('Which team should do it?', { kind: 'select', choices: (data.assignTeams || data.taskTeams || []).map((t) => [t.id, t.label]) });
       const text = field('What should they do?', { kind: 'area', max: 2000, wide: true, placeholder: 'e.g. Call the student and book the mock interview for next week.' });
       const due = field('By (optional)', { kind: 'date' });
       const msg = el('div', 'p-msg');
@@ -171,7 +171,7 @@
     tasks.forEach((t) => {
       const due = dueOf(t);
       const r = el('div', `td-task is-${due.group}`);
-      const mine = data.can.assign || (data.can.myTeams || []).includes(t.team);
+      const mine = data.can.removeAnyTask || (data.can.myTeams || []).includes(t.team);
       const box = h('button', { class: 'td-check', type: 'button', 'aria-pressed': String(t.done), title: t.done ? 'Mark as not done' : 'Mark as done', 'aria-label': t.done ? 'Mark as not done' : 'Mark as done', disabled: !mine });
       box.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
       box.addEventListener('click', async () => { await save(`tasks/${t.id}`, { done: !t.done }, t.done ? 'Marked as not done' : 'Done. Well done.'); render(); });
@@ -181,7 +181,7 @@
       mid.append(el('div', 'td-task-text', t.text), who);
       const side = el('div', 'td-task-side');
       side.append(el('span', `td-due is-${due.group}`, due.text));
-      if (data.can.assign) side.append(h('button', { class: 'p-link', type: 'button', onclick: async () => { if (await window.NiecUI.confirm('Remove this task?', { danger: true })) { await save(`tasks/${t.id}/delete`, {}, 'Task removed'); render(); } } }, 'Remove'));
+      if (data.can.removeAnyTask || (data.can.assign && t.by === (data.me || {}).name)) side.append(h('button', { class: 'p-link', type: 'button', onclick: async () => { if (await window.NiecUI.confirm('Remove this task?', { danger: true })) { await save(`tasks/${t.id}/delete`, {}, 'Task removed'); render(); } } }, 'Remove'));
       r.append(box, mid, side);
       c.append(r);
     });

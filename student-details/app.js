@@ -69,7 +69,9 @@
   const HIDDEN_COLUMNS_BY_SHEET = [
     {
       matches: (name) => /\bsep/i.test(name) && /2026/.test(name),
-      columns: ['REMARKS', 'APPLICATION SUBMISSION DATE', 'OFFER RECEIVED DATE'],
+      columns: ['REMARKS', 'APPLICATION SUBMISSION DATE', 'OFFER RECEIVED DATE',
+        // No mock interviews were recorded for this intake (the owner, 14 Nov 2026): the eight mock columns are not shown on it.
+        'MOCK SCHEDULE 1', 'FEEDBACK 1', 'MOCK SCHEDULE 2', 'FEEDBACK 2', 'MOCK SCHEDULE 3', 'FEEDBACK 3', 'MOCK SCHEDULE 4', 'FEEDBACK 4'],
     },
   ];
   // Column names are stored in capitals (they match the imported spreadsheet). On screen they're shown

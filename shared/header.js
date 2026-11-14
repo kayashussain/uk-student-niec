@@ -110,8 +110,27 @@
     admin: [['users', '/users', 'Users'], ['activity', '/activity', 'Activity'], ['templates', '/message-templates', 'Message templates'], ['incentive', '/incentive/', 'Incentive']],
   };
 
+  // The partner pages and Message templates a person may open besides their own (the same rules as student-details/partner-access.js):
+  // the Manager all of them; the Application and Mock Teams Partner Universities, B2B Partners, Agents and the templates; a branch
+  // Partner Universities and the templates. Admin has them already.
+  function sharedLinks(me) {
+    if (me.role === 'admin') return { before: [], after: [] };
+    const deps = me.departments || [];
+    const manager = me.role === 'manager';
+    const appMock = deps.some((d) => d === 'application' || d === 'mock');
+    const branch = deps.some((d) => !['application', 'mock', 'followup'].includes(d));
+    const before = [];
+    if (manager || appMock || branch) before.push(['direct', '/partner-universities', 'Partner Universities']);
+    if (manager || appMock) before.push(['b2b', '/b2b-partners', 'B2B Partners'], ['agents', '/agents', 'Agents']);
+    const after = manager || appMock || branch ? [['templates', '/message-templates', 'Message templates']] : [];
+    return { before, after };
+  }
+
   function render(me) {
-    const links = LINKS[kindOf(me)] || [];
+    const own = LINKS[kindOf(me)] || [];
+    const extra = sharedLinks(me);
+    const at = own.findIndex(([id]) => id === 'factfile');
+    const links = at === -1 ? [...own, ...extra.before, ...extra.after] : [...own.slice(0, at), ...extra.before, ...own.slice(at), ...extra.after];
     paletteLinks = [...links, ...(MENU_LINKS[me.role] || [])];
     // Follow-up and Add many students belong to All Students in a menu that has no link of their own.
     const page = links.some(([id]) => id === header.dataset.page) || !['bulk', 'bulkadd'].includes(header.dataset.page) ? header.dataset.page : 'sheet';

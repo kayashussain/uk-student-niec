@@ -116,7 +116,16 @@ students, columns and moves of every team they hold.
 | Application Team | students at *Application Stage*, in the newest intake only | columns up to NOC Number; can move a student to *Mock Stage* (warned about anything still blank) |
 | Mock Team | students at *Mock Stage* | Remarks and the mock columns up to Pre-CAS Interview; can move to *Payment Stage* only once those are all filled |
 | Follow-up Team | *Inquiry* and *Defer* students | Remarks only |
-| Chitwan Branch, Pokhara Branch | the students whose *Student Source* is that branch, at any stage (current intake) | every column of those students, any stage move; can add students (tagged with the branch) |
+| Each branch (Chitwan, Pokhara, Palpa, Butwal) | the students whose *Student Source* is that branch, at any stage (current intake) | every column of those students, any stage move; can add students (tagged with the branch) |
+
+**Partner pages and Message templates** (rules in `student-details/partner-access.js`; the server strips what an account may
+not see before sending anything): Admin sees and changes everything. The **Manager** looks at Partner Universities, B2B Partners
+and Agents **with the commission** (no portal login), and at Events and marketing and Message templates. The **Application and
+Mock Teams** look at Partner Universities, B2B Partners and Agents **without the commission** (no commission slabs, payment terms,
+commission lists, agreement files, notes or portal login), and read Message templates. **Branches** look at Partner Universities
+the same way (without the commission) and read Message templates. The **Follow-up Team** has none of these pages. A **branch** can
+give a task about its own student to the Application Team or the Mock Team (Assign a task on the student card), sees on Today
+whether it is done, and removes only the tasks it gave.
 
 Every team can add a new student with **+ Add student**: it starts at the team's own stage (Application Stage,
 Mock Stage or Inquiry), and the team can also fill in its name, email, contact number and student

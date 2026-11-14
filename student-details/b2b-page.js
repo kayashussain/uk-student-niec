@@ -1,4 +1,6 @@
-// B2B Partners and Agents (Admin only; one page script for both, chosen by data-kind on the body).
+// B2B Partners and Agents (one page script for both, chosen by data-kind on the body). Admin edits them; the Manager (with the
+// commission) and the Application and Mock Teams (without the commission and the portal login) look at them: the server sends
+// each account only what partner-access.js allows, and `data.access` says which ('full', 'commission' or 'team').
 //   B2B Partners: the businesses you send applications to (they hold the direct agreement with a university). Each card shows how to
 //   submit (the portal and its login, or the email) so it can be used without opening the partner.
 //   Agents: the businesses that send you their students.
@@ -12,6 +14,8 @@
   const API = '/api/' + KIND;
   const EMAIL = /^[^\s@<>"']+@[^\s@<>"']+\.[^\s@<>"']+$/;
   let data = null;
+  const viewer = () => data && data.access && data.access !== 'full';
+  const open = (id) => (viewer() ? view(id) : edit(id));
 
   const stats = (name) => data.performance[String(name).toLowerCase()] || { students: 0, visas: 0, intakes: {} };
   const same = (a, b) => String(a || '').trim().toLowerCase() === String(b || '').trim().toLowerCase();
@@ -74,7 +78,7 @@
     const c = el('article', 'bp-card');
     const head = el('div', 'bp-card-head');
     const who = el('div');
-    who.append(btn('bp-name', p.name, () => edit(p.id)), el('div', 'bp-sub', [p.city, `${number(st.visas)} visa${st.visas === 1 ? '' : 's'} from ${number(st.students)} student${st.students === 1 ? '' : 's'}`].filter(Boolean).join(' · ')));
+    who.append(btn('bp-name', p.name, () => open(p.id)), el('div', 'bp-sub', [p.city, `${number(st.visas)} visa${st.visas === 1 ? '' : 's'} from ${number(st.students)} student${st.students === 1 ? '' : 's'}`].filter(Boolean).join(' · ')));
     head.append(who, el('span', `bp-status ${PILL[p.status] || 'amber'}`, p.status));
     c.append(head);
     if (KIND === 'b2b') c.append(submitBox(p));
@@ -83,8 +87,9 @@
     // The commission of the intake that is running: open it, or a calm note that it is missing.
     const cur = data.currentIntake;
     const found = (p.commissions || []).find((x) => same(x.intake, cur) && (x.fileId || x.link));
-    if (found) row(`Commission list, ${cur}`, found.fileId ? openLink('Open the PDF ↗', `${API}/${p.id}/files/${found.fileId}?open=1`) : openLink('Open the link ↗', found.link));
+    if (data.access === 'team') { /* a team does not see the commission */ } else if (found) row(`Commission list, ${cur}`, found.fileId ? openLink('Open the PDF ↗', `${API}/${p.id}/files/${found.fileId}?open=1`) : openLink('Open the link ↗', found.link));
     else if (p.status === 'Ended') row('Commission', 'Ended');
+    else if (viewer()) row(`Commission list, ${cur || 'this intake'}`, el('span', 'bp-none', 'Not uploaded yet'));
     else { const m = btn('bp-missing', 'Not uploaded yet', () => edit(p.id)); row(`Commission list, ${cur || 'this intake'}`, m); }
     const k = p.contact || {};
     if (k.name || k.phone || k.email) {
@@ -96,7 +101,7 @@
     } else row('Contact', null);
     row('Agreement', [p.agreementStart ? 'From ' + p.agreementStart : '', p.agreementEnd ? 'to ' + p.agreementEnd : ''].filter(Boolean).join(' '));
     c.append(facts);
-    const foot = el('div', 'bp-foot'); foot.append(btn('btn', 'Open details →', () => edit(p.id)));
+    const foot = el('div', 'bp-foot'); foot.append(btn('btn', 'Open details →', () => open(p.id)));
     c.append(foot);
     return c;
   }
@@ -118,7 +123,7 @@
     } else if (p.applyEmail) {
       const w = el('a', 'bp-portal', 'Write email ↗'); w.href = 'mailto:' + p.applyEmail;
       box.append(line('Email', el('code', '', p.applyEmail), copy(p.applyEmail, 'Email'), w));
-    } else box.append(el('div', 'bp-none', 'Not entered yet. Open the partner to add the portal or the email.'));
+    } else box.append(el('div', 'bp-none', viewer() ? 'Not entered yet. Ask Admin to add the portal or the email.' : 'Not entered yet. Open the partner to add the portal or the email.'));
     return box;
   }
 
@@ -180,6 +185,37 @@
     (p.commissions || []).forEach(add);
     node.append(box, btn('btn btn-sm bp-add-row', '+ Add an intake', () => add({})));
     return { node, values: () => rows.map((x) => ({ intake: x.intake.input.value, link: x.link.input.value, fileId: x.st.fileId, note: '' })) };
+  }
+
+  // ---- one partner, read only (everyone but Admin) ----
+  async function view(id) {
+    const p = await api(`${API}/${id}`);
+    const st = stats(p.name);
+    const page = el('div');
+    page.append(btn('bp-back', `← ${WORD.title}`, closeEditor));
+    const head = el('div', 'bp-ed-head'); head.append(el('h2', '', p.name), el('span', `bp-status ${PILL[p.status] || 'amber'}`, p.status));
+    page.append(head, el('p', 'bp-saved', [p.city, `${number(st.visas)} visa${st.visas === 1 ? '' : 's'} from ${number(st.students)} student${st.students === 1 ? '' : 's'}`].filter(Boolean).join(' · ')));
+    const box = (title, ...nodes) => { const s = el('section', 'bp-step'); const hd = el('div', 'bp-step-head'); const w = el('div'); w.append(el('h3', '', title)); hd.append(w); s.append(hd, ...nodes); page.append(s); };
+    const none = (t = 'Not entered yet') => el('span', 'bp-none', t);
+    const lines = (items) => { const d = el('div', 'bp-lines'); items.forEach((x) => d.append(x instanceof Node ? x : el('span', '', x))); return d; };
+    if (KIND === 'b2b') box('Application submission', submitBox(p));
+    box('Contacts', (p.contacts || []).length ? lines(p.contacts.map((c) => { const d = el('div', 'bp-lines'); if (c.name) d.append(el('b', '', c.name)); if (c.phone) d.append(el('span', '', c.phone)); if (c.email) { const a = el('a', 'bp-link', c.email); a.href = 'mailto:' + c.email; d.append(a); } return d; })) : none());
+    box('Agreement', lines([p.agreementStart ? 'From ' + p.agreementStart : 'Start not entered', p.agreementEnd ? 'To ' + p.agreementEnd : ''].filter(Boolean)));
+    // The Manager also sees the commission list of each intake, the files and the notes; a team never receives them.
+    if (data.access === 'commission') {
+      box('Commission by intake', (p.commissions || []).length ? lines(p.commissions.map((c) => {
+        const d = el('div', 'bp-lines'); d.append(el('b', '', c.intake || 'Intake'));
+        const f = (p.agreements || []).find((a) => a.id === c.fileId);
+        if (f) d.append(openLink('Open the PDF ↗', `${API}/${p.id}/files/${f.id}?open=1`));
+        if (c.link) d.append(openLink('Open the link ↗', c.link));
+        return d;
+      })) : none());
+      if ((p.agreements || []).length) box('Files', lines(p.agreements.map((a) => openLink(a.name, `${API}/${p.id}/files/${a.id}?open=1`))));
+      if (p.notes) box('Notes', el('p', '', p.notes));
+    }
+    $('editor').replaceChildren(page);
+    $('listView').hidden = true; $('editor').hidden = false;
+    window.scrollTo({ top: 0 });
   }
 
   async function edit(id) {
@@ -302,7 +338,18 @@
       body.append(grid('p-form-2', n.wrap), msg, foot);
     }).then(async (made) => { if (made) { await load(); edit(made.id); } });
   }
-  async function load() { data = await api(API); draw(); }
+  async function load() {
+    data = await api(API);
+    if (!viewer()) { const c = document.querySelector('#pageTitle .p-chip'); if (c) c.hidden = true; } // others look at it too now
+    if (viewer()) {
+      $('add').hidden = true;
+      const chip = document.querySelector('#pageTitle .p-chip'); if (chip) chip.textContent = 'View only';
+      $('intro').textContent = data.access === 'commission'
+        ? `To look at: where applications go, the contacts, the agreement and the commission of each intake. Admin makes the changes.`
+        : `To look at: ${KIND === 'b2b' ? 'where applications go through each partner, ' : ''}the contacts and the agreement. Admin makes the changes.`;
+    }
+    draw();
+  }
   $('add').addEventListener('click', addOne);
   $('search').addEventListener('input', () => data && draw());
   load().catch((e) => { $('list').replaceChildren(h('div', { class: 'p-notice bad' }, e.message)); });

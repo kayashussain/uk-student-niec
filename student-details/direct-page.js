@@ -1,4 +1,5 @@
-// The Partner Universities page (direct.html, Admin only). The server refuses every other account;
+// The Partner Universities page (direct.html). Admin edits it; the Manager, the Application and Mock Teams and the branches look at it
+// (see partner-access.js: the server sends a team no commission and no portal login);
 // everything shown is put on the page as text, never as HTML.
 // The list is a set of calm cards; a click opens the university as its own view, in numbered steps, with a Save bar
 // that stays at the bottom of the screen.
@@ -10,6 +11,10 @@
   const BACKUP = new URLSearchParams(location.search).get('backup') || '';
   const API = BACKUP ? '/api/restore/snapshot/' + encodeURIComponent(BACKUP) + '/partners' : '/api/direct';
   const EMAIL = /^[^\s@<>"']+@[^\s@<>"']+\.[^\s@<>"']+$/;
+  // What this account sees (student-details/partner-access.js): 'full' Admin, 'commission' the Manager (everything, to look at),
+  // 'team' a team or a branch (no commission, no portal login). Only Admin gets the editor; everyone else gets a read-only page.
+  let level = BACKUP ? 'full' : 'team';
+  const viewer = () => level !== 'full';
 
   function el(tag, cls, text) {
     const e = document.createElement(tag);
@@ -45,7 +50,7 @@
     const c = el('article', 'pu-card');
     const head = el('div', 'pu-card-head');
     const who = el('div');
-    who.append(btn('pu-name', u.name, () => openEditor(u.id)));
+    who.append(btn('pu-name', u.name, () => (viewer() ? openView(u.id) : openEditor(u.id))));
     // The campuses straight under the name.
     if ((u.campuses || []).length) { const t = el('div', 'pu-tags pu-campus-tags'); u.campuses.forEach((x) => t.append(el('span', 'pu-tag', x))); who.append(t); }
     head.append(who);
@@ -68,11 +73,11 @@
       const a = el('a', 'pu-portal', 'Write email ↗'); a.href = 'mailto:' + u.applyEmail;
       sub.append(line('Email', el('code', '', u.applyEmail), copy(u.applyEmail, 'Email'), a));
     } else {
-      sub.append(el('div', 'pu-none', 'Not entered yet. Open the university to add the portal link or email.'));
+      sub.append(el('div', 'pu-none', viewer() ? 'Not entered yet. Ask Admin to add the portal link or email.' : 'Not entered yet. Open the university to add the portal link or email.'));
     }
     const facts = el('dl', 'pu-facts');
     const row = (label, value) => { const dd = el('dd'); if (value instanceof Node) dd.append(value); else if (value) dd.textContent = value; else dd.append(el('span', 'pu-none', 'Not entered yet')); facts.append(el('dt', '', label), dd); };
-    row('Commission', u.slabs && u.slabs.length ? (() => { const d = el('div', 'pu-lines'); u.slabs.forEach((x) => d.append(el('span', '', x))); return d; })() : null);
+    if (level !== 'team') row('Commission', u.slabs && u.slabs.length ? (() => { const d = el('div', 'pu-lines'); u.slabs.forEach((x) => d.append(el('span', '', x))); return d; })() : null);
     const p = u.contact || {};
     if (p.name || p.phone || p.email) {
       const d = el('div', 'pu-lines');
@@ -83,7 +88,7 @@
     } else row('Contact', null);
     row('Agreement', [u.agreementStart ? 'Since ' + u.agreementStart : '', u.agreementCount ? `${u.agreementCount} file${u.agreementCount === 1 ? '' : 's'}` : ''].filter(Boolean).join(' · '));
     const foot = el('div', 'pu-card-foot');
-    foot.append(btn('btn', 'Open details →', () => openEditor(u.id)));
+    foot.append(btn('btn', 'Open details →', () => (viewer() ? openView(u.id) : openEditor(u.id))));
     c.append(head, sub, facts, foot);
     return c;
   }
@@ -125,6 +130,36 @@
     const addBtn = btn('btn btn-sm pu-add-row', '+ ' + addLabel, () => add({}));
     node.append(box, addBtn);
     return { node, values: () => rows.map((r) => Object.fromEntries(Object.entries(r.inputs).map(([k, i]) => [k, i.value]))) };
+  }
+
+  // ---- a university, read only (everyone but Admin) ----
+  function openView(id) {
+    api(API + '/' + id).then((u) => {
+      const ed = $('editor');
+      const page = el('div', 'pu-view');
+      page.append(btn('pu-back', '← All partner universities', closeEditor));
+      const head = el('div', 'pu-ed-head'); head.append(el('h2', '', u.name)); page.append(head);
+      const box = (title, ...nodes) => { const s = el('section', 'pu-step'); const hd = el('div', 'pu-step-head'); const w = el('div'); w.append(el('h3', '', title)); hd.append(w); s.append(hd, ...nodes); page.append(s); };
+      const lines = (items) => { const d = el('div', 'pu-lines'); items.forEach((x) => d.append(x instanceof Node ? x : el('span', '', x))); return d; };
+      const none = (t = 'Not entered yet') => el('span', 'pu-none', t);
+      box('Campuses', (u.campuses || []).length ? lines(u.campuses.map((c) => [c.name, c.city].filter(Boolean).join(', '))) : none());
+      const sub = el('div', 'pu-submit');
+      if (u.applyPortal) { const a = el('a', 'pu-portal', 'Open portal ↗'); a.href = u.applyPortal; a.target = '_blank'; a.rel = 'noopener noreferrer'; sub.append(a); }
+      else if (u.applyEmail) { const a = el('a', 'pu-portal', u.applyEmail); a.href = 'mailto:' + u.applyEmail; sub.append(a); }
+      else sub.append(none());
+      box('Application submission', sub);
+      box('Contacts', (u.contacts || []).length ? lines(u.contacts.map((c) => { const d = el('div', 'pu-lines'); if (c.name) d.append(el('b', '', c.name)); if (c.phone) d.append(el('span', '', c.phone)); if (c.email) { const a = el('a', 'pu-link', c.email); a.href = 'mailto:' + c.email; d.append(a); } return d; })) : none());
+      box('Agreement', lines([u.agreementStart ? 'Started ' + u.agreementStart : 'Start not entered', u.agreementEnd ? 'Ends ' + u.agreementEnd : ''].filter(Boolean)));
+      // The Manager also sees the commission and the agreement files; a team never receives them.
+      if (level === 'commission') {
+        box('Commission', (u.slabs || []).length ? lines(u.slabs.map((x) => [x.level, x.students, x.commission].filter(Boolean).join(' · '))) : none(), ...(u.paymentTerms ? [el('p', 'pu-hint', 'Payment terms: ' + u.paymentTerms)] : []));
+        box('Agreement files', (u.agreements || []).length ? lines(u.agreements.map((a) => { const l = el('a', 'pu-link', a.name); l.href = `/api/direct/${u.id}/files/${a.id}`; return l; })) : none('No files'));
+        if (u.notes) box('Notes', el('p', '', u.notes));
+      }
+      ed.replaceChildren(page);
+      $('listView').hidden = true; ed.hidden = false;
+      window.scrollTo({ top: 0 });
+    }).catch((e) => say('listMsg', e.message, true));
   }
 
   function openEditor(id) {
@@ -279,6 +314,17 @@
   }
 
   if (BACKUP) $('addForm').hidden = true;
+  // Everyone but Admin looks only: no Add box, and the heading says so.
+  async function setLevel() {
+    if (BACKUP) return;
+    try { level = (await api('/api/partner-access')).direct || 'team'; } catch (e) { level = 'team'; }
+    if (!viewer()) { $('adminOnly').hidden = true; return; } // other accounts now look at this page too, so it is no longer "Admin only"
+    $('addForm').hidden = true;
+    $('adminOnly').textContent = 'View only';
+    document.querySelector('.pu-intro').textContent = level === 'commission'
+      ? 'The universities you work with: where to submit each application, the contacts, the agreement and the commission. To look at; Admin makes the changes.'
+      : 'The universities you work with: where to submit each application, the campuses, the contacts and the agreement. To look at; Admin makes the changes.';
+  }
   $('search').addEventListener('input', drawList);
   $('addForm').addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -295,5 +341,5 @@
   fetch('/api/facts', { cache: 'no-store' }).then((r) => (r.ok ? r.json() : [])).then((list) => {
     $('factNames').replaceChildren(...list.map((u) => { const o = el('option'); o.value = u.name; return o; }));
   }).catch(() => {});
-  loadList();
+  setLevel().then(loadList);
 })();

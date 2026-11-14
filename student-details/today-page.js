@@ -30,7 +30,8 @@
   function taskRow(t, canAssign, refresh) {
     const due = dueOf(t);
     const r = el('div', `td-task is-${due.group}`);
-    const tick = h('button', { class: 'td-check', type: 'button', 'aria-pressed': String(t.done), title: t.done ? 'Mark as not done' : 'Mark as done', 'aria-label': t.done ? 'Mark as not done' : 'Mark as done' });
+    // A task a branch gave to another team is ticked by that team, not here.
+    const tick = h('button', { class: 'td-check', type: 'button', 'aria-pressed': String(t.done), title: t.given ? `${t.teamLabel} ticks it when it is done` : t.done ? 'Mark as not done' : 'Mark as done', 'aria-label': t.done ? 'Mark as not done' : 'Mark as done', disabled: Boolean(t.given) });
     tick.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
     tick.addEventListener('click', async () => {
       tick.disabled = true;
@@ -40,18 +41,21 @@
     mid.append(el('div', 'td-task-text', t.text));
     const who = el('div', 'td-task-who');
     who.append(h('a', { class: 'td-student', href: '/student?id=' + encodeURIComponent(t.studentId), title: 'Open the student card' }, t.student), stagePill(t.stage));
-    if (canAssign) who.append(el('span', 'td-team', t.teamLabel));
+    if (canAssign || t.given) who.append(el('span', 'td-team', t.teamLabel));
     mid.append(who);
     const meta = el('div', 'td-task-side');
-    meta.append(el('span', `td-due is-${due.group}`, due.text), el('span', 'td-from', canAssign ? `Given ${new Date(t.at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}` : `From ${t.by}`));
+    meta.append(el('span', `td-due is-${due.group}`, due.text), el('span', 'td-from', canAssign || t.given ? `Given ${new Date(t.at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}` : `From ${t.by}`));
     r.append(tick, mid, meta);
     return r;
   }
 
   function tasksPanel(t, refresh) {
     const box = el('section', 'td-tasks');
-    const open = t.tasks.filter((x) => !x.done);
-    const done = t.tasks.filter((x) => x.done && Date.now() - Date.parse(x.doneAt || 0) < 7 * 86400000); // done in the last 7 days
+    // A branch also sees the tasks it gave to the Application and Mock Teams, in their own list below its own tasks.
+    const given = t.canAssign ? [] : t.tasks.filter((x) => x.given);
+    const ownTasks = t.canAssign ? t.tasks : t.tasks.filter((x) => !x.given);
+    const open = ownTasks.filter((x) => !x.done);
+    const done = ownTasks.filter((x) => x.done && Date.now() - Date.parse(x.doneAt || 0) < 7 * 86400000); // done in the last 7 days
     const head = el('div', 'td-tasks-head');
     const titles = el('div');
     titles.append(el('h2', '', t.canAssign ? 'Tasks you have given' : 'Your tasks'), el('p', '', t.canAssign
@@ -80,6 +84,13 @@
       list.forEach((x) => g.append(taskRow(x, t.canAssign, refresh)));
       box.append(g);
     });
+    if (given.length) {
+      const g = el('div', 'td-group');
+      const waiting = given.filter((x) => !x.done);
+      g.append(el('h3', '', `Tasks you have given \u00b7 ${waiting.length} open, ${given.length - waiting.length} done`));
+      [...waiting, ...given.filter((x) => x.done)].slice(0, 30).forEach((x) => g.append(taskRow(x, false, refresh)));
+      box.append(g);
+    }
     if (done.length) {
       const toggle = h('button', { class: 'td-done-toggle', type: 'button', 'aria-expanded': String(showDone) }, showDone ? 'Hide the tasks done this week' : `Done this week (${done.length})`);
       toggle.addEventListener('click', () => { showDone = !showDone; refresh(); });

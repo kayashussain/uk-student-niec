@@ -111,7 +111,7 @@ test('a damaged list file is set aside, not overwritten', () => {
 const freePort = () => new Promise((resolve) => { const s = net.createServer().listen(0, () => { const p = s.address().port; s.close(() => resolve(p)); }); });
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
-test('only Admin can open the page or read and change the list on the real server', { timeout: 120000 }, async (t) => {
+test('Admin changes the list; the Application Team and the Manager look; the Follow-up Team is sent away (real server)', { timeout: 120000 }, async (t) => {
   const dir = tmp();
   const port = await freePort();
   const server = spawn(process.execPath, ['server.js'], {
@@ -169,24 +169,31 @@ test('only Admin can open the page or read and change the list on the real serve
   assert.notStrictEqual((await nobody('POST', '/api/direct', { name: 'X University' })).status, 200);
   assert.notStrictEqual((await nobody('GET', `/api/direct/${id}/files/${fileId}`)).status, 200, 'a logged-out visitor cannot download the agreement');
 
-  // Staff and Manager: refused for the page (sent home) and for every call.
-  for (const [username, role, extra] of [['sita', 'staff', { departments: ['application'] }], ['chief', 'manager', {}]]) {
+  // The Application Team and the Manager look at the page (the team without the commission, the Manager with it) and change
+  // nothing; the Follow-up Team is sent away (who sees what: partner-access.js and partner-access.test.js).
+  for (const [username, role, extra, look] of [['sita', 'staff', { departments: ['application'] }, 'team'], ['chief', 'manager', {}, 'commission'], ['sunita', 'staff', { departments: ['followup'] }, null]]) {
     const made2 = await admin('POST', '/api/users', { name: username, username, role, ...extra });
     assert.strictEqual(made2.status, 200, `${username} created`);
     const them = person();
     assert.strictEqual((await them('POST', '/api/login', { username, password: made2.json.temporaryPassword })).json.stage, 'new-password');
     await them('POST', '/api/login/new-password', { password: 'Another-Long-Pass-2026' });
     const page = await them('GET', '/partner-universities');
-    assert.strictEqual(page.status, 302, `${role} is sent away from the page`);
-    assert.ok(/^\/(students|dashboard|today)/.test(page.location), `${role} goes home`);
-    assert.strictEqual((await them('GET', '/api/direct')).status, 403, `${role} cannot read the list`);
-    assert.strictEqual((await them('GET', `/api/direct/${id}`)).status, 403);
+    if (!look) {
+      assert.strictEqual(page.status, 302, `${username} is sent away from the page`);
+      assert.ok(/^\/(students|dashboard|today)/.test(page.location), `${username} goes home`);
+      assert.strictEqual((await them('GET', '/api/direct')).status, 403, `${username} cannot read the list`);
+      assert.strictEqual((await them('GET', `/api/direct/${id}`)).status, 403);
+    } else {
+      assert.strictEqual(page.status, 200, `${username} opens the page to look`);
+      const one = (await them('GET', `/api/direct/${id}`)).json;
+      assert.strictEqual(Boolean(one.slabs), look === 'commission', `${username}: the commission only for the Manager`);
+      assert.strictEqual((await them('GET', `/api/direct/${id}/files/${fileId}`)).status, look === 'commission' ? 200 : 403, `${username}: the agreement file only for the Manager`);
+    }
     assert.strictEqual((await them('POST', '/api/direct', { name: 'Y University' })).status, 403);
     assert.strictEqual((await them('POST', `/api/direct/${id}`, { name: 'Bangor University', notes: 'hacked' })).status, 403);
     assert.strictEqual((await them('POST', `/api/direct/${id}/delete`, {})).status, 403);
-    assert.strictEqual((await them('GET', `/api/direct/${id}/files/${fileId}`)).status, 403, `${role} cannot download the agreement`);
-    assert.strictEqual((await fetch(`${base}/api/direct/${id}/files?name=x.pdf`, { method: 'POST', headers: { cookie: them.cookie() }, body: Buffer.from('x') })).status, 403, `${role} cannot upload`);
-    assert.strictEqual((await them('POST', `/api/direct/${id}/files/${fileId}/delete`, {})).status, 403, `${role} cannot remove the agreement`);
+    assert.strictEqual((await fetch(`${base}/api/direct/${id}/files?name=x.pdf`, { method: 'POST', headers: { cookie: them.cookie() }, body: Buffer.from('x') })).status, 403, `${username} cannot upload`);
+    assert.strictEqual((await them('POST', `/api/direct/${id}/files/${fileId}/delete`, {})).status, 403, `${username} cannot remove the agreement`);
   }
   assert.strictEqual((await admin('GET', `/api/direct/${id}`)).json.notes, '', 'nothing was changed by the others');
 

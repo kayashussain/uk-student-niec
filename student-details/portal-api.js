@@ -22,6 +22,7 @@ const { buildIndex, searchCourses, linkKey, parseCourses } = require('./course-i
 const { hostsOf, onHosts } = require('./university-websites');
 const { EVENT_TYPES, MARKETING_TYPES, CHANNELS, channelOf, DECISION_STATUS, MARKET_KINDS, LISTS: PLANNING_LISTS } = require('./planning');
 const { MAX_FILE_BYTES, STATUSES: PARTNER_STATUSES } = require('./direct');
+const { partnerAccess, shapePartner } = require('./partner-access');
 
 const text = (v) => String(v ?? '').trim();
 const STATUS = Teams.STATUS;
@@ -88,6 +89,11 @@ function createPortalApi({
   const TASK_TEAMS = () => Object.entries(Teams.DEPARTMENTS).map(([id, d]) => ({ id, label: d.label }));
   const teamLabel = (id) => (Teams.DEPARTMENTS[id] ? Teams.DEPARTMENTS[id].label : id);
   const canAssign = (user) => Teams.isAdmin(user) || Teams.isManager(user);
+  // A branch gives tasks too, about its own students, to the Application Team and the Mock Team (the owner, 14 Nov 2026). It removes
+  // only the tasks it gave; Admin and the Manager remove any.
+  const isBranchUser = (user) => teamsOf(user).some((d) => Teams.DEPARTMENTS[d] && Teams.DEPARTMENTS[d].source);
+  const BRANCH_TASK_TEAMS = ['application', 'mock'];
+  const assignTeamsFor = (user) => (canAssign(user) ? TASK_TEAMS() : isBranchUser(user) ? TASK_TEAMS().filter((t) => BRANCH_TASK_TEAMS.includes(t.id)) : []);
   const hasTaskFor = (user, rowId) => { const mine = teamsOf(user); if (!mine.length) return false; const c = cards.has(rowId) ? cards.get(rowId) : null; const recent = Date.now() - 7 * 86400000; return Boolean(c && (c.tasks || []).some((t) => mine.includes(t.team) && (!t.done || Date.parse(t.doneAt) > recent))); };
   function canSee(user, found) {
     if (!found) return false;
@@ -566,8 +572,9 @@ function createPortalApi({
         sendJSON(res, 200, {
           student: { ...brief(found.sheet, found.row), color: found.row._color || '', remarks: text(found.row.REMARKS), columns: found.sheet.columns, row: Object.fromEntries(found.sheet.columns.map((c) => [c, found.row[c] ?? ''])) },
           card,
-          can: { edit: editable, removeAnyNote: Teams.isAdmin(req.user), source: editable && Teams.canEdit(req.user, 'STUDENT SOURCE', found.row), assign: canAssign(req.user), myTeams: teamsOf(req.user) },
+          can: { edit: editable, removeAnyNote: Teams.isAdmin(req.user), source: editable && Teams.canEdit(req.user, 'STUDENT SOURCE', found.row), assign: assignTeamsFor(req.user).length > 0, removeAnyTask: canAssign(req.user), myTeams: teamsOf(req.user) },
           taskTeams: TASK_TEAMS(),
+          assignTeams: assignTeamsFor(req.user),
           me: { name: req.user.name },
           event: (() => { const e = eventOf(card.profile.sourceDetail); return e ? { name: e.name, kind: e.kind || 'Event', type: e.type, place: e.place, date: e.date, endDate: e.endDate } : null; })(),
           mail: { ready: Boolean(cfg), from: cfg ? cfg.from : '' },
@@ -594,15 +601,16 @@ function createPortalApi({
       const who2 = nameOf(found.row) || 'a student';
       let out;
       if (!sub) {
-        if (!canAssign(req.user)) { sendJSON(res, 403, { error: 'Only Admin and the Manager give tasks.' }); return true; }
-        if (!Teams.DEPARTMENTS[text(body.team)]) { sendJSON(res, 400, { error: 'Choose the team.' }); return true; }
+        const allowedTeams = assignTeamsFor(req.user).map((t) => t.id);
+        if (!allowedTeams.length) { sendJSON(res, 403, { error: 'Only Admin, the Manager and the branches give tasks.' }); return true; }
+        if (!allowedTeams.includes(text(body.team))) { sendJSON(res, 400, { error: 'Choose the team.' }); return true; }
         out = cards.addTask(rowId, body, by(req));
         if (!out.error) note(req, [`${who2}: gave ${teamLabel(out.task.team)} a task: ${out.task.text.slice(0, 120)}`], 'Gave a task');
       } else {
         const task = (card.tasks || []).find((t) => t.id === sub);
         if (!task) { sendJSON(res, 404, { error: 'No such task.' }); return true; }
         if (del) {
-          if (!canAssign(req.user)) { sendJSON(res, 403, { error: 'Only Admin and the Manager remove tasks.' }); return true; }
+          if (!canAssign(req.user) && !(isBranchUser(req.user) && task.by === by(req))) { sendJSON(res, 403, { error: 'Only Admin, the Manager or whoever gave the task removes it.' }); return true; }
           out = cards.removeTask(rowId, sub, by(req));
           if (!out.error) note(req, [`${who2}: removed the task for ${teamLabel(task.team)}`], 'Removed a task');
         } else {
@@ -1007,13 +1015,17 @@ function createPortalApi({
     }
     return handlePartnerStore(req, res, urlPath, { store: agents, prefix: 'agents', label: 'Agents', kind: 'agents' }); }
   async function handlePartnerStore(req, res, urlPath, { store: b2b, prefix, label, kind }) {
-    if (!adminOnly(req, res, label)) return true;
+    // Admin changes the list; the Manager (with the commission) and the Application and Mock Teams (without it) look at it.
+    const level = partnerAccess(req.user)[kind];
+    const reading = req.method === 'GET' && !/\/delete$/.test(urlPath);
+    if (!level || (level !== 'full' && !reading)) { if (!adminOnly(req, res, level ? `Changing ${label}` : label)) return true; }
     const id = (urlPath.match(new RegExp(`^/api/${prefix}/([a-f0-9]{12})`)) || [])[1];
     const record = (line) => activity.record(req, req.user, 'Edited partners', { app: label, changes: [line] });
     const fileMatch = urlPath.match(new RegExp(`^/api/${prefix}/[a-f0-9]{12}/files(?:/([a-f0-9]{12})(/delete)?)?$`));
     if (fileMatch) {
       const fid = fileMatch[1];
       if (req.method === 'GET' && fid && !fileMatch[2]) {
+        if (level === 'team') { sendJSON(res, 403, { error: 'The commission lists and agreement files are not open to your account.' }); return true; }
         const file = b2b.agreementFile(id, fid);
         if (!file) { sendJSON(res, 404, { error: 'No such file.' }); return true; }
         // ?open=1 shows a PDF or a picture in the browser (a commission list opens when it is clicked); anything else is downloaded.
@@ -1047,8 +1059,9 @@ function createPortalApi({
       return true;
     }
     if (req.method === 'GET') {
-      if (!id) { sendJSON(res, 200, { partners: b2b.list(), ...(kind === 'b2b' ? { onSheet: sheetPartners(), notPartners: planning.all().settings.notPartners || [] } : { onSheet: sheetAgents(), notPartners: planning.all().settings.notAgents || [] }), statuses: PARTNER_STATUSES, performance: partnerPerformance(kind), currentIntake: (currentIntake() || {}).name || '', intakes: (() => { const wb = getWorkbook(); return wb ? wb.sheets.filter((x) => !x.hidden || true).map((x) => x.name) : []; })() }); return true; }
-      const one = b2b.get(id);
+      if (!id && level !== 'full') { sendJSON(res, 200, { access: level, partners: b2b.list().map((p) => shapePartner(p, level)), statuses: PARTNER_STATUSES, performance: partnerPerformance(kind), currentIntake: (currentIntake() || {}).name || '' }); return true; }
+      if (!id) { sendJSON(res, 200, { access: level, partners: b2b.list(), ...(kind === 'b2b' ? { onSheet: sheetPartners(), notPartners: planning.all().settings.notPartners || [] } : { onSheet: sheetAgents(), notPartners: planning.all().settings.notAgents || [] }), statuses: PARTNER_STATUSES, performance: partnerPerformance(kind), currentIntake: (currentIntake() || {}).name || '', intakes: (() => { const wb = getWorkbook(); return wb ? wb.sheets.filter((x) => !x.hidden || true).map((x) => x.name) : []; })() }); return true; }
+      const one = shapePartner(b2b.get(id), level);
       if (one) sendJSON(res, 200, one); else sendJSON(res, 404, { error: 'No such partner.' });
       return true;
     }
@@ -1281,7 +1294,7 @@ function createPortalApi({
       sendJSON(res, 200, { universities: names(direct), partners, offices: OFFICES, agents: agentNames });
       return true;
     }
-    // Tasks: a team member gets the open and recently done tasks of their teams; Admin and the Manager get every task they gave.
+    // Tasks: a team member gets the tasks of their teams (and a branch the tasks it gave); Admin and the Manager get every task.
     if (urlPath === '/api/tasks' && req.method === 'GET') {
       const all = cards.all();
       const mine = teamsOf(req.user);
@@ -1290,7 +1303,9 @@ function createPortalApi({
       for (const { sheet, row } of rowIndex().values()) {
         const c = all[row._id];
         if (!c || !Array.isArray(c.tasks) || !c.tasks.length) continue;
-        c.tasks.forEach((t) => { if (everyone || mine.includes(t.team)) out.push({ ...t, teamLabel: teamLabel(t.team), studentId: row._id, student: nameOf(row) || 'Student', stage: text(row[STATUS]), intake: sheet.name }); });
+        // A branch also gets the tasks it gave (marked `given`), to see whether they are done.
+        const gaveIt = (t) => isBranchUser(req.user) && t.by === by(req);
+        c.tasks.forEach((t) => { if (everyone || mine.includes(t.team) || gaveIt(t)) out.push({ ...t, given: !everyone && !mine.includes(t.team), teamLabel: teamLabel(t.team), studentId: row._id, student: nameOf(row) || 'Student', stage: text(row[STATUS]), intake: sheet.name }); });
       }
       out.sort((a, b) => (a.done - b.done) || String(a.due || '9999').localeCompare(String(b.due || '9999')) || String(b.at).localeCompare(String(a.at)));
       sendJSON(res, 200, { tasks: out.slice(0, 500), canAssign: everyone, teams: TASK_TEAMS() });

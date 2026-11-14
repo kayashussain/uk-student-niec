@@ -477,12 +477,13 @@ test('on the real server: cards follow the rules of the sheet, messages are reco
   assert.strictEqual((await admin('POST', '/api/templates/signature', { name: 'Head of UK Recruitment', phone: '+977 1 5550000' })).status, 200);
   assert.match((await app('POST', `/api/cards/${sitaId}/messages/preview`, { template: 'offer_received' })).json.text, /Head of UK Recruitment\n/);
 
-  // Admin-only and Manager pages.
-  for (const url of ['/api/b2b', '/message-templates', '/b2b-partners']) {
-    const res = await app('GET', url);
-    assert.ok(res.status === 403 || res.status === 302, `${url} is not for a team (${res.status})`);
-  }
-  assert.strictEqual((await manager('GET', '/api/b2b')).status, 403);
+  // B2B Partners and Message templates: the Application Team and the Manager look (the team without the commission, see
+  // partner-access.test.js); only Admin changes them.
+  for (const url of ['/api/b2b', '/message-templates', '/b2b-partners']) assert.strictEqual((await app('GET', url)).status, 200, `${url} opens for the Application Team to look at`);
+  assert.strictEqual((await app('GET', '/api/b2b')).json.access, 'team');
+  assert.strictEqual((await app('POST', '/api/b2b', { name: 'X' })).status, 403, 'a team does not change B2B Partners');
+  assert.strictEqual((await manager('GET', '/api/b2b')).json.access, 'commission');
+  assert.strictEqual((await manager('POST', '/api/b2b', { name: 'X' })).status, 403, 'the Manager does not change B2B Partners');
   const partner = (await admin('POST', '/api/b2b', { name: 'Himal Education Hub' })).json;
   assert.strictEqual(partner.name, 'Himal Education Hub');
     assert.strictEqual((await app('GET', '/api/insights')).status, 403);
@@ -512,7 +513,7 @@ test('on the real server: cards follow the rules of the sheet, messages are reco
   assert.strictEqual((await manager('POST', '/api/bulk/preview', { ids: [sitaId], subject: 'x', body: 'y' })).json.items[0].error, 'Not in your list.', 'the Manager only views');
 
   // Agents are their own list, apart from the B2B partners.
-  assert.strictEqual((await app('GET', '/api/agents')).status, 403);
+  assert.strictEqual((await app('GET', '/api/agents')).json.access, 'team', 'the Application Team looks at Agents without the commission');
   const agent = (await admin('POST', '/api/agents', { name: 'Gorkha Agents' })).json;
   assert.strictEqual(agent.name, 'Gorkha Agents');
   assert.ok((await admin('POST', `/api/agents/${agent.id}`, { name: 'Gorkha Agents', contacts: [{ name: 'Mina', phone: '9801111111' }], commissions: [{ intake: 'Jan Intake 2027', link: 'https://example.org/rates', note: '' }, { intake: 'x', link: 'javascript:1' }] })).json.commissions[1].link === '', 'only a web address is kept as a link');

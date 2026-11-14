@@ -33,6 +33,7 @@ const { createSourceOptions } = require('./source-options');
 const CardFields = require('./card-fields');
 const { createB2b } = require('./b2b');
 const { createPortalApi } = require('./portal-api');
+const { partnerAccess, shapeDirect } = require('./partner-access');
 const { buildInsights } = require('./insights-engine');
 const { createFinder } = require('./finder');
 
@@ -725,13 +726,18 @@ function readRawBody(req, maxBytes) {
 
 // Partner Universities (campuses, commission slabs, agreement details): Admin only, for reading as well as changing.
 async function handleDirect(req, res, urlPath) {
-  if (!isAdmin(req.user)) return sendJSON(res, 403, { error: 'Partner Universities is for Admin only.' });
+  // Admin changes the list; the Manager, the Application and Mock Teams and the branches look at it, each seeing only what
+  // partner-access.js allows (no commission and no portal login for a team).
+  const level = partnerAccess(req.user).direct;
+  if (!level) return sendJSON(res, 403, { error: 'Partner Universities is not open to your account.' });
+  if (level !== 'full' && !(req.method === 'GET' && !/\/delete$/.test(urlPath))) return sendJSON(res, 403, { error: 'Only Admin changes Partner Universities.' });
   const id = (urlPath.match(/^\/api\/direct\/([a-f0-9]{12})/) || [])[1];
   // Agreement files: upload (the file itself is the request body), download, remove.
   const fileMatch = urlPath.match(/^\/api\/direct\/[a-f0-9]{12}\/files(?:\/([a-f0-9]{12})(\/delete)?)?$/);
   if (fileMatch) {
     const fid = fileMatch[1];
     if (req.method === 'GET' && fid && !fileMatch[2]) {
+      if (level === 'team') return sendJSON(res, 403, { error: 'The agreement files are not open to your account.' });
       const file = direct.agreementFile(id, fid);
       if (!file) return sendJSON(res, 404, { error: 'No such file.' });
       activity.record(req, req.user, 'Downloaded agreement', { app: 'Student Details', changes: [`Downloaded ${file.name}`] });
@@ -760,9 +766,9 @@ async function handleDirect(req, res, urlPath) {
     return sendJSON(res, 200, gone.university);
   }
   if (req.method === 'GET') {
-    if (!id) return send(res, 200, JSON.stringify(direct.list()), JSON_HEADERS);
+    if (!id) return send(res, 200, JSON.stringify(direct.list().map((u) => shapeDirect(u, level))), JSON_HEADERS);
     const uni = direct.get(id);
-    return uni ? send(res, 200, JSON.stringify(uni), JSON_HEADERS) : sendJSON(res, 404, { error: 'No such university.' });
+    return uni ? send(res, 200, JSON.stringify(shapeDirect(uni, level)), JSON_HEADERS) : sendJSON(res, 404, { error: 'No such university.' });
   }
   if (req.method !== 'POST') return send(res, 405, 'Method not allowed');
   let body;
@@ -966,14 +972,18 @@ const server = http.createServer(async (req, res) => {
       if (urlPath === '/my-dashboard' && fullDashboard) return send(res, 302, '', { Location: '/dashboard' });
       if (page) {
         // Every account opens the sheet, a student card and the compose page (each shows only the students the account sees);
-        // the Dashboard is for Admin and the Manager; the rest is Admin's.
-        const allowed = ['/students', '/student', '/today', '/my-dashboard'].includes(urlPath) || (['/compose', '/bulk', '/bulk-add'].includes(urlPath) && !isReadOnly(req.user)) || (['/dashboard', '/events'].includes(urlPath) ? (isAdmin(req.user) || isManager(req.user)) : isAdmin(req.user));
+        // the Dashboard is for Admin and the Manager; the partner pages and Message templates as partner-access.js says; the rest is Admin's.
+        const access = partnerAccess(req.user);
+        const shared = { '/partner-universities': access.direct, '/b2b-partners': access.b2b, '/agents': access.agents, '/message-templates': access.templates }[urlPath];
+        const allowed = Boolean(shared) || ['/students', '/student', '/today', '/my-dashboard'].includes(urlPath) || (['/compose', '/bulk', '/bulk-add'].includes(urlPath) && !isReadOnly(req.user)) || (['/dashboard', '/events'].includes(urlPath) ? (isAdmin(req.user) || isManager(req.user)) : isAdmin(req.user));
         if (!allowed) return send(res, 302, '', { Location: home + (String(home).includes('?') ? '&' : '?') + 'notice=admin' });
         req.url = '/' + page;
         return serveStatic(req, res);
       }
     }
     if (urlPath === '/api/demo' && req.method === 'GET') return sendJSON(res, 200, { demo: process.env.ISR_DEMO === '1' });
+    // What this account sees of the partner pages and Message templates (the pages hide what is not theirs to change).
+    if (urlPath === '/api/partner-access' && req.method === 'GET') return sendJSON(res, 200, partnerAccess(req.user));
     if (urlPath === '/api/dashboard' && req.method === 'GET') {
       if (!isAdmin(req.user) && !isManager(req.user)) return sendJSON(res, 403, { error: 'The dashboard is for Admin and the Manager.' });
       if (!current) return sendJSON(res, 500, { error: 'Could not read the data file' });
@@ -1033,7 +1043,9 @@ const server = http.createServer(async (req, res) => {
     }
     if (SHARED_FILES[urlPath]) return serveShared(req, res);
     // The page files of the Admin-only pages are Admin-only too (their data was already refused; now their shells are as well).
-    if (['/users.html', '/activity.html', '/direct.html', '/dashboard.html', '/templates.html', '/b2b.html', '/agents.html', '/events.html'].includes(urlPath) && !isAdmin(req.user)
+    const pageAccess = partnerAccess(req.user);
+    const sharedPage = { '/direct.html': pageAccess.direct, '/b2b.html': pageAccess.b2b, '/agents.html': pageAccess.agents, '/templates.html': pageAccess.templates }[urlPath];
+    if (['/users.html', '/activity.html', '/direct.html', '/dashboard.html', '/templates.html', '/b2b.html', '/agents.html', '/events.html'].includes(urlPath) && !isAdmin(req.user) && !sharedPage
       && !(['/dashboard.html', '/events.html'].includes(urlPath) && isManager(req.user))) return send(res, 302, '', { Location: home + (String(home).includes('?') ? '&' : '?') + 'notice=admin' });
     serveStatic(req, res);
   } catch (e) {
