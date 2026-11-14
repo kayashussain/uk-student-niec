@@ -157,7 +157,7 @@ test('a message to a student is a personal letter: no machine-written mark, and 
 
 test('the level and the fee of a course are read from the Fact File as written', () => {
   assert.strictEqual(levelOf('Postgraduate (MBA, MSc, LLM, MFA)'), 'Postgraduate');
-  assert.strictEqual(levelOf('MBA Healthcare Management'), 'MBA');
+  assert.strictEqual(levelOf('MBA Healthcare Management'), 'Postgraduate');
   assert.strictEqual(levelOf('BSc (Hons) Nursing - Adult'), 'Undergraduate');
   assert.strictEqual(levelOf('BSc Nursing Studies - Top Up'), 'Top-up (final year)');
   assert.strictEqual(pickLine('£17,250\n\nMBA: £19,000', 'MSc Cyber Security'), '£17,250');
@@ -572,7 +572,7 @@ test('on the real server: cards follow the rules of the sheet, messages are reco
 
   // Today: what needs attention, for the students the account sees.
   const todayAdmin = (await admin('GET', '/api/today')).json;
-  assert.deepStrictEqual(todayAdmin.sections.map((x) => x.key), ['inquiries', 'apply', 'mock', 'offers', 'cas']);
+  assert.deepStrictEqual(todayAdmin.sections.map((x) => x.key), ['inquiries', 'apply', 'passport', 'mock', 'offers', 'cas']);
   assert.ok(todayAdmin.sections.find((x) => x.key === 'inquiries').students.some((x) => x.id === hari.json.id), 'a new inquiry with no contact is listed');
   const todayApp = (await app('GET', '/api/today')).json;
   assert.ok(!todayApp.sections.some((x) => x.students.some((y) => y.id === hari.json.id)), 'a team sees only the students of its own stages');

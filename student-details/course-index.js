@@ -12,6 +12,7 @@ const path = require('path');
 const { writeFileAtomic } = require('../shared/server-utils');
 const { websiteOf } = require('./university-websites');
 
+const Fields = require('./card-fields');
 const text = (v) => String(v ?? '').trim();
 const flat = (v) => text(v).split('\n').map((l) => l.replace(/^\s*(?:[-*•]\s+|##\s+)/, '').trim()).filter(Boolean);
 
@@ -20,10 +21,10 @@ function levelOf(words) {
   const t = ` ${String(words || '').toLowerCase()} `;
   if (/\btop[- ]?up\b/.test(t)) return 'Top-up (final year)';
   if (/pre[- ]?masters?\b/.test(t)) return 'Pre-Masters';
-  if (/\bfoundation\b|international year one|\biyo\b|\bifp\b|pathway/.test(t)) return 'Foundation';
-  if (/\bphd\b|\bmres\b|doctor|research degree/.test(t)) return 'MRes or PhD';
-  if (/postgraduate|\bpg\b/.test(t)) return 'Postgraduate'; // "Postgraduate (MBA, MSc, LLM)" is the postgraduate row, not the MBA's own
-  if (/\bmba\b/.test(t)) return 'MBA';
+  if (/international year (one|1)|\biy1\b|\biyo\b|with international year/.test(t)) return 'International Year 1';
+  if (/\bfoundation\b|\bifp\b|pathway/.test(t)) return 'Foundation';
+  if (/\bphd\b|\bmres\b|doctor|research degree|by research/.test(t)) return 'Masters by Research or PhD';
+  if (/postgraduate|\bpg\b|\bmba\b/.test(t)) return 'Postgraduate'; // an MBA is postgraduate (the owner, 14 Nov 2026)
   if (/\bmasters?\b|\bmsc\b|\bma\b|\bllm\b|\bmeng\b|\bmph\b|\bpgdip\b|\bpgcert\b|\bmfa\b|\bmarch\b/.test(t)) return 'Postgraduate';
   if (/undergraduate|\bug\b|\bbachelors?\b|\bbsc\b|\bba\b|\bbeng\b|\bllb\b|\bbba\b|\bbn\b|\(hons\)/.test(t)) return 'Undergraduate';
   return '';
@@ -62,7 +63,6 @@ function programScore(program, course, group, level) {
   let score = 0;
   const pLevel = levelOf(name);
   if (pLevel && level && pLevel === level) score += 40;
-  else if (pLevel === 'Postgraduate' && level === 'MBA') score += 30; // an MBA is priced in the postgraduate row unless it has its own
   else if (pLevel && level && pLevel !== level) return -1;
   special.forEach((w) => {
     const inProgram = name.includes(w);
@@ -141,7 +141,7 @@ function buildIndex(universities, links = {}) {
   (universities || []).forEach((u) => {
     const add = (entry, intake) => {
       // An MBA is told apart from the other postgraduate courses (it often has a fee of its own).
-      const level = levelOf(entry.course) === 'MBA' ? 'MBA' : (levelOf(entry.group) || levelOf(entry.course));
+      const level = levelOf(entry.group) || levelOf(entry.course);
       const key = `${u.id}|${entry.course.toLowerCase()}|${intake.toLowerCase()}|${entry.group.toLowerCase()}`;
       if (seen.has(key)) return;
       seen.add(key);
@@ -176,7 +176,8 @@ function searchCourses(index, { q = '', level = '', intake = '', universityId = 
   const hits = [];
   index.forEach((o) => {
     if (universityId && o.universityId !== universityId) return;
-    if (level && o.level !== level && !(level === 'Postgraduate' && o.level === 'MBA')) return;
+    const want = Fields.OLDER_STUDY_LEVELS[level] || level; // a card that still holds MBA looks for postgraduate courses
+    if (want && o.level !== want) return;
     if (wantIntake && o.intake && !o.intake.toLowerCase().includes(wantIntake)) return;
     const courseText = o.course.toLowerCase();
     const rest = `${o.university} ${o.city} ${o.group}`.toLowerCase();

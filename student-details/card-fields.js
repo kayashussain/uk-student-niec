@@ -25,7 +25,7 @@
     // Then the form asks whether it was organic or an advert, and an advert is one of the campaigns on Events and marketing.
     'Social Media': ['Facebook', 'Instagram', 'TikTok', 'WhatsApp'],
     Visitor: ['Walked in', 'Phone call', 'Website form', 'Google search or Maps', 'Signboard or hoarding', 'Newspaper, radio or TV'],
-    Reference: ['Current or past student', 'Friend or family of the student', 'Staff member', 'Teacher or college'],
+    Reference: [], // typed: who referred the student (the owner, 14 Nov 2026)
     'Language Classes': ['IELTS class', 'PTE class'],
     Events: [],
     Agent: [],
@@ -38,7 +38,7 @@
     'Social Media': 'Which platform or page', Visitor: 'How they reached us', Reference: 'Who referred them', 'Language Classes': 'Which class',
     Events: 'Which event or marketing', Agent: 'Which agent', Branch: 'Which branch',
   };
-  const SOURCE_CAN_ADD = ['Social Media', 'Visitor', 'Reference', 'Language Classes', 'Events'];
+  const SOURCE_CAN_ADD = ['Social Media', 'Visitor', 'Language Classes', 'Events'];
 
   // Nepal's 77 districts, for where a student lives (the owner, 14 Nov 2026: the Dashboard's map of where students come from).
   const DISTRICTS = ["Achham", "Arghakhanchi", "Baglung", "Baitadi", "Bajhang", "Bajura", "Banke", "Bara", "Bardiya", "Bhaktapur", "Bhojpur", "Chitwan", "Dadeldhura", "Dailekh", "Dang", "Darchula", "Dhading", "Dhankuta", "Dhanusha", "Dolakha", "Dolpa", "Doti", "Gorkha", "Gulmi", "Humla", "Ilam", "Jajarkot", "Jhapa", "Jumla", "Kailali", "Kalikot", "Kanchanpur", "Kapilvastu", "Kaski", "Kathmandu", "Kavrepalanchok", "Khotang", "Lalitpur", "Lamjung", "Mahottari", "Makwanpur", "Manang", "Morang", "Mugu", "Mustang", "Myagdi", "Nawalpur (Nawalparasi East)", "Nuwakot", "Okhaldhunga", "Palpa", "Panchthar", "Parasi (Nawalparasi West)", "Parbat", "Parsa", "Pyuthan", "Ramechhap", "Rasuwa", "Rautahat", "Rolpa", "Rukum East", "Rukum West", "Rupandehi", "Salyan", "Sankhuwasabha", "Saptari", "Sarlahi", "Sindhuli", "Sindhupalchok", "Siraha", "Solukhumbu", "Sunsari", "Surkhet", "Syangja", "Tanahun", "Taplejung", "Terhathum", "Udayapur"];
@@ -55,7 +55,9 @@
   }
   const NATIONALITIES = ['Nepali', 'Indian', 'Chinese', 'Bangladeshi', 'Bhutanese', 'Sri Lankan', 'Pakistani', 'Other'];
   const SOURCE_WAYS = ['Organic', 'Advert'];
-  const STUDY_LEVELS = ['Foundation', 'Undergraduate', 'Top-up (final year)', 'Pre-Masters', 'Postgraduate', 'MBA', 'MRes or PhD'];
+  // The study levels offered (the owner, 14 Nov 2026: an MBA is postgraduate). The two older ones a card may still hold stay readable.
+  const STUDY_LEVELS = ['Foundation', 'International Year 1', 'Top-up (final year)', 'Undergraduate', 'Pre-Masters', 'Postgraduate', 'Masters by Research or PhD'];
+  const OLDER_STUDY_LEVELS = { MBA: 'Postgraduate', 'MRes or PhD': 'Masters by Research or PhD' };
   const QUALIFICATIONS = ['SEE (Grade 10)', '+2 or Grade 12', 'A Levels', 'Diploma or PCL', 'Bachelor (3 years)', 'Bachelor (4 years)', 'Masters'];
   const ENGLISH_TESTS = ['IELTS Academic', 'IELTS UKVI', 'PTE Academic', 'PTE UKVI', 'Duolingo', 'TOEFL iBT', 'OET', 'University internal test', 'MOI or waiver', 'Not taken yet'];
   // Why a student did not go on. Fixed choices, so the Dashboard can count them (free typing would give ten spellings of one reason).
@@ -104,6 +106,7 @@
     { key: 'budget', label: 'Budget for the first year (GBP)', max: 60 },
     { key: 'location', label: 'Where in the UK', max: 120 },
     { key: 'subject', label: 'Subject or course wanted', max: 160 },
+    { key: 'optionRemarks', label: 'Remarks for the university options', max: 1500 },
     { key: 'lostReason', label: 'Why the student did not go on', list: 'LOST_REASONS' },
     // From the passport (the owner, 14 Nov 2026): the date of birth, the passport number, the address as written in it and the
     // nationality. The address gives the district for the Dashboard's map; the nationality counts the students from outside Nepal.
@@ -156,6 +159,6 @@
   return {
     BRANCHES, STORED_SOURCES, branchValue, isBranchValue, sourceGroup, branchName, storedSource,
     SOURCE_DETAILS, SOURCE_DETAIL_LABEL, SOURCE_CAN_ADD, STUDY_LEVELS, QUALIFICATIONS, ENGLISH_TESTS, LOST_REASONS, LOST_STAGES,
-    DISTRICTS, districtOf, NATIONALITIES, SOURCE_WAYS, NOTE_KINDS, DOCUMENTS, documentsFor, PROFILE_FIELDS, SHEET_SECTIONS, columnLabel, whatsappNumber, courseSearchUrl,
+    OLDER_STUDY_LEVELS, DISTRICTS, districtOf, NATIONALITIES, SOURCE_WAYS, NOTE_KINDS, DOCUMENTS, documentsFor, PROFILE_FIELDS, SHEET_SECTIONS, columnLabel, whatsappNumber, courseSearchUrl,
   };
 });

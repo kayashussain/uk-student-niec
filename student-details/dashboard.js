@@ -253,7 +253,8 @@
     return c;
   }
 
-  // Where students came from: by Student Source, or by who received the application.
+  // How students found us: by Student Source (the way in: social media, a visit, an event ...), or by who received the application.
+  // Not a place: where they live is the map's.
   function originCard() {
     const a = apps || { sources: [], list: [] };
     const tabs = el('div', 'dd-switch');
@@ -269,7 +270,7 @@
       }
     };
     [['source', 'By source'], ['received', 'By who received']].forEach(([m, t]) => { const b = el('button', '', t); b.type = 'button'; b.dataset.m = m; b.addEventListener('click', () => { mode = m; render(); }); tabs.append(b); });
-    const c = card('ov-origin', 'Where students came from', 'Click a slice or a row to go deeper, down to the students');
+    const c = card('ov-origin', 'How students found us', 'The way in: social media, a visit, an event, a branch or an agent. Click a slice to go down to the students.');
     c.head.append(tabs);
     render();
     c.append(holder);
@@ -286,20 +287,19 @@
     if (!ins || !dash || !window.DashText) return;
     const page = el('div', 'ov');
     page.append(kpis());
-    // Told like a presentation (the owner, 14 Nov 2026): the headline figures, then how the business grows intake by intake, then
-    // the ups and downs of this intake over time, then where the students are from; the detail cards follow.
-    if (trends && window.DashboardTrends) {
-      const g = el('div', 'ov-row'); g.append(window.DashboardTrends.growth(trends));
-      const t = el('div', 'ov-row'); t.append(window.DashboardTrends.overTime(trends));
-      const m = el('div', 'ov-row'); m.append(window.DashboardTrends.map(trends));
-      page.append(g, t, m);
-    }
-    const r1 = el('div', 'ov-row ov-row-2'); r1.append(originCard(), targetCard());
-    const r3 = el('div', 'ov-row ov-row-2'); r3.append(partnersCard(), funnelCard());
+    // Told like a presentation, in a balanced order (the owner, 14 Nov 2026): a big chart, then a pair of plain cards, then a big
+    // chart again, so the lively and the plain alternate from top to bottom: the headline figures; ups and downs over time; how
+    // students found us and the visa target; growth by intake; where students live in Nepal; partners and the funnel; universities.
+    const T = trends && window.DashboardTrends;
+    const row = (cls, ...cards) => { const r = el('div', cls); r.append(...cards); page.append(r); };
+    if (T) row('ov-row', T.overTime(trends));
+    row('ov-row ov-row-2', originCard(), targetCard());
+    if (T) row('ov-row', T.growth(trends));
+    if (T) row('ov-row', T.map(trends));
+    row('ov-row ov-row-2', partnersCard(), funnelCard());
     // Universities: only those recorded on the students (a blank University Name is not a row).
     const unis = (ins.universities.list || []).filter((g) => g.label && !/not recorded/i.test(g.label));
-    const r4 = el('div', 'ov-row'); r4.append(leaderboard('Universities', 'Where the students are placed', unis, null, 'university'));
-    page.append(r1, r3, r4);
+    row('ov-row', leaderboard('Universities', 'Where the students are placed', unis, null, 'university'));
     if (ins.summary.low) page.append(el('p', 'ov-foot', 'This intake has fewer than 10 students, so a rate from it is a hint, not evidence.'));
     root.replaceChildren(page);
   }

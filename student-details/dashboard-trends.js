@@ -1,13 +1,13 @@
 // The Dashboard's deeper cards (the owner, 14 Nov 2026), drawn from /api/trends:
-//   1. "Business growth by intake": every intake side by side, like a company's quarters (students, applications, offers, payments,
-//      visas), with how much each grew on the intake before.
+//   1. "Business growth by intake": two plain bar charts (students, visas in each intake) and a table of every intake with how much
+//      each figure grew on the intake before and the visa rate.
 //   2. "Ups and downs over time": a chart like a stock market's, one line for each of inquiries, applications, offers, payments, CAS
 //      and visas, by day, week or month, on the day each one happened (a lead list's own inquiry days, never the upload day). A line is
 //      shown or hidden by tapping its name; each line's peak is marked; a crosshair reads every line on the day under the mouse; every
 //      event and campaign is marked where it ran, so a rise can be read: the ads, an event, or by itself, and did the applications
 //      follow. Inquiries can be narrowed to one source. A few plain sentences say what it shows.
-//   3. "Where students are from": Nepal, district by district (from the address in the passport), with a red dot sized by students,
-//      the top districts, the students from outside Nepal by nationality, and the age groups.
+//   3. "Where students live in Nepal": Nepal, district by district (from the address in the passport), with a red dot sized by students,
+//      the top districts, the students from outside Nepal by nationality, and their age when they applied.
 // Every name and label comes from records, so it is only ever put in with textContent.
 (function (root) {
   const { el } = root.Portal;
@@ -54,40 +54,51 @@
   }).join('');
 
   // ---- 1. business growth by intake ----
+  // Kept simple to read at a glance (the owner, 14 Nov 2026: easy for the CEO and the chairman): two plain bar charts side by side,
+  // students in each intake and visas in each intake, one colour each, every number printed on its bar, then the table.
+  function bars(list, key, title, colour) {
+    const box = el('div', 'tr-simple');
+    box.append(el('h3', '', title));
+    const W = 480; const H = 230; const TOP = 30; const BOT = 190;
+    const s = svg('svg', { viewBox: `0 0 ${W} ${H}`, class: 'tr-svg', role: 'img', 'aria-label': title });
+    const max = Math.max(1, ...list.map((v) => v[key]));
+    const cw = W / Math.max(1, list.length);
+    const bw = Math.min(64, cw * .62);
+    s.append(svg('line', { x1: 0, x2: W, y1: BOT, y2: BOT, class: 'tr-grid' }));
+    list.forEach((v, i) => {
+      const x = cw * i + cw / 2;
+      const h = ((BOT - TOP) * v[key]) / max;
+      const g = svg('g', { class: 'tr-col' }); g.style.setProperty('--d', `${i * 80}ms`);
+      g.append(svg('rect', { x: x - bw / 2, y: BOT - h, width: bw, height: Math.max(h, 1), rx: 6, fill: colour, class: 'tr-bar' }));
+      const n = svg('text', { x, y: BOT - h - 8, class: 'tr-num', 'text-anchor': 'middle' }); n.textContent = fmt(v[key]); g.append(n);
+      s.append(g);
+      const t = svg('text', { x, y: H - 16, class: 'tr-axis strong', 'text-anchor': 'middle' }); t.textContent = v.name.length > 16 ? v.name.replace(/\s*intake\s*/i, ' ').trim() : v.name; s.append(t);
+    });
+    box.append(s);
+    return box;
+  }
+  const rate = (v) => (v.students ? Math.round((v.visas / v.students) * 100) : 0);
   function growth(data) {
     const card = el('section', 'ov-card tr-card tr-growth');
     const list = data.intakes || [];
-    card.append(head('Business growth by intake', 'Every intake side by side, like a company’s quarters: how many students, applications, offers, payments and visas, and how much each grew on the intake before.'));
+    card.append(head('Business growth by intake', 'Each intake side by side, oldest on the left: how many students we had, and how many got their visa.'));
     if (list.length < 2) { card.append(el('p', 'p-muted', 'The growth shows once there are two intakes or more.')); }
-    const W = 1000; const H = 260; const L = 44; const R = 16; const TOP = 22; const BOT = 220;
-    const s = svg('svg', { viewBox: `0 0 ${W} ${H}`, class: 'tr-svg', role: 'img', 'aria-label': 'Students and visas in each intake' });
-    const max = Math.max(4, ...list.map((v) => v.students));
-    const cw = (W - L - R) / Math.max(1, list.length);
-    [0, .5, 1].forEach((f) => { const y = BOT - (BOT - TOP) * f; s.append(svg('line', { x1: L, x2: W - R, y1: y, y2: y, class: 'tr-grid' })); const t = svg('text', { x: L - 8, y: y + 4, class: 'tr-axis', 'text-anchor': 'end' }); t.textContent = fmt(Math.round(max * f)); s.append(t); });
-    const SERIES = [['students', 'Students', '#d2d2d7'], ['applied', 'Applications', '#0071e3'], ['offers', 'Offers', '#5856d6'], ['paid', 'Payments', '#ff9500'], ['visas', 'Visas', '#34c759']];
-    const visaPts = [];
-    list.forEach((v, i) => {
-      const x0 = L + cw * i; const bw = Math.min(26, (cw * .8) / SERIES.length);
-      const g = svg('g', { class: 'tr-col' }); g.style.setProperty('--d', `${i * 70}ms`);
-      SERIES.forEach(([k, , c], j) => {
-        const h = ((BOT - TOP) * v[k]) / max;
-        g.append(svg('rect', { x: x0 + cw / 2 - (SERIES.length * bw) / 2 + j * bw + 1, y: BOT - h, width: bw - 2, height: Math.max(h, .5), rx: 3, fill: c, class: 'tr-bar' }));
-      });
-      visaPts.push([x0 + cw / 2, BOT - ((BOT - TOP) * v.visas) / max]);
-      const hit = svg('rect', { x: x0, y: TOP, width: cw, height: BOT - TOP, class: 'tr-hit' });
-      hit.addEventListener('mousemove', (e) => showTip(e, v.name, SERIES.map(([k, n, c]) => [n, fmt(v[k]), c])));
-      hit.addEventListener('mouseleave', hideTip);
-      g.append(hit);
-      s.append(g);
-      const t = svg('text', { x: x0 + cw / 2, y: H - 14, class: 'tr-axis strong', 'text-anchor': 'middle' }); t.textContent = v.name; s.append(t);
-    });
-    if (visaPts.length > 1) s.append(svg('path', { d: smooth(visaPts), class: 'tr-line draw', stroke: '#34c759' }));
-    const legend = el('div', 'tr-legend');
-    SERIES.forEach(([, n, c]) => { const k = el('span', 'tr-key static'); const dot = el('i'); dot.style.background = c; k.append(dot, el('span', '', n)); legend.append(k); });
-    // The table of the quarters: each figure, and its change on the intake before.
+    const pair = el('div', 'tr-pair');
+    pair.append(bars(list, 'students', 'Students in each intake', '#0071e3'), bars(list, 'visas', 'Visas in each intake', '#34c759'));
+    // One plain sentence on the latest closed intake against the one before.
+    const done = list.length > 2 ? list.slice(0, -1) : list;
+    if (done.length > 1) {
+      const a = done[done.length - 1]; const b = done[done.length - 2];
+      const pc = (x, y) => (y ? Math.round(((x - y) / y) * 100) : 0);
+      const said = (c) => (c > 0 ? `up ${c}%` : c < 0 ? `down ${-c}%` : 'the same');
+      const words = el('div', 'tr-story'); card.append(words);
+      words.append(el('p', 'tr-lead', `${a.name}: ${fmt(a.students)} students (${said(pc(a.students, b.students))} on ${b.name}) and ${fmt(a.visas)} visas (${said(pc(a.visas, b.visas))}).`));
+    }
+    card.append(pair);
+    // The table: each figure, and its change on the intake before.
     const table = el('table', 'tr-table');
     const thead = el('tr');
-    ['Intake', 'Students', 'Applications', 'Offers', 'Payments', 'Visas', 'Visas per 100 students'].forEach((x) => thead.append(el('th', '', x)));
+    ['Intake', 'Students', 'Applications', 'Offers', 'Payments', 'Visas', 'Visa rate'].forEach((x) => thead.append(el('th', '', x)));
     table.append(thead);
     list.forEach((v, i) => {
       const prev = list[i - 1];
@@ -102,21 +113,19 @@
         if (prev && prev[k]) { const c = Math.round(((v[k] - prev[k]) / prev[k]) * 100); const ch = el('span', `tr-chg ${c > 0 ? 'up' : c < 0 ? 'down' : ''}`, `${c > 0 ? '▲' : c < 0 ? '▼' : ''} ${Math.abs(c)}%`); td.append(ch); }
         tr.append(td);
       });
-      tr.append(el('td', '', v.students ? String(Math.round((v.visas / v.students) * 1000) / 10) : '-'));
+      tr.append(el('td', '', v.students ? `${rate(v)}%` : '-'));
       table.append(tr);
     });
-    card.append(legend, el('div', 'tr-chart'), table);
-    if (list.length > 1) card.append(el('p', 'ov-foot', `${list[list.length - 1].name} is still running: its payments and visas are still coming in, so compare it with the others again once it has closed.`));
-    card.querySelector('.tr-chart').append(s);
+    card.append(table);
+    card.append(el('p', 'ov-foot', `Visa rate: of every 100 students in the intake, how many got their visa (visas ÷ students).${list.length > 1 ? ` ${list[list.length - 1].name} is still running, so its payments and visas are still coming in.` : ''}`));
     return card;
   }
 
   // ---- 2. ups and downs over time ----
-  const LINES = [
-    ['inq', 'Inquiries', '#0071e3', (d) => d.inquiries.map((x) => x[0])], ['app', 'Applications', '#5856d6', (d) => d.applications], ['off', 'Offers', '#af52de', (d) => d.offers],
-    ['pay', 'Payments', '#ff9500', (d) => d.payments || []], ['cas', 'CAS', '#30b0c7', (d) => d.cas || []], ['visa', 'Visas', '#34c759', (d) => d.visas || []],
-  ];
-  const SOURCES = [['', 'Every source'], ['social', 'Social Media'], ['events', 'Events and marketing'], ['organic', 'Came by itself'], ['branch', 'Branches'], ['agent', 'Agents']];
+  // Each line, and the place of its day in a student's record from /api/trends: [source, inquiry, application, offer, payment, CAS, visa].
+  const LINES = [['inq', 'Inquiries', '#0071e3', 1], ['app', 'Applications', '#5856d6', 2], ['off', 'Offers', '#af52de', 3], ['pay', 'Payments', '#ff9500', 4], ['cas', 'CAS', '#30b0c7', 5], ['visa', 'Visas', '#34c759', 6]];
+  const SOURCES = [['', 'Every source'], ['events', 'Events and marketing (events, campaigns, paid adverts)'], ['social', 'Social media (not paid)'], ['organic', 'Came by itself (visitors, references, classes)'], ['branch', 'Branches'], ['agent', 'Agents and B2B partners'], ['unknown', 'Source not recorded']];
+  const daysOf = (data, source, at) => (data.students || []).filter((r) => r[at] && (!source || r[0] === source)).map((r) => r[at]);
   function periods(mode, today) {
     const t = dayNo(today);
     if (mode === 'day') return Array.from({ length: 60 }, (_, i) => { const n = t - 59 + i; return { from: n, to: n, label: short(isoOf(n)), tick: short(isoOf(n)) }; });
@@ -135,15 +144,16 @@
   function story(data) {
     const t = dayNo(data.today);
     const count = (list, from, to) => list.filter((d) => { const n = dayNo(Array.isArray(d) ? d[0] : d); return n > from && n <= to; }).length;
-    const now = { inq: count(data.inquiries, t - 28, t), app: count(data.applications, t - 28, t) };
-    const before = { inq: count(data.inquiries, t - 56, t - 28), app: count(data.applications, t - 56, t - 28) };
+    const inq = daysOf(data, '', 1); const app = daysOf(data, '', 2);
+    const now = { inq: count(inq, t - 28, t), app: count(app, t - 28, t) };
+    const before = { inq: count(inq, t - 56, t - 28), app: count(app, t - 56, t - 28) };
     const change = (a, b) => (b === 0 ? (a ? 'new' : 'flat') : Math.round(((a - b) / b) * 100));
     const say = (c) => (c === 'new' ? 'up from none' : c === 'flat' ? 'none either way' : c === 0 ? 'the same' : c > 0 ? `up ${c}%` : `down ${-c}%`);
     const lines = [`Last 4 weeks: ${now.inq} inquir${now.inq === 1 ? 'y' : 'ies'} (${say(change(now.inq, before.inq))} on the 4 weeks before) and ${now.app} application${now.app === 1 ? '' : 's'} submitted (${say(change(now.app, before.app))}).`];
     const ci = change(now.inq, before.inq); const ca = change(now.app, before.app);
     if (typeof ci === 'number' && typeof ca === 'number' && ci >= 20 && ca <= -10) lines.push('Inquiries are rising while applications are falling: the new inquiries are not yet turning into applications. Follow them up before the deadline.');
     else if (typeof ci === 'number' && typeof ca === 'number' && ci <= -20 && ca >= 0) lines.push('Applications are holding up while inquiries are falling: the pipeline will thin out in the weeks ahead unless marketing picks up.');
-    const allInq = data.inquiries.length; const allApp = data.applications.length;
+    const allInq = inq.length; const allApp = app.length;
     if (allInq && allApp) { const r = Math.round(allInq / allApp); lines.push(r <= 1 ? 'In this intake, about as many applications as inquiries with a known day.' : `In this intake, about 1 application for every ${r} inquiries.`); }
     return lines;
   }
@@ -153,15 +163,17 @@
     let source = '';
     const on = new Set(['inq', 'app', 'off']);
     const modeSw = segmented([['day', 'Days'], ['week', 'Weeks'], ['month', 'Months']], mode, (k) => { mode = k; draw(); });
-    card.append(head('Ups and downs over time', `${data.intake ? data.intake.name : ''}, by the day each thing happened (a lead list’s own inquiry days). Tap a name to show or hide its line; a dashed line marks each event or campaign.`, modeSw));
+    card.append(head('Ups and downs over time', `${data.intake ? data.intake.name : ''}, by the day each thing happened (a lead list’s own inquiry days). Tap a name to show or hide its line; a dashed line marks each event or campaign. Choose a source to see only its students on every line.`, modeSw));
     const words = el('div', 'tr-story');
     story(data).forEach((l, i) => words.append(el('p', i ? '' : 'tr-lead', l)));
     const keys = el('div', 'tr-legend tr-lines');
-    const keyEls = LINES.map(([k, n, c, get]) => {
-      const total = get(data).length;
+    const totals = [];
+    const keyEls = LINES.map(([k, n, c, at]) => {
       const b = el('button', `tr-key line${on.has(k) ? '' : ' off'}`); b.type = 'button';
       const dot = el('i'); dot.style.background = c;
-      b.append(dot, el('span', '', n), el('small', '', fmt(total)));
+      const total = el('small', '', fmt(daysOf(data, '', at).length));
+      totals.push([total, at]);
+      b.append(dot, el('span', '', n), total);
       b.setAttribute('aria-pressed', String(on.has(k)));
       b.addEventListener('click', () => { if (on.has(k)) on.delete(k); else on.add(k); b.classList.toggle('off', !on.has(k)); b.setAttribute('aria-pressed', String(on.has(k))); draw(); });
       return b;
@@ -169,8 +181,8 @@
     keys.append(...keyEls);
     const src = el('label', 'tr-source');
     const sel = el('select');
-    SOURCES.forEach(([k, n]) => sel.append(new Option(k ? `Inquiries from ${n}` : 'Inquiries from every source', k)));
-    sel.addEventListener('change', () => { source = sel.value; draw(); });
+    SOURCES.forEach(([k, n]) => sel.append(new Option(k ? `Students from ${n}` : 'Students from every source', k)));
+    sel.addEventListener('change', () => { source = sel.value; totals.forEach(([t, at]) => { t.textContent = fmt(daysOf(data, source, at).length); }); draw(); });
     src.append(sel);
     keys.append(src);
     const box = el('div', 'tr-chart');
@@ -179,10 +191,9 @@
     function draw() {
       const ps = periods(mode, data.today);
       const at = (iso) => { const n = dayNo(iso); return ps.findIndex((p) => n >= p.from && n <= p.to); };
-      const series = LINES.filter(([k]) => on.has(k)).map(([k, n, c, get]) => {
+      const series = LINES.filter(([k]) => on.has(k)).map(([k, n, c, col]) => {
         const vals = ps.map(() => 0);
-        const days = k === 'inq' ? data.inquiries.filter((x) => !source || x[1] === source).map((x) => x[0]) : get(data);
-        days.forEach((d) => { const i = at(d); if (i >= 0) vals[i] += 1; });
+        daysOf(data, source, col).forEach((d) => { const i = at(d); if (i >= 0) vals[i] += 1; });
         return { k, n, c, vals };
       });
       const W = 1000; const H = 330; const L = 40; const R = 16; const TOP = 30; const BOT = 290;
@@ -259,7 +270,7 @@
   function map(data) {
     const M = root.NepalMap;
     const card = el('section', 'ov-card tr-card');
-    card.append(head('Where students are from', `${data.intake ? data.intake.name : ''}: the district of the address in each student’s passport, a dot for each district, bigger where more students come from.`));
+    card.append(head('Where students live in Nepal', `${data.intake ? data.intake.name : ''}, from the address in each student’s passport: a red dot for each district, bigger where more students live, and their age when they applied.`));
     const body = el('div', 'tr-map-body');
     const mapBox = el('div', 'tr-map');
     const side = el('div', 'tr-map-side');
@@ -299,7 +310,7 @@
     }
     const ages = Object.entries(data.ages).filter(([, c]) => c);
     if (ages.length) {
-      side.append(el('h3', 'tr-age-title', 'Age groups'));
+      side.append(el('h3', 'tr-age-title', 'Age when they applied'));
       const am = Math.max(...ages.map(([, c]) => c));
       const ol = el('ol', 'tr-top ages');
       Object.entries(data.ages).forEach(([k, c]) => { const li = el('li'); const bar = el('i'); bar.style.width = `${c ? Math.max(4, (c / am) * 100) : 0}%`; li.append(el('span', '', k), el('b', '', String(c)), bar); ol.append(li); });

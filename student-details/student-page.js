@@ -113,10 +113,22 @@
     fact('Offer received', s.row['OFFER RECEIVED DATE'] ? day(s.row['OFFER RECEIVED DATE']) : '');
     // From the passport (the owner, 14 Nov 2026): kept on the student's card beside the sheet's columns.
     const pp = profile();
-    const age = (() => { if (!pp.dob) return ''; const b = new Date(pp.dob + 'T12:00:00'); const t = new Date(); let a = t.getFullYear() - b.getFullYear(); if (t < new Date(t.getFullYear(), b.getMonth(), b.getDate())) a -= 1; return a > 0 && a < 100 ? ` (${a})` : ''; })();
-    fact('Date of birth', pp.dob ? day(pp.dob) + age : '');
-    fact('Passport number', pp.passportNo);
-    fact('Address (passport)', pp.address);
+    // The age the student was when they applied (else when they first asked): it stays the same years later (the owner, 14 Nov 2026).
+    const applied = String(s.row['APPLICATION SUBMISSION DATE'] || '').slice(0, 10);
+    const on = /^\d{4}-\d{2}-\d{2}$/.test(applied) ? applied : /^\d{4}-\d{2}-\d{2}$/.test(pp.inquiryDate || '') ? pp.inquiryDate : '';
+    const age = (() => {
+      if (!pp.dob) return '';
+      const [y, m, d] = pp.dob.split('-').map(Number);
+      const t = on ? on.split('-').map(Number) : [new Date().getFullYear(), new Date().getMonth() + 1, new Date().getDate()];
+      let a = t[0] - y; if (t[1] < m || (t[1] === m && t[2] < d)) a -= 1;
+      return a > 0 && a < 100 ? ` (${a}${on === applied && on ? ' when applied' : on ? ' when they first asked' : ''})` : '';
+    })();
+    // Always shown: an empty one says "Missing" in orange, and from Application Stage on it is needed (Today lists them too).
+    const missing = (k) => { const d = el('div', 'p-fact'); const dd = el('dd'); dd.append(el('span', 'p-missing', 'Missing')); d.append(el('dt', '', k), dd); facts.append(d); };
+    const must = (k, v) => (v ? fact(k, v) : missing(k));
+    must('Date of birth', pp.dob ? day(pp.dob) + age : '');
+    must('Passport number', pp.passportNo);
+    must('Address (passport)', pp.address);
     if (pp.nationality && pp.nationality !== 'Nepali') fact('Nationality', pp.nationality);
     // Where to send the application, from Partner Universities (the portal opens in a new tab).
     if (data.apply && (data.apply.portal || data.apply.email)) {
@@ -375,8 +387,9 @@
     const left = el('div');
     left.append(el('h4', '', o.course), el('div', 'p-uni', `${o.university}${o.intake ? ' · ' + o.intake : ''}${o.level ? ' · ' + o.level : ''}`));
     c.append(left);
-    const act = el('div');
-    if (can()) act.append(h('button', { class: 'btn btn-sm', type: 'button', onclick: () => addOption(o) }, 'Add'));
+    const act = el('div', 'p-option-act');
+    if (can()) act.append(h('button', { class: 'btn btn-sm btn-primary', type: 'button', onclick: () => addOption(o) }, 'Add'));
+    if (o.universityId) { const open = h('a', { class: 'btn btn-sm', href: '/fact-file?u=' + encodeURIComponent(o.universityId), target: '_blank', rel: 'noopener' }, 'Open'); act.append(open); }
     c.append(act);
     const money = el('div', 'p-money');
     [['Fee', o.fee], ['Scholarship', o.scholarship]].forEach(([k, v]) => { const sp = el('span'); sp.append(el('span', 'p-muted', k + ': '), el('b', '', v || 'to be confirmed')); money.append(sp); });
@@ -388,79 +401,48 @@
     c.append(w);
     return c;
   }
-  // One box: everything about the student that matters for the universities, and the remarks, then Ask. What is typed is kept on the card.
+  // University options (the owner, 14 Nov 2026): the study level, a course search and remarks, nothing more. Each course found
+  // has Add (to this student's options) and Open (its university's page in the Fact File). What is typed is kept on the card.
   function optionsTab() {
     const wrap = el('div');
     wrap.append(chosenOptions());
     const p = profile();
     const lock = !can();
     const box = el('section', 'p-card');
-    box.append(el('h2', '', 'University options'));
-    box.append(el('p', '', 'Put in everything the student wants and has, and write anything else in the remarks, for example "near Manchester", "5 universities", "show the minimum cash deposit and the full tuition fee". The assistant reads the entry rules of every university in the Fact File and shows the courses the student can be offered.'));
-    const inputs = {};
+    box.append(el('h2', '', 'Find a course'));
     const form = el('div', 'p-form');
-    const add = (key, labelText, opts) => { const x = field(labelText, { value: p[key], disabled: lock, ...opts }); inputs[key] = x.input; form.append(x.wrap); };
-    add('studyLevel', 'Study level', { kind: 'select', choices: F.STUDY_LEVELS });
-    add('subject', 'Subject or course wanted', { max: 160, placeholder: 'Business, nursing, cyber security' });
-    add('qualification', 'Highest qualification', { kind: 'select', choices: F.QUALIFICATIONS });
-    add('grade', 'GPA or percentage', { max: 40, placeholder: '2.9 GPA or 62%' });
-    add('passedYear', 'Year passed (the study gap is worked out from it)', { max: 10, placeholder: '2020' });
-    add('englishTest', 'English test', { kind: 'select', choices: F.ENGLISH_TESTS });
-    add('englishScore', 'English score', { max: 60 });
-    // No score is asked for when the student has no English test (waiver or MOI, or not taken yet).
-    const scoreBox = inputs.englishScore.closest('.p-field') || inputs.englishScore.parentElement;
-    const showScore = () => { const none = /moi|waiver|not taken/i.test(inputs.englishTest.value); scoreBox.hidden = none; if (none) inputs.englishScore.value = ''; };
-    inputs.englishTest.addEventListener('change', showScore);
-    showScore();
-    add('budget', 'Budget for the first year (GBP)', { max: 60, placeholder: '17000' });
-    add('location', 'Where in the UK', { max: 120, placeholder: 'For example Manchester' });
-    const intake = field('Intake', { value: data.student.intake, disabled: true });
-    form.append(intake.wrap);
-    const remarks = el('textarea', 'p-input');
-    remarks.maxLength = 1500;
-    remarks.placeholder = 'Remarks: student wants 5 universities near Manchester, show the minimum cash deposit and the full tuition fee, has a 2 year gap.';
-    remarks.style.marginTop = '12px';
-    const bar = el('div', 'p-bar');
-    const ask = h('button', { class: 'btn btn-primary', type: 'button' }, 'Find options');
-    bar.append(ask);
-    const results = el('div', 'p-option-results');
-    const picks = new Set();
-    const last = [];
-    box.append(form, remarks, bar, results);
-    remarks.addEventListener('keydown', (e) => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) ask.click(); });
-    ask.addEventListener('click', async () => {
-      ask.disabled = true;
-      results.replaceChildren(el('div', 'p-thinking', 'Reading the entry rules of every university…'));
-      try {
-        const values = Object.fromEntries(Object.entries(inputs).map(([k, i]) => [k, i.value]));
-        if (can()) await save('profile', values);
-        const out = await api('/api/finder', { ...values, request: remarks.value, studentId: id });
-        window.SendToStudent.drawAnswer(out, results, { onAdd: can() ? addOption : null, picks, sendBtn: { hidden: true }, last });
-      } catch (e) { results.replaceChildren(el('div', 'p-notice bad', e.message)); }
-      ask.disabled = false;
-    });
-    wrap.append(box);
-
-    const search = el('section', 'p-card');
-    search.append(el('h2', '', 'Search every course'));
-    const sbar = el('div', 'p-form');
-    const q = field('Subject or university', { placeholder: 'cyber security', value: profile().subject || '' });
-    const lv = field('Level', { kind: 'select', choices: F.STUDY_LEVELS, value: profile().studyLevel });
-    const it = field('Intake', { placeholder: 'January 2027', value: '' });
-    sbar.append(q.wrap, lv.wrap, it.wrap);
+    const lv = field('Study level', { kind: 'select', choices: F.STUDY_LEVELS, value: F.OLDER_STUDY_LEVELS[p.studyLevel] || p.studyLevel, disabled: lock });
+    const q = field('Course name', { placeholder: 'e.g. cyber security, nursing, business', value: p.subject || '', max: 160, disabled: lock });
+    q.input.type = 'search';
+    form.append(lv.wrap, q.wrap);
+    const remarks = field('Remarks', { kind: 'area', wide: true, value: p.optionRemarks || '', max: 1500, disabled: lock, placeholder: 'e.g. wants Manchester or London, 5 universities, a 2 year study gap' });
     const out = el('div', 'p-option-results');
     out.style.marginTop = '12px';
+    box.append(form, remarks.wrap, out);
+    wrap.append(box);
     let timer;
+    let saved = JSON.stringify([p.studyLevel || '', p.subject || '', p.optionRemarks || '']);
+    // Typing is kept on the card a moment after it stops, only when something changed.
+    const keep = () => {
+      if (lock) return;
+      const now = [lv.input.value, q.input.value.trim(), remarks.input.value.trim()];
+      if (JSON.stringify(now) === saved) return;
+      saved = JSON.stringify(now);
+      save('profile', { studyLevel: now[0], subject: now[1], optionRemarks: now[2] }, '').catch(() => {});
+    };
     const run = async () => {
+      keep();
       try {
-        const r = await api('/api/courses?' + new URLSearchParams({ q: q.input.value, level: lv.input.value, intake: it.input.value }));
-        out.replaceChildren(el('div', 'p-muted p-small', `${r.total} courses found${r.total > r.options.length ? `, the first ${r.options.length} shown` : ''}`));
+        const r = await api('/api/courses?' + new URLSearchParams({ q: q.input.value, level: lv.input.value }));
+        out.replaceChildren(el('div', 'p-muted p-small', r.total ? `${r.total} course${r.total === 1 ? '' : 's'} found${r.total > r.options.length ? `, the first ${r.options.length} shown` : ''}` : 'No course found. Try fewer words or another study level.'));
         r.options.forEach((o) => out.append(optionCard(o)));
       } catch (e) { out.replaceChildren(el('div', 'p-notice bad', e.message)); }
     };
-    [q, lv, it].forEach((x) => x.input.addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(run, 250); }));
-    search.append(sbar, out);
-    wrap.append(search);
+    const later = (ms) => { clearTimeout(timer); timer = setTimeout(run, ms); };
+    q.input.addEventListener('input', () => later(250));
+    lv.input.addEventListener('change', () => later(0));
+    remarks.input.addEventListener('change', keep);
+    remarks.input.addEventListener('blur', keep);
     run();
     return wrap;
   }

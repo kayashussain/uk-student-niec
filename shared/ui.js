@@ -423,50 +423,28 @@
   if (document.body) scan(document.body);
 })();
 
-// The large title, as in Apple's own apps: once the page's big title has scrolled away, a slim frosted bar slides in at the top with
-// the title in small type, so the person always knows where they are; a click on it glides back to the top. Computers only (a phone
-// already has the menu bar across the top).
+// Back to the top (the owner, 14 Nov 2026, in place of a title bar across the top): a small round button with an up arrow at the
+// bottom right, shown only once the page has been scrolled down a screen; a click glides back to the top. Nothing else changes.
 (function () {
-  if (typeof document === 'undefined' || !window.IntersectionObserver) return;
-  if (!(window.matchMedia && window.matchMedia('(min-width: 901px)').matches)) return;
-  const TITLES = 'h1, .ev-head h2';
-  // The title's own words, without a chip beside it ("Partner Universities", not "Partner Universities View only").
-  const words = (h) => ([...h.childNodes].filter((n) => n.nodeType === 3).map((n) => n.textContent).join('').trim() || h.textContent).trim();
-  let bar = null; let watched = null; let io = null;
-  function ensureBar() {
-    if (bar) return bar;
-    bar = document.createElement('button');
-    bar.type = 'button';
-    bar.className = 'isr-titlebar';
-    bar.setAttribute('aria-hidden', 'true');
-    bar.tabIndex = -1;
-    bar.addEventListener('click', () => window.scrollTo({ top: 0, behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' }));
-    document.body.append(bar);
-    return bar;
+  if (typeof document === 'undefined') return;
+  let btn = null; let queued = false;
+  function ensure() {
+    if (btn) return btn;
+    btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'isr-top';
+    btn.title = 'Back to the top';
+    btn.setAttribute('aria-label', 'Back to the top');
+    btn.textContent = '\u2191';
+    btn.addEventListener('click', () => window.scrollTo({ top: 0, behavior: window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' }));
+    document.body.append(btn);
+    return btn;
   }
-  function place() {
-    if (!bar) return;
-    const menu = document.querySelector('.niec-header');
-    const r = menu ? menu.getBoundingClientRect() : null;
-    bar.style.left = `${r && r.height > window.innerHeight * .6 ? Math.round(r.right) : 0}px`;
-    const demo = document.querySelector('.niec-demo');
-    bar.style.top = `${demo ? Math.round(demo.getBoundingClientRect().height) : 0}px`;
+  function check() {
+    queued = false;
+    const down = window.scrollY > window.innerHeight * 0.9;
+    if (down) ensure();
+    if (btn) btn.classList.toggle('is-on', down);
   }
-  function watch() {
-    if (document.getElementById('sheet')) { mo.disconnect(); return; } // All Students scrolls inside its table: its title never leaves
-    const all = [...document.querySelectorAll(TITLES)].filter((x) => x.offsetParent !== null && x.textContent.trim() && !x.closest('dialog, .niec-header, .isr-titlebar'));
-    const h = all.find((x) => x.matches('.ev-head h2')) || all[0]; // an open event's name, else the page's title
-    if (!h || h === watched) return;
-    watched = h;
-    ensureBar().textContent = words(h);
-    place();
-    if (io) io.disconnect();
-    io = new IntersectionObserver(([e]) => { bar.classList.toggle('is-on', !e.isIntersecting && e.boundingClientRect.top < 0); }, { threshold: 0 });
-    io.observe(h);
-  }
-  let queued = false;
-  const mo = new MutationObserver(() => { if (queued) return; queued = true; requestAnimationFrame(() => { queued = false; watch(); if (watched && bar && document.contains(watched)) bar.textContent = words(watched); }); });
-  mo.observe(document.documentElement, { childList: true, subtree: true, characterData: true });
-  window.addEventListener('resize', place);
-  document.addEventListener('DOMContentLoaded', watch);
+  window.addEventListener('scroll', () => { if (!queued) { queued = true; requestAnimationFrame(check); } }, { passive: true });
 })();

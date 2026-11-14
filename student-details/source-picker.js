@@ -10,7 +10,7 @@
 (function (root) {
   const { el, h, api, field, dialog } = root.Portal;
   const F = root.CardFields;
-  const WITH_REMARKS = { 'Social Media': 'What they saw (optional)', Reference: 'Who referred the student (name) or remarks' };
+  const WITH_REMARKS = { 'Social Media': 'What they saw (optional)' };
   const REMARK_HELP = { 'Social Media': 'For example: the post or video they saw.', Reference: 'For example: the name of the student or person who referred.' };
 
   function create({ lists, initial = {}, onChange = () => {}, disabled = false }) {
@@ -39,7 +39,7 @@
       const wayBox = el('div', 'p-field');
       wayBox.append(el('span', 'p-label', 'How they came'));
       const seg = el('div', 'p-seg');
-      const ways = [['Organic', 'Organic (by itself)'], ['Advert', 'Advert (a paid campaign)']].map(([k, t]) => { const b = h('button', { type: 'button', class: k === way ? 'on' : '' }, t); b.addEventListener('click', () => { way = k; ways.forEach((x) => x.classList.toggle('on', x === b)); drawAd(); onChange(); }); return b; });
+      const ways = [['Organic', 'Organic'], ['Advert', 'Advert (paid)']].map(([k, t]) => { const b = h('button', { type: 'button', class: k === way ? 'on' : '' }, t); b.addEventListener('click', () => { way = k; ways.forEach((x) => x.classList.toggle('on', x === b)); drawAd(); onChange(); }); return b; });
       seg.append(...ways);
       wayBox.append(seg);
       const adBox = el('div', 'p-field');
@@ -86,10 +86,11 @@
       const choices = options(g);
       // What the form already holds is kept the first time round (a branch is held as "Chitwan Branch", the rest as the detail).
       const start = firstDraw ? (g === 'Branch' ? F.branchName(initial.source) : initial.detail) : '';
-      const f = field(label, { kind: 'select', choices, value: start || '' });
+      // A reference is typed: who referred the student (the owner, 14 Nov 2026); the rest are chosen from their list.
+      const f = g === 'Reference' ? field('Who referred the student', { value: start || '', max: 120, placeholder: 'e.g. Sita Sharma, a student of ours' }) : field(label, { kind: 'select', choices, value: start || '' });
       detailInput = f.input;
       wrap.append(f.wrap);
-      if ((lists.sourceCanAdd || F.SOURCE_CAN_ADD).includes(g)) {
+      if (g !== 'Reference' && (lists.sourceCanAdd || F.SOURCE_CAN_ADD).includes(g)) {
         const add = h('button', { class: 'p-link p-small', type: 'button', style: 'margin-top:4px' }, g === 'Events' ? '+ Add an event that was held' : '+ Add a missing choice');
         add.addEventListener('click', () => addChoice(g));
         wrap.append(add);

@@ -50,7 +50,7 @@
       // A branch account adds its own students, so the source is not asked: the server tags them with the branch.
       const branchOnly = !admin && lists.departments.length > 0 && lists.departments.every((d) => d.source);
       const picker = branchOnly ? null : root.SourcePicker.create({ lists });
-      if (picker) { form.append(el('h3', '', 'Student source')); const g = el('div', 'p-form p-form-2'); picker.nodes.forEach((n) => g.append(n)); form.append(g); }
+      if (picker) { form.append(el('h3', '', 'Where the student came from')); const g = el('div', 'p-form p-form-2'); picker.nodes.forEach((n) => g.append(n)); form.append(g); }
 
       const note = make('note', 'Remarks (optional)', { kind: 'area', wide: true, max: 2000, placeholder: 'What was discussed at the first contact.' });
       form.append(note.wrap);

@@ -371,9 +371,9 @@ function createPortalApi({
   // ---- Today: what needs a person's attention now, for the students this account sees ----
   // The home screen of each kind of account (Teams.kindOf): the same facts, but each team sees the work that is its own, in its own words.
   const WORKSPACES = {
-    admin: { title: 'Everything at a glance', tagline: 'Here is what needs attention across the whole consultancy today.', sections: ['inquiries', 'apply', 'mock', 'offers', 'cas'], tiles: ['active', 'applied', 'visas'] },
-    manager: { title: 'The consultancy at a glance', tagline: 'The numbers and the students waiting, to look at. Open the Dashboard for the full picture.', sections: ['inquiries', 'apply', 'mock', 'offers', 'cas'], tiles: ['active', 'applied', 'visas'] },
-    application: { title: 'Application Team', tagline: 'Applications to submit, to chase and to complete.', sections: ['apply', 'noUni', 'noOffer', 'offers'], tiles: ['toSubmit', 'waitingOffer', 'applied'] },
+    admin: { title: 'Everything at a glance', tagline: 'Here is what needs attention across the whole consultancy today.', sections: ['inquiries', 'apply', 'passport', 'mock', 'offers', 'cas'], tiles: ['active', 'applied', 'visas'] },
+    manager: { title: 'The consultancy at a glance', tagline: 'The numbers and the students waiting, to look at. Open the Dashboard for the full picture.', sections: ['inquiries', 'apply', 'passport', 'mock', 'offers', 'cas'], tiles: ['active', 'applied', 'visas'] },
+    application: { title: 'Application Team', tagline: 'Applications to submit, to chase and to complete.', sections: ['apply', 'passport', 'noUni', 'noOffer', 'offers'], tiles: ['toSubmit', 'waitingOffer', 'applied'] },
     mock: { title: 'Mock Team', tagline: 'Mock interviews to schedule and feedback still to write.', sections: ['mock', 'mockFeedback', 'preCas'], tiles: ['atMock', 'toSchedule', 'feedbackMissing'] },
     followup: { title: 'Follow-up Team', tagline: 'Inquiries that have gone quiet and students who deferred.', sections: ['inquiries', 'defer'], tiles: ['inquiries', 'toFollow', 'deferred'] },
     branch: { title: 'Your branch', tagline: 'Your branch students: who to call, what to submit and who is close to a visa.', sections: ['inquiries', 'apply', 'mock', 'offers', 'cas'], tiles: ['active', 'applied', 'visas'] },
@@ -394,6 +394,7 @@ function createPortalApi({
       { key: 'inquiries', title: 'Inquiries to follow up', hint: 'No contact in the last 3 days', stage: 'Inquiry', rows: [] },
       { key: 'defer', title: 'Deferred students to check', hint: 'Deferred and not contacted for 14 days', stage: 'Defer', rows: [] },
       { key: 'apply', title: 'Applications to submit', hint: 'At Application Stage, not submitted yet', stage: 'Application Stage', rows: [] },
+      { key: 'passport', title: 'Passport details missing', hint: 'From Application Stage on: the date of birth, passport number or address is not on the card', stage: '', rows: [] },
       { key: 'noUni', title: 'Applications without a university or course', hint: 'At Application Stage: choose where to apply first', stage: 'Application Stage', rows: [] },
       { key: 'noOffer', title: 'Applications waiting for an offer', hint: 'Submitted over 10 days ago, no offer yet: chase the university', stage: '', rows: [] },
       { key: 'mock', title: 'Mock interviews to schedule', hint: 'At Mock Stage with no mock date', stage: 'Mock Stage', rows: [] },
@@ -426,6 +427,12 @@ function createPortalApi({
       if (stage === 'Mock Stage') totals.atMock += 1;
       if (stage === 'Inquiry' && (lastDay === null || now - lastDay >= 3)) add('inquiries', lastDay === null ? 'No contact recorded' : `Last contact ${now - lastDay} days ago`, lastDay === null ? 999 : now - lastDay);
       if (stage === 'Application Stage' && !created) add('apply', text(row['UNIVERSITY NAME']) || 'No university chosen yet', 0);
+      // The passport details are needed from Application Stage on (the owner, 14 Nov 2026): say which are missing.
+      if (stage && stage !== 'Inquiry') {
+        const pp = card.profile || {};
+        const gone = [['date of birth', pp.dob], ['passport number', pp.passportNo], ['address', pp.address]].filter(([, v]) => !text(v)).map(([k]) => k);
+        if (gone.length) add('passport', `No ${gone.join(', ')}`, gone.length);
+      }
       if (stage === 'Application Stage' && (!text(row['UNIVERSITY NAME']) || !text(row['COURSE NAME']))) add('noUni', !text(row['UNIVERSITY NAME']) ? 'No university chosen' : 'No course chosen', 0);
       if (created && !dateOf(row['OFFER RECEIVED DATE']) && now - dayNo(created) > 10 && ['Application Stage', 'Mock Stage'].includes(stage)) add('noOffer', `Submitted ${now - dayNo(created)} days ago`, now - dayNo(created));
       if (stage === 'Mock Stage' && ![1, 2, 3, 4].some((n) => text(row[`MOCK SCHEDULE ${n}`]))) add('mock', text(row['UNIVERSITY NAME']) || 'No university', 0);
@@ -1022,28 +1029,42 @@ function createPortalApi({
   }
   // Where a source belongs on the "over time" chart: the paid and social reach, events, what came by itself, branches, agents.
   const TREND_GROUP = { 'Social Media': 'social', Events: 'events', Branch: 'branch', Agent: 'agent', 'B2B Partner': 'agent', 'Not recorded': 'unknown' };
+  // A student brought by an event or a campaign counts under "Events and marketing", whatever the source says: the leads of a
+  // Facebook ads campaign are marketing, not social media that came by itself (the owner, 14 Nov 2026). So is a paid advert.
+  function trendBucket(row, card, plan) {
+    const [group] = sourceOf(row, card, plan);
+    const p = (card && card.profile) || {};
+    if (eventFor(plan.events, p.sourceDetail) || p.sourceWay === 'Advert') return 'events';
+    return TREND_GROUP[group] || 'organic';
+  }
   function trendsFor(wb, intakeId) {
     const sheet = wb.sheets.find((x) => x.id === intakeId) || currentIntake() || wb.sheets[0];
     const plan = planning.all();
     const all = cards.all();
     const today = cards.today();
     const inquiries = []; const applications = []; const offers = []; const payments = []; const cas = []; const visas = [];
+    // One record per student, so the source filter of the chart narrows every line, not just the inquiries (the owner, 14 Nov 2026):
+    // [where they came from, inquiry day, application day, offer day, payment day, CAS day, visa day] ('' when there is none).
+    const students = [];
     let undated = 0;
     const lives = {}; const home = {}; let noPlace = 0; const abroad = {};
     const ages = { 'Under 20': 0, '20 to 22': 0, '23 to 25': 0, '26 to 29': 0, '30 and over': 0 }; let noAge = 0;
-    const ageOf = (dob) => { const [y, m, d] = dob.split('-').map(Number); const [ty, tm, td] = today.split('-').map(Number); let a = ty - y; if (tm < m || (tm === m && td < d)) a -= 1; return a; };
+    // The age the student was when they applied (else when they first asked, else today): a student who applied at 18 stays 18 on
+    // this intake's chart years later (the owner, 14 Nov 2026).
+    const ageAt = (dob, on) => { const [y, m, d] = dob.split('-').map(Number); const [ty, tm, td] = on.split('-').map(Number); let a = ty - y; if (tm < m || (tm === m && td < d)) a -= 1; return a; };
     for (const row of (sheet ? sheet.rows : [])) {
       if (!isStudent(row)) continue;
       const card = all[row._id];
       const p = (card && card.profile) || {};
-      const [group] = sourceOf(row, card, plan);
+      const bucket = trendBucket(row, card, plan);
       const day = /^\d{4}-\d{2}-\d{2}$/.test(p.inquiryDate || '') ? p.inquiryDate : '';
-      if (day) inquiries.push([day, TREND_GROUP[group] || 'organic']); else undated += 1;
+      if (day) inquiries.push([day, bucket]); else undated += 1;
       const applied = isoDate(row['APPLICATION SUBMISSION DATE']); if (applied) applications.push(applied);
       const offered = isoDate(row['OFFER RECEIVED DATE']); if (offered) offers.push(offered);
       const paid = isoDate(row['PAYMENT DATE']); if (paid) payments.push(paid);
       const casDay = isoDate(row['CAS RECEIVED DATE']); if (casDay) cas.push(casDay);
       const visaDay = isoDate(row['VISA RECEIVED DATE']); if (visaDay) visas.push(visaDay);
+      students.push([bucket, day, applied || '', offered || '', paid || '', casDay || '', visaDay || '']);
       // Where the student is from: the district of the address in the passport (the owner, 14 Nov 2026), else a home district kept
       // earlier; a student from outside Nepal is counted by nationality instead.
       if (p.nationality && p.nationality !== 'Nepali') abroad[p.nationality] = (abroad[p.nationality] || 0) + 1;
@@ -1053,7 +1074,7 @@ function createPortalApi({
       }
       if (p.livesIn) lives[p.livesIn] = (lives[p.livesIn] || 0) + 1;
       if (/^\d{4}-\d{2}-\d{2}$/.test(p.dob || '')) {
-        const a = ageOf(p.dob);
+        const a = ageAt(p.dob, applied || day || today);
         const k = a < 20 ? 'Under 20' : a <= 22 ? '20 to 22' : a <= 25 ? '23 to 25' : a <= 29 ? '26 to 29' : '30 and over';
         if (a > 10 && a < 80) ages[k] += 1; else noAge += 1;
       } else noAge += 1;
@@ -1076,7 +1097,7 @@ function createPortalApi({
       return v;
     }).filter((v) => v.students).sort((a, b) => orderOf(a.name) - orderOf(b.name));
     return {
-      intake: sheet ? { id: sheet.id, name: sheet.name } : null, today, inquiries, undated, applications, offers, payments, cas, visas, intakes, abroad,
+      intake: sheet ? { id: sheet.id, name: sheet.name } : null, today, students, inquiries, undated, applications, offers, payments, cas, visas, intakes, abroad,
       events: (plan.events || []).filter((e) => e.date).map((e) => ({ name: e.name, date: e.date, endDate: e.endDate || '', channel: channelOf(e) })),
       teachingStarts: target && /^\d{4}-\d{2}-\d{2}$/.test(target.startDate || '') ? target.startDate : '',
       places: { lives, home, none: noPlace }, ages, noAge,
