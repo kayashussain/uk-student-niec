@@ -72,11 +72,13 @@ function createPortalApi({
     return indexed.map;
   }
   // The student already on the sheet with this email or phone number (any intake), or null.
+  // A phone number compared by its last 10 digits, so "+977 980-1234567" and "9801234567" are the same student. '' when too short to compare.
+  const phoneKey = (v) => { const d = text(v).replace(/\D/g, ''); return d.length >= 7 ? d.slice(-10) : ''; };
   function existingStudent(email, phone) {
-    const em = text(email).toLowerCase(); const ph = text(phone).replace(/\D/g, '');
-    if (!em && ph.length < 7) return null;
+    const em = text(email).toLowerCase(); const ph = phoneKey(phone);
+    if (!em && !ph) return null;
     for (const { row } of rowIndex().values()) {
-      if ((em && text(row.EMAIL).toLowerCase() === em) || (ph.length >= 7 && text(row['CONTACT NUMBER']).replace(/\D/g, '') === ph)) return row;
+      if ((em && text(row.EMAIL).toLowerCase() === em) || (ph && phoneKey(row['CONTACT NUMBER']) === ph)) return row;
     }
     return null;
   }
@@ -625,15 +627,15 @@ function createPortalApi({
     const results = [];
     const existing = new Set();
     for (const { row } of visibleStudents(req.user)) {
-      const em = text(row.EMAIL).toLowerCase(); const ph = text(row['CONTACT NUMBER']).replace(/\D/g, '');
+      const em = text(row.EMAIL).toLowerCase(); const ph = phoneKey(row['CONTACT NUMBER']);
       if (em) existing.add('e:' + em);
-      if (ph.length >= 7) existing.add('p:' + ph);
+      if (ph) existing.add('p:' + ph);
     }
     for (const r of lines) {
-      const em = text(r.email).toLowerCase(); const ph = text(r.phone).replace(/\D/g, '');
-      if (existingStudent(r.email, r.phone) || (em && existing.has('e:' + em)) || (ph.length >= 7 && existing.has('p:' + ph))) { results.push({ ok: false, name: [r.first, r.last].filter(Boolean).join(' '), error: 'Already on the sheet (same email or phone), not added again.' }); continue; }
+      const em = text(r.email).toLowerCase(); const ph = phoneKey(r.phone);
+      if (existingStudent(r.email, r.phone) || (em && existing.has('e:' + em)) || (ph && existing.has('p:' + ph))) { results.push({ ok: false, name: [r.first, r.last].filter(Boolean).join(' '), error: 'Already on the sheet (same email or phone), not added again.' }); continue; }
       if (em) existing.add('e:' + em);
-      if (ph.length >= 7) existing.add('p:' + ph);
+      if (ph) existing.add('p:' + ph);
       const fields = { 'FIRST NAME': text(r.first), 'LAST NAME': text(r.last), EMAIL: text(r.email), 'CONTACT NUMBER': text(r.phone), 'STUDENT SOURCE': text(body.source) };
       const out = addStudent(req, { fields, profile: { sourceDetail: text(body.sourceDetail), sourceRemarks: text(body.sourceRemarks) }, stage: body.stage, sheetId: body.sheetId, dept: body.dept });
       results.push(out.status === 200 ? { ok: true, id: out.json.id, name: [r.first, r.last].filter(Boolean).join(' ') } : { ok: false, name: [r.first, r.last].filter(Boolean).join(' '), error: out.json.error || 'Could not add.' });

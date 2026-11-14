@@ -531,6 +531,9 @@ test('on the real server: cards follow the rules of the sheet, messages are reco
   const again = (await admin('POST', '/api/students/bulk', { rows: [{ first: 'Dup', last: 'Check', email: 'dupcheck@example.com', phone: '9811111111' }, { first: 'Dup', last: 'Again', email: 'DUPCHECK@example.com', phone: '' }], source: 'Walk-in', sourceDetail: '' })).json;
   assert.strictEqual(again.results.filter((r) => r.ok).length, 1, 'the same email twice adds only one student');
   assert.strictEqual((await admin('POST', '/api/students/new', { fields: { 'FIRST NAME': 'Dup', 'LAST NAME': 'Third', EMAIL: 'dupcheck@example.com' } })).status, 409, 'adding a student whose email is already on the sheet is refused');
+  assert.strictEqual((await admin('POST', '/api/students/new', { fields: { 'FIRST NAME': 'Dup', 'LAST NAME': 'Fourth', 'CONTACT NUMBER': '+977 981-1111111' } })).status, 409, 'the same phone number with the country code is the same student');
+  const withCode = (await admin('POST', '/api/students/bulk', { rows: [{ first: 'Dup', last: 'Fifth', phone: '009779811111111' }], source: 'Walk-in', sourceDetail: '' })).json;
+  assert.strictEqual(withCode.results.filter((r) => r.ok).length, 0, 'adding many: the same phone number with the country code is not added again');
   assert.strictEqual((await manager('GET', '/bulk-add')).status, 302, 'the view-only Manager has no Add many page');
 
   // Events and marketing: an activity is a tag; students tagged with it are counted; adding many students at once.

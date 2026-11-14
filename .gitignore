@@ -50,3 +50,9 @@ demo-data/
 **/message-templates.json
 **/course-links.json
 live-data/
+# More files the server keeps in the data folder (agents and their agreements, added source choices, the course check, set-aside damaged files).
+**/agents.json
+**/agent-files/
+**/source-options.json
+**/course-watch.json
+**/*.damaged-*.json

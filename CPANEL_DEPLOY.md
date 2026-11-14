@@ -193,12 +193,34 @@ New in the same app, no new setup needed: the data goes in new files of the Stud
 - **Email to students** uses the same mailbox as the account emails (`node scripts/email.js setup`, see Email above). Messages go from that mailbox with the signature Admin writes on **Message templates**; a copy goes to the same mailbox unless Admin switches that off. Without the mailbox set up, sending only keeps a preview on the card.
 - **The Fact File assistant needs nothing set up:** it runs inside the server and reads the entry rules in the Fact File. No key, no outside service.
 
+New files of the same kind since then: `agents.json` with `agent-files/` (the Agents page), `source-options.json` (choices added to "Where exactly") and `course-watch.json` (the weekly check of the course pages; set `COURSE_WATCH=off` to switch it off). A file the server could not read is never deleted: it is set aside as `<name>.damaged-<time>.json` next to the data.
+
 ## Updating the code later
 
+Use these commands, not `git pull`. The code on GitHub is sometimes rebuilt from the start (as on 14 Nov 2026), and `git pull`
+then stops with "refusing to merge unrelated histories". These commands always make the server's code exactly the code on
+`master`. They only change files that are in git: the data (in `~/niec_data`, or the data files next to the code if no data
+folder is set) is never touched, because it is not in git.
+
+1. First keep a copy of the data, named as a backup (it is never in git):
+
 ```bash
-cd ~/uk-student-niec
-git pull
+cp -a ~/niec_data ~/niec_data.backup-$(date +%Y-%m-%d)
 ```
 
-Then in cPanel's Node.js App screen, hit **Restart** on the app (and
-**Run NPM Install** again if `package.json` changed).
+   (If the app has no `STUDENT_DETAILS_DATA_DIR`, the data is in `~/uk-student-niec/student-details` instead: copy the whole
+   folder with `cp -a ~/uk-student-niec ~/uk-student-niec.backup-$(date +%Y-%m-%d)`.)
+
+2. Get the code:
+
+```bash
+cd ~/uk-student-niec && git fetch origin master && git reset --hard origin/master && git log -1 --oneline
+```
+
+3. In cPanel's Node.js App screen, hit **Restart** on the app (and **Run NPM Install** again if `package.json` changed).
+
+4. Open the site and log in. Everyone stays logged in, and every student, intake, Fact File entry, partner and incentive
+   figure is as it was. Never run `git clean`: it would delete the data files that are not in git.
+
+To go back to the code before an update: `git reset --hard <the commit shown by git log -1 before the update>`, then Restart.
+The older code still reads the data the newer code has written.

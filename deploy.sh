@@ -11,7 +11,7 @@ DATA_ROOT="${DATA_ROOT:-$HOME/niec-data}"   # data lives OUTSIDE the repo so upd
 
 git fetch origin "$BRANCH"
 git checkout "$BRANCH"
-git pull --ff-only origin "$BRANCH"
+git reset --hard "origin/$BRANCH"   # not "git pull": master may be rebuilt from the start; the data is outside git and never touched
 
 npm install --omit=dev --no-audit --no-fund
 npm test --silent
