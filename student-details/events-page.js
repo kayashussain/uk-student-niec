@@ -161,13 +161,15 @@
     return p;
   }
 
-  const WHAT = { new: 'New', link: 'Match', update: 'Update', already: 'Linked', other: 'Other event', check: 'Check', problem: 'Skipped' };
+  const WHAT = { new: 'New', link: 'Match', update: 'Update', already: 'Linked', other: 'Other event', check: 'Check', removed: 'Removed before', joined: 'Joined', problem: 'Skipped' };
+  // The look of each kind of line: the new kinds borrow the colours of the old ones.
+  const LOOK = { check: 'other', removed: 'other', update: 'link', joined: 'already' };
   function review(pre, onOk, onCancel) {
     const box = el('div');
     const c = pre.counts;
     const counts = el('div', 'ev-counts');
-    [['new', `${c.new} new, added at Inquiry`], ['link', `${c.link} matched on the sheet, will be linked`], ...(c.update ? [['update', `${c.update} already in ISR, new details will be added`]] : []), ['already', `${c.already} already linked, nothing new`], ['other', `${c.other} in another event, left as is`], ...(c.check ? [['check', `${c.check} to check: same phone, another name`]] : []), ['problem', `${c.problem} skipped`]]
-      .forEach(([k, t]) => counts.append(el('span', `ev-count ${k === 'check' ? 'other' : k === 'update' ? 'link' : k}`, t)));
+    [['new', `${c.new} new, added at Inquiry`], ['link', `${c.link} matched on the sheet, will be linked`], ...(c.update ? [['update', `${c.update} already in ISR, new details will be added`]] : []), ['already', `${c.already} already linked, nothing new`], ['other', `${c.other} in another event, left as is`], ...(c.check ? [['check', `${c.check} to check (fits another person or two students)`]] : []), ...(c.removed ? [['removed', `${c.removed} removed from the sheet before, not added back`]] : []), ...(c.joined ? [['joined', `${c.joined} repeated in the file, joined to their first line`]] : []), ['problem', `${c.problem} skipped`]]
+      .forEach(([k, t]) => counts.append(el('span', `ev-count ${LOOK[k] || k}`, t)));
     // Students tagged with this event earlier who are not on this list: they stay as they are, and are named here to be checked.
     let gone = null;
     if (pre.missing && pre.missing.length) {
@@ -181,10 +183,10 @@
       gone.append(words);
     }
     const list = el('div', 'ev-review');
-    const order = ['problem', 'check', 'other', 'link', 'update', 'new', 'already'];
+    const order = ['problem', 'check', 'removed', 'other', 'link', 'update', 'new', 'joined', 'already'];
     [...pre.rows].sort((x, y) => order.indexOf(x.action) - order.indexOf(y.action)).forEach((r) => {
       const line = el('div', 'ev-rline');
-      line.append(el('span', `what ${r.action === 'check' ? 'other' : r.action === 'update' ? 'link' : r.action}`, WHAT[r.action]), el('b', '', r.name || '(no name)'), el('span', '', r.phone || r.email || '-'), el('span', 'why', r.note));
+      line.append(el('span', `what ${LOOK[r.action] || r.action}`, WHAT[r.action]), el('b', '', r.name || '(no name)'), el('span', '', r.phone || r.email || '-'), el('span', 'why', r.note));
       list.append(line);
     });
     const doing = c.new + c.link + (c.update || 0);

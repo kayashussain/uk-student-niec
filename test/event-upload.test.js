@@ -62,7 +62,7 @@ test('uploading an event list: found and tagged, added at Inquiry, skipped, noth
   assert.strictEqual((await follow('POST', `/api/activities/${ids['ABC event']}/students`, { rows: list })).status, 403);
   // The review changes nothing.
   const pre = (await admin('POST', `/api/activities/${ids['ABC event']}/students`, { rows: list, preview: true })).json;
-  assert.deepStrictEqual(pre.counts, { new: 2, link: 1, update: 0, already: 0, other: 1, check: 0, problem: 2, missing: 0 });
+  assert.deepStrictEqual(pre.counts, { new: 2, link: 1, update: 0, already: 0, other: 1, check: 0, joined: 1, removed: 0, problem: 1, missing: 0 });
   assert.strictEqual((await acts()).activities.find((a) => a.name === 'ABC event').leads, 0, 'the review saved nothing');
   // Carried out.
   const done = (await admin('POST', `/api/activities/${ids['ABC event']}/students`, { rows: list })).json;
@@ -113,6 +113,26 @@ test('uploading an event list: found and tagged, added at Inquiry, skipped, noth
   assert.deepStrictEqual([third.counts.update, third.counts.already], [0, 3], 'the same file again: nothing new');
   const later = (await admin('POST', `/api/activities/${ids['ABC event']}/students`, { rows: [{ first: 'Early', last: 'Person', phone: '9800099999', inquiryDate: '2026-11-09' }], preview: true })).json;
   assert.strictEqual(later.rows[0].action, 'already', 'a later inquiry day never replaces an earlier one');
+  // Re-uploading safely (the owner, 14 Nov 2026): a student removed from the sheet is never brought back by a list; the same person twice
+  // in one file is one student with the details of both lines; a lead that fits two different students changes neither.
+  const delWb = (await admin('GET', '/api/data')).json;
+  const victim = delWb.sheets.flatMap((x) => x.rows).find((r) => r['FIRST NAME'] === 'Later');
+  const cut = delWb.sheets.map((sh) => ({ ...sh, rows: sh.rows.filter((r) => r._id !== victim._id) }));
+  assert.strictEqual((await admin('POST', '/api/data', { sheets: cut, activeSheetId: delWb.activeSheetId, baseRevision: delWb.revision })).status, 200);
+  const back = (await admin('POST', `/api/activities/${ids['ABC event']}/students`, { rows: [{ first: 'Later', last: 'Lead', phone: '9811144455' }] })).json;
+  assert.deepStrictEqual([back.rows[0].action, back.added], ['removed', 0], 'the removed student is not added back');
+  const twice = (await admin('POST', `/api/activities/${ids['ABC event']}/students`, { rows: [
+    { first: 'Twin', last: 'Line', phone: '9811188899' },
+    { first: 'Twin', last: 'Line', phone: '9811188899', email: 'twin@example.com', inquiryDate: '2026-11-07', extra: 'Comment: call after 5 pm' },
+  ] })).json;
+  assert.deepStrictEqual([twice.added, twice.counts.joined], [1, 1]);
+  const twin = (await admin('GET', '/api/data')).json.sheets.flatMap((x) => x.rows).find((r) => r['FIRST NAME'] === 'Twin');
+  assert.strictEqual(twin.EMAIL, 'twin@example.com', 'the second line\'s email is kept');
+  const twinCard = (await admin('GET', `/api/cards/${twin._id}`)).json.card;
+  assert.strictEqual(twinCard.profile.inquiryDate, '2026-11-07');
+  assert.match(twinCard.notes.map((n) => n.text).join(' '), /call after 5 pm/);
+  const mixed = (await admin('POST', `/api/activities/${ids['ABC event']}/students`, { rows: [{ first: 'Twin', last: 'Line', phone: '9811122233', email: 'twin@example.com' }], preview: true })).json;
+  assert.strictEqual(mixed.rows[0].action, 'check', 'the phone is one student\'s and the email another\'s: nothing is changed');
   // Its students, with the latest note, and the Came from tags (the follow-up team sees the tags of the students it sees).
   const people = (await admin('GET', `/api/activities/${ids['ABC event']}/students`)).json.students;
   assert.strictEqual(people.length, 4);

@@ -168,6 +168,24 @@ function createCards(dir, { now = () => new Date() } = {}) {
   };
 
   return {
+    // The phone, email and name a list gave for many students at once, in one save: { rowId: "phone|email|name" }. Kept on the card
+    // (which stays when its row is deleted from the sheet), so a list uploaded later never brings back a student removed on purpose.
+    rememberLeads(entries) {
+      const data = load();
+      const next = { ...data.cards };
+      let changed = 0;
+      Object.entries(entries || {}).forEach(([rowId, value]) => {
+        if (!ROW_ID.test(rowId)) return;
+        const v = str(value, 300);
+        const card = normalize(next[rowId] || emptyCard());
+        if (!v || card.profile.leadContact === v) return;
+        card.profile = cleanProfile({ leadContact: v }, card.profile);
+        next[rowId] = card;
+        changed += 1;
+      });
+      if (changed) write({ ...data, cards: next });
+      return { changed };
+    },
     hasSeen(username) { return Object.prototype.hasOwnProperty.call(seenAll(), String(username || '')); },
     // When `username` last read each task: { taskId: ISO time }.
     seenBy(username) { return { ...(seenAll()[String(username || '')] || {}) }; },

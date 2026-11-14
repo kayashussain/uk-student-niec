@@ -959,15 +959,29 @@ function createPortalApi({
     const plan = planning.all();
     const label = eventLabel(ev.name, ev.date);
     const all = cards.all();
+    // Every student in ISR by phone (its last 10 digits) and by email, all of them (two students can share one by mistake).
     const byPhone = new Map(); const byEmail = new Map();
+    const put = (map, k, v) => { if (!map.has(k)) map.set(k, []); map.get(k).push(v); };
     for (const { sheet, row } of rowIndex().values()) {
       if (!isStudent(row)) continue;
       const d = digitsOf(row['CONTACT NUMBER']); const em = text(row.EMAIL).toLowerCase();
-      if (d.length >= 7 && !byPhone.has(d.slice(-10))) byPhone.set(d.slice(-10), { sheet, row });
-      if (em && !byEmail.has(em)) byEmail.set(em, { sheet, row });
+      if (d.length >= 7) put(byPhone, d.slice(-10), { sheet, row });
+      if (em) put(byEmail, em, { sheet, row });
     }
-    const seen = new Set();
+    // Students who came from a list and were later removed from the sheet (deleted there on purpose, or by mistake): their card stays,
+    // with the phone and email the list gave (leadContact). They are never brought back by a list on their own.
+    const removed = new Map();
+    Object.entries(all).forEach(([rowId, card]) => {
+      const lc = card && card.profile && card.profile.leadContact;
+      if (!lc || rowIndex().has(rowId)) return;
+      const [ph, em, nm] = String(lc).split('|');
+      const info = { id: rowId, name: nm || 'a student', tag: card.profile.sourceDetail || '' };
+      if (ph) removed.set('p' + ph, info);
+      if (em) removed.set('e' + em, info);
+    });
+    const seen = new Map(); // a phone or email already met in this file -> its line
     const out = [];
+    const pending = [];
     const lines = (Array.isArray(body.rows) ? body.rows : []).filter((r) => r && typeof r === 'object').slice(0, 1000);
     // The intake a lead asked for ("January 2027") is the intake tab with that month and year ("Jan Intake 2027"), if this account has
     // one; otherwise (or "Later in 2027") the intake chosen on the page.
@@ -997,26 +1011,62 @@ function createPortalApi({
       const line = { name, first, last, email, phone, ...extra };
       if (!name) { out.push({ ...line, action: 'problem', note: 'No name' }); continue; }
       if (d.length < 7 && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { out.push({ ...line, action: 'problem', note: 'No phone or email to match the student by' }); continue; }
-      const key = d.length >= 7 ? 'p' + d : 'e' + email;
-      if (seen.has(key) || (email && seen.has('e' + email))) { out.push({ ...line, action: 'problem', note: 'Same phone or email as an earlier line' }); continue; }
-      seen.add(key); if (email) seen.add('e' + email);
-      const byMail = (email && byEmail.get(email)) || null;
-      const found = byMail || (d.length >= 7 && byPhone.get(d)) || null;
-      if (!found) { out.push({ ...line, action: 'new', note: `Will be added at Inquiry${line.intakeName ? `, ${line.intakeName}` : ''}` }); continue; }
-      if (!byMail && otherPerson(line.name || [line.first, line.last].join(' '), nameOf(found.row))) {
+      if (d.length < 7) line.phone = ''; // too short to be a phone number: matched by the email only
+      // The same person twice in one file (an updated export often repeats a lead): the lines are joined, so no detail of either is lost.
+      const earlier = (d.length >= 7 && seen.get('p' + d)) || (email && seen.get('e' + email)) || null;
+      if (earlier) {
+        if (!earlier.email && email) earlier.email = email;
+        if (!earlier.phone && phone) earlier.phone = phone;
+        if (line.inquiryDate && (!earlier.inquiryDate || line.inquiryDate < earlier.inquiryDate)) earlier.inquiryDate = line.inquiryDate;
+        if (!earlier.level && line.level) earlier.level = line.level;
+        if (!earlier.livesIn && line.livesIn) earlier.livesIn = line.livesIn;
+        const parts = new Set(text(earlier.extra).split(/\.\s+/).filter(Boolean));
+        text(line.extra).split(/\.\s+/).filter(Boolean).forEach((x) => parts.add(x));
+        earlier.extra = [...parts].join('. ').slice(0, 1200);
+        out.push({ ...line, action: 'joined', note: `The same person as an earlier line (${earlier.name}): its details are taken together with that line` });
+        continue;
+      }
+      if (d.length >= 7) seen.set('p' + d, line);
+      if (email) seen.set('e' + email, line);
+      pending.push(line);
+    }
+    // Each person once, with everything the file says about them.
+    for (const line of pending) {
+      const d = digitsOf(line.phone).slice(-10); const email = line.email;
+      const ids = new Map();
+      ((email && byEmail.get(email)) || []).forEach((m) => ids.set(m.row._id, { ...m, how: 'email' }));
+      ((d.length >= 7 && byPhone.get(d)) || []).forEach((m) => { if (!ids.has(m.row._id)) ids.set(m.row._id, { ...m, how: 'phone' }); });
+      const matches = [...ids.values()];
+      // More than one student in ISR fits (the phone is one student's, the email another's, or two students share a number): a person
+      // must decide, so nothing is changed on any of them.
+      if (matches.length > 1) {
+        out.push({ ...line, id: matches[0].row._id, action: 'check', note: `Fits ${matches.length} students in ISR: ${matches.map((m) => `${nameOf(m.row) || 'no name'} (${m.how}, ${m.sheet.name})`).join(', ')}. Nothing changed: check them on their cards.` });
+        continue;
+      }
+      if (!matches.length) {
+        const gone = (d.length >= 7 && removed.get('p' + d)) || (email && removed.get('e' + email)) || null;
+        if (gone) { out.push({ ...line, action: 'removed', note: `${gone.name} came from a list before and was later removed from the sheet, so is not added again. Add them by hand if they should come back.` }); continue; }
+        out.push({ ...line, action: 'new', note: `Will be added at Inquiry${line.intakeName ? `, ${line.intakeName}` : ''}` });
+        continue;
+      }
+      const found = matches[0];
+      if (found.how === 'phone' && otherPerson(line.name || [line.first, line.last].join(' '), nameOf(found.row))) {
         out.push({ ...line, id: found.row._id, action: 'check', note: `Same phone as ${nameOf(found.row)} (${found.sheet.name}, ${text(found.row[STATUS]) || 'no stage'}), another name: maybe a brother or sister. Not linked or added: add them by hand if they are someone else.` });
         continue;
       }
       const card = all[found.row._id];
       const tagged = card && eventFor(plan.events, card.profile.sourceDetail);
-      const at = { id: found.row._id, intake: found.sheet.name, stage: text(found.row[STATUS]), name: nameOf(found.row) };
+      const stage = text(found.row[STATUS]);
+      const at = { id: found.row._id, intake: found.sheet.name, stage, name: nameOf(found.row) };
+      // A student who was cancelled, withdrawn or put on hold keeps that stage: a list only adds details, it never moves a student.
+      const where = `${at.intake}, ${stage || 'no stage'}${['Withdrawn', 'Hold', 'Defer', 'Visa Rejected'].includes(stage) ? ', the stage stays as it is' : ''}`;
       const news = newsFor(line, found.row, card);
       const adds = news.says.length ? ` Will add: ${news.says.join(', ')}.` : '';
-      if (tagged && tagged.id === ev.id) out.push({ ...line, ...at, news, action: adds ? 'update' : 'already', note: adds ? `Already linked to this event (${at.intake}, ${at.stage || 'no stage'}).${adds}` : `Already linked to this event (${at.intake}, ${at.stage || 'no stage'}), nothing new` });
-      else if (tagged) out.push({ ...line, ...at, news, action: adds ? 'update' : 'other', note: `Already linked to ${tagged.name}: left in that event (change it on the student card if needed).${adds}` });
+      if (tagged && tagged.id === ev.id) out.push({ ...line, ...at, news, action: adds ? 'update' : 'already', note: adds ? `Already linked to this event (${where}).${adds}` : `Already linked to this event (${where}), nothing new` });
+      else if (tagged) out.push({ ...line, ...at, news, action: adds ? 'update' : 'other', note: `Already linked to ${tagged.name} (${where}): left in that event (change it on the student card if needed).${adds}` });
       else {
         const before = [text(found.row['STUDENT SOURCE']), card && card.profile.sourceDetail].filter(Boolean).join(': ');
-        out.push({ ...line, ...at, before, news, action: 'link', note: `Already on the sheet (${at.intake}, ${at.stage || 'no stage'})${before ? `, source was "${before}"` : ''}: will be linked to this event.${adds}` });
+        out.push({ ...line, ...at, before, news, action: 'link', note: `Already on the sheet (${where})${before ? `, source was "${before}"` : ''}: will be linked to this event.${adds}` });
       }
     }
     const count = (a) => out.filter((x) => x.action === a).length;
@@ -1030,7 +1080,7 @@ function createPortalApi({
       if (e && e.id === ev.id && !onList.has(row._id)) missing.push({ id: row._id, name: nameOf(row), intake: sheet.name, stage: text(row[STATUS]) });
     }
     missing.sort((a, b) => a.name.localeCompare(b.name));
-    const counts = () => ({ new: count('new'), link: count('link'), update: count('update'), already: count('already'), other: count('other'), check: count('check'), problem: count('problem'), missing: missing.length });
+    const counts = () => ({ new: count('new'), link: count('link'), update: count('update'), already: count('already'), other: count('other'), check: count('check'), joined: count('joined'), removed: count('removed'), problem: count('problem'), missing: missing.length });
     const shown = () => out.map(({ news, ...x }) => x);
     if (body.preview) return { status: 200, json: { preview: true, label, rows: shown(), missing, counts: counts() } };
     // Carry out: add the new ones, tag the ones already on the sheet. A campaign on social media (a Facebook advert, for example) is a
@@ -1056,6 +1106,16 @@ function createPortalApi({
         updated += 1;
       }
     }
+    // Remember the phone and email the list gave for every student it names (and for every student already tagged with this event),
+    // so a student later removed from the sheet is recognised by the next list instead of being added again.
+    const remember = {};
+    for (const { row } of rowIndex().values()) {
+      const c = cards.has(row._id) ? cards.get(row._id) : null;
+      const e = c && eventFor(plan.events, c.profile.sourceDetail);
+      if (e && e.id === ev.id) remember[row._id] = [phoneKey(row['CONTACT NUMBER']), text(row.EMAIL).toLowerCase(), nameOf(row)].join('|');
+    }
+    out.forEach((x) => { if (x.id && ['new', 'link', 'update', 'already', 'other'].includes(x.action)) { const row = (rowIndex().get(x.id) || {}).row || {}; remember[x.id] = [phoneKey(x.phone) || phoneKey(row['CONTACT NUMBER']), x.email || text(row.EMAIL).toLowerCase(), x.name].join('|'); } });
+    cards.rememberLeads(remember);
     note(req, [`${ev.name}: uploaded its list (${added} added at Inquiry, ${linked} already on the sheet tagged with it, ${updated} already there given the new details from the list, ${count('already')} already tagged with nothing new, ${count('other')} in another event left as they were, ${count('problem')} lines skipped)`], 'Uploaded event students');
     return { status: 200, json: { done: true, added, linked, updated, failed, rows: shown(), missing, counts: counts() } };
   }
