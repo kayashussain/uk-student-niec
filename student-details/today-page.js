@@ -35,7 +35,17 @@
     tick.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
     tick.addEventListener('click', async () => {
       tick.disabled = true;
-      try { await api(`/api/cards/${encodeURIComponent(t.studentId)}/tasks/${t.id}`, { done: !t.done }); window.NiecUI.toast(t.done ? 'Marked as not done' : 'Done. Well done.', { type: 'success' }); refresh(true); } catch (e) { tick.disabled = false; window.NiecUI.toast(e.message, { type: 'error' }); }
+      // The circle turns blue with a tick and the row folds away (about half a second), and only then is the list redrawn, so the
+      // next task never jumps under the mouse.
+      const quick = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      if (!t.done) r.classList.add('is-ticking');
+      const folded = new Promise((ok) => setTimeout(ok, t.done || quick ? 0 : 520));
+      try {
+        await api(`/api/cards/${encodeURIComponent(t.studentId)}/tasks/${t.id}`, { done: !t.done });
+        window.NiecUI.toast(t.done ? 'Marked as not done' : 'Done. Well done.', { type: 'success' });
+        await folded;
+        refresh(true);
+      } catch (e) { r.classList.remove('is-ticking'); tick.disabled = false; window.NiecUI.toast(e.message, { type: 'error' }); }
     });
     const mid = el('div', 'td-task-mid');
     mid.append(el('div', 'td-task-text', t.text));

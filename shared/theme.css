@@ -1441,3 +1441,21 @@ dialog.ui-dialog .ui-ok.danger, dialog.ui-dialog .ui-ok.ui-danger { background: 
   .td-task-side { flex-wrap: wrap; text-align: left; }
   .td-from { white-space: normal; }
 }
+
+/* 🔴 CSS CHANGED (2026-11-14): the second smoothness pass, after an independent review recorded every page change frame by frame | from: during a page change the old and new page showed at the same time, half see-through (a "double exposure"); on a Windows computer the menu and page jumped sideways by the width of the scrollbar between short and long pages; on All Students the intake tabs and the line at the bottom grew a moment after the page appeared, pushing things; confirm boxes closed instantly; the "Done" notice sat over the red demo bar and turned pink there; a ticked task on Today vanished at once and the next one jumped under the mouse | to: the old page fades away first (0.1s) and the new one glides in just after it, so the two never overlap; the space of the scrollbar is always kept, so nothing moves sideways; the intake tabs and the bottom line keep their height from the start; confirm boxes fade and shrink away like the other pop-ups; notices appear below the demo bar, in near-black text; a ticked task turns blue with a tick, then folds away smoothly before the list redraws */
+html { scrollbar-gutter: stable; }
+::view-transition-old(root) { animation: isr-fade-out .1s ease-out both; }
+::view-transition-new(root) { animation: isr-page-in .38s cubic-bezier(.32, .72, 0, 1) .08s both; }
+body:has(#sheet) .sheet-tabs-list { min-height: 39px; }
+body:has(#sheet) .footbar { min-height: 46px; }
+dialog.ui-dialog.is-closing { animation: isr-sheet-out .16s ease-in both; }
+dialog.ui-dialog.is-closing::backdrop { animation: isr-fade-out .16s ease-in both; }
+body:has(.niec-demo) .ui-toasts { top: 60px; }
+.ui-toast, .ui-toast .ui-toast-text { color: #1d1d1f; }
+.td-task.is-ticking { pointer-events: none; animation: isr-task-out .3s cubic-bezier(.32, .72, 0, 1) .22s both; }
+.td-task.is-ticking .td-check { background: #0071e3; border-color: #0071e3; color: #fff; opacity: 1; }
+.td-task.is-ticking .td-check svg { stroke: #fff; opacity: 1; }
+@keyframes isr-task-out { from { max-height: 320px; } to { opacity: 0; transform: scale(.98); margin-top: 0; padding-top: 0; padding-bottom: 0; max-height: 0; border-width: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(root), ::view-transition-new(root), dialog.ui-dialog.is-closing, .td-task.is-ticking { animation: none !important; }
+}

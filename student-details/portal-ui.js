@@ -152,6 +152,8 @@
       d.append(head, body);
       d.addEventListener('close', () => { d.remove(); resolve(result); });
       d.addEventListener('mousedown', (e) => { if (e.target === d) close(); });
+      // Escape closes with the same short animation as the close button, not the browser's instant close.
+      d.addEventListener('cancel', (e) => { e.preventDefault(); close(); });
       document.body.append(d);
       build(body, close);
       d.showModal();

@@ -199,7 +199,12 @@
   let shown = '';
   try {
     const kept = sessionStorage.getItem(MEMORY);
-    if (kept) { render(JSON.parse(kept)); shown = kept; }
+    if (kept) {
+      const me = JSON.parse(kept);
+      render(me); shown = kept;
+      // All Students shows its team buttons by the role, so they are right in the first picture instead of appearing a moment later.
+      if (me.role && !document.body.dataset.role) document.body.dataset.role = me.role;
+    }
   } catch (e) { /* drawn when the server answers */ }
   // A preview made of made-up students says so on every page, so it is never mistaken for the real data.
   const demoBar = () => {

@@ -78,10 +78,18 @@
       dialog.appendChild(form);
 
       let answer = false;
-      form.addEventListener('submit', () => { answer = true; });
-      if (cancel) cancel.addEventListener('click', () => dialog.close());
+      // Closes with a short fade and shrink, like the other pop-ups (at once for a person who prefers less motion).
+      const shut = () => {
+        if (dialog.classList.contains('is-closing')) return;
+        if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) { dialog.close(); return; }
+        dialog.classList.add('is-closing');
+        setTimeout(() => dialog.close(), 160);
+      };
+      form.addEventListener('submit', (e) => { e.preventDefault(); answer = true; shut(); });
+      if (cancel) cancel.addEventListener('click', shut);
+      dialog.addEventListener('cancel', (e) => { e.preventDefault(); shut(); });
       // Clicking the dimmed area outside the box cancels it.
-      dialog.addEventListener('mousedown', (e) => { if (e.target === dialog) dialog.close(); });
+      dialog.addEventListener('mousedown', (e) => { if (e.target === dialog) shut(); });
       dialog.addEventListener('close', () => {
         openDialogs -= 1;
         dialog.remove();

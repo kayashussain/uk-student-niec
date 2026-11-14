@@ -137,7 +137,13 @@
   }
 
   function show(state) {
-    if (state.stage === 'done') { location.replace(target); return; }
+    if (state.stage === 'done') {
+      // Remember who logged in for this tab, so the first page draws its menu at once (header.js reads it).
+      fetch('/api/me', { cache: 'no-store' }).then((r) => (r.ok ? r.json() : null)).then((me) => {
+        if (me) sessionStorage.setItem('isrMe', JSON.stringify({ name: me.name, username: me.username, role: me.role, roleLabel: me.roleLabel, departments: me.departments || [] }));
+      }).catch(() => { /* drawn when the page asks */ }).finally(() => location.replace(target));
+      return;
+    }
     document.querySelectorAll('form').forEach((f) => { f.hidden = f.id !== 'step-' + state.stage; });
     $('subtitle').textContent = (state.name ? `Hi ${state.name}. ` : '') + (subtitles[state.stage] || '');
     const form = $('step-' + state.stage);
