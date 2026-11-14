@@ -161,13 +161,13 @@
     return p;
   }
 
-  const WHAT = { new: 'New', link: 'Match', already: 'Linked', other: 'Other event', problem: 'Skipped' };
+  const WHAT = { new: 'New', link: 'Match', already: 'Linked', other: 'Other event', check: 'Check', problem: 'Skipped' };
   function review(pre, onOk, onCancel) {
     const box = el('div');
     const c = pre.counts;
     const counts = el('div', 'ev-counts');
-    [['new', `${c.new} new, added at Inquiry`], ['link', `${c.link} matched on the sheet, will be linked`], ['already', `${c.already} already linked`], ['other', `${c.other} in another event, left as is`], ['problem', `${c.problem} skipped`]]
-      .forEach(([k, t]) => counts.append(el('span', `ev-count ${k}`, t)));
+    [['new', `${c.new} new, added at Inquiry`], ['link', `${c.link} matched on the sheet, will be linked`], ['already', `${c.already} already linked`], ['other', `${c.other} in another event, left as is`], ...(c.check ? [['check', `${c.check} to check: same phone, another name`]] : []), ['problem', `${c.problem} skipped`]]
+      .forEach(([k, t]) => counts.append(el('span', `ev-count ${k === 'check' ? 'other' : k}`, t)));
     // Students tagged with this event earlier who are not on this list: they stay as they are, and are named here to be checked.
     let gone = null;
     if (pre.missing && pre.missing.length) {
@@ -181,10 +181,10 @@
       gone.append(words);
     }
     const list = el('div', 'ev-review');
-    const order = ['problem', 'other', 'link', 'new', 'already'];
+    const order = ['problem', 'check', 'other', 'link', 'new', 'already'];
     [...pre.rows].sort((x, y) => order.indexOf(x.action) - order.indexOf(y.action)).forEach((r) => {
       const line = el('div', 'ev-rline');
-      line.append(el('span', `what ${r.action}`, WHAT[r.action]), el('b', '', r.name || '(no name)'), el('span', '', r.phone || r.email || '-'), el('span', 'why', r.note));
+      line.append(el('span', `what ${r.action === 'check' ? 'other' : r.action}`, WHAT[r.action]), el('b', '', r.name || '(no name)'), el('span', '', r.phone || r.email || '-'), el('span', 'why', r.note));
       list.append(line);
     });
     const doing = c.new + c.link;

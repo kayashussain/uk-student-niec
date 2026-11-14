@@ -192,7 +192,8 @@
   // read. `me` is the reader's name; `rowId` the student's card; `unread` how much is new for the reader.
   const openThreads = new Set();
   const initialsOf = (name) => String(name || '?').split(/\s+/).filter(Boolean).map((w) => w[0]).join('').slice(0, 2).toUpperCase();
-  function taskThread(task, { rowId, me, canWrite, unread = 0 }) {
+  function taskThread(task, { rowId, me, canWrite, unread = 0, teams = [] }) {
+    const labelOf = (id) => (teams.find((t) => t.id === id) || { label: id === 'head' ? 'Admin' : id }).label;
     const box = el('div', 'tk-thread');
     const list = el('ol', 'tk-list');
     const comments = () => (Array.isArray(task.comments) ? task.comments : []);
@@ -221,7 +222,8 @@
       const main = el('div', 'tk-main');
       const head = el('div', 'tk-head');
       head.append(el('b', '', c.by === me ? 'You' : c.by || 'Someone'), el('time', '', when(c.at)));
-      main.append(head, el('p', 'tk-text', c.text));
+      // A hand-on reads as one plain line in the thread: "Mock Team handed this to Application Team", then the reason.
+      if (c.handoff) { li.classList.add('is-handoff'); main.append(head, el('p', 'tk-hand', `${labelOf(c.handoff.from)} handed this to ${labelOf(c.handoff.to)}`), el('p', 'tk-text', c.text)); } else main.append(head, el('p', 'tk-text', c.text));
       li.append(av, main);
       return li;
     };
@@ -293,5 +295,35 @@
     return box;
   }
 
-  root.Portal = { taskThread, el, h, api, day, when, fromToday, stageKind, stagePill, initials, number, rupees, percent, richText, field, datalist, dialog, copy, waitFor };
+  // The way a task went: "From SK → Mock Team → Application Team", the team it is with now last.
+  function taskRoute(task, { fromName, toName, teams = [] }) {
+    const labelOf = (id) => (teams.find((t) => t.id === id) || { label: id === 'head' ? 'Admin' : id }).label;
+    const route = el('div', 'td-route');
+    route.append(el('span', 'td-from-who', fromName));
+    (Array.isArray(task.route) ? task.route : []).forEach((id) => route.append(el('span', 'td-arrow', '\u2192'), el('span', 'td-was', labelOf(id))));
+    route.append(el('span', 'td-arrow', '\u2192'), el('span', 'td-to-who', toName));
+    return route;
+  }
+  // Hand a task on to another team, in the same task (the owner, 14 Nov 2026): choose the team and say why. Resolves true once done.
+  function handOn(task, { rowId, teams = [] }) {
+    return dialog('Hand this task on', (body, close) => {
+      const choices = teams.filter((t) => t.id !== task.team).map((t) => [t.id, t.label]);
+      body.append(el('p', 'p-muted p-small', 'The task moves to the team you choose, with everything said so far. The teams it was with still see it and can comment.'));
+      const team = field('Hand it to', { kind: 'select', choices });
+      const why = field('Why, and what they should do', { kind: 'area', max: 2000, wide: true, placeholder: 'e.g. The mock is done and passed: please submit the CAS request.' });
+      const msg = el('div', 'p-msg');
+      const foot = el('div', 'p-dialog-foot');
+      const ok = h('button', { class: 'btn btn-primary', type: 'button' }, 'Hand on');
+      ok.addEventListener('click', async () => {
+        if (!team.input.value) { msg.textContent = 'Choose the team.'; msg.className = 'p-msg error'; return; }
+        if (!why.input.value.trim()) { msg.textContent = 'Write why, so the next team knows what to do.'; msg.className = 'p-msg error'; return; }
+        ok.disabled = true;
+        try { await api(`/api/cards/${encodeURIComponent(rowId)}/tasks/${task.id}`, { handTo: team.input.value, reason: why.input.value.trim() }); close(true); } catch (e) { msg.textContent = e.message; msg.className = 'p-msg error'; ok.disabled = false; }
+      });
+      foot.append(h('button', { class: 'btn', type: 'button', onclick: () => close() }, 'Cancel'), ok);
+      const g = el('div', 'p-form'); g.append(team.wrap, why.wrap);
+      body.append(g, msg, foot);
+    });
+  }
+  root.Portal = { taskThread, taskRoute, handOn, el, h, api, day, when, fromToday, stageKind, stagePill, initials, number, rupees, percent, richText, field, datalist, dialog, copy, waitFor };
 })(this);

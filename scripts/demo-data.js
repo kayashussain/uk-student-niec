@@ -167,7 +167,7 @@ function buildDemo({ today = '2026-11-11', seed = 20261111 } = {}) {
           if (source === 'Social Media') profile.sourceRemarks = SOCIAL_CAMPAIGNS[profile.sourceDetail.length % SOCIAL_CAMPAIGNS.length];
         }
         if (know()) profile.inquiryDate = iso(dates.inquiry);
-        if (know()) profile.studyLevel = level === 'MBA' ? 'MBA' : level;
+        if (know()) profile.studyLevel = level === 'MBA' ? 'Postgraduate' : level; // MBA is a Postgraduate course (the owner, 14 Nov 2026)
         if (know()) profile.subject = pick(COURSES[level]).replace(/^(MSc|BSc \(Hons\)|BA \(Hons\)|MBA)\s*/, '') || 'Business';
         if (know()) { profile.gapYears = String(pick([0, 0, 1, 2, 3])); profile.location = pick(['', 'London', 'Manchester', 'Scotland', 'Birmingham', 'anywhere']); profile.budget = pick(['14000', '16000', '18000', '20000']); }
         if (know()) { profile.qualification = level === 'Undergraduate' ? '+2 or Grade 12' : (level === 'Top-up (final year)' ? 'Diploma or PCL' : 'Bachelor (4 years)'); profile.grade = pick(['2.6 GPA', '2.9 GPA', '3.2 GPA', '58%', '64%', '71%']); profile.passedYear = String(between(2019, 2026)); }

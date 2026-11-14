@@ -61,6 +61,8 @@
       const ok = h('button', { class: 'btn btn-primary', type: 'button' }, 'Add student');
       foot.append(h('button', { class: 'btn', type: 'button', onclick: () => close() }, 'Cancel'), ok);
       body.append(msg, foot);
+      let allowDuplicate = false; // set by "Add anyway (a different person)"
+      form.addEventListener('input', () => { allowDuplicate = false; });
       ok.addEventListener('click', async () => {
         const v = (k) => (inputs[k] ? inputs[k].value : '');
         if (!v('FIRST NAME').trim() && !v('LAST NAME').trim()) { msg.textContent = "Please enter the student's name."; msg.className = 'p-msg error'; inputs['FIRST NAME'].focus(); return; }
@@ -76,7 +78,7 @@
         const pick = picker ? picker.value() : { source: '', detail: '', remarks: '' };
         fields['STUDENT SOURCE'] = pick.source;
         try {
-          const r = await api('/api/students/new', { fields, profile: { sourceDetail: pick.detail, sourceRemarks: pick.remarks, sourcePlatform: pick.platform || '', sourceWay: pick.way || '', dob: v('dob'), passportNo: v('passportNo').trim().toUpperCase(), address: v('address').trim(), nationality: v('nationality') }, stage: v('stage'), sheetId: activeSheetId, dept: v('dept'), note: v('note') });
+          const r = await api('/api/students/new', { fields, profile: { sourceDetail: pick.detail, sourceRemarks: pick.remarks, sourcePlatform: pick.platform || '', sourceWay: pick.way || '', dob: v('dob'), passportNo: v('passportNo').trim().toUpperCase(), address: v('address').trim(), nationality: v('nationality') }, stage: v('stage'), sheetId: activeSheetId, dept: v('dept'), note: v('note'), allowDuplicate });
           close(r);
         } catch (e) {
           const dup = e.body && e.body.duplicate;
@@ -84,9 +86,12 @@
           if (!dup) { msg.textContent = e.message; msg.className = 'p-msg error'; ok.focus(); return; }
           // Already in ISR: never a second copy. Open them, or fill in only what is blank on them (nothing already there is replaced).
           msg.className = 'p-msg ns-dup';
-          msg.replaceChildren(el('b', '', `${dup.name} is already in ISR`), el('span', '', ` (${dup.intake}, ${dup.stage || 'no stage'}${dup.source ? ', ' + dup.source : ''}), with this email or phone number.`));
+          if (dup.name) msg.replaceChildren(el('b', '', `${dup.name} is already in ISR`), el('span', '', ` (${dup.intake}, ${dup.stage || 'no stage'}${dup.source ? ', ' + dup.source : ''}), with this ${dup.maybeOther ? 'phone number, under another name' : 'email or phone number'}.`));
+          else msg.replaceChildren(el('b', '', 'A student is already in ISR with this phone number, under another name.'));
           const row = el('div', 'p-bar');
-          row.append(h('button', { class: 'btn', type: 'button', onclick: () => { close(); location.href = '/student?id=' + encodeURIComponent(dup.id); } }, 'Open their card'));
+          if (dup.id) row.append(h('button', { class: 'btn', type: 'button', onclick: () => { close(); location.href = '/student?id=' + encodeURIComponent(dup.id); } }, 'Open their card'));
+          // The same phone and another first name: maybe a brother or sister on the family phone. The person decides.
+          if (dup.maybeOther) row.append(h('button', { class: 'btn', type: 'button', onclick: () => { allowDuplicate = true; ok.click(); } }, 'Add anyway (a different person)'));
           if (dup.canFill) {
             row.append(h('button', { class: 'btn btn-primary', type: 'button', onclick: async () => {
               try {

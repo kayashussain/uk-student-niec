@@ -100,4 +100,25 @@ test('tasks: given by Admin, seen and ticked by that team only, listed for Admin
   const app2 = (await app('GET', '/api/my-dashboard')).json;
   assert.strictEqual(app2.stages.find((x) => x.stage === 'Application Stage').count, 1, 'Gita, added above at Application Stage');
   assert.ok([...app2.wins, ...app2.upcoming].every((x) => x.name !== 'Sita Rai'), 'no student the team cannot see is named');
+  // A task handed on to another team in the same task (the owner, 14 Nov 2026): one thread, the hand-on with its reason in the
+  // comments, the route kept; the team it was with still sees it and comments; another team cannot hand it on.
+  const relay = (await admin('POST', '/api/students/new', { stage: 'Mock Stage', fields: { 'FIRST NAME': 'Ram', 'LAST NAME': 'Thapa', 'CONTACT NUMBER': '9800000021' } })).json.id;
+  const given2 = (await admin('POST', `/api/cards/${relay}/tasks`, { team: 'mock', text: 'Run the mock interview' })).json.card.tasks[0];
+  assert.strictEqual((await app('POST', `/api/cards/${relay}/tasks/${given2.id}`, { handTo: 'application', reason: 'x' })).status, 404, 'a team that never had it cannot see it');
+  assert.strictEqual((await mock('POST', `/api/cards/${relay}/tasks/${given2.id}`, { handTo: 'application', reason: '' })).status, 400, 'a reason is needed');
+  assert.strictEqual((await mock('POST', `/api/cards/${relay}/tasks/${given2.id}`, { handTo: 'nobody', reason: 'x' })).status, 400);
+  const handed = await mock('POST', `/api/cards/${relay}/tasks/${given2.id}`, { handTo: 'application', reason: 'Mock passed, please send the CAS request' });
+  assert.strictEqual(handed.status, 200);
+  const moved = handed.json.card.tasks.find((x) => x.id === given2.id);
+  assert.deepStrictEqual([moved.team, moved.route, moved.done], ['application', ['mock'], false]);
+  assert.deepStrictEqual(moved.comments[moved.comments.length - 1].handoff, { from: 'mock', to: 'application' });
+  const forApp = (await app('GET', '/api/tasks')).json.tasks.find((x) => x.id === given2.id);
+  assert.deepStrictEqual([forApp.forMe, forApp.unread > 0, forApp.routeLabels], [true, true, ['Mock Team']], 'the new team has it, marked new');
+  const forMock = (await mock('GET', '/api/tasks')).json.tasks.find((x) => x.id === given2.id);
+  assert.deepStrictEqual([forMock.forMe, forMock.had, forMock.mayHand], [false, true, false], 'the team it was with still sees it');
+  assert.strictEqual((await mock('POST', `/api/cards/${relay}/tasks/${given2.id}`, { comment: 'Feedback is on the card' })).status, 200, 'and comments');
+  assert.strictEqual((await mock('POST', `/api/cards/${relay}/tasks/${given2.id}`, { done: true })).status, 403, 'only the team it is with ticks it');
+  assert.strictEqual((await app('POST', `/api/cards/${relay}/tasks/${given2.id}`, { handTo: 'application', reason: 'x' })).status, 400, 'not to the team it is already with');
+  assert.strictEqual((await app('POST', `/api/cards/${relay}/tasks/${given2.id}`, { handTo: 'head', reason: 'Needs your approval' })).status, 200, 'on to Admin');
+  assert.deepStrictEqual((await admin('GET', '/api/tasks')).json.tasks.find((x) => x.id === given2.id).route, ['mock', 'application']);
 });

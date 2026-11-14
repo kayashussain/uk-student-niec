@@ -108,25 +108,23 @@
     if (!data.canEdit) { ed.querySelectorAll('input, textarea, select, button').forEach((x) => { x.disabled = true; }); }
   }
 
+  // The company (the owner, 14 Nov 2026): no typed email signature here any more (each person's email ends with the signature picture
+  // they upload on Your email and signature). Only the consultancy's name, used across ISR and in the messages, and the office copy.
   function signature() {
     const s = data.signature;
     const fields = {};
     const make = (k, label, ph) => { fields[k] = field(label, { value: s[k], max: 200, placeholder: ph || '' }); return fields[k].wrap; };
-    const who = panel('Who signs', 'At the end of every email sent from a student card.');
-    const g1 = el('div', 'p-form p-form-2'); g1.append(make('name', 'Name'), make('title', 'Title', 'e.g. Senior Counselor')); who.append(g1);
-    const co = panel('The company', 'Its name is used everywhere in the portal and in the messages.');
-    const g2 = el('div', 'p-form p-form-2'); g2.append(make('company', 'Company name'), make('short', 'Short name (for messages)')); co.append(g2);
-    const reach = panel('How students reach you', '');
-    const g3 = el('div', 'p-form p-form-2'); g3.append(make('phone', 'Phone'), make('whatsapp', 'WhatsApp'), make('email', 'Email shown'), make('website', 'Website'), make('address', 'Address')); reach.append(g3);
+    const co = panel('The company', 'Its name is used across ISR and in the messages ({company_name} and {company_short}).');
+    const g2 = el('div', 'p-form p-form-2'); g2.append(make('company', 'Company name'), make('short', 'Short name')); co.append(g2);
     const copyBox = el('label', 'p-check');
     const c = el('input'); c.type = 'checkbox'; c.checked = s.copyToOffice !== false;
     copyBox.append(c, el('span', '', 'Send the office mailbox a copy of every email, so it is found there with the student\'s replies'));
-    reach.append(copyBox);
+    co.append(copyBox);
     const bar = el('div', 'tp-savebar');
-    const save = h('button', { class: 'btn btn-primary', type: 'button' }, 'Save signature');
-    save.addEventListener('click', async () => { try { await api('/api/templates/signature', { ...Object.fromEntries(Object.entries(fields).map(([k, x]) => [k, x.input.value])), copyToOffice: c.checked }); say('Signature saved'); } catch (e) { say(e.message, true); } });
+    const save = h('button', { class: 'btn btn-primary', type: 'button' }, 'Save');
+    save.addEventListener('click', async () => { try { await api('/api/templates/signature', { ...Object.fromEntries(Object.entries(fields).map(([k, x]) => [k, x.input.value])), copyToOffice: c.checked }); say('Saved'); } catch (e) { say(e.message, true); } });
     bar.append(save);
-    $('sig').replaceChildren(who, co, reach, ...(data.canEdit ? [bar] : []));
+    $('sig').replaceChildren(co, ...(data.canEdit ? [bar] : []));
     if (!data.canEdit) $('sig').querySelectorAll('input').forEach((x) => { x.disabled = true; });
   }
 
@@ -151,7 +149,7 @@
     if (t) { openKey = t.key; list(); edit(t); } else $('editor').replaceChildren(el('p', 'p-muted', 'No template yet.'));
   }
 
-  // The two tabs: Templates and Email signature.
+  // The two tabs: Templates and Company.
   document.querySelectorAll('.tp-page [role="tab"]').forEach((b) => b.addEventListener('click', () => {
     document.querySelectorAll('.tp-page [role="tab"]').forEach((x) => x.setAttribute('aria-selected', String(x === b)));
     $('viewTemplates').hidden = b.dataset.view !== 'templates';

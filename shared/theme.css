@@ -1782,3 +1782,7 @@ select option { color: #1d1d1f; }
 /* 🔴 CSS CHANGED (2026-11-14): a missing passport detail on the student card | from: the date of birth, passport number or address row was left out when empty | to: the row is always there, and an empty one says "Missing" in orange (#c45c00) with a small orange dot before it */
 .p-missing { display: inline-flex; align-items: center; gap: 6px; color: #c45c00; font-weight: 600; }
 .p-missing::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: #ff9500; }
+/* 🔴 CSS CHANGED (2026-11-14): a task handed on to another team | from: a task went only from the giver to one team | to: the route line shows each team it was with in grey ("SK → Mock Team → Application Team", the team it is with now in bold), and the hand-on in the comments is a soft blue panel whose first line says "Mock Team handed this to Application Team" in blue semibold */
+.td-route .td-was { color: #6e6e73; }
+.tk-msg.is-handoff .tk-main { padding: 8px 12px; border-radius: 12px; background: rgba(0, 113, 227, .07); }
+.tk-hand { margin: 3px 0 0; color: #0058b0; font-size: 14.5px; font-weight: 600; }

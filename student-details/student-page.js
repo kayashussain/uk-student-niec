@@ -214,12 +214,15 @@
       top.append(el('div', 'td-task-text', t.text));
       if (unread[t.id]) top.append(el('span', 'td-dot', String(unread[t.id])));
       // From whom, to whom, and when.
-      const route = el('div', 'td-route');
-      route.append(el('span', 'td-from-who', t.by === me ? 'You' : t.by || 'Someone'), el('span', 'td-arrow', '\u2192'), el('span', 'td-to-who', forMe && t.team === 'head' ? 'you' : label(t.team)), el('span', 'td-when', t.at ? when(t.at) : ''));
+      const route = window.Portal.taskRoute(t, { fromName: t.by === me ? 'You' : t.by || 'Someone', toName: forMe && t.team === 'head' ? 'you' : label(t.team), teams: data.taskTeams || [] });
+      route.append(el('span', 'td-when', t.at ? when(t.at) : ''));
       if (t.done) route.append(el('span', 'td-donemark', t.doneBy ? `Done by ${t.doneBy}` : 'Done'));
+      // Hand it on to another team: the team it is with, whoever gave it, Admin and the Manager.
+      if (!data.can.readOnly && (mine || t.by === me)) route.append(h('button', { class: 'p-link', type: 'button', onclick: async () => { if (await window.Portal.handOn(t, { rowId: id, teams: data.taskTeams || [] })) { say('Handed on'); data = await api('/api/cards/' + encodeURIComponent(id)); render(); } } }, 'Hand on'));
       if (data.can.removeAnyTask || t.by === me) route.append(h('button', { class: 'p-link', type: 'button', onclick: async () => { if (await window.NiecUI.confirm('Remove this task and its comments?', { danger: true, confirmText: 'Remove' })) { await save(`tasks/${t.id}/delete`, {}, 'Task removed'); render(); } } }, 'Remove'));
-      const canWrite = mine || t.by === me;
-      const thread = window.Portal.taskThread(t, { rowId: id, me, canWrite, unread: unread[t.id] || 0 });
+      const had = (t.route || []).some((x) => (data.can.myTeams || []).includes(x) || (x === 'head' && (data.me || {}).role === 'admin'));
+      const canWrite = !data.can.readOnly && (mine || t.by === me || had);
+      const thread = window.Portal.taskThread(t, { rowId: id, me, canWrite, unread: unread[t.id] || 0, teams: data.taskTeams || [] });
       mid.append(top, route, thread);
       r.append(box, mid);
       if (unread[t.id]) r.addEventListener('pointerdown', () => thread.markRead());

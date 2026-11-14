@@ -83,7 +83,8 @@ function normalize(raw) {
     options: (Array.isArray(c.options) ? c.options : []).filter((o) => o && o.id && (o.university || o.course)).slice(0, LIMITS.options),
     messages: (Array.isArray(c.messages) ? c.messages : []).filter((m) => m && m.id).slice(-LIMITS.messages),
     // Tasks given to a team about this student: { id, team, text, by, at, done, doneBy, doneAt, comments: [{ id, by, at, text }] }
-    // (older tasks may also have `due`, the date they were once given with, no longer shown).
+    // (older tasks may also have `due`, the date they were once given with, no longer shown). A task handed on has `route`: the teams
+    // it was with before, oldest first, and a comment with `handoff: { from, to }` for each hand-on.
     tasks: (Array.isArray(c.tasks) ? c.tasks : []).filter((t) => t && t.id && t.team && t.text).slice(-LIMITS.tasks),
     createdAt: str(c.createdAt, 40), createdBy: str(c.createdBy, 80), updatedAt: str(c.updatedAt, 40), updatedBy: str(c.updatedBy, 80),
   };
@@ -234,6 +235,28 @@ function createCards(dir, { now = () => new Date() } = {}) {
         return null;
       });
       return out.error ? out : { ...out, comment };
+    },
+    // A task handed on to another team, in the same task (the owner, 14 Nov 2026): one thread from start to end. The team it was
+    // with is kept in `route` (so it still sees the task and can comment), the hand-on is written in the comments with its reason, and
+    // the task opens again for the new team.
+    handTask(rowId, taskId, input, by) {
+      const team = str(input && input.team, 40);
+      const reason = str(input && input.reason, LIMITS.text);
+      if (!team) return { error: 'Choose the team to hand it to.' };
+      if (!reason) return { error: 'Write why, so the next team knows what to do.' };
+      let task;
+      const out = update(rowId, by, (card, stamp) => {
+        task = card.tasks.find((t) => t.id === taskId);
+        if (!task) return { error: 'No such task.' };
+        if (task.team === team) return { error: 'The task is already with that team.' };
+        const from = task.team;
+        task.route = [...(Array.isArray(task.route) ? task.route : []).filter((x) => x !== team), from].slice(-10);
+        task.team = team;
+        Object.assign(task, { done: false, doneBy: '', doneAt: '' });
+        task.comments = [...(Array.isArray(task.comments) ? task.comments : []), { id: newId(), by: by || '', at: stamp, text: reason, handoff: { from, to: team } }].slice(-LIMITS.comments);
+        return null;
+      });
+      return out.error ? out : { ...out, task };
     },
     removeTask(rowId, taskId, by) {
       const out = update(rowId, by, (card) => {

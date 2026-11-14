@@ -62,7 +62,7 @@ test('uploading an event list: found and tagged, added at Inquiry, skipped, noth
   assert.strictEqual((await follow('POST', `/api/activities/${ids['ABC event']}/students`, { rows: list })).status, 403);
   // The review changes nothing.
   const pre = (await admin('POST', `/api/activities/${ids['ABC event']}/students`, { rows: list, preview: true })).json;
-  assert.deepStrictEqual(pre.counts, { new: 2, link: 1, already: 0, other: 1, problem: 2, missing: 0 });
+  assert.deepStrictEqual(pre.counts, { new: 2, link: 1, already: 0, other: 1, check: 0, problem: 2, missing: 0 });
   assert.strictEqual((await acts()).activities.find((a) => a.name === 'ABC event').leads, 0, 'the review saved nothing');
   // Carried out.
   const done = (await admin('POST', `/api/activities/${ids['ABC event']}/students`, { rows: list })).json;
@@ -127,6 +127,14 @@ test('uploading an event list: found and tagged, added at Inquiry, skipped, noth
   const again2 = await admin('POST', '/api/students/new', { stage: 'Inquiry', fields: { 'FIRST NAME': 'Early', 'CONTACT NUMBER': '9800099999', EMAIL: 'early@example.com' } });
   assert.strictEqual(again2.status, 409);
   assert.strictEqual(again2.json.duplicate.id, early, 'the student already in ISR is named');
+  // The same phone under a clearly different first name (a brother or sister on the family phone, the owner, 14 Nov 2026): said so,
+  // and added once the person says it is someone else. Never with the same email, and never without being asked.
+  const sibling = await admin('POST', '/api/students/new', { stage: 'Inquiry', fields: { 'FIRST NAME': 'Maya', 'CONTACT NUMBER': '9800099999' } });
+  assert.deepStrictEqual([sibling.status, sibling.json.duplicate.maybeOther], [409, true]);
+  assert.strictEqual((await admin('POST', '/api/students/new', { stage: 'Inquiry', allowDuplicate: true, fields: { 'FIRST NAME': 'Early', 'CONTACT NUMBER': '9800099999' } })).status, 409, 'the same first name is the same student, even when asked');
+  assert.strictEqual((await admin('POST', '/api/students/new', { stage: 'Inquiry', allowDuplicate: true, fields: { 'FIRST NAME': 'Maya', 'CONTACT NUMBER': '9800099999' } })).status, 200, 'added as a different person');
+  const sib = (await admin('POST', `/api/activities/${ids['ABC event']}/students`, { preview: true, rows: [{ first: 'Ramesh', last: 'X', phone: '9800099999' }], sheetId: wb0.sheets[0].id })).json;
+  assert.deepStrictEqual([sib.rows[0].action, sib.counts.check], ['check', 1], 'an event list: the same phone under another name is to be checked, never linked');
   const filled = (await admin('POST', '/api/students/merge', { id: early, fields: { EMAIL: 'early@example.com' }, profile: { dob: '2003-04-05' } })).json;
   assert.deepStrictEqual(filled.filled.sort(), ['EMAIL', 'dob'], 'the blank email and date of birth are filled in');
   const kept = (await admin('POST', '/api/students/merge', { id: early, fields: { EMAIL: 'other@example.com' } })).json;

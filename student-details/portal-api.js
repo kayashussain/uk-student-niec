@@ -75,6 +75,10 @@ function createPortalApi({
   // The student already on the sheet with this email or phone number (any intake), or null.
   // A phone number compared by its last 10 digits, so "+977 980-1234567" and "9801234567" are the same student. '' when too short to compare.
   const phoneKey = (v) => { const d = text(v).replace(/\D/g, ''); return d.length >= 7 ? d.slice(-10) : ''; };
+  // Two names that clearly belong to different people: their first names differ (neither is the start of the other). Brothers and
+  // sisters often share the family phone, so a phone that matches with such a name is checked by a person, never merged on its own.
+  const firstOf = (name) => String(name || '').toLowerCase().replace(/[^a-z\s]/g, ' ').trim().split(/\s+/)[0] || '';
+  const otherPerson = (a, b) => { const x = firstOf(a); const y = firstOf(b); return Boolean(x && y && !x.startsWith(y) && !y.startsWith(x)); };
   function existingStudent(email, phone) {
     const em = text(email).toLowerCase(); const ph = phoneKey(phone);
     if (!em && !ph) return null;
@@ -112,8 +116,12 @@ function createPortalApi({
   // the others wrote since they last read it (or since their own last comment), and a task given to them in the last 3 days not read yet.
   const forMe = (user, t) => teamsOf(user).includes(t.team) || (t.team === HEAD && Teams.isAdmin(user));
   const gaveIt = (user, t) => Boolean(user && t.by && t.by === user.name);
+  // A team the task was with before it was handed on: it still sees the task and can comment (the owner, 14 Nov 2026).
+  const hadIt = (user, t) => (Array.isArray(t.route) ? t.route : []).some((x) => teamsOf(user).includes(x) || (x === HEAD && Teams.isAdmin(user)));
+  // Who may hand a task on: the team it is with, whoever gave it, and Admin and the Manager.
+  const mayHand = (user, t) => !Teams.isReadOnly(user) && (canAssign(user) || forMe(user, t) || gaveIt(user, t));
   function unreadOf(user, t, seen) {
-    if (!forMe(user, t) && !gaveIt(user, t)) return 0;
+    if (!forMe(user, t) && !gaveIt(user, t) && !hadIt(user, t)) return 0;
     const comments = Array.isArray(t.comments) ? t.comments : [];
     const ownLast = comments.filter((c) => c.by === user.name).map((c) => c.at).sort().pop() || '';
     const since = [seen[t.id] || '', ownLast].sort().pop();
@@ -121,7 +129,7 @@ function createPortalApi({
     const newTask = !t.done && forMe(user, t) && t.by !== user.name && !seen[t.id] && Date.now() - Date.parse(t.at) < 3 * 86400000 ? 1 : 0;
     return fresh + newTask;
   }
-  const hasTaskFor = (user, rowId) => { const mine = teamsOf(user); if (!mine.length) return false; const c = cards.has(rowId) ? cards.get(rowId) : null; const recent = Date.now() - 7 * 86400000; return Boolean(c && (c.tasks || []).some((t) => mine.includes(t.team) && (!t.done || Date.parse(t.doneAt) > recent))); };
+  const hasTaskFor = (user, rowId) => { const mine = teamsOf(user); if (!mine.length) return false; const c = cards.has(rowId) ? cards.get(rowId) : null; const recent = Date.now() - 7 * 86400000; return Boolean(c && (c.tasks || []).some((t) => (mine.includes(t.team) || (Array.isArray(t.route) && t.route.some((x) => mine.includes(x)))) && (!t.done || Date.parse(t.doneAt) > recent))); };
   function canSee(user, found) {
     if (!found) return false;
     if (Teams.isAdmin(user) || Teams.isManager(user)) return true;
@@ -629,7 +637,7 @@ function createPortalApi({
         sendJSON(res, 200, {
           student: { ...brief(found.sheet, found.row), color: found.row._color || '', remarks: text(found.row.REMARKS), columns: found.sheet.columns, row: Object.fromEntries(found.sheet.columns.map((c) => [c, found.row[c] ?? ''])) },
           card,
-          can: { edit: editable, removeAnyNote: Teams.isAdmin(req.user), source: editable && Teams.canEdit(req.user, 'STUDENT SOURCE', found.row), assign: assignTeamsFor(req.user).length > 0, removeAnyTask: canAssign(req.user), myTeams: teamsOf(req.user) },
+          can: { edit: editable, removeAnyNote: Teams.isAdmin(req.user), source: editable && Teams.canEdit(req.user, 'STUDENT SOURCE', found.row), assign: assignTeamsFor(req.user).length > 0, removeAnyTask: canAssign(req.user), myTeams: teamsOf(req.user), readOnly: Teams.isReadOnly(req.user) },
           taskTeams: TASK_TEAMS(),
           assignTeams: assignTeamsFor(req.user),
           taskUnread: Object.fromEntries((card.tasks || []).map((t) => [t.id, unreadOf(req.user, t, cards.seenBy(req.user.username))]).filter(([, n]) => n > 0)),
@@ -669,7 +677,7 @@ function createPortalApi({
         if (!task) { sendJSON(res, 404, { error: 'No such task.' }); return true; }
         if (body.seen) {
           // The person has read the task and its comments: its red dot goes.
-          if (!canAssign(req.user) && !gaveIt(req.user, task) && !forMe(req.user, task)) { sendJSON(res, 403, { error: 'This task is for another team.' }); return true; }
+          if (!canAssign(req.user) && !gaveIt(req.user, task) && !forMe(req.user, task) && !hadIt(req.user, task)) { sendJSON(res, 403, { error: 'This task is for another team.' }); return true; }
           cards.markSeen(req.user.username, [task.id]);
           sendJSON(res, 200, { ok: true });
           return true;
@@ -678,9 +686,15 @@ function createPortalApi({
           if (!canAssign(req.user) && !gaveIt(req.user, task)) { sendJSON(res, 403, { error: 'Only Admin, the Manager or whoever gave the task removes it.' }); return true; }
           out = cards.removeTask(rowId, sub, by(req));
           if (!out.error) note(req, [`${who2}: removed the task for ${teamLabel(task.team)}`], 'Removed a task');
+        } else if (body.handTo !== undefined) {
+          if (!mayHand(req.user, task)) { sendJSON(res, 403, { error: 'Only the team the task is with, whoever gave it, Admin or the Manager hands it on.' }); return true; }
+          if (!TASK_TEAMS().some((t) => t.id === text(body.handTo))) { sendJSON(res, 400, { error: 'Choose the team to hand it to.' }); return true; }
+          const from = task.team;
+          out = cards.handTask(rowId, sub, { team: text(body.handTo), reason: body.reason }, by(req));
+          if (!out.error) { cards.markSeen(req.user.username, [task.id]); note(req, [`${who2}: handed the task from ${teamLabel(from)} to ${teamLabel(out.task.team)}: ${String(body.reason).slice(0, 120)}`], 'Handed a task on'); }
         } else if (body.comment !== undefined) {
-          // The team and whoever gave the task (Admin, the Manager, or the branch that gave it) talk it through here.
-          if (!canAssign(req.user) && !gaveIt(req.user, task) && !forMe(req.user, task)) { sendJSON(res, 403, { error: 'This task is for another team.' }); return true; }
+          // The team, whoever gave the task (Admin, the Manager, or the branch that gave it) and the teams it was with talk it through here.
+          if (!canAssign(req.user) && !gaveIt(req.user, task) && !forMe(req.user, task) && !hadIt(req.user, task)) { sendJSON(res, 403, { error: 'This task is for another team.' }); return true; }
           out = cards.commentTask(rowId, sub, body.comment, by(req));
           if (!out.error) cards.markSeen(req.user.username, [task.id]);
           if (!out.error) note(req, [`${who2}: commented on the task for ${teamLabel(task.team)}: ${String(body.comment).slice(0, 120)}`], 'Task comment');
@@ -772,16 +786,20 @@ function createPortalApi({
     if (!fields['FIRST NAME'] && !fields['LAST NAME']) { return { status: 400, json: { error: "Please enter the student's name." } }; }
     if (fields.EMAIL && !mailer.isAddress(fields.EMAIL)) { return { status: 400, json: { error: 'That email address does not look right.' } }; }
     if (fields['CONTACT NUMBER'] && !phoneOk(fields['CONTACT NUMBER'])) { return { status: 400, json: { error: 'That phone number does not look right. Use digits, for example 9800000001 or +977 9800000001.' } }; }
-    if (!body.allowDuplicate) {
+    {
       const dup = existingStudent(fields.EMAIL, fields['CONTACT NUMBER']);
-      if (dup) {
+      // Only the same phone, and a clearly different first name: maybe a brother or sister on the family phone. Once the person says
+      // it is someone else ("Add anyway"), they are added. The same email is always the same student.
+      const sameEmail = Boolean(dup && fields.EMAIL && text(dup.EMAIL).toLowerCase() === fields.EMAIL);
+      const maybeOther = Boolean(dup && !sameEmail && otherPerson([fields['FIRST NAME'], fields['LAST NAME']].join(' '), nameOf(dup)));
+      if (dup && !(body.allowDuplicate && maybeOther)) {
         // The student is already in ISR: nobody is added twice. Someone who may see that student is told who it is, and can fill in
         // what is missing on them instead (see /api/students/merge).
         const found = rowIndex().get(dup._id);
         const seen = found && canSee(req.user, found);
         return { status: 409, json: {
-          error: `${(seen && nameOf(dup)) || 'A student'} is already in ISR with this email or phone number, so nobody was added.`,
-          duplicate: seen ? { id: dup._id, name: nameOf(dup), intake: found.sheet.name, stage: text(dup[STATUS]), source: text(dup['STUDENT SOURCE']), canFill: canChange(req.user, found) } : null,
+          error: maybeOther ? `${(seen && nameOf(dup)) || 'A student'} is already in ISR with this phone number, under another name. If this is a different person, add them anyway.` : `${(seen && nameOf(dup)) || 'A student'} is already in ISR with this email or phone number, so nobody was added.`,
+          duplicate: seen ? { id: dup._id, name: nameOf(dup), intake: found.sheet.name, stage: text(dup[STATUS]), source: text(dup['STUDENT SOURCE']), canFill: canChange(req.user, found), maybeOther } : (maybeOther ? { maybeOther } : null),
         } };
       }
     }
@@ -948,8 +966,13 @@ function createPortalApi({
       const key = d.length >= 7 ? 'p' + d : 'e' + email;
       if (seen.has(key) || (email && seen.has('e' + email))) { out.push({ ...line, action: 'problem', note: 'Same phone or email as an earlier line' }); continue; }
       seen.add(key); if (email) seen.add('e' + email);
-      const found = (d.length >= 7 && byPhone.get(d)) || (email && byEmail.get(email)) || null;
+      const byMail = (email && byEmail.get(email)) || null;
+      const found = byMail || (d.length >= 7 && byPhone.get(d)) || null;
       if (!found) { out.push({ ...line, action: 'new', note: `Will be added at Inquiry${line.intakeName ? `, ${line.intakeName}` : ''}` }); continue; }
+      if (!byMail && otherPerson(line.name || [line.first, line.last].join(' '), nameOf(found.row))) {
+        out.push({ ...line, id: found.row._id, action: 'check', note: `Same phone as ${nameOf(found.row)} (${found.sheet.name}, ${text(found.row[STATUS]) || 'no stage'}), another name: maybe a brother or sister. Not linked or added: add them by hand if they are someone else.` });
+        continue;
+      }
       const card = all[found.row._id];
       const tagged = card && eventFor(plan.events, card.profile.sourceDetail);
       const at = { id: found.row._id, intake: found.sheet.name, stage: text(found.row[STATUS]), name: nameOf(found.row) };
@@ -963,7 +986,7 @@ function createPortalApi({
     const count = (a) => out.filter((x) => x.action === a).length;
     // The students already tagged with this event who are not on this list (an updated list that dropped a few, the owner, 14 Nov
     // 2026): never removed, only shown, so Admin can check them on their cards.
-    const onList = new Set(out.map((x) => x.id).filter(Boolean));
+    const onList = new Set(out.filter((x) => x.action !== 'check').map((x) => x.id).filter(Boolean));
     const missing = [];
     for (const { sheet, row } of rowIndex().values()) {
       const card = all[row._id];
@@ -971,7 +994,7 @@ function createPortalApi({
       if (e && e.id === ev.id && !onList.has(row._id)) missing.push({ id: row._id, name: nameOf(row), intake: sheet.name, stage: text(row[STATUS]) });
     }
     missing.sort((a, b) => a.name.localeCompare(b.name));
-    if (body.preview) return { status: 200, json: { preview: true, label, rows: out, missing, counts: { new: count('new'), link: count('link'), already: count('already'), other: count('other'), problem: count('problem'), missing: missing.length } } };
+    if (body.preview) return { status: 200, json: { preview: true, label, rows: out, missing, counts: { new: count('new'), link: count('link'), already: count('already'), other: count('other'), check: count('check'), problem: count('problem'), missing: missing.length } } };
     // Carry out: add the new ones, tag the ones already on the sheet. A campaign on social media (a Facebook advert, for example) is a
     // Social Media source, so its students are found under Social Media too; any other event or campaign is an Events source.
     const source = channelOf(ev) === 'Social media' ? 'Social Media' : 'Events';
@@ -997,7 +1020,7 @@ function createPortalApi({
       }
     }
     note(req, [`${ev.name}: uploaded its list (${added} added at Inquiry, ${linked} already on the sheet tagged with it, ${count('already')} already tagged, ${count('other')} in another event left as they were, ${count('problem')} lines skipped)`], 'Uploaded event students');
-    return { status: 200, json: { done: true, added, linked, failed, rows: out, missing, counts: { new: count('new'), link: count('link'), already: count('already'), other: count('other'), problem: count('problem'), missing: missing.length } } };
+    return { status: 200, json: { done: true, added, linked, failed, rows: out, missing, counts: { new: count('new'), link: count('link'), already: count('already'), other: count('other'), check: count('check'), problem: count('problem'), missing: missing.length } } };
   }
 
   // Every student of one event, for its page on Events and marketing: who, the phone, the stage, the intake and the latest note, so the
@@ -1638,8 +1661,9 @@ function createPortalApi({
         // gave it and to whom, and how much is new on it for them (`unread`).
         c.tasks.forEach((t) => {
           const mine = forMe(req.user, t);
-          if (!everyone && !mine && !gaveIt(req.user, t)) return;
-          out.push({ ...t, forMe: mine, given: !mine && gaveIt(req.user, t), unread: unreadOf(req.user, t, seen), teamLabel: teamLabel(t.team), studentId: row._id, student: nameOf(row) || 'Student', stage: text(row[STATUS]), intake: sheet.name });
+          const had = !mine && hadIt(req.user, t);
+          if (!everyone && !mine && !gaveIt(req.user, t) && !had) return;
+          out.push({ ...t, forMe: mine, given: !mine && gaveIt(req.user, t), had, mayHand: mayHand(req.user, t), unread: unreadOf(req.user, t, seen), teamLabel: teamLabel(t.team), routeLabels: (t.route || []).map(teamLabel), studentId: row._id, student: nameOf(row) || 'Student', stage: text(row[STATUS]), intake: sheet.name });
         });
       }
       // Open first, then the one with the newest word (a comment, or the task itself) first.

@@ -5,7 +5,7 @@
 //   2. what needs attention: one short list, a line per kind of work with how many students wait, opened with a click.
 // The numbers, charts and buttons live on the Dashboard and on All Students, not here.
 (function () {
-  const { el, h, api, initials, stagePill, taskThread } = window.Portal;
+  const { el, h, api, initials, stagePill, taskThread, taskRoute, handOn } = window.Portal;
   const view = document.getElementById('view');
   if (new URLSearchParams(location.search).get('notice') === 'admin') {
     history.replaceState(null, '', location.pathname);
@@ -42,20 +42,23 @@
     if (t.unread) top.append(el('span', 'td-dot', String(t.unread)));
     mid.append(top);
     // From whom, to whom, and when: "From SK Kayas Hussain to the Application Team · 14 Nov".
-    const route = el('div', 'td-route');
     const fromName = t.by === me ? 'You' : t.by || 'Someone';
     const toName = t.forMe ? (t.team === 'head' ? 'you' : `your team (${t.teamLabel})`) : t.teamLabel;
-    route.append(el('span', 'td-from-who', fromName), el('span', 'td-arrow', '\u2192'), el('span', 'td-to-who', toName), el('span', 'td-when', t.at ? shortDay(t.at) : ''));
+    // The way it went, when it was handed on: "From SK → Mock Team → Application Team".
+    const route = taskRoute(t, { fromName, toName, teams: allTeams });
+    route.append(el('span', 'td-when', t.at ? shortDay(t.at) : ''));
+    if (t.mayHand) route.append(h('button', { class: 'p-link', type: 'button', onclick: async () => { if (await handOn(t, { rowId: t.studentId, teams: allTeams })) { window.NiecUI.toast(`Handed on. It is with the new team now, and you can still comment.`, { type: 'success' }); refresh(true); } } }, 'Hand on'));
     if (t.done) route.append(el('span', 'td-donemark', t.doneBy ? `Done by ${t.doneBy}` : 'Done'));
     const who = el('div', 'td-task-who');
     who.append(h('a', { class: 'td-student', href: '/student?id=' + encodeURIComponent(t.studentId), title: 'Open the student card' }, t.student), stagePill(t.stage));
-    const thread = taskThread(t, { rowId: t.studentId, me, canWrite: true, unread: t.unread || 0 });
+    const thread = taskThread(t, { rowId: t.studentId, me, canWrite: true, unread: t.unread || 0, teams: allTeams });
     mid.append(route, who, thread);
     r.append(tick, mid);
     if (t.unread) r.addEventListener('pointerdown', () => thread.markRead());
     return r;
   }
   let canAssignAll = false;
+  let allTeams = [];
 
   // One list of tasks under its own heading, the newest word first; the ones done in the last 7 days fold away at the bottom.
   function group(title, hint, list, refresh, emptyText) {
@@ -93,6 +96,7 @@
 
   function tasksPanel(t, refresh) {
     canAssignAll = Boolean(t.canAssign);
+    allTeams = t.teams || [];
     if (t.me) me = t.me;
     const box = el('section', 'td-tasks');
     const head = el('div', 'td-tasks-head');
@@ -103,9 +107,12 @@
     const forMe = t.tasks.filter((x) => x.forMe);
     const gave = t.tasks.filter((x) => !x.forMe && (x.given || x.by === me));
     const others = t.canAssign ? t.tasks.filter((x) => !x.forMe && x.by !== me) : [];
-    const any = forMe.length || gave.length || others.length;
+    // Tasks the team handed on to another team: still seen here, to follow them and comment.
+    const passed = t.canAssign ? [] : t.tasks.filter((x) => x.had && !x.forMe && !gave.includes(x));
+    const any = forMe.length || gave.length || others.length || passed.length;
     if (t.isHead || forMe.length || !t.canAssign) box.append(group(t.isHead ? 'For you' : 'For your team', t.isHead ? `Tasks the team gave you, ${t.headLabel || 'Admin'}.` : 'Tick a task when it is done; comment to ask for what you need or to say how it went.', forMe, refresh, t.isHead ? 'Nothing for you. When the team gives you a task, it is here.' : 'Nothing open for your team. You are all caught up.'));
     if (gave.length || t.canAssign) box.append(group('Tasks you have given', 'Give a task from a student card (Assign a task). Their comments come back here.', gave, refresh, 'Every task you gave is done.'));
+    if (passed.length) box.append(group('Handed on by your team', 'Tasks your team passed to another team. Follow them and comment here.', passed, refresh, 'Every one of them is done.'));
     if (others.length) box.append(group('Given by others', 'Tasks others gave the teams, to keep an eye on.', others, refresh, 'Every one of them is done.'));
     if (!any && !t.canAssign && !forMe.length) { /* the "For your team" list above already says so */ }
     return box;
