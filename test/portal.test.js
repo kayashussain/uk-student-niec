@@ -519,7 +519,7 @@ test('on the real server: cards follow the rules of the sheet, messages are reco
 
   // Today: what needs attention, for the students the account sees.
   const todayAdmin = (await admin('GET', '/api/today')).json;
-  assert.deepStrictEqual(todayAdmin.sections.map((x) => x.key), ['inquiries', 'apply', 'passport', 'mock', 'offers', 'cas']);
+  assert.deepStrictEqual(todayAdmin.sections.map((x) => x.key), ['inquiries', 'apply', 'passport', 'noSource', 'mock', 'offers', 'cas']);
   assert.ok(todayAdmin.sections.find((x) => x.key === 'inquiries').students.some((x) => x.id === hari.json.id), 'a new inquiry with no contact is listed');
   const todayApp = (await app('GET', '/api/today')).json;
   assert.ok(!todayApp.sections.some((x) => x.students.some((y) => y.id === hari.json.id)), 'a team sees only the students of its own stages');

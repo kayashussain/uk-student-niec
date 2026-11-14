@@ -270,7 +270,7 @@
       }
     };
     [['source', 'By source'], ['received', 'By who received']].forEach(([m, t]) => { const b = el('button', '', t); b.type = 'button'; b.dataset.m = m; b.addEventListener('click', () => { mode = m; render(); }); tabs.append(b); });
-    const c = card('ov-origin', 'How students found us', 'The way in: social media, a visit, an event, a branch or an agent. Click a slice to go down to the students.');
+    const c = card('ov-origin', 'How students found us', 'By student source. Click a slice for the detail.');
     c.head.append(tabs);
     render();
     c.append(holder);

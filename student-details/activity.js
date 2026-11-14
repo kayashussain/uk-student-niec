@@ -40,7 +40,7 @@
       </div>
       <div class="activity-device">${esc(e.device)}${e.ip ? ` &middot; ${esc(e.ip)}` : ''}</div>
       ${e.note ? `<div class="activity-note">${esc(e.note)}</div>` : ''}
-      ${Array.isArray(e.changes) && e.changes.length ? `<ul class="activity-changes">${e.changes.map((c) => `<li>${esc(c)}</li>`).join('')}</ul>` : ''}
+      ${Array.isArray(e.changes) && e.changes.length ? `<ul class="activity-changes">${e.changes.slice(0, 6).map((c) => `<li>${esc(c)}</li>`).join('')}</ul>${e.changes.length > 6 ? `<details class="activity-more"><summary>Show ${e.changes.length - 6} more</summary><ul class="activity-changes">${e.changes.slice(6).map((c) => `<li>${esc(c)}</li>`).join('')}</ul></details>` : ''}` : ''}
     </div>`;
   }
 

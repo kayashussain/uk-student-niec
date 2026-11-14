@@ -23,7 +23,7 @@
     const wrap = el('div');
     const head = el('div', 'p-head');
     const title = el('div');
-    title.append(el('h1', '', 'Follow-up'), el('p', '', 'Follow up many students at once. Choose the students, choose email or WhatsApp, and write the message once: each student gets it with their own name and details.'));
+    title.append(el('h1', '', 'Follow-up'), el('p', '', 'Message many students at once. Each message is personalised.'));
     head.append(title, h('a', { class: 'btn', href: '/students' }, 'Back to All Students'));
     wrap.append(head);
 
@@ -124,8 +124,8 @@
       note.replaceChildren(c === 'email'
         ? (mail.ready ? el('p', 'p-muted p-small', `Each student gets their own email from ${mail.from || 'your mailbox'}, signed by you. Press Check first to see who is ready.`)
           : mail.own ? (() => { const n = el('div', 'p-notice warn', 'To send emails, set up your own email first: '); const a = el('a', '', 'My email and WhatsApp'); a.href = '/my-email'; n.append(a, '. Nothing is sent until then.'); return n; })()
-            : el('div', 'p-notice warn', 'Emails cannot be sent from this computer: the office mailbox is not set up (normal on a test computer). On the real server, "Send emails now" sends them. Nothing is sent from here.'))
-        : el('p', 'p-muted p-small', 'WhatsApp cannot be sent by a program. Press Check, then press WhatsApp beside each student: their chat opens with the message ready and you press send in WhatsApp.'));
+            : el('div', 'p-notice warn', 'Email is not set up on this computer (normal for a test copy). Nothing is sent from here.'))
+        : el('p', 'p-muted p-small', 'Press Check, then WhatsApp beside each student: the chat opens with the message ready to send.'));
       check.textContent = c === 'email' ? 'Check the emails' : 'Prepare the WhatsApp chats';
     };
     eBtn.addEventListener('click', () => setChannel('email'));

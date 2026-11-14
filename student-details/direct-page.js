@@ -322,8 +322,8 @@
     $('addForm').hidden = true;
     $('adminOnly').textContent = 'View only';
     document.querySelector('.pu-intro').textContent = level === 'commission'
-      ? 'The universities you work with: where to submit each application, the contacts, the agreement and the commission. To look at; Admin makes the changes.'
-      : 'The universities you work with: where to submit each application, the campuses, the contacts and the agreement. To look at; Admin makes the changes.';
+      ? 'Where to apply, contacts, agreements and commission. View only; Admin edits.'
+      : 'Where to apply, campuses, contacts and agreements. View only; Admin edits.';
   }
   $('search').addEventListener('input', drawList);
   $('addForm').addEventListener('submit', async (e) => {

@@ -31,7 +31,7 @@
       const folded = new Promise((ok) => setTimeout(ok, t.done || quick ? 0 : 520));
       try {
         await api(`/api/cards/${encodeURIComponent(t.studentId)}/tasks/${t.id}`, { done: !t.done });
-        window.NiecUI.toast(t.done ? 'Marked as not done' : 'Done. You can still add a comment under Done this week.', { type: 'success' });
+        window.NiecUI.toast(t.done ? 'Marked as not done' : 'Done. Nice work.', { type: 'success' });
         await folded;
         refresh(true);
       } catch (e) { r.classList.remove('is-ticking'); tick.disabled = false; window.NiecUI.toast(e.message, { type: 'error' }); }
@@ -105,7 +105,7 @@
     const box = el('section', 'td-tasks');
     const head = el('div', 'td-tasks-head');
     const titles = el('div');
-    titles.append(el('h2', '', 'Tasks'), el('p', '', 'Who gave each task to whom, and the comments on it. A red dot marks what is new for you.'));
+    titles.append(el('h2', '', 'Tasks'), el('p', '', 'Assigned tasks and their updates. A red dot marks anything new.'));
     head.append(titles);
     box.append(head);
     const forMe = t.tasks.filter((x) => x.forMe);
@@ -114,10 +114,10 @@
     // Tasks the team handed on to another team: still seen here, to follow them and comment.
     const passed = t.canAssign ? [] : t.tasks.filter((x) => x.had && !x.forMe && !gave.includes(x));
     const any = forMe.length || gave.length || others.length || passed.length;
-    if (t.isHead || forMe.length || !t.canAssign) box.append(group(t.isHead ? 'For you' : 'For your team', t.isHead ? `Tasks the team gave you, ${t.headLabel || 'Admin'}.` : 'Tick a task when it is done; comment to ask for what you need or to say how it went.', forMe, refresh, t.isHead ? 'Nothing for you. When the team gives you a task, it is here.' : 'Nothing open for your team. You are all caught up.'));
-    if (gave.length || t.canAssign) box.append(group('Tasks you have given', 'Give a task from a student card (Assign a task). Their comments come back here.', gave, refresh, 'Every task you gave is done.'));
-    if (passed.length) box.append(group('Handed on by your team', 'Tasks your team passed to another team. Follow them and comment here.', passed, refresh, 'Every one of them is done.'));
-    if (others.length) box.append(group('Given by others', 'Tasks others gave the teams, to keep an eye on.', others, refresh, 'Every one of them is done.'));
+    if (t.isHead || forMe.length || !t.canAssign) box.append(group(t.isHead ? 'For you' : 'For your team', t.isHead ? `Tasks the team gave you, ${t.headLabel || 'Admin'}.` : 'Tick when done. Post an update to ask or report.', forMe, refresh, t.isHead ? 'Nothing for you. When the team gives you a task, it is here.' : 'Nothing open for your team. You are all caught up.'));
+    if (gave.length || t.canAssign) box.append(group('Tasks you have given', 'Assign tasks from a student card. Updates appear here.', gave, refresh, 'Every task you gave is done.'));
+    if (passed.length) box.append(group('Reassigned by your team', 'Tasks your team reassigned. Follow and post updates here.', passed, refresh, 'Every one of them is done.'));
+    if (others.length) box.append(group('Given by others', 'Tasks assigned by others.', others, refresh, 'Every one of them is done.'));
     if (!any && !t.canAssign && !forMe.length) { /* the "For your team" list above already says so */ }
     return box;
   }
@@ -127,7 +127,7 @@
     const box = el('section', 'td-attn');
     const waiting = sections.filter((x) => x.count > 0);
     const head = el('div', 'td-attn-head');
-    head.append(el('h2', '', 'Needs attention'), el('p', '', waiting.length ? 'Students who are waiting for the next step. Open a line to see who.' : 'Nothing is waiting. Every student is where they should be.'));
+    head.append(el('h2', '', 'Needs attention'), el('p', '', waiting.length ? 'Students waiting for a next step. Open a line to see who.' : 'Nothing is waiting.'));
     box.append(head);
     waiting.forEach((x) => {
       const d = el('details', 'td-attn-row');
@@ -152,6 +152,26 @@
     return box;
   }
 
+  // The day at a glance, at the top (the owner, 14 Nov 2026: engaging, like a game): a ring that fills as the person's own tasks are
+  // done this week, then what is open for them and how many students wait for a next step. "All caught up" when nothing is open.
+  function pulse(tasks, sections) {
+    const recent = (x) => x.done && Date.now() - Date.parse(x.doneAt || 0) < 7 * 86400000;
+    const mine = tasks.tasks.filter((x) => x.forMe);
+    const open = mine.filter((x) => !x.done).length;
+    const done = mine.filter(recent).length;
+    const waiting = sections.reduce((n, x) => n + x.count, 0);
+    const box = el('section', 'td-pulse');
+    const share = open + done ? done / (open + done) : 1;
+    const ring = el('div', 'td-ring');
+    ring.style.setProperty('--p', String(Math.round(share * 100)));
+    if (open + done) ring.append(el('b', '', `${Math.round(share * 100)}%`), el('small', '', 'this week')); else ring.append(el('b', 'td-ring-tick', '\u2713'));
+    const stat = (n, label, tone) => { const x = el('div', `td-stat${tone ? ' ' + tone : ''}`); x.append(el('b', '', String(n)), el('span', '', label)); return x; };
+    const words = el('div', 'td-pulse-words');
+    words.append(el('h2', '', open ? `${open} task${open === 1 ? '' : 's'} open for you` : 'All caught up'), el('p', '', open ? 'Tick each one when it is done.' : 'Nothing open for you. Well done.'));
+    box.append(ring, words, stat(done, 'done this week', 'good'), stat(waiting, 'students waiting', waiting ? 'warn' : ''));
+    return box;
+  }
+
   api('/api/today').then(async (d) => {
     me = d.name || '';
     let tasks = { tasks: [], canAssign: false };
@@ -163,9 +183,15 @@
     head.append(el('span', 'td-kicker', d.title), el('h1', '', `${greeting()}${first ? ', ' + first : ''}`),
       el('p', '', new Date(d.today + 'T12:00:00').toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })));
     const slot = el('div');
-    const refresh = async (reload) => { if (reload) { try { tasks = await api('/api/tasks'); } catch (e) { /* keep */ } } slot.replaceChildren(tasksPanel(tasks, refresh)); };
+    const top = el('div');
+    const refresh = async (reload) => {
+      if (reload) { try { tasks = await api('/api/tasks'); } catch (e) { /* keep */ } }
+      top.replaceChildren(pulse(tasks, d.sections));
+      slot.replaceChildren(tasksPanel(tasks, refresh));
+    };
     refresh();
-    page.append(head, slot, attention(d.sections));
+    // Admin and the Manager see the students waiting first (the whole consultancy), a team its own tasks first.
+    page.append(head, top, ...(tasks.canAssign ? [attention(d.sections), slot] : [slot, attention(d.sections)]));
     view.replaceChildren(page);
   }).catch((e) => view.replaceChildren(el('div', 'p-card', e.message)));
 })();

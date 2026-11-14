@@ -38,13 +38,13 @@
     const t = acts.reduce((s, a) => ({ cost: s.cost + (a.cost || 0), leads: s.leads + a.leads, visas: s.visas + a.visas }), { cost: 0, leads: 0, visas: 0 });
     $('band').replaceWith(Object.assign(band([
       ['Total investment', rupees(t.cost) || 'Rs 0', `Across ${acts.length} event${acts.length === 1 ? '' : 's'} and campaigns, in rupees${acts.some((a) => a.costCurrency && a.costCurrency !== 'NPR') ? ' (dollars and pounds at the day\u2019s rate)' : ''}`],
-      ['Enquiries', number(t.leads)],
+      ['Inquiries', number(t.leads)],
       ['Visas', number(t.visas)],
-      ['Cost per enquiry', per(t.cost, t.leads), '', true],
+      ['Cost per inquiry', per(t.cost, t.leads), '', true],
       ['Cost per visa', per(t.cost, t.visas), '', true],
     ]), { id: 'band' }));
     $('note').replaceChildren();
-    if (data.unlinkedSocial > 0) $('note').append(el('div', 'ev-note', `${number(data.unlinkedSocial)} social media ${data.unlinkedSocial === 1 ? 'enquiry is' : 'enquiries are'} not yet linked to a campaign. Open the campaign and upload its list to link them.`));
+    if (data.unlinkedSocial > 0) $('note').append(el('div', 'ev-note', `${number(data.unlinkedSocial)} social media ${data.unlinkedSocial === 1 ? 'inquiry is' : 'inquiries are'} not linked to a campaign. Upload the campaign's list to link them.`));
     $('add').hidden = !data.canEdit;
     const shown = show === 'all' ? acts : acts.filter((a) => (show === 'Marketing' ? a.kind === 'Marketing' : a.kind !== 'Marketing'));
     $('count').textContent = acts.length ? `${shown.length} shown` : '';
@@ -52,7 +52,7 @@
     if (!acts.length) { list.replaceChildren(el('div', 'ev-empty', 'No events or campaigns yet.')); return; }
     if (!shown.length) { list.replaceChildren(el('div', 'ev-empty', 'Nothing here yet.')); return; }
     const head = el('div', 'ev-lrow head');
-    ['Event or campaign', 'Investment', 'Enquiries', 'Visas', 'Per enquiry', 'Per visa', ''].forEach((x, i) => head.append(el('div', i && i < 6 ? 'num' : '', x)));
+    ['Event or campaign', 'Investment', 'Inquiries', 'Visas', 'Per inquiry', 'Per visa', ''].forEach((x, i) => head.append(el('div', i && i < 6 ? 'num' : '', x)));
     list.replaceChildren(head, ...shown.map((a) => {
       const r = el('div', 'ev-lrow item');
       r.style.setProperty('--i', String(Math.min(shown.indexOf(a), 12)));
@@ -61,7 +61,7 @@
       const meta = el('div', 'ev-lmeta'); meta.append(tag(a), el('span', '', `${ran(a)} · ${a.days} day${a.days === 1 ? '' : 's'}`));
       who.append(el('div', 'ev-lname', a.name), meta);
       const num = (label, v, gold) => { const d = el('div', 'num' + (gold ? ' gold' : ''), v); d.dataset.label = label; return d; };
-      r.append(who, num('Investment', a.cost ? rupees(a.cost) : '-'), num('Enquiries', number(a.leads)), num('Visas', number(a.visas)), num('Per enquiry', per(a.cost, a.leads), a.cost > 0 && a.leads > 0), num('Per visa', per(a.cost, a.visas), a.cost > 0 && a.visas > 0), el('div', 'ev-go', '→'));
+      r.append(who, num('Investment', a.cost ? rupees(a.cost) : '-'), num('Inquiries', number(a.leads)), num('Visas', number(a.visas)), num('Per inquiry', per(a.cost, a.leads), a.cost > 0 && a.leads > 0), num('Per visa', per(a.cost, a.visas), a.cost > 0 && a.visas > 0), el('div', 'ev-go', '→'));
       const go = () => window.NiecUI.swap(() => { openEvent(a.id); window.scrollTo({ top: 0 }); });
       r.addEventListener('click', go);
       r.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } });
@@ -86,15 +86,15 @@
     if (data.canEdit) head.append(h('button', { class: 'btn', type: 'button', onclick: () => form(a) }, 'Edit'));
     const figs = band([
       ['Investment', a.cost ? rupees(a.cost) : 'Not entered', paidIn(a) || (data.canEdit && !a.cost ? 'Add it with Edit' : '')],
-      ['Enquiries', number(a.leads), `${number(a.applied)} applied`],
+      ['Inquiries', number(a.leads), `${number(a.applied)} applied`],
       ['Visas', number(a.visas)],
-      ['Cost per enquiry', per(a.cost, a.leads), '', true],
+      ['Cost per inquiry', per(a.cost, a.leads), '', true],
       ['Cost per visa', per(a.cost, a.visas), '', true],
     ]);
     figs.style.marginTop = '20px';
     const upload = data.canEdit ? uploadPanel(a) : null;
     const people = el('section', 'ev-panel');
-    people.append(el('h3', '', 'Enquiries'), el('p', '', 'Everyone from this event, in every intake. Open a name to call, add a note or move the stage.'));
+    people.append(el('h3', '', 'Inquiries'), el('p', '', 'Everyone from this event, in every intake. Open a name to call, add a note or move the stage.'));
     const listBox = el('div'); listBox.innerHTML = '<div class="isr-skel" role="status" aria-label="Loading"><i></i><i></i><i></i></div>';
     people.append(listBox);
     v.replaceChildren(back, head, figs, ...(upload ? [upload] : []), people);
@@ -105,8 +105,8 @@
   async function loadPeople(a, box) {
     let list;
     try { list = (await api(`/api/activities/${a.id}/students`)).students; } catch (e) { box.replaceChildren(el('div', 'p-notice bad', e.message)); return; }
-    if (!list.length) { box.replaceChildren(el('div', 'ev-empty', data.canEdit ? 'No enquiries yet. Upload the list above.' : 'No enquiries yet.')); return; }
-    const search = h('input', { class: 'ev-search', type: 'search', placeholder: 'Search a name or phone', 'aria-label': 'Search the enquiries' });
+    if (!list.length) { box.replaceChildren(el('div', 'ev-empty', data.canEdit ? 'No inquiries yet. Upload the list above.' : 'No inquiries yet.')); return; }
+    const search = h('input', { class: 'ev-search', type: 'search', placeholder: 'Search a name or phone', 'aria-label': 'Search the inquiries' });
     const rows = el('div', 'ev-people');
     const drawPeople = () => {
       const q = search.value.trim().toLowerCase();
@@ -124,31 +124,31 @@
     };
     search.addEventListener('input', drawPeople);
     drawPeople();
-    const top = el('div', 'ev-actions'); top.style.margin = '0 0 12px'; top.append(search, el('span', 'p-muted', `${list.length} ${list.length === 1 ? 'enquiry' : 'enquiries'}`));
+    const top = el('div', 'ev-actions'); top.style.margin = '0 0 12px'; top.append(search, el('span', 'p-muted', `${list.length} ${list.length === 1 ? 'inquiry' : 'inquiries'}`));
     box.replaceChildren(top, rows);
   }
 
   function uploadPanel(a) {
     const p = el('section', 'ev-panel');
-    p.append(el('h3', '', 'Upload the enquiry list'), el('p', '', 'An Excel or CSV file with a name and a phone or email on each line. You review every line before anything is saved.'));
+    p.append(el('h3', '', 'Upload the inquiry list'), el('p', '', 'Excel or CSV, one student per row. You review every row before it is saved.'));
     const intake = h('select', {});
     (data.intakes || []).forEach((s) => intake.append(h('option', { value: s.id }, s.name)));
     const file = h('input', { type: 'file', accept: '.xlsx,.csv' });
     const row = el('div', 'ev-upload');
-    const l1 = el('label'); l1.append('Intake for new enquiries', intake);
+    const l1 = el('label'); l1.append('Intake for new inquiries', intake);
     const l2 = el('label'); l2.append('File (Excel or CSV)', file);
     row.append(l1, l2);
     const out = el('div');
     // Take the list back (the owner, 14 Nov 2026): remove the enquiries this list added, to upload a better one, without deleting
     // the event. Only those nobody has worked on go; the review says who stays and why, and a copy of everything is saved first.
-    const takeBack = h('button', { class: 'btn', type: 'button' }, 'Remove the enquiries this list added');
+    const takeBack = h('button', { class: 'btn', type: 'button' }, 'Remove the inquiries this list added');
     takeBack.addEventListener('click', async () => {
       takeBack.disabled = true;
       try { out.replaceChildren(removal(a, await api(`/api/activities/${a.id}/students/remove`, { preview: true }), () => out.replaceChildren())); } catch (e) { say(e.message, true); }
       takeBack.disabled = false;
     });
     const more = el('div', 'ev-actions'); more.style.marginTop = '10px';
-    more.append(takeBack, el('span', 'p-muted', 'To fix a list: remove its enquiries, then upload the corrected file.'));
+    more.append(takeBack, el('span', 'p-muted', 'To fix a list: remove its inquiries, then upload the corrected file.'));
     p.append(row, more, out);
     file.addEventListener('change', async () => {
       const f = file.files && file.files[0];
@@ -219,9 +219,9 @@
     pre.remove.forEach((x) => line(x, 'Remove', 'other', 'Added by this list, not worked on yet'));
     pre.worked.forEach((x) => line(x, 'Stays', 'already', x.why));
     pre.before.forEach((x) => line(x, 'Stays', 'already', x.why));
-    const ok = h('button', { class: 'btn btn-danger', type: 'button', disabled: !pre.remove.length }, pre.remove.length ? `Remove ${pre.remove.length} enquir${pre.remove.length === 1 ? 'y' : 'ies'}` : 'Nothing to remove');
+    const ok = h('button', { class: 'btn btn-danger', type: 'button', disabled: !pre.remove.length }, pre.remove.length ? `Remove ${pre.remove.length} inquir${pre.remove.length === 1 ? 'y' : 'ies'}` : 'Nothing to remove');
     ok.addEventListener('click', async () => {
-      if (!(await window.NiecUI.confirm(`Remove the ${pre.remove.length} enquir${pre.remove.length === 1 ? 'y' : 'ies'} this list added, with their cards? A copy of everything is saved first (Admin, Restore), and you can upload the corrected list straight after.`, { danger: true, confirmText: 'Remove' }))) return;
+      if (!(await window.NiecUI.confirm(`Remove the ${pre.remove.length} inquir${pre.remove.length === 1 ? 'y' : 'ies'} this list added, with their cards? A copy of everything is saved first (Admin, Restore), and you can upload the corrected list straight after.`, { danger: true, confirmText: 'Remove' }))) return;
       ok.disabled = true;
       try {
         const done = await api(`/api/activities/${a.id}/students/remove`, {});
@@ -282,7 +282,7 @@
       const msg = el('div', 'p-msg');
       const foot = el('div', 'p-dialog-foot');
       foot.append(h('button', { class: 'btn', type: 'button', onclick: () => close() }, 'Cancel'));
-      if (a) foot.append(h('button', { class: 'btn btn-danger', type: 'button', onclick: async () => { if (await window.NiecUI.confirm('Remove this event? Its enquiries stay in All Students.', { danger: true, confirmText: 'Remove' })) { await api(`/api/planning/events/${a.id}/delete`, {}); close('removed'); } } }, 'Remove'));
+      if (a) foot.append(h('button', { class: 'btn btn-danger', type: 'button', onclick: async () => { if (await window.NiecUI.confirm('Remove this event? Its inquiries stay in All Students.', { danger: true, confirmText: 'Remove' })) { await api(`/api/planning/events/${a.id}/delete`, {}); close('removed'); } } }, 'Remove'));
       const ok = h('button', { class: 'btn btn-primary', type: 'button' }, 'Save');
       ok.addEventListener('click', async () => {
         if (ok.disabled) return;

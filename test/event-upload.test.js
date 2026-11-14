@@ -73,7 +73,7 @@ test('uploading an event list: found and tagged, added at Inquiry, skipped, noth
   assert.strictEqual(card.student.source, 'Social Media', 'a campaign on social media is a Social Media source (the owner, 14 Nov 2026)');
   assert.match(card.card.profile.sourceDetail, /^ABC event/);
   assert.match(card.card.profile.sourceRemarks, /Previous source: Social Media: Facebook page/, 'the earlier source is kept');
-  assert.match(card.card.notes.at(-1).text, /Linked to ABC event from its enquiry list/);
+  assert.match(card.card.notes.at(-1).text, /Linked to ABC event from its inquiry list/);
   const wb = (await admin('GET', '/api/data')).json;
   const all = wb.sheets.flatMap((s) => s.rows);
   assert.strictEqual(all.filter((r) => r['FIRST NAME'] === 'Early').length, 1, 'not added twice');

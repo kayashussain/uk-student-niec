@@ -7,6 +7,16 @@ To find every marked change in the code, search the project for `CSS CHANGED`.
 
 Format: **date · file · what · from → to · why**
 
+- **2026-11-14 · shared/theme.css (portal-ui.js, student-page.js, today-page.js) · a task's actions (a bug fix) · from: "Hand on" in the middle of the row and "Remove" at the far right, as blue text links · to: "Reassign" and "Remove" side by side at the task's top right as small grey pills; Remove turns red on hover · why: the owner saw the gap as a CSS crash and asked for a more professional task view.**
+
+- **2026-11-14 · shared/theme.css (student-page.js) · student card details and Find a course · from: the email took two columns; the course search had no Search button · to: the email takes one column, so the details read Email, Date of birth, Passport number, Address, WhatsApp, University, Course, Application submitted, Offer received; Study level, Course name and a blue Search button on one row, remarks two lines high under them · why: the owner asked for that order and a Search button.**
+
+- **2026-11-14 · shared/theme.css (today-page.js) · Today, the day at a glance (new) · from: Today started with the task list · to: a soft panel at the top with a ring that fills as this week's tasks are done, "N tasks open for you" or "All caught up", and big numbers for done this week (green) and students waiting (orange); Admin and the Manager see Needs attention before the tasks · why: the owner asked for an engaging portal that feels like a game.**
+
+- **2026-11-14 · shared/theme.css (activity.js) · Activity, long changes · from: every line of a change listed (up to 60) · to: the first six, then "Show N more" · why: found in the review.**
+
+- **2026-11-14 · shared/theme.css, student-details/portal.css · clean-up · from: about 65 style rules for parts of pages that no longer exist (the old assistant's answer, older Dashboard cards, due dates on tasks, the title bar) · to: removed; nothing on screen changes · why: the owner asked for clean code.**
+
 - **2026-11-14 · shared/theme.css (dashboard-trends.js) · Business growth table on a phone (a bug fix) · from: the Visas and Visa rate columns were cut off at the right edge · to: the table slides sideways inside its card · why: found in the phone check.**
 
 - **2026-11-14 · shared/theme.css (dashboard-trends.js) · Business growth by intake made simple · from: one chart with five coloured columns per intake and a green line over them, and a "Visas per 100 students" column · to: two plain charts side by side, "Students in each intake" in blue and "Visas in each intake" in green, one rounded bar per intake with its number printed above it in bold; one plain sentence on the last closed intake; the table's last column is "Visa rate" in % with a line under the table saying what it means · why: the owner said the bar chart was confusing for the CEO and the chairman.**

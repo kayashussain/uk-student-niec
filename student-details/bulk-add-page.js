@@ -15,7 +15,7 @@
     const wrap = el('div');
     const head = el('div', 'p-head');
     const title = el('div');
-    title.append(el('h1', '', 'Add many students'), el('p', '', 'Choose the stage and where the students came from once, upload an Excel or CSV file, and they are all added with the same source.'));
+    title.append(el('h1', '', 'Add many students'), el('p', '', 'Add many students from an Excel or CSV file, with one stage and source.'));
     head.append(title, h('a', { class: 'btn', href: '/students' }, 'Back to All Students'));
     wrap.append(head);
 
@@ -48,7 +48,7 @@
     const fileRow = el('div', 'p-bar');
     const sample = h('a', { class: 'p-link', href: 'data:text/csv;charset=utf-8,' + encodeURIComponent('First name,Last name,Email,Phone\nSita,Sharma,sita@example.com,9800000001\nRam,Thapa,ram@example.com,9800000002\n'), download: 'students-example.csv' }, 'Download an example file');
     fileRow.append(pick, sample);
-    paste.append(el('p', 'p-muted', 'Choose an Excel (.xlsx) or CSV file. The first row holds the headings: First name, Last name, Email and Phone (a single Name column also works). The list is checked first: bad lines and students already on the sheet are skipped, and you see why.'), fileRow, out, bar);
+    paste.append(el('p', 'p-muted', 'First row: First name, Last name, Email, Phone (or one Name column). Problem rows and existing students are skipped, with the reason.'), fileRow, out, bar);
     wrap.append(paste);
 
     // Students who are already on the sheet (same email or phone) are marked so the list says they will be skipped.

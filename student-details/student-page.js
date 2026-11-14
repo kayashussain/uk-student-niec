@@ -38,7 +38,7 @@
   function heroEdit() {
     const c = el('section', 'p-card');
     c.append(el('h2', '', 'Change the details'));
-    c.append(el('p', 'p-muted p-small', 'The name, contact, university, course and dates are the columns of the All Students sheet (a change here is a change on the sheet); the date of birth, passport number, address and nationality are from the passport.'));
+    c.append(el('p', 'p-muted p-small', 'Name, contact, university, course and dates update the All Students sheet. Passport details stay on this card.'));
     const form = el('div', 'p-form');
     const inputs = {};
     HERO_FIELDS.forEach(([col, label, kind]) => {
@@ -208,7 +208,7 @@
       box.addEventListener('click', async () => {
         box.disabled = true;
         if (!t.done) r.classList.add('is-ticking');
-        try { await save(`tasks/${t.id}`, { done: !t.done }, t.done ? 'Marked as not done' : 'Done. Well done.'); setTimeout(render, t.done ? 0 : 450); } catch (e) { r.classList.remove('is-ticking'); box.disabled = false; }
+        try { await save(`tasks/${t.id}`, { done: !t.done }, t.done ? 'Marked as not done' : 'Done. Nice work.'); setTimeout(render, t.done ? 0 : 450); } catch (e) { r.classList.remove('is-ticking'); box.disabled = false; }
       });
       const mid = el('div', 'td-task-mid');
       const top = el('div', 'td-task-top');
@@ -311,7 +311,7 @@
   function notes() {
     const wrap = el('section', 'p-card');
     wrap.append(el('h2', '', 'Notes'));
-    wrap.append(el('p', '', 'About the student: what was said and agreed, dates booked, results, money and documents. The newest is first.'));
+    wrap.append(el('p', '', 'Calls, agreements, results, payments and documents. Newest first.'));
     if (can()) {
       const box = el('div', 'p-note-box');
       const text = el('textarea', 'p-input');
@@ -356,7 +356,7 @@
     head.append(el('h2', '', `Options for this student (${data.card.options.length})`));
     if (data.card.options.length) head.append(h('button', { class: 'btn btn-primary btn-sm', type: 'button', onclick: () => openCompose('options') }, 'Email these options'));
     box.append(head);
-    if (!data.card.options.length) { box.append(el('p', 'p-muted', 'Nothing chosen yet. Ask the assistant or search below and press Add. Everything chosen goes into one email with the document checklist.')); return box; }
+    if (!data.card.options.length) { box.append(el('p', 'p-muted', 'No options yet. Search below and press Add. All options go into one email with the document checklist.')); return box; }
     const list = el('div', 'p-chosen');
     data.card.options.forEach((o) => {
       const item = el('div', 'p-chosen-item');

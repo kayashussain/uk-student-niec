@@ -379,11 +379,11 @@ function createPortalApi({
   // ---- Today: what needs a person's attention now, for the students this account sees ----
   // The home screen of each kind of account (Teams.kindOf): the same facts, but each team sees the work that is its own, in its own words.
   const WORKSPACES = {
-    admin: { title: 'Everything at a glance', tagline: 'Here is what needs attention across the whole consultancy today.', sections: ['inquiries', 'apply', 'passport', 'mock', 'offers', 'cas'], tiles: ['active', 'applied', 'visas'] },
-    manager: { title: 'The consultancy at a glance', tagline: 'The numbers and the students waiting, to look at. Open the Dashboard for the full picture.', sections: ['inquiries', 'apply', 'passport', 'mock', 'offers', 'cas'], tiles: ['active', 'applied', 'visas'] },
+    admin: { title: 'Everything at a glance', tagline: 'Here is what needs attention across the whole consultancy today.', sections: ['inquiries', 'apply', 'passport', 'noSource', 'mock', 'offers', 'cas'], tiles: ['active', 'applied', 'visas'] },
+    manager: { title: 'The consultancy at a glance', tagline: 'The numbers and the students waiting, to look at. Open the Dashboard for the full picture.', sections: ['inquiries', 'apply', 'passport', 'noSource', 'mock', 'offers', 'cas'], tiles: ['active', 'applied', 'visas'] },
     application: { title: 'Application Team', tagline: 'Applications to submit, to chase and to complete.', sections: ['apply', 'passport', 'noUni', 'noOffer', 'offers'], tiles: ['toSubmit', 'waitingOffer', 'applied'] },
     mock: { title: 'Mock Team', tagline: 'Mock interviews to schedule and feedback still to write.', sections: ['mock', 'mockFeedback', 'preCas'], tiles: ['atMock', 'toSchedule', 'feedbackMissing'] },
-    followup: { title: 'Follow-up Team', tagline: 'Inquiries that have gone quiet and students who deferred.', sections: ['inquiries', 'defer'], tiles: ['inquiries', 'toFollow', 'deferred'] },
+    followup: { title: 'Follow-up Team', tagline: 'Inquiries that have gone quiet and students who deferred.', sections: ['inquiries', 'noSource', 'defer'], tiles: ['inquiries', 'toFollow', 'deferred'] },
     branch: { title: 'Your branch', tagline: 'Your branch students: who to call, what to submit and who is close to a visa.', sections: ['inquiries', 'apply', 'mock', 'offers', 'cas'], tiles: ['active', 'applied', 'visas'] },
     team: { title: 'Your teams', tagline: 'The work of all your teams in one place.', sections: ['inquiries', 'apply', 'mock', 'mockFeedback', 'defer'], tiles: ['active', 'applied', 'visas'] },
   };
@@ -402,7 +402,8 @@ function createPortalApi({
       { key: 'inquiries', title: 'Inquiries to follow up', hint: 'No contact in the last 3 days', stage: 'Inquiry', rows: [] },
       { key: 'defer', title: 'Deferred students to check', hint: 'Deferred and not contacted for 14 days', stage: 'Defer', rows: [] },
       { key: 'apply', title: 'Applications to submit', hint: 'At Application Stage, not submitted yet', stage: 'Application Stage', rows: [] },
-      { key: 'passport', title: 'Passport details missing', hint: 'From Application Stage on: the date of birth, passport number or address is not on the card', stage: '', rows: [] },
+      { key: 'noSource', title: 'Student source not recorded', hint: 'Add where they came from, so the Dashboard counts them', stage: '', rows: [] },
+      { key: 'passport', title: 'Passport details missing', hint: 'Date of birth, passport number or address not added', stage: '', rows: [] },
       { key: 'noUni', title: 'Applications without a university or course', hint: 'At Application Stage: choose where to apply first', stage: 'Application Stage', rows: [] },
       { key: 'noOffer', title: 'Applications waiting for an offer', hint: 'Submitted over 10 days ago, no offer yet: chase the university', stage: '', rows: [] },
       { key: 'mock', title: 'Mock interviews to schedule', hint: 'At Mock Stage with no mock date', stage: 'Mock Stage', rows: [] },
@@ -435,6 +436,8 @@ function createPortalApi({
       if (stage === 'Mock Stage') totals.atMock += 1;
       if (stage === 'Inquiry' && (lastDay === null || now - lastDay >= 3)) add('inquiries', lastDay === null ? 'No contact recorded' : `Last contact ${now - lastDay} days ago`, lastDay === null ? 999 : now - lastDay);
       if (stage === 'Application Stage' && !created) add('apply', text(row['UNIVERSITY NAME']) || 'No university chosen yet', 0);
+      // Where the student came from feeds every source figure of the Dashboard: a student without it is asked for (the owner, 14 Nov 2026).
+      if (!text(row['STUDENT SOURCE'])) add('noSource', 'No source', 0);
       // The passport details are needed from Application Stage on (the owner, 14 Nov 2026): say which are missing.
       if (stage && stage !== 'Inquiry') {
         const pp = card.profile || {};
@@ -1095,7 +1098,7 @@ function createPortalApi({
     let added = 0; let linked = 0; let updated = 0; const failed = [];
     for (const x of out) {
       if (x.action === 'new') {
-        const r = addStudent(req, { fields: { 'FIRST NAME': x.first, 'LAST NAME': x.last, EMAIL: x.email, 'CONTACT NUMBER': x.phone, 'STUDENT SOURCE': source }, profile: { sourceDetail: label, studyLevel: x.level, inquiryDate: x.inquiryDate, inquiryTime: x.inquiryDate ? x.inquiryTime : '', livesIn: x.livesIn, fromList: ev.id }, stage: 'Inquiry', sheetId: x.sheetId || body.sheetId, note: `Enquiry from ${ev.name}, from its enquiry list.${x.extra ? ` ${x.extra}.` : ''}` });
+        const r = addStudent(req, { fields: { 'FIRST NAME': x.first, 'LAST NAME': x.last, EMAIL: x.email, 'CONTACT NUMBER': x.phone, 'STUDENT SOURCE': source }, profile: { sourceDetail: label, studyLevel: x.level, inquiryDate: x.inquiryDate, inquiryTime: x.inquiryDate ? x.inquiryTime : '', livesIn: x.livesIn, fromList: ev.id }, stage: 'Inquiry', sheetId: x.sheetId || body.sheetId, note: `Inquiry from ${ev.name}, from its inquiry list.${x.extra ? ` ${x.extra}.` : ''}` });
         if (r.status === 200) { added += 1; x.id = r.json.id; } else failed.push(`${x.name}: ${r.json.error || 'could not be added'}`);
       } else if (x.action === 'link') {
         const found = rowIndex().get(x.id);
@@ -1103,7 +1106,7 @@ function createPortalApi({
         if (src.error) { failed.push(`${x.name}: ${src.error}`); continue; }
         const card = cards.get(x.id);
         cards.setProfile(x.id, { sourceDetail: label, sourceRemarks: [card.profile.sourceRemarks, x.before ? `Previous source: ${x.before}` : ''].filter(Boolean).join(' | ').slice(0, 160) }, by(req));
-        const r = applyNews(req, x, x.news, ev, `Linked to ${ev.name} from its enquiry list.${x.before ? ` Previous source: ${x.before}.` : ''}`);
+        const r = applyNews(req, x, x.news, ev, `Linked to ${ev.name} from its inquiry list.${x.before ? ` Previous source: ${x.before}.` : ''}`);
         if (r.error) { failed.push(`${x.name}: ${r.error}`); continue; }
         linked += 1;
       } else if (x.action === 'update') {
@@ -1128,13 +1131,13 @@ function createPortalApi({
 
   // Takes back the students an event's or campaign's list added, so a better list can be uploaded (the owner, 14 Nov 2026), without
   // deleting the event. Only what the list itself made goes, and only while nobody has worked on it:
-  //   removed: added by this list (its own mark, or the list's first note "Enquiry from <event>, from its enquiry list"), still at
+  //   removed: added by this list (its own mark, or the list's first note "Inquiry from <event>, from its inquiry list"), still at
   //            Inquiry, with no university, no application date, no task, no university option, no message sent and no note from a
   //            person (the list's own notes do not count). Its row and its card go, so the next list adds it again as new.
   //   kept (worked on): added by this list, but someone has worked on the student since: never removed here; listed with the reason.
   //   kept (in ISR before): linked by the list but in ISR before it: stays as it is.
   // { preview: true } only lists them. Before anything is removed, a copy of everything is saved (Admin, Restore, a "manual" copy).
-  const LIST_NOTE = /^(Enquiry from .*, from its enquiry list|More from the list of |From the updated list of |Linked to .* from its enquiry list)/;
+  const LIST_NOTE = /^([EI]nquiry from .*, from its [ei]nquiry list|More from the list of |From the updated list of |Linked to .* from its [ei]nquiry list)/; // "Enquiry" in notes written before 14 Nov 2026
   function eventRemoval(req, ev, body) {
     const plan = planning.all();
     const all = cards.all();
@@ -1144,7 +1147,7 @@ function createPortalApi({
       const e = card && eventFor(plan.events, card.profile.sourceDetail);
       if (!e || e.id !== ev.id) continue;
       const who = { id: row._id, name: nameOf(row) || 'Student with no name', intake: sheet.name, stage: text(row[STATUS]) };
-      const byList = card.profile.fromList === ev.id || (card.notes || []).some((n) => String(n.text || '').startsWith(`Enquiry from ${ev.name}, from its enquiry list`));
+      const byList = card.profile.fromList === ev.id || (card.notes || []).some((n) => [`Enquiry from ${ev.name}, from its enquiry list`, `Inquiry from ${ev.name}, from its inquiry list`].some((x) => String(n.text || '').startsWith(x)));
       if (!byList) { before.push({ ...who, why: 'In ISR before the list: stays' }); continue; }
       const why = [];
       if (who.stage && who.stage !== 'Inquiry') why.push(`now at ${who.stage}`);
@@ -1216,7 +1219,7 @@ function createPortalApi({
     const today = cards.today();
     const inquiries = []; const applications = []; const offers = []; const payments = []; const cas = []; const visas = [];
     // One record per student, so the source filter of the chart narrows every line, not just the inquiries (the owner, 14 Nov 2026):
-    // [where they came from, inquiry day, application day, offer day, payment day, CAS day, visa day] ('' when there is none).
+    // [where they came from, inquiry day, application day, offer day, payment day, CAS day, visa day, which exactly] ('' when none).
     const students = [];
     let undated = 0;
     const lives = {}; const home = {}; let noPlace = 0; const abroad = {};
@@ -1236,7 +1239,9 @@ function createPortalApi({
       const paid = isoDate(row['PAYMENT DATE']); if (paid) payments.push(paid);
       const casDay = isoDate(row['CAS RECEIVED DATE']); if (casDay) cas.push(casDay);
       const visaDay = isoDate(row['VISA RECEIVED DATE']); if (visaDay) visas.push(visaDay);
-      students.push([bucket, day, applied || '', offered || '', paid || '', casDay || '', visaDay || '']);
+      // Which exactly (the event or campaign, the platform, the branch, the agent), for the second filter of the chart.
+      const [, detail] = sourceOf(row, card, plan);
+      students.push([bucket, day, applied || '', offered || '', paid || '', casDay || '', visaDay || '', detail || p.sourcePlatform || '']);
       // Where the student is from: the district of the address in the passport (the owner, 14 Nov 2026), else a home district kept
       // earlier; a student from outside Nepal is counted by nationality instead.
       if (p.nationality && p.nationality !== 'Nepali') abroad[p.nationality] = (abroad[p.nationality] || 0) + 1;

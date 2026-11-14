@@ -46,7 +46,7 @@
         await api('/api/my-mail/delete', {}); say('Removed'); reload();
       } }, 'Remove my mailbox'));
     }
-    c.append(g, more, el('p', 'p-muted', 'ISR sends a test email to your address first and saves it only if that works. The password is kept encrypted on the server and is never shown again, to anyone.'), bar, msg);
+    c.append(g, more, el('p', 'p-muted', 'A test email is sent first. Your password is stored encrypted and never shown again.'), bar, msg);
     return c;
   }
 
@@ -56,7 +56,7 @@
     c.append(el('h2', '', 'Your email signature'));
     c.append(el('p', 'p-muted', d.admin
       ? 'Your emails end with the office signature picture. Upload your own here only if you want a different one.'
-      : 'Upload a picture of your signature (PNG or JPG, at most 1 MB): your name, title and contact as you want them under your emails. It goes at the end of every email you send.'));
+      : 'Upload your signature as a picture (PNG or JPG, max 1 MB). It ends every email you send.'));
     const show = el('div', 'p-sig');
     if (d.signature) {
       const img = h('img', { src: '/api/my-mail/signature?t=' + Date.now(), alt: 'Your email signature' });
@@ -85,7 +85,7 @@
   function whatsappCard() {
     const c = el('section', 'p-card');
     c.append(el('h2', '', 'Your WhatsApp'));
-    c.append(el('p', '', 'WhatsApp messages always go from your own WhatsApp: the WhatsApp button on a student card (or on Follow-up) opens the chat in your WhatsApp with the message ready, and you press send. Nothing to save here.'));
+    c.append(el('p', '', 'WhatsApp messages open in your own WhatsApp, ready to send. Nothing to set up.'));
     const steps = el('ol');
     ['On this computer, open WhatsApp Web (the button below) or the WhatsApp Desktop app.',
       'On your phone, open WhatsApp, then Settings (or the three dots), Linked devices, Link a device, and scan the code on the screen.',

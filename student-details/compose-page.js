@@ -75,7 +75,7 @@
       if (total > MAX_TOTAL) list.append(el('div', 'p-notice bad', `The files are ${size(total)} together; the limit is ${size(MAX_TOTAL)}.`));
     };
     drawFiles();
-    attach.append(list, pick, el('p', 'p-muted p-small', 'A file is read in your browser and goes out inside the email once. It is not saved on the server, and the server keeps no copy: only the file name is noted on the student card.'));
+    attach.append(list, pick, el('p', 'p-muted p-small', 'Files go with this email only and are not stored on the server.'));
     right.append(attach);
 
     const notes = el('div');
@@ -95,7 +95,7 @@
         notes.replaceChildren();
         if (preview.missing.length) notes.append(el('div', 'p-notice warn', 'Check before sending: this student has no ' + preview.missing.join(' and no ') + ' yet, so the message below has gaps. Fill them in on the student card first, or write the message yourself.'));
         if (!mail.ready && mail.own) { const n = el('div', 'p-notice warn', 'To send emails, set up your own email first (it takes a minute): '); const a = el('a', '', 'My email and WhatsApp'); a.href = '/my-email'; n.append(a, '. You can copy the text meanwhile.'); notes.append(n); }
-        else if (!mail.ready) notes.append(el('div', 'p-notice', 'Email cannot be sent from this computer yet because the office mailbox is not set up (this is normal on a test computer). On the real server, Send email works and adds your signature picture. You can copy the text meanwhile.'));
+        else if (!mail.ready) notes.append(el('div', 'p-notice', 'Email is not set up on this computer (normal for a test copy). Copy the text instead.'));
       } catch (e) { notes.replaceChildren(el('div', 'p-notice bad', e.message)); }
     };
     [subject, bodyText, to].forEach((x) => x.input.addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(refresh, 350); }));

@@ -348,8 +348,8 @@
       $('add').hidden = true;
       const chip = document.querySelector('#pageTitle .p-chip'); if (chip) chip.textContent = 'View only';
       $('intro').textContent = data.access === 'commission'
-        ? `To look at: where applications go, the contacts, the agreement and the commission of each intake. Admin makes the changes.`
-        : `To look at: ${KIND === 'b2b' ? 'where applications go through each partner, ' : ''}the contacts and the agreement. Admin makes the changes.`;
+        ? `Where applications go, contacts, agreements and commission. View only; Admin edits.`
+        : `${KIND === 'b2b' ? 'Where applications go, contacts and agreements' : 'Contacts and agreements'}. View only; Admin edits.`;
     }
     draw();
   }

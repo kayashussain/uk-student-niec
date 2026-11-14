@@ -102,7 +102,7 @@
     const ev = card('Events and marketing', 'What each one cost, how long it ran and how many students and visas it brought. Add and change them on the Events and marketing page.');
     ev.append(h('a', { class: 'btn btn-sm no-print', href: '/events' }, 'Open Events and marketing'));
     const ranText = (e) => (e.endDate && e.endDate !== e.date ? `${e.date} to ${e.endDate}` : e.date);
-    ev.append(data.events.length ? table(['Name', 'Ran', 'Days', 'Investment', 'Enquiries', 'Visas', 'Cost per enquiry', 'Cost per visa'], data.events.map((e) => [el('b', '', e.label), ranText(e), number(e.days), rupees(e.cost), number(e.students), number(e.visas), e.costPerStudent ? rupees(e.costPerStudent) : '', e.costPerVisa ? rupees(e.costPerVisa) : '']), { numCols: [2, 3, 4, 5, 6, 7] }) : el('div', 'p-empty', 'No event or marketing recorded yet.'));
+    ev.append(data.events.length ? table(['Name', 'Ran', 'Days', 'Investment', 'Inquiries', 'Visas', 'Cost per inquiry', 'Cost per visa'], data.events.map((e) => [el('b', '', e.label), ranText(e), number(e.days), rupees(e.cost), number(e.students), number(e.visas), e.costPerStudent ? rupees(e.costPerStudent) : '', e.costPerVisa ? rupees(e.costPerVisa) : '']), { numCols: [2, 3, 4, 5, 6, 7] }) : el('div', 'p-empty', 'No event or marketing recorded yet.'));
     out.push(ev);
     return out;
   }
@@ -113,13 +113,14 @@
 
   // ---- plain words for the target ----
   const targetSentence = (t) => {
-    if (!t || !t.visas) return 'No visa target is set for this intake yet. Set it on the Intake plan tab.';
+    if (!t || !t.visas) return 'No visa target set for this intake yet.';
     if (t.status === 'reached') return `The target of ${t.visas} visas is reached.`;
     if (t.status === 'missed') return `The target of ${t.visas} visas was not reached: ${t.visasNow} visas were issued.`;
-    if (t.expectedTotal === null || t.expectedTotal === undefined) return `The target is ${t.visas} visas and ${t.visasNow} are issued. There is not enough history from earlier intakes to say where this one will end.`;
+    if (t.expectedTotal === null || t.expectedTotal === undefined) return `${t.visasNow} of ${t.visas} visas issued. Not enough history yet for a forecast.`;
     const end = Math.round(t.expectedTotal);
-    const range = t.forecast ? ` (most likely between ${t.forecast.low} and ${t.forecast.high})` : '';
-    return `The target is ${t.visas} visas and ${t.visasNow} are issued. If students move forward as they did in your earlier intakes, this intake ends with about ${end} visas${range}. ${t.status === 'behind' ? `That is about ${Math.max(1, t.visas - end)} short of the target.` : 'That meets the target.'}`;
+    const range = t.forecast ? ` (${t.forecast.low} to ${t.forecast.high})` : '';
+    // The forecast follows how students moved forward in the earlier intakes.
+    return `Forecast: about ${end} visas${range}. ${t.status === 'behind' ? `About ${Math.max(1, t.visas - end)} short of the target.` : `Meets the target of ${t.visas}.`}`;
   };
   window.DashText = { targetSentence: (t) => targetSentence(t), sayStatus: (t) => sayStatus(t) };
   const sayStatus = (t) => ({ reached: ['Reached', 'green'], 'on-track': ['On track', 'green'], behind: ['Behind the target', 'red'], missed: ['Missed', 'red'], unknown: ['Not enough history yet', 'amber'], none: ['No target set', 'amber'] }[(t && t.status) || 'none']);

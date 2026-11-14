@@ -81,7 +81,7 @@
   function growth(data) {
     const card = el('section', 'ov-card tr-card tr-growth');
     const list = data.intakes || [];
-    card.append(head('Business growth by intake', 'Each intake side by side, oldest on the left: how many students we had, and how many got their visa.'));
+    card.append(head('Business growth by intake', 'Students and visas, intake by intake.'));
     if (list.length < 2) { card.append(el('p', 'p-muted', 'The growth shows once there are two intakes or more.')); }
     const pair = el('div', 'tr-pair');
     pair.append(bars(list, 'students', 'Students in each intake', '#0071e3'), bars(list, 'visas', 'Visas in each intake', '#34c759'));
@@ -119,7 +119,7 @@
     // On a phone the table slides sideways inside the card, so no column is cut off.
     const scroller = el('div', 'tr-table-wrap'); scroller.append(table);
     card.append(scroller);
-    card.append(el('p', 'ov-foot', `Visa rate: of every 100 students in the intake, how many got their visa (visas ÷ students).${list.length > 1 ? ` ${list[list.length - 1].name} is still running, so its payments and visas are still coming in.` : ''}`));
+    card.append(el('p', 'ov-foot', `Visa rate = visas ÷ students.${list.length > 1 ? ` ${list[list.length - 1].name} is still in progress.` : ''}`));
     return card;
   }
 
@@ -127,7 +127,8 @@
   // Each line, and the place of its day in a student's record from /api/trends: [source, inquiry, application, offer, payment, CAS, visa].
   const LINES = [['inq', 'Inquiries', '#0071e3', 1], ['app', 'Applications', '#5856d6', 2], ['off', 'Offers', '#af52de', 3], ['pay', 'Payments', '#ff9500', 4], ['cas', 'CAS', '#30b0c7', 5], ['visa', 'Visas', '#34c759', 6]];
   const SOURCES = [['', 'Every source'], ['events', 'Events and marketing (events, campaigns, paid adverts)'], ['social', 'Social media (not paid)'], ['organic', 'Came by itself (visitors, references, classes)'], ['branch', 'Branches'], ['agent', 'Agents and B2B partners'], ['unknown', 'Source not recorded']];
-  const daysOf = (data, source, at) => (data.students || []).filter((r) => r[at] && (!source || r[0] === source)).map((r) => r[at]);
+  // The days of one line, for the students of a source (and of one event, campaign, platform, branch or agent in it, when chosen).
+  const daysOf = (data, source, at, detail = '') => (data.students || []).filter((r) => r[at] && (!source || r[0] === source) && (!detail || r[7] === detail)).map((r) => r[at]);
   function periods(mode, today) {
     const t = dayNo(today);
     if (mode === 'day') return Array.from({ length: 60 }, (_, i) => { const n = t - 59 + i; return { from: n, to: n, label: short(isoOf(n)), tick: short(isoOf(n)) }; });
@@ -149,14 +150,14 @@
     const inq = daysOf(data, '', 1); const app = daysOf(data, '', 2);
     const now = { inq: count(inq, t - 28, t), app: count(app, t - 28, t) };
     const before = { inq: count(inq, t - 56, t - 28), app: count(app, t - 56, t - 28) };
-    const change = (a, b) => (b === 0 ? (a ? 'new' : 'flat') : Math.round(((a - b) / b) * 100));
-    const say = (c) => (c === 'new' ? 'up from none' : c === 'flat' ? 'none either way' : c === 0 ? 'the same' : c > 0 ? `up ${c}%` : `down ${-c}%`);
-    const lines = [`Last 4 weeks: ${now.inq} inquir${now.inq === 1 ? 'y' : 'ies'} (${say(change(now.inq, before.inq))} on the 4 weeks before) and ${now.app} application${now.app === 1 ? '' : 's'} submitted (${say(change(now.app, before.app))}).`];
-    const ci = change(now.inq, before.inq); const ca = change(now.app, before.app);
-    if (typeof ci === 'number' && typeof ca === 'number' && ci >= 20 && ca <= -10) lines.push('Inquiries are rising while applications are falling: the new inquiries are not yet turning into applications. Follow them up before the deadline.');
-    else if (typeof ci === 'number' && typeof ca === 'number' && ci <= -20 && ca >= 0) lines.push('Applications are holding up while inquiries are falling: the pipeline will thin out in the weeks ahead unless marketing picks up.');
-    const allInq = inq.length; const allApp = app.length;
-    if (allInq && allApp) { const r = Math.round(allInq / allApp); lines.push(r <= 1 ? 'In this intake, about as many applications as inquiries with a known day.' : `In this intake, about 1 application for every ${r} inquiries.`); }
+    // Plain numbers against the 4 weeks before ("up from 8", "down from 12"), never a percentage of a tiny number.
+    const vs = (a, b) => (a === b ? 'the same as the 4 weeks before' : `${a > b ? 'up' : 'down'} from ${b}`);
+    const lines = [`Last 4 weeks: ${now.inq} inquir${now.inq === 1 ? 'y' : 'ies'} (${vs(now.inq, before.inq)}) and ${now.app} application${now.app === 1 ? '' : 's'} (${vs(now.app, before.app)}).`];
+    if (now.inq > before.inq && now.app < before.app) lines.push('Inquiries are up but applications are down: follow up the new inquiries.');
+    else if (now.inq < before.inq && now.app >= before.app && before.inq) lines.push('Inquiries are down: the pipeline will thin out unless marketing picks up.');
+    // Conversion: of the students with an inquiry date, how many have applied.
+    const asked = (data.students || []).filter((r) => r[1]);
+    if (asked.length) { const went = asked.filter((r) => r[2]).length; lines.push(`Conversion: ${went} of ${asked.length} inquiries have applied (${Math.round((went / asked.length) * 100)}%).`); }
     return lines;
   }
   function overTime(data) {
@@ -165,7 +166,7 @@
     let source = '';
     const on = new Set(['inq', 'app', 'off']);
     const modeSw = segmented([['day', 'Days'], ['week', 'Weeks'], ['month', 'Months']], mode, (k) => { mode = k; draw(); });
-    card.append(head('Ups and downs over time', `${data.intake ? data.intake.name : ''}, by the day each thing happened (a lead list’s own inquiry days). Tap a name to show or hide its line; a dashed line marks each event or campaign. Choose a source to see only its students on every line.`, modeSw));
+    card.append(head('Ups and downs over time', `${data.intake ? data.intake.name : ''}, by date. Tap a name to show or hide its line; dashed lines mark events and campaigns.`, modeSw));
     const words = el('div', 'tr-story');
     story(data).forEach((l, i) => words.append(el('p', i ? '' : 'tr-lead', l)));
     const keys = el('div', 'tr-legend tr-lines');
@@ -184,18 +185,29 @@
     const src = el('label', 'tr-source');
     const sel = el('select');
     SOURCES.forEach(([k, n]) => sel.append(new Option(k ? `Students from ${n}` : 'Students from every source', k)));
-    sel.addEventListener('change', () => { source = sel.value; totals.forEach(([t, at]) => { t.textContent = fmt(daysOf(data, source, at).length); }); draw(); });
+    // The second filter: which event, campaign, platform, branch or agent within the source, with how many students each.
+    let detail = '';
+    const which = el('label', 'tr-source'); const sel2 = el('select'); which.append(sel2); which.hidden = true;
+    const fillWhich = () => {
+      const counts = new Map();
+      (data.students || []).filter((r) => r[0] === source && r[7]).forEach((r) => counts.set(r[7], (counts.get(r[7]) || 0) + 1));
+      sel2.replaceChildren(new Option('All of them', ''), ...[...counts].sort((a, b) => b[1] - a[1]).map(([d, n]) => new Option(`${d.replace(/,\s*\d{1,2} (Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]* \d{4}$/, '')} (${n})`, d)));
+      detail = ''; which.hidden = !source || counts.size < 1;
+    };
+    const update = () => { totals.forEach(([t, at]) => { t.textContent = fmt(daysOf(data, source, at, detail).length); }); draw(); };
+    sel.addEventListener('change', () => { source = sel.value; fillWhich(); update(); });
+    sel2.addEventListener('change', () => { detail = sel2.value; update(); });
     src.append(sel);
-    keys.append(src);
+    keys.append(src, which);
     const box = el('div', 'tr-chart');
     const note = el('p', 'ov-foot');
-    if (data.undated) note.textContent = `${data.undated} student${data.undated === 1 ? ' has' : 's have'} no inquiry day (added before ISR kept it), so ${data.undated === 1 ? 'is' : 'are'} not on the inquiries line.`;
+    if (data.undated) note.textContent = `${data.undated} student${data.undated === 1 ? ' has' : 's have'} no inquiry date and ${data.undated === 1 ? 'is' : 'are'} not on the Inquiries line.`;
     function draw() {
       const ps = periods(mode, data.today);
       const at = (iso) => { const n = dayNo(iso); return ps.findIndex((p) => n >= p.from && n <= p.to); };
       const series = LINES.filter(([k]) => on.has(k)).map(([k, n, c, col]) => {
         const vals = ps.map(() => 0);
-        daysOf(data, source, col).forEach((d) => { const i = at(d); if (i >= 0) vals[i] += 1; });
+        daysOf(data, source, col, detail).forEach((d) => { const i = at(d); if (i >= 0) vals[i] += 1; });
         return { k, n, c, vals };
       });
       const W = 1000; const H = 330; const L = 40; const R = 16; const TOP = 30; const BOT = 290;
@@ -272,7 +284,7 @@
   function map(data) {
     const M = root.NepalMap;
     const card = el('section', 'ov-card tr-card');
-    card.append(head('Where students live in Nepal', `${data.intake ? data.intake.name : ''}, from the address in each student’s passport: a red dot for each district, bigger where more students live, and their age when they applied.`));
+    card.append(head('Where students live in Nepal', `${data.intake ? data.intake.name : ''}, from passport addresses.`));
     const body = el('div', 'tr-map-body');
     const mapBox = el('div', 'tr-map');
     const side = el('div', 'tr-map-side');
@@ -294,7 +306,7 @@
       s.append(g);
     });
     mapBox.append(s);
-    if (!total) side.append(el('p', 'p-muted', 'No address from a passport yet. Add it when a student is added, or with Edit details on the student card.'));
+    if (!total) side.append(el('p', 'p-muted', 'No passport addresses yet.'));
     else {
       side.append(el('h3', '', `Top districts (${total} student${total === 1 ? '' : 's'})`));
       const ol = el('ol', 'tr-top');
