@@ -148,17 +148,34 @@
   .hero::after { background: linear-gradient(90deg, rgba(154,123,79,.0), rgba(154,123,79,.6), rgba(154,123,79,.0)) !important; }
   /* 🔴 CSS CHANGED (2026-11-13): the title in the login box | from: 24px, so the longer name wrapped onto two lines | to: 20px so "International Student Recruitment" fits on one line */
   .card h1 { font-size: 20px !important; }
+  /* 🔴 CSS CHANGED (2026-11-14): the login page in the NIEC UK brand look | from: "International Student Recruitment" in bold type at the top left, a navy and bronze page, a navy Log in button, a bronze line near the bottom | to: the NIEC logo on a soft off-white tile with the short name (for example NIEC UK) and "International Student Recruitment Portal" beside it, a large near-black welcome line in the clean display font, NIEC blue (#0071bc) Log in button, focus ring and list dots, a fine blue line near the bottom */
+  .hero-brand { display: flex; align-items: center; gap: 18px; align-self: flex-start; }
+  .hero-logo { display: block; width: 128px; height: auto; padding: 10px 14px; border-radius: 18px; background: rgba(250, 251, 252, .9); box-shadow: 0 1px 2px rgba(0, 0, 0, .05), 0 14px 30px -20px rgba(0, 0, 0, .25); }
+  .hero-logo[hidden] { display: none; }
+  .hero-name { display: grid; gap: 2px; }
+  .hero-name b { font-size: 26px !important; font-weight: 700 !important; letter-spacing: -.025em !important; color: #1d1d1f !important; }
+  .hero-name span { font-size: 14px; color: #4b4f57; }
+  .hero h2 { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI Variable Display", "Segoe UI", sans-serif !important; color: #1d1d1f !important; font-weight: 700 !important; letter-spacing: -.035em !important; }
+  .hero { background: radial-gradient(80% 55% at 0% 0%, rgba(0, 119, 200, .10) 0%, rgba(0, 119, 200, 0) 70%), linear-gradient(180deg, #f3f4f7 0%, #eceef2 100%) !important; }
+  .hero ul li::before { background: #0077c8 !important; box-shadow: 0 0 0 4px rgba(0, 119, 200, .16) !important; }
+  .hero::after { background: linear-gradient(90deg, rgba(0, 119, 200, 0), #0077c8 40%, rgba(0, 119, 200, 0)) !important; }
+  .panel { background: #eef0f3 !important; }
+  .card { background: #fafbfc !important; border: 1px solid #e0e3e8 !important; box-shadow: 0 2px 4px rgba(0, 0, 0, .04), 0 30px 60px -30px rgba(0, 0, 0, .28) !important; }
+  .card h1 { color: #1d1d1f !important; letter-spacing: -.025em !important; }
+  .card button[type="submit"] { background: #0071bc !important; border-color: #0071bc !important; color: #fff !important; box-shadow: 0 10px 22px -12px rgba(0, 113, 188, .8) !important; }
+  .card button[type="submit"]:hover { background: #005e9f !important; }
+  .card input:focus { border-color: #0077c8 !important; box-shadow: 0 0 0 3px rgba(0, 119, 200, .18) !important; }
 </style>
 </head>
 <body>
 <aside class="hero" aria-hidden="true">
-  <div class="hero-name"><b>International Student Recruitment</b></div>
+  <div class="hero-brand"><img class="hero-logo" src="/brand-logo.png" alt="" width="198" height="96" /><span class="hero-name"><b id="heroShort">ISR</b><span>International Student Recruitment Portal</span></span></div>
   <div>
     <h2>Welcome back to your team’s workspace.</h2>
     <p>Everything your team needs to guide students from first inquiry to visa, in one place. </p>
     <ul><li>Applications, mock interviews and visas, step by step</li><li>An up-to-date list of university partners and university fact files</li><li>One place for every team</li></ul>
   </div>
-  <small id="heroTag">International Student Recruitment</small>
+  <small id="heroTag">International Student Recruitment Portal</small>
 </aside>
 <div class="panel">
 <main class="card">
@@ -205,6 +222,12 @@
 </main>
 </div>
 <script>
+  // The consultancy's short name (for example NIEC UK) beside its logo; the logo hides itself if there is none.
+  (function () {
+    const logo = document.querySelector('.hero-logo');
+    if (logo) logo.addEventListener('error', () => { logo.hidden = true; });
+    fetch('/api/brand').then((r) => (r.ok ? r.json() : null)).then((b) => { if (b && (b.short || b.company)) document.getElementById('heroShort').textContent = b.short || b.company; }).catch(() => {});
+  })();
 (function () {
   const $ = (id) => document.getElementById(id);
   const error = $('error');

@@ -1198,3 +1198,56 @@ body:has(.p-embed-bar) #view .p-card:not(.p-hero) h2 { font-family: var(--brand-
 body:has(#sheet) #sheet td, body:has(#sheet) #sheet thead th { border-right: 1px solid #dde2e9; }
 body:has(#sheet) #sheet td { border-bottom: 1px solid #dde2e9; }
 body:has(#sheet) #sheet tbody tr.pad-row td { border: 0; }
+
+/* 🔴 CSS CHANGED (2026-11-14): the NIEC UK brand look on every page, calm and clean like a top global brand | from: navy (#1d2f52) and bronze (#9a7b4f), page titles and big numbers in a Palatino serif, a grey canvas (#e9ecf0), card shadows tinted navy, "ISR" in big letters at the top of the menu | to: near-black ink (#1d1d1f) titles and figures in the clean system display font (SF Pro on a Mac and iPhone, Segoe UI on Windows), slightly tighter letters; the NIEC logo blue (#0077c8) for buttons, links, the open tab and every small accent where bronze was; a lighter, cooler canvas (#eef0f3) with soft off-white panels (#fafbfc) and hairline borders (#e0e3e8); softer, wider shadows; a frosted menu with the NIEC logo, the short name (for example NIEC UK) and "International Student Recruitment" under it; the open page in the menu as a soft light pill with a blue icon */
+:root {
+  --display: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI Variable Display", "Segoe UI", "Helvetica Neue", Roboto, Arial, sans-serif;
+  --serif: var(--display);
+  --brand-serif: var(--display);
+  --ink: #1d1d1f; --text: #1d1d1f; --text-dim: #4b4f57;
+  --bg: #eef0f3; --panel: #fafbfc; --surface: #fafbfc; --ui-panel: #fafbfc; --edit-bg: #fdfdfe;
+  --soft: #e9ebef; --border: #e0e3e8; --border-strong: #c7cbd3; --header-bg: #f3f4f7; --head-ink: #4b4f57;
+  --row-alt: #f6f7f9; --row-hover: #edf4fb;
+  --brand-navy: #1d1d1f; --brand-navy-2: #3a3b40; --brand-bronze: #0077c8; --brand-champagne: #cfe5f6; --brand-ivory: #f4f8fc;
+  --gold: #0077c8; --gold-deep: #005e9f; --gold-soft: #e6f1fa; --navy: #1d1d1f; --navy-2: #3a3b40;
+  --primary: #0071bc; --primary-hover: #005e9f; --accent-strong: #0071bc; --accent-strong-hover: #005e9f;
+  --blue-bg: #e6f1fa; --blue-fg: #005e9f;
+  --focus: #0077c8; --focus-dim: #e6f1fa; --focus-strong: #c6e0f4; --range-tint: rgba(0, 119, 200, .10);
+  --lux-line: #e0e3e8;
+  --sh-1: 0 1px 2px rgba(0, 0, 0, .04);
+  --sh-2: 0 1px 2px rgba(0, 0, 0, .03), 0 12px 32px -18px rgba(0, 0, 0, .18);
+  --sh-3: 0 2px 4px rgba(0, 0, 0, .04), 0 22px 48px -24px rgba(0, 0, 0, .24);
+}
+body { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+/* Titles: the display font, bold and a touch tighter, as on the big brands' sites. */
+h1, .p-head h1, .page-head h1, .ov-head h1, .td-hello h1, body:has(#sheet) .sheet-title { font-family: var(--display); font-weight: 700; letter-spacing: -.025em; color: var(--ink); }
+h2, .p-card > h2, .p-card-head h2, .md-card-head h2, .td-tasks-head h2, .td-attn-head h2, body:has(.p-embed-bar) #view .p-card:not(.p-hero) h2 { font-family: var(--display); font-weight: 650; letter-spacing: -.015em; color: var(--ink); }
+.td-hello h1 { font-size: 44px; }
+.p-kpi b, .md-kpi b, .md-week-item b, .ov-kpi b, .ov-kpi .ov-num, .ov-big, .ov-kpi-value { font-family: var(--display); font-weight: 700; letter-spacing: -.03em; color: var(--ink); }
+.td-kicker { color: var(--brand-bronze); letter-spacing: .14em; }
+/* Panels: hairline border, softer and wider shadow. */
+.p-card, .page .card, .md-card, .md-kpi, .td-attn, .p-kpi, .stat-tile { border-color: var(--border); box-shadow: var(--sh-2); }
+.td-tasks { background: linear-gradient(180deg, #f3f8fd 0, var(--panel) 140px); box-shadow: var(--sh-3); }
+.td-tasks::before { background: linear-gradient(180deg, #0077c8, rgba(0, 119, 200, .25)); }
+/* Buttons: the primary action in NIEC blue, the rest calm pills. */
+.btn-primary, button.btn-primary, .btn.btn-primary, .topbar .btn-primary,
+body:has(.p-embed-bar) .p-hero-actions .btn.btn-primary, body:has(.p-embed-bar) #view .p-card:not(.p-hero) .btn.btn-primary, body:has(#sheet) .topbar #addRow {
+  border-color: var(--primary); background: var(--primary); color: #fff; box-shadow: 0 8px 20px -12px rgba(0, 113, 188, .8);
+}
+.btn-primary:hover:not(:disabled), body:has(#sheet) .topbar #addRow:hover:not(:disabled), body:has(.p-embed-bar) .p-hero-actions .btn.btn-primary:hover { border-color: var(--primary-hover); background: var(--primary-hover); color: #fff; }
+a { text-decoration-color: color-mix(in srgb, var(--brand-bronze) 60%, transparent); }
+/* The menu: frosted, the NIEC logo and the short name at the top, the open page as a soft pill. */
+.niec-header { background: rgba(246, 247, 249, .78); -webkit-backdrop-filter: saturate(180%) blur(28px); backdrop-filter: saturate(180%) blur(28px); box-shadow: 1px 0 0 rgba(0, 0, 0, .07); }
+.niec-brand { flex-direction: column; align-items: flex-start; gap: 10px; padding: 4px 6px 16px; border-bottom-color: rgba(0, 0, 0, .08); }
+.niec-logo { display: block; width: 116px; height: auto; }
+.niec-logo[hidden] { display: none; }
+.niec-name b { font-family: var(--display); font-size: 21px; font-weight: 700; letter-spacing: -.02em; color: var(--ink); }
+.niec-name small { display: block; margin-top: 2px; color: #5b6069; font-size: 12.5px; font-weight: 500; letter-spacing: 0; }
+.niec-nav a { color: #3c4048; font-weight: 550; }
+.niec-nav a:hover { background: rgba(0, 0, 0, .045); color: var(--ink); }
+.niec-nav a[aria-current="page"] { background: rgba(255, 255, 255, .82); color: var(--ink); font-weight: 650; box-shadow: 0 1px 2px rgba(0, 0, 0, .06), 0 6px 16px -10px rgba(0, 0, 0, .25); }
+.niec-nav a[aria-current="page"] .niec-ico { color: #0077c8; }
+.niec-avatar { background: linear-gradient(135deg, #0077c8, #00a3e0); }
+.niec-mark { background: #0077c8; }
+html[data-nav="closed"] .niec-logo { display: none; }
+@media (max-width: 900px) { .niec-logo { width: 72px; } .niec-brand { flex-direction: row; } }

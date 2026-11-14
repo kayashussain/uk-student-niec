@@ -946,6 +946,13 @@ const server = http.createServer(async (req, res) => {
       const sig = messages.signature();
       return sendJSON(res, 200, { product: 'ISR', company: sig.company, short: sig.short });
     }
+    // The consultancy's logo, for the menu and the login page (nothing private): the consultancy's own brand-logo.png in the data
+    // folder wins; the file shipped in shared/ is only the first installation's starting logo.
+    if (urlPath === '/brand-logo.png' && req.method === 'GET') {
+      let logo = null;
+      for (const f of [path.join(DATA_DIR, 'brand-logo.png'), path.join(ROOT, '..', 'shared', 'brand-logo.png')]) { try { logo = fs.readFileSync(f); break; } catch (e) { /* the next one */ } }
+      return logo ? send(res, 200, logo, { 'Content-Type': 'image/png', 'Cache-Control': 'public, max-age=3600', 'X-Content-Type-Options': 'nosniff' }) : send(res, 404, 'Not found');
+    }
     if (urlPath === '/favicon.png') return serveStatic(req, res);
     if (PUBLIC_SHARED.has(urlPath)) return serveShared(req, res); // the logo, for the login page
     // The Advisor connector checks its own secret in the address, so it answers before the login.
