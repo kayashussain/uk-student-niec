@@ -95,7 +95,7 @@
     const upload = data.canEdit ? uploadPanel(a) : null;
     const people = el('section', 'ev-panel');
     people.append(el('h3', '', 'Enquiries'), el('p', '', 'Everyone from this event, in every intake. Open a name to call, add a note or move the stage.'));
-    const listBox = el('div'); listBox.append(el('div', 'ev-empty', 'Loading...'));
+    const listBox = el('div'); listBox.innerHTML = '<div class="isr-skel" role="status" aria-label="Loading"><i></i><i></i><i></i></div>';
     people.append(listBox);
     v.replaceChildren(back, head, figs, ...(upload ? [upload] : []), people);
     loadPeople(a, listBox);
@@ -168,6 +168,18 @@
     const counts = el('div', 'ev-counts');
     [['new', `${c.new} new, added at Inquiry`], ['link', `${c.link} matched on the sheet, will be linked`], ['already', `${c.already} already linked`], ['other', `${c.other} in another event, left as is`], ['problem', `${c.problem} skipped`]]
       .forEach(([k, t]) => counts.append(el('span', `ev-count ${k}`, t)));
+    // Students tagged with this event earlier who are not on this list: they stay as they are, and are named here to be checked.
+    let gone = null;
+    if (pre.missing && pre.missing.length) {
+      gone = el('div', 'p-notice warn ev-missing');
+      const words = el('div');
+      words.append(el('b', '', `${pre.missing.length} ${pre.missing.length === 1 ? 'student was' : 'students were'} on an earlier list but ${pre.missing.length === 1 ? 'is' : 'are'} not in this one.`), el('div', '', 'Nothing is changed for them: they stay tagged with this event. Check them on their cards.'));
+      const names = el('div', 'ev-missing-names');
+      pre.missing.slice(0, 60).forEach((m) => { const b = h('button', { type: 'button', class: 'ev-missing-name', onclick: () => window.CardDrawer.open(m.id) }, m.name); b.title = `${m.intake} \u00b7 ${m.stage || 'no stage'}`; names.append(b); });
+      if (pre.missing.length > 60) names.append(el('span', 'p-muted', `and ${pre.missing.length - 60} more`));
+      words.append(names);
+      gone.append(words);
+    }
     const list = el('div', 'ev-review');
     const order = ['problem', 'other', 'link', 'new', 'already'];
     [...pre.rows].sort((x, y) => order.indexOf(x.action) - order.indexOf(y.action)).forEach((r) => {
@@ -180,7 +192,7 @@
     ok.disabled = !doing;
     ok.addEventListener('click', async () => { ok.disabled = true; try { await onOk(); } catch (e) { say(e.message, true); ok.disabled = false; } });
     const actions = el('div', 'ev-actions'); actions.append(ok, h('button', { class: 'btn', type: 'button', onclick: onCancel }, 'Cancel'), el('span', 'p-muted', 'Nothing is saved until you confirm.'));
-    box.append(counts, list, actions);
+    box.append(counts, ...(gone ? [gone] : []), list, actions);
     return box;
   }
 

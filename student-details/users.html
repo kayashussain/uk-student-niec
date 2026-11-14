@@ -55,7 +55,7 @@
         <p>When someone leaves, click <b>Remove</b>. Their login is deleted and they are logged out of every device at once. <b>Disable</b> pauses a login without deleting it.</p>
         <table>
           <thead><tr><th>Person</th><th>Access</th><th>Status</th><th>Last login</th><th>Devices</th><th><span class="sr-only">Actions</span></th></tr></thead>
-          <tbody id="users"><tr><td class="muted">Loading...</td></tr></tbody>
+          <tbody id="users"><tr><td colspan="6"><div class="isr-skel" role="status" aria-label="Loading"><i></i><i></i><i></i></div></td></tr></tbody>
         </table>
         <div class="msg" id="usersMsg" role="status"></div>
       </div>
@@ -70,7 +70,7 @@
         <p>Every device logged in right now. Logins end by themselves after 12 hours.</p>
         <table>
           <thead><tr><th>Person</th><th>Device</th><th>IP address</th><th>Logged in</th><th>Last active</th><th><span class="sr-only">Actions</span></th></tr></thead>
-          <tbody id="sessions"><tr><td class="muted">Loading...</td></tr></tbody>
+          <tbody id="sessions"><tr><td colspan="6"><div class="isr-skel" role="status" aria-label="Loading"><i></i><i></i><i></i></div></td></tr></tbody>
         </table>
         <div class="msg" id="sessionsMsg" role="status"></div>
       </div>

@@ -35,9 +35,10 @@ body.p-embed { padding-left: 0 !important; }
 .niec-ico { display: grid; place-items: center; flex: 0 0 22px; width: 22px; height: 22px; }
 .niec-ico svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
 
-.niec-account { margin-top: auto; position: relative; padding-top: 12px; border-top: 1px solid var(--h-border); }
-.niec-account-btn { display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px; border: 1px solid transparent; border-radius: 14px; background: rgba(20, 30, 50, .05); color: inherit; font: inherit; cursor: pointer; text-align: left; }
-.niec-account-btn:hover, .niec-account-btn[aria-expanded="true"] { background: var(--h-hover); border-color: var(--h-border); }
+/* 🔴 CSS CHANGED (2026-11-14): the account area at the bottom of the menu | from: a grey rectangle with an outline, like a big button, on a second grey band; a menu with three links in it | to: just the round initials, the name and the role on the menu itself (no box, no outline), a soft grey highlight under the mouse, a small chevron; its menu is a small frosted Apple panel with the name and Log out, which springs open */
+.niec-account { margin-top: auto; position: relative; padding-top: 10px; border-top: 1px solid rgba(0, 0, 0, .06); }
+.niec-account-btn { display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px 10px; border: 0; border-radius: 12px; background: transparent; color: inherit; font: inherit; cursor: pointer; text-align: left; transition: background-color .2s; }
+.niec-account-btn:hover, .niec-account-btn[aria-expanded="true"] { background: rgba(0, 0, 0, .05); }
 .niec-avatar { display: grid; place-items: center; flex: 0 0 34px; width: 34px; height: 34px; border-radius: 50%; background: linear-gradient(135deg, #2f6bff, #7a4dff); color: #fff; font-weight: 700; font-size: 12px; }
 .niec-account-text { display: flex; flex-direction: column; align-items: flex-start; line-height: 1.2; min-width: 0; }
 .niec-account-name { font-weight: 600; color: var(--h-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 130px; }

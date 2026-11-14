@@ -85,6 +85,11 @@
   .ev-rline .what.other { background: var(--amber-bg); color: var(--amber-fg); }
   .ev-rline .what.problem { background: var(--red-bg); color: var(--red-fg); }
   .ev-rline .why { color: var(--text-dim); }
+  /* 🔴 CSS CHANGED (2026-11-14): students on an earlier list but not on the one being uploaded | from: not shown at all | to: a soft panel with an orange dot above the review list, saying how many and that nothing changes for them, with their names as small grey pills that open the student's card */
+  .ev-missing { margin: 0 0 12px; }
+  .ev-missing-names { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+  .ev-missing-name { padding: 4px 11px; border: 0; border-radius: 980px; background: rgba(0, 0, 0, .05); color: #1d1d1f; font: inherit; font-size: 13.5px; cursor: pointer; transition: background-color .15s; }
+  .ev-missing-name:hover { background: rgba(0, 113, 227, .12); color: #0066cc; }
   @media (max-width: 800px) { .ev-rline { grid-template-columns: minmax(0, 1fr); } }
   .ev-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 16px; }
   .ev-people { border: 1px solid var(--border); border-radius: 14px; overflow: hidden; }
@@ -136,7 +141,7 @@
         </div>
         <span class="p-muted" id="count"></span>
       </div>
-      <div class="ev-ledger" id="list"><div class="ev-empty">Loading...</div></div>
+      <div class="ev-ledger" id="list"><div class="isr-skel" role="status" aria-label="Loading"><i></i><i></i><i></i></div></div>
     </div>
     <section id="eventView" hidden></section>
   </main>

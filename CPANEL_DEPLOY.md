@@ -69,7 +69,7 @@ Add this to the **student-details** app's Environment Variables, then **Restart*
 
 How Incentive works now:
 
-- Only the **Admin** account can open it (account menu → **Incentive**). Nobody else can, whatever they know.
+- Only the **Admin** account can open it (menu, Admin only → **Incentive**). Nobody else can, whatever they know.
 - Admin types **only that password** (no username). It is asked **every time**: going to any other page (Student Details,
   Dashboard ...), reloading Incentive or closing it locks it again, and an Incentive page left untouched for 20 minutes
   locks itself. Five wrong tries in a row make the person wait 15 minutes. Changing `INCENTIVE_PASSWORD` and restarting
@@ -199,7 +199,7 @@ site isn't possible any more, since uploads need a login.)
 
 New in the same app, no new setup needed: the data goes in new files of the Student Details data folder (`cards.json`, `message-log.jsonl`, `message-templates.json`, `course-links.json`, `b2b-partners.json` with `b2b-files/`, `planning.json`), never in git. They are in the 6 p.m. backup (restore them from Activity, Restore data) and the first save of each day also copies them into `backups/`.
 
-- **Email to students** goes from **each person's own mailbox** (the owner, 14 Nov 2026). Everyone sets theirs up once: account menu, **My email and WhatsApp**, type the address and its password, **Check and save** (a test email is sent first; it is saved only if it works). The password is kept encrypted in `user-mail.json` with its key in `mail-key`, both in the Student Details data folder, never in git, never in the daily backups, never shown on a page. A team member without their own mailbox cannot email (Send email keeps a preview). Admin sends from their own mailbox if set, else from the office mailbox (`node scripts/email.js setup`, see Email above). A team member's email is signed with their name, team, address and phone; a copy goes to their own mailbox and to the office mailbox unless Admin switches copies off on **Message templates**.
+- **Email to students** goes from **each person's own mailbox** (the owner, 14 Nov 2026). Everyone sets theirs up once: **Message templates**, **Your email and signature** (the My email page), type the address and its password, **Check and save** (a test email is sent first; it is saved only if it works). The password is kept encrypted in `user-mail.json` with its key in `mail-key`, both in the Student Details data folder, never in git, never in the daily backups, never shown on a page. A team member without their own mailbox cannot email (Send email keeps a preview). Admin sends from their own mailbox if set, else from the office mailbox (`node scripts/email.js setup`, see Email above). A team member's email is signed with their name, team, address and phone; a copy goes to their own mailbox and to the office mailbox unless Admin switches copies off on **Message templates**.
 - **WhatsApp** always opens in the sender's own WhatsApp (phone, WhatsApp Web or WhatsApp Desktop linked to their phone); nothing to set up on the server.
 - **The Fact File assistant needs nothing set up:** it runs inside the server and reads the entry rules in the Fact File. No key, no outside service.
 

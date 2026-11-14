@@ -115,7 +115,9 @@
     return deps.includes('followup') ? 'followup' : 'staff';
   };
 
-  // Admin's own pages (people and the record of what happened) are in the account menu, not in the top menu.
+  // Admin's own pages (people, the record of what happened, Incentive), under their own heading in the menu. The account menu holds
+// only Log out (the owner, 14 Nov 2026); a person's own email and signature are reached from Message templates and from wherever an
+// email is sent.
   const MENU_LINKS = {
     admin: [['users', '/users', 'Users'], ['activity', '/activity', 'Activity'], ['incentive', '/incentive/', 'Incentive']],
   };
@@ -180,8 +182,6 @@
       </button>
       <div class="niec-menu" role="menu" hidden>
         <div class="niec-menu-head"><b>${esc(me.name)}</b><span>${esc(me.username)} · ${esc(me.roleLabel)}</span></div>
-        ${(MENU_LINKS[me.role] || []).map(([id, href, label]) => `<a role="menuitem" href="${href}"${id === page ? ' aria-current="page"' : ''}>${label}</a>`).join('')}
-        <a role="menuitem" href="/my-email"${page === 'myemail' ? ' aria-current="page"' : ''}>My email and WhatsApp</a>
         <button type="button" role="menuitem" class="niec-logout">Log out</button>
       </div>`;
     const btn = account.querySelector('.niec-account-btn');

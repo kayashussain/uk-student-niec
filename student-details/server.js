@@ -33,7 +33,7 @@ const { createSourceOptions } = require('./source-options');
 const CardFields = require('./card-fields');
 const { createB2b } = require('./b2b');
 const { createPortalApi } = require('./portal-api');
-const { partnerAccess, shapeDirect } = require('./partner-access');
+const { partnerAccess, shapeDirect, seesLogins } = require('./partner-access');
 const { createUserMail } = require('./user-mail');
 const { createRates } = require('../shared/exchange-rates');
 const { buildInsights } = require('./insights-engine');
@@ -770,9 +770,9 @@ async function handleDirect(req, res, urlPath) {
     return sendJSON(res, 200, gone.university);
   }
   if (req.method === 'GET') {
-    if (!id) return send(res, 200, JSON.stringify(direct.list().map((u) => shapeDirect(u, level))), JSON_HEADERS);
+    if (!id) return send(res, 200, JSON.stringify(direct.list().map((u) => shapeDirect(u, level, seesLogins(req.user)))), JSON_HEADERS);
     const uni = direct.get(id);
-    return uni ? send(res, 200, JSON.stringify(shapeDirect(uni, level)), JSON_HEADERS) : sendJSON(res, 404, { error: 'No such university.' });
+    return uni ? send(res, 200, JSON.stringify(shapeDirect(uni, level, seesLogins(req.user))), JSON_HEADERS) : sendJSON(res, 404, { error: 'No such university.' });
   }
   if (req.method !== 'POST') return send(res, 405, 'Method not allowed');
   let body;

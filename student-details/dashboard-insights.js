@@ -312,7 +312,7 @@
     panel.hidden = isNumbers;
     if (headFilters) headFilters.style.display = isNumbers ? '' : 'none'; // the intake chooser of the Numbers page
     history.replaceState(null, '', isNumbers ? location.pathname + location.search : `#tab=${name}`);
-    if (!isNumbers) { panel.replaceChildren(el('div', 'p-card', 'Loading…')); load(); } else if (window.DashboardOverview) window.DashboardOverview.load();
+    if (!isNumbers) { { const c = el('div', 'p-card'); c.innerHTML = '<div class="isr-skel" role="status" aria-label="Loading"><i></i><i></i><i></i></div>'; panel.replaceChildren(c); } load(); } else if (window.DashboardOverview) window.DashboardOverview.load();
   }
   tabsBar.addEventListener('click', (e) => { const b = e.target.closest('button[data-tab]'); if (b) show(b.dataset.tab); });
   if (tab !== 'overview' && RENDER[tab]) show(tab); else tab = 'overview';

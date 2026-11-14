@@ -50,6 +50,38 @@
     return c;
   }
 
+  // Their own signature: a picture uploaded once (as the office signature is for Admin), put at the end of every email they send.
+  function signatureCard(d, reload) {
+    const c = el('section', 'p-card');
+    c.append(el('h2', '', 'Your email signature'));
+    c.append(el('p', 'p-muted', d.admin
+      ? 'Your emails end with the office signature picture. Upload your own here only if you want a different one.'
+      : 'Upload a picture of your signature (PNG or JPG, at most 1 MB): your name, title and contact as you want them under your emails. It goes at the end of every email you send.'));
+    const show = el('div', 'p-sig');
+    if (d.signature) {
+      const img = h('img', { src: '/api/my-mail/signature?t=' + Date.now(), alt: 'Your email signature' });
+      show.append(img);
+    } else show.append(el('div', 'p-sig-empty', 'No signature picture yet.'));
+    const file = h('input', { type: 'file', accept: 'image/png,image/jpeg', hidden: true });
+    const pick = h('button', { class: 'btn btn-primary', type: 'button', onclick: () => file.click() }, d.signature ? 'Change the picture' : 'Upload a signature picture');
+    file.addEventListener('change', async () => {
+      const f = file.files && file.files[0];
+      if (!f) return;
+      pick.disabled = true;
+      try {
+        const r = await fetch('/api/my-mail/signature', { method: 'POST', headers: { 'Content-Type': 'application/octet-stream' }, body: f });
+        const j = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(j.error || 'It could not be uploaded.');
+        say('Your signature is saved.');
+        reload();
+      } catch (e) { say(e.message, true); pick.disabled = false; }
+    });
+    const bar = el('div', 'p-bar'); bar.append(pick, file);
+    if (d.signature) bar.append(h('button', { class: 'btn', type: 'button', onclick: async () => { await api('/api/my-mail/signature/delete', {}); say('Removed'); reload(); } }, 'Remove'));
+    c.append(show, bar);
+    return c;
+  }
+
   function whatsappCard() {
     const c = el('section', 'p-card');
     c.append(el('h2', '', 'Your WhatsApp'));
@@ -68,9 +100,9 @@
     const d = await api('/api/my-mail');
     const page = el('div', 'td-page');
     const head = el('header', 'td-hello');
-    head.append(el('span', 'td-kicker', 'Your account'), el('h1', '', 'My email and WhatsApp'),
+    head.append(el('span', 'td-kicker', 'Your account'), el('h1', '', 'My email, signature and WhatsApp'),
       el('p', '', 'Messages to students go from your own email and your own WhatsApp, signed with your name.'));
-    page.append(head, emailCard(d, load), whatsappCard());
+    page.append(head, emailCard(d, load), signatureCard(d, load), whatsappCard());
     view.replaceChildren(page);
   }
   load().catch((e) => view.replaceChildren(el('div', 'p-card', e.message)));

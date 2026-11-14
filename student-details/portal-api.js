@@ -22,7 +22,7 @@ const { buildIndex, searchCourses, linkKey, parseCourses } = require('./course-i
 const { hostsOf, onHosts } = require('./university-websites');
 const { EVENT_TYPES, MARKETING_TYPES, CHANNELS, channelOf, DECISION_STATUS, MARKET_KINDS, LISTS: PLANNING_LISTS } = require('./planning');
 const { MAX_FILE_BYTES, STATUSES: PARTNER_STATUSES } = require('./direct');
-const { partnerAccess, shapePartner } = require('./partner-access');
+const { partnerAccess, shapePartner, seesLogins } = require('./partner-access');
 
 const text = (v) => String(v ?? '').trim();
 const STATUS = Teams.STATUS;
@@ -38,7 +38,7 @@ function createPortalApi({
   // The student's university is matched to a partner by name, ignoring case, spaces and punctuation; a partner name with a
   // delivery partner in brackets ("Ulster University (QA)") also matches the plain name. Only these two fields leave
   // Partner Universities (never the commission or the agreement), and a partner marked Ended is left out. The portal's
-  // login (username and password) goes only to an account that may work on the student (not the view-only Manager).
+  // login (username and password) goes only to Admin and the Application Team (partner-access.js), when they may work on the student.
   const squash = (s) => String(s || '').toLowerCase().replace(/\(.*?\)/g, ' ').replace(/[^a-z0-9]+/g, '');
   // A student whose University Partner is one of the B2B partners is applied for through that partner: its portal or email wins.
   function partnerRouteFor(partner, withLogin) {
@@ -200,8 +200,10 @@ function createPortalApi({
     if (signaturePicture || !dir) continue;
     try { signaturePicture = require('fs').readFileSync(require('path').join(dir, 'email-signature.png')); } catch (e) { signaturePicture = null; }
   }
-  const inlinePictures = () => (signaturePicture ? [{ cid: 'niec-signature', type: 'image/png', data: signaturePicture }] : []);
-  const signatureSrc = (preview) => (signaturePicture ? (preview ? `data:image/png;base64,${signaturePicture.toString('base64')}` : 'cid:niec-signature') : '');
+  // `pic` is the picture of whoever sends: { data, type } (the office one for Admin, a team member's own one), or null.
+  const officePicture = () => (signaturePicture ? { data: signaturePicture, type: 'image/png' } : null);
+  const inlinePictures = (pic) => (pic ? [{ cid: 'niec-signature', type: pic.type, data: pic.data }] : []);
+  const signatureSrc = (preview, pic) => (pic ? (preview ? `data:${pic.type};base64,${pic.data.toString('base64')}` : 'cid:niec-signature') : '');
   // The mailbox a person sends from: their own (set up under My email) or, for Admin only, the office mailbox. A team member who has
   // not set up their own mailbox cannot email (the owner, 14 Nov 2026). `personal` marks a person's own mailbox.
   function mailFor(user) {
@@ -212,13 +214,15 @@ function createPortalApi({
   }
   // What a page is told about the sender's mailbox.
   const mailInfo = (user) => { const cfg = mailFor(user); return { ready: Boolean(cfg), from: cfg ? cfg.from : '', own: !Teams.isAdmin(user), setUp: '/my-email' }; };
-  // A team member's email is signed with their own name, team and address (the office picture carries Admin's name, so it is left out).
+  // A team member's email ends with the signature picture they uploaded on My email (the owner, 14 Nov 2026); until they upload one,
+  // with their own name, team and address as text. The office picture carries Admin's name, so it is only for Admin.
   function signatureFor(user, cfg) {
     const sig = messages.signature();
-    if (Teams.isAdmin(user) || !cfg || !cfg.personal) return { sig, picture: true };
+    if (Teams.isAdmin(user) || !cfg || !cfg.personal) return { sig, picture: officePicture() };
+    const own = userMail.picture(user.id);
     const team = teamsOf(user).map((d) => (Teams.DEPARTMENTS[d] ? Teams.DEPARTMENTS[d].label : '')).filter(Boolean).join(', ');
     const box = userMail.info(user.id);
-    return { sig: { ...sig, name: user.name, title: team, email: cfg.from, ...(box.phone ? { phone: box.phone, whatsapp: box.phone } : {}) }, picture: false };
+    return { sig: { ...sig, name: user.name, title: team, email: cfg.from, ...(box.phone ? { phone: box.phone, whatsapp: box.phone } : {}) }, picture: own };
   }
   // Who gets a copy: the sender's own mailbox (their sent copy) and, for a team member, the office mailbox, unless Admin switched copies off.
   const copiesFor = (cfg) => { const office = accounts.emailConfig(); return messages.signature().copyToOffice ? [...new Set([cfg.from, ...(cfg.personal && office ? [office.from] : [])])] : []; };
@@ -253,7 +257,7 @@ function createPortalApi({
     const cfg = mailFor(req.user);
     const signed = signatureFor(req.user, cfg);
     const signature = signed.sig;
-    const email = Messages.renderEmail({ subject, body: emailBody, signature, siteUrl: cfg ? cfg.siteUrl : '', signatureSrc: signed.picture ? signatureSrc(action === 'preview') : '', ...ctx });
+    const email = Messages.renderEmail({ subject, body: emailBody, signature, siteUrl: cfg ? cfg.siteUrl : '', signatureSrc: signatureSrc(action === 'preview', signed.picture), ...ctx });
     const whatsapp = Messages.renderWhatsApp({ body: whatsappBody, ...ctx });
     const ownTo = text(found.row.EMAIL).toLowerCase();
     const to = text(body.to) || ownTo;
@@ -308,7 +312,7 @@ function createPortalApi({
     }
     try {
       await mailer.sendMail({ ...cfg, fromName: cfg.personal && !Teams.isAdmin(req.user) ? `${req.user.name}, ${signature.short || signature.company || Messages.COMPANY}` : (signature.company || Messages.COMPANY) }, {
-        to, subject: email.subject, text: email.text, html: email.html, auto: false, bcc: copiesFor(cfg), attachments: files, inline: signed.picture ? inlinePictures() : [],
+        to, subject: email.subject, text: email.text, html: email.html, auto: false, bcc: copiesFor(cfg), attachments: files, inline: inlinePictures(signed.picture),
       });
     } catch (e) {
       const logged = cards.logMessage(found.row._id, { ...entry, status: 'failed', error: e.message }, by(req));
@@ -625,7 +629,7 @@ function createPortalApi({
           me: { name: req.user.name, role: req.user.role },
           event: (() => { const e = eventOf(card.profile.sourceDetail); return e ? { name: e.name, kind: e.kind || 'Event', type: e.type, place: e.place, date: e.date, endDate: e.endDate } : null; })(),
           mail: mailInfo(req.user),
-          apply: partnerRouteFor(found.row['UNIVERSITY PARTNER'], editable) || applyRouteFor(found.row['UNIVERSITY NAME'], editable),
+          apply: partnerRouteFor(found.row['UNIVERSITY PARTNER'], editable && seesLogins(req.user)) || applyRouteFor(found.row['UNIVERSITY NAME'], editable && seesLogins(req.user)),
           today: cards.today(),
         });
         return true;
@@ -907,7 +911,17 @@ function createPortalApi({
       }
     }
     const count = (a) => out.filter((x) => x.action === a).length;
-    if (body.preview) return { status: 200, json: { preview: true, label, rows: out, counts: { new: count('new'), link: count('link'), already: count('already'), other: count('other'), problem: count('problem') } } };
+    // The students already tagged with this event who are not on this list (an updated list that dropped a few, the owner, 14 Nov
+    // 2026): never removed, only shown, so Admin can check them on their cards.
+    const onList = new Set(out.map((x) => x.id).filter(Boolean));
+    const missing = [];
+    for (const { sheet, row } of rowIndex().values()) {
+      const card = all[row._id];
+      const e = card && eventFor(plan.events, card.profile.sourceDetail);
+      if (e && e.id === ev.id && !onList.has(row._id)) missing.push({ id: row._id, name: nameOf(row), intake: sheet.name, stage: text(row[STATUS]) });
+    }
+    missing.sort((a, b) => a.name.localeCompare(b.name));
+    if (body.preview) return { status: 200, json: { preview: true, label, rows: out, missing, counts: { new: count('new'), link: count('link'), already: count('already'), other: count('other'), problem: count('problem'), missing: missing.length } } };
     // Carry out: add the new ones, tag the ones already on the sheet. A campaign on social media (a Facebook advert, for example) is a
     // Social Media source, so its students are found under Social Media too; any other event or campaign is an Events source.
     const source = channelOf(ev) === 'Social media' ? 'Social Media' : 'Events';
@@ -927,7 +941,7 @@ function createPortalApi({
       }
     }
     note(req, [`${ev.name}: uploaded its list (${added} added at Inquiry, ${linked} already on the sheet tagged with it, ${count('already')} already tagged, ${count('other')} in another event left as they were, ${count('problem')} lines skipped)`], 'Uploaded event students');
-    return { status: 200, json: { done: true, added, linked, failed, rows: out, counts: { new: count('new'), link: count('link'), already: count('already'), other: count('other'), problem: count('problem') } } };
+    return { status: 200, json: { done: true, added, linked, failed, rows: out, missing, counts: { new: count('new'), link: count('link'), already: count('already'), other: count('other'), problem: count('problem'), missing: missing.length } } };
   }
 
   // Every student of one event, for its page on Events and marketing: who, the phone, the stage, the intake and the latest note, so the
@@ -1170,9 +1184,9 @@ function createPortalApi({
     }
     if (req.method === 'GET') {
       if (!id && urlPath !== `/api/${prefix}`) { sendJSON(res, 404, { error: 'No such partner.' }); return true; }
-      if (!id && level !== 'full') { sendJSON(res, 200, { access: level, partners: b2b.list().map((p) => shapePartner(p, level)), statuses: PARTNER_STATUSES, performance: partnerPerformance(kind), currentIntake: (currentIntake() || {}).name || '' }); return true; }
+      if (!id && level !== 'full') { sendJSON(res, 200, { access: level, partners: b2b.list().map((p) => shapePartner(p, level, seesLogins(req.user))), statuses: PARTNER_STATUSES, performance: partnerPerformance(kind), currentIntake: (currentIntake() || {}).name || '' }); return true; }
       if (!id) { sendJSON(res, 200, { access: level, partners: b2b.list(), ...(kind === 'b2b' ? { onSheet: sheetPartners(), notPartners: planning.all().settings.notPartners || [] } : { onSheet: sheetAgents(), notPartners: planning.all().settings.notAgents || [] }), statuses: PARTNER_STATUSES, performance: partnerPerformance(kind), currentIntake: (currentIntake() || {}).name || '', intakes: (() => { const wb = getWorkbook(); return wb ? wb.sheets.filter((x) => !x.hidden || true).map((x) => x.name) : []; })() }); return true; }
-      const one = shapePartner(b2b.get(id), level);
+      const one = shapePartner(b2b.get(id), level, seesLogins(req.user));
       if (one) sendJSON(res, 200, one); else sendJSON(res, 404, { error: 'No such partner.' });
       return true;
     }
@@ -1371,7 +1385,7 @@ function createPortalApi({
       if (!canSee(req.user, found) || !canChange(req.user, found)) { (preview ? items : sendOut).push(preview ? { id, error: 'Not in your list.' } : { id, name: '', status: 'skipped', error: 'Not in your list.' }); continue; }
       const card = cards.get(id);
       const ctx = messageContext(req, found, card, null);
-      const email = Messages.renderEmail({ subject, body: emailBody, signature, siteUrl: cfg ? cfg.siteUrl : '', signatureSrc: signed.picture ? signatureSrc(preview) : '', ...ctx });
+      const email = Messages.renderEmail({ subject, body: emailBody, signature, siteUrl: cfg ? cfg.siteUrl : '', signatureSrc: signatureSrc(preview, signed.picture), ...ctx });
       const wa = Messages.renderWhatsApp({ body: whatsappBody, ...ctx });
       const to = text(found.row.EMAIL).toLowerCase();
       const number = Fields.whatsappNumber(found.row['CONTACT NUMBER']);
@@ -1384,7 +1398,7 @@ function createPortalApi({
       if (recent.length >= 300) { sendOut.push({ id, name: item.name, status: 'skipped', error: 'Too many emails in a short time.' }); continue; }
       const entry = { channel: 'email', template: template ? template.name : 'Own message', subject: email.subject, to, text: email.text, options: needsOptions ? 0 : ctx.options.length, attachments: [] };
       try {
-        await mailer.sendMail({ ...cfg, fromName: cfg.personal && !Teams.isAdmin(req.user) ? `${req.user.name}, ${signature.short || signature.company || Messages.COMPANY}` : (signature.company || Messages.COMPANY) }, { to, subject: email.subject, text: email.text, html: email.html, auto: false, bcc: copiesFor(cfg), inline: signed.picture ? inlinePictures() : [] });
+        await mailer.sendMail({ ...cfg, fromName: cfg.personal && !Teams.isAdmin(req.user) ? `${req.user.name}, ${signature.short || signature.company || Messages.COMPANY}` : (signature.company || Messages.COMPANY) }, { to, subject: email.subject, text: email.text, html: email.html, auto: false, bcc: copiesFor(cfg), inline: inlinePictures(signed.picture) });
         recent.push(Date.now()); bulkSends.set(req.user.id, recent);
         cards.logMessage(id, { ...entry, status: 'sent' }, by(req));
         sendOut.push({ id, name: item.name, status: 'sent' });
@@ -1425,6 +1439,28 @@ function createPortalApi({
       userMail.save(req.user.id, made.box);
       activity.record(req, req.user, 'Changed settings', { app: 'My email', changes: [`Set up their own mailbox ${made.box.from} for emailing students`] });
       sendJSON(res, 200, { ok: true, ...userMail.info(req.user.id) });
+      return true;
+    }
+    // The person's own signature picture: shown on My email, uploaded (PNG or JPG, at most 1 MB) and removed there.
+    if (urlPath === '/api/my-mail/signature' && req.method === 'GET') {
+      const pic = userMail ? userMail.picture(req.user.id) : null;
+      if (!pic) { sendJSON(res, 404, { error: 'No signature picture yet.' }); return true; }
+      send(res, 200, pic.data, { 'Content-Type': pic.type, 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' });
+      return true;
+    }
+    if (urlPath === '/api/my-mail/signature' && req.method === 'POST') {
+      if (!userMail) { sendJSON(res, 500, { error: 'Not available.' }); return true; }
+      let bytes;
+      try { bytes = await readRaw(req, 1024 * 1024 + 1); } catch (e) { sendJSON(res, e.statusCode || 400, { error: e.statusCode === 413 ? 'That picture is too large (the limit is 1 MB).' : e.message }); return true; }
+      const out = userMail.savePicture(req.user.id, bytes);
+      if (out.error) { sendJSON(res, 400, { error: out.error }); return true; }
+      activity.record(req, req.user, 'Email signature', { app: 'My email', changes: ['Uploaded their email signature picture'] });
+      sendJSON(res, 200, { ok: true });
+      return true;
+    }
+    if (urlPath === '/api/my-mail/signature/delete' && req.method === 'POST') {
+      if (userMail) userMail.removePicture(req.user.id);
+      sendJSON(res, 200, { ok: true });
       return true;
     }
     if (urlPath === '/api/my-mail/delete' && req.method === 'POST') {

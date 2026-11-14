@@ -106,7 +106,7 @@
     const any = forMe.length || gave.length || others.length;
     if (t.isHead || forMe.length || !t.canAssign) box.append(group(t.isHead ? 'For you' : 'For your team', t.isHead ? `Tasks the team gave you, ${t.headLabel || 'Admin'}.` : 'Tick a task when it is done; comment to ask for what you need or to say how it went.', forMe, refresh, t.isHead ? 'Nothing for you. When the team gives you a task, it is here.' : 'Nothing open for your team. You are all caught up.'));
     if (gave.length || t.canAssign) box.append(group('Tasks you have given', 'Give a task from a student card (Assign a task). Their comments come back here.', gave, refresh, 'Every task you gave is done.'));
-    if (others.length) box.append(group('Given by others', 'Tasks the Manager and the branches gave the teams.', others, refresh, 'Every one of them is done.'));
+    if (others.length) box.append(group('Given by others', 'Tasks others gave the teams, to keep an eye on.', others, refresh, 'Every one of them is done.'));
     if (!any && !t.canAssign && !forMe.length) { /* the "For your team" list above already says so */ }
     return box;
   }

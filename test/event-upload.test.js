@@ -62,7 +62,7 @@ test('uploading an event list: found and tagged, added at Inquiry, skipped, noth
   assert.strictEqual((await follow('POST', `/api/activities/${ids['ABC event']}/students`, { rows: list })).status, 403);
   // The review changes nothing.
   const pre = (await admin('POST', `/api/activities/${ids['ABC event']}/students`, { rows: list, preview: true })).json;
-  assert.deepStrictEqual(pre.counts, { new: 2, link: 1, already: 0, other: 1, problem: 2 });
+  assert.deepStrictEqual(pre.counts, { new: 2, link: 1, already: 0, other: 1, problem: 2, missing: 0 });
   assert.strictEqual((await acts()).activities.find((a) => a.name === 'ABC event').leads, 0, 'the review saved nothing');
   // Carried out.
   const done = (await admin('POST', `/api/activities/${ids['ABC event']}/students`, { rows: list })).json;
@@ -87,6 +87,9 @@ test('uploading an event list: found and tagged, added at Inquiry, skipped, noth
   const longer = [...list, { first: 'Later', last: 'Lead', phone: '9811144455' }];
   const update = (await admin('POST', `/api/activities/${ids['ABC event']}/students`, { rows: longer })).json;
   assert.deepStrictEqual([update.added, update.linked, update.counts.already], [1, 0, 3], 'only the new lead is added');
+  // A later list that dropped someone: they are named as missing, and nothing changes for them.
+  const shorter = (await admin('POST', `/api/activities/${ids['ABC event']}/students`, { rows: longer.slice(1), preview: true })).json;
+  assert.deepStrictEqual(shorter.missing.map((m) => m.name), ['Early Person'], 'the student not on this list is named');
   // Its students, with the latest note, and the Came from tags (the follow-up team sees the tags of the students it sees).
   const people = (await admin('GET', `/api/activities/${ids['ABC event']}/students`)).json.students;
   assert.strictEqual(people.length, 4);

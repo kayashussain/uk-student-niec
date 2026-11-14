@@ -629,7 +629,7 @@ nav.toc { flex-wrap: wrap; overflow: visible; }
 .niec-header { scrollbar-width: thin; scrollbar-color: rgba(20,30,50,.28) transparent; }
 .niec-header::-webkit-scrollbar { display: block; width: 8px; }
 .niec-header::-webkit-scrollbar-thumb { background: rgba(20,30,50,.28); border-radius: 8px; }
-.niec-account { position: sticky; bottom: 0; background: rgba(233, 236, 240, .96); padding-bottom: 4px; }
+.niec-account { position: sticky; bottom: 0; background: transparent; padding-bottom: 4px; }
 @media (min-width: 901px) and (max-height: 820px) {
   .niec-header { padding-top: 10px; padding-bottom: 8px; gap: 4px; }
   .niec-nav a { padding: 6px 12px; }
@@ -1174,7 +1174,6 @@ body .niec-nav a { color: #3a3a3c; font-weight: 500; border-radius: 10px; }
 body .niec-nav a:hover { background: rgba(0, 0, 0, .04); color: var(--ink); }
 body .niec-nav a[aria-current="page"] { background: rgba(0, 0, 0, .06); color: var(--ink); font-weight: 600; box-shadow: none; }
 body .niec-nav a[aria-current="page"] .niec-ico { color: var(--ink); }
-body .niec-account-btn { background: transparent; border-color: var(--border); }
 body .niec-avatar { background: var(--ink); }
 
 /* ---- All Students ---- */
@@ -1427,7 +1426,6 @@ dialog.ui-dialog .ui-ok.danger, dialog.ui-dialog .ui-ok.ui-danger { background: 
 .fly-pal-item.on, .fly-pal-item:hover { background: #e8f2fd; }
 .fly-pal-kind { font-size: 13px; color: #6e6e73; }
 .ui-toast button { border-radius: 50%; }
-.niec-menu .niec-logout:hover { background: #fdeceb; border-radius: 8px; }
 /* Message templates: switched-on stages */
 .tp-stage.on { border-color: #0071e3; background: #0071e3; color: #fff; }
 /* Dashboard: no coloured stubs on the figure cards */
@@ -1648,3 +1646,32 @@ select option { color: #1d1d1f; }
   .p-tabs { display: flex; flex-wrap: nowrap; max-width: 100%; overflow-x: auto; scrollbar-width: none; }
   .p-tabs > button { flex: none; white-space: nowrap; }
 }
+/* 🔴 CSS CHANGED (2026-11-14): the signature picture on My email | from: nothing (there was no signature picture for a team member) | to: the picture on a white rounded panel, at most 560px wide, or a dashed grey "No signature picture yet" box */
+.p-sig { margin: 14px 0 6px; }
+.p-sig img { display: block; max-width: min(560px, 100%); height: auto; padding: 14px; border-radius: 14px; background: #fff; box-shadow: 0 0 0 .5px rgba(0, 0, 0, .1), 0 2px 10px rgba(0, 0, 0, .05); }
+.p-sig-empty { padding: 22px; border: 1.5px dashed #d2d2d7; border-radius: 14px; color: #86868b; text-align: center; }
+
+/* 🔴 CSS CHANGED (2026-11-14): the account area at the bottom of the menu | from: a grey rectangle with an outline, like a big button, on a second grey band; a menu with three links in it | to: just the round initials, the name and the role on the menu itself (no box, no outline), a soft grey highlight under the mouse, a small chevron; its menu is a small frosted Apple panel with the name and Log out, which springs open */
+.niec-menu { padding: 6px; border: 0 !important; border-radius: 14px !important; background: rgba(251, 251, 253, .97) !important; -webkit-backdrop-filter: saturate(180%) blur(20px); backdrop-filter: saturate(180%) blur(20px); box-shadow: 0 16px 44px -12px rgba(0, 0, 0, .3), 0 0 0 .5px rgba(0, 0, 0, .1) !important; transform-origin: bottom left; animation: isr-cal-in .22s cubic-bezier(.32, .72, 0, 1) both; }
+.niec-menu-head { border-bottom: 1px solid rgba(0, 0, 0, .07) !important; }
+.niec-menu .niec-logout { margin-top: 4px; border: 0 !important; border-radius: 8px !important; color: #d70015 !important; }
+.niec-menu .niec-logout:hover { background: #d70015 !important; color: #fff !important; }
+.niec-caret { font-size: 0 !important; width: 14px; height: 14px; background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2386868b' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M7 15l5-5 5 5'/%3E%3C/svg%3E") center / 14px no-repeat; }
+.niec-avatar { background: linear-gradient(180deg, #3a3a3c, #1d1d1f) !important; }
+
+/* 🔴 CSS CHANGED (2026-11-14): while a list is loading | from: the word "Loading..." | to: three soft grey bars of different lengths with a light shimmer moving across them, as in Apple's own apps */
+.isr-skel { display: grid; gap: 12px; padding: 18px 4px; }
+.isr-skel i { display: block; height: 14px; border-radius: 7px; background: linear-gradient(90deg, rgba(0, 0, 0, .05) 25%, rgba(0, 0, 0, .09) 50%, rgba(0, 0, 0, .05) 75%); background-size: 300% 100%; animation: isr-shimmer 1.4s ease-in-out infinite; }
+.isr-skel i:nth-child(1) { width: 62%; }
+.isr-skel i:nth-child(2) { width: 88%; animation-delay: .1s; }
+.isr-skel i:nth-child(3) { width: 40%; animation-delay: .2s; }
+@keyframes isr-shimmer { from { background-position: 100% 0; } to { background-position: 0 0; } }
+@media (prefers-reduced-motion: reduce) { .isr-skel i { animation: none; } }
+.bp-grid > .isr-skel, .pu-grid > .isr-skel { grid-column: 1 / -1; }
+/* 🔴 CSS CHANGED (2026-11-14): the large title folds into a bar, as in Apple's own apps | from: once a page was scrolled down, nothing said which page it was | to: when the big title has scrolled away, a slim frosted bar (52px) slides down at the top of the page area with the title in 15px semibold; it slides away again near the top, and a click on it glides back to the top (computers only) */
+.isr-titlebar { position: fixed; right: 0; z-index: 90; height: 52px; padding: 0 24px; border: 0; border-bottom: 1px solid rgba(0, 0, 0, .07); background: rgba(245, 245, 247, .78); -webkit-backdrop-filter: saturate(180%) blur(20px); backdrop-filter: saturate(180%) blur(20px); color: #1d1d1f; font: 600 15px/52px var(--font); letter-spacing: -.01em; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; opacity: 0; transform: translateY(-100%); pointer-events: none; transition: transform .38s cubic-bezier(.32, .72, 0, 1), opacity .25s ease; }
+.isr-titlebar.is-on { opacity: 1; transform: none; pointer-events: auto; }
+@media (max-width: 900px) { .isr-titlebar { display: none; } }
+@media (prefers-reduced-motion: reduce) { .isr-titlebar { transition: none; } }
+/* 🔴 CSS CHANGED (2026-11-14): printing and saving as PDF | from: cards that rise in as they are scrolled to could print blank, the folding title bar could print | to: everything prints fully shown, without the title bar */
+@media print { .isr-reveal { opacity: 1 !important; transform: none !important; } .isr-titlebar, .isr-cal { display: none !important; } }

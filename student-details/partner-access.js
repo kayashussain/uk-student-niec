@@ -3,7 +3,9 @@
 //   Admin                     everything, and the only one who changes anything.
 //   Manager                   every detail with the commission (slabs, payment terms, commission lists, agreement files), to look at.
 //   Application and Mock Team Partner Universities, B2B Partners and Agents without the commission: no slabs, payment terms,
-//                             commission lists, agreement files or notes, and no portal username or password.
+//                             commission lists, agreement files or notes.
+//   Portal logins             the username and password of a portal are for Admin and the Application Team only (the owner,
+//                             14 Nov 2026): the Application Team submits the applications; everyone else sees the portal link only.
 //   A branch                  Partner Universities the same way (without the commission). No B2B Partners or Agents.
 //   Follow-up Team            none of these pages.
 //   Message templates         Admin changes them; the Manager, the Application and Mock Teams and the branches read them.
@@ -27,19 +29,22 @@ function partnerAccess(user) {
 }
 
 const omit = (o, keys) => { const out = { ...o }; keys.forEach((k) => { delete out[k]; }); return out; };
-// The portal login goes to Admin only on these pages (the team uses it from the student's card, see portal-api.js).
 const LOGIN = ['applyUser', 'applyPassword', 'applyLogin'];
-// A Partner University as an account may see it (one from the list, or the whole record).
-function shapeDirect(u, level) {
+// Who sees the username and password of a portal: Admin and the Application Team.
+const seesLogins = (user) => { const w = Teams.who(user); return w.role === 'admin' || w.departments.includes('application'); };
+// A Partner University as an account may see it (one from the list, or the whole record). `login`: the portal login is kept.
+function shapeDirect(u, level, login = false) {
   if (!u || level === 'full') return u;
-  if (level === 'commission') return omit(u, LOGIN);
-  return omit(u, [...LOGIN, 'slabs', 'slabCount', 'paymentTerms', 'agreements', 'agreementCount', 'notes']);
+  const hide = login ? [] : LOGIN;
+  if (level === 'commission') return omit(u, hide);
+  return omit(u, [...hide, 'slabs', 'slabCount', 'paymentTerms', 'agreements', 'agreementCount', 'notes']);
 }
 // A B2B partner or an agent as an account may see it.
-function shapePartner(p, level) {
+function shapePartner(p, level, login = false) {
   if (!p || level === 'full') return p;
-  if (level === 'commission') return omit(p, LOGIN);
-  return omit(p, [...LOGIN, 'commissions', 'commissionCount', 'agreements', 'agreementCount', 'notes']);
+  const hide = login ? [] : LOGIN;
+  if (level === 'commission') return omit(p, hide);
+  return omit(p, [...hide, 'commissions', 'commissionCount', 'agreements', 'agreementCount', 'notes']);
 }
 
-module.exports = { partnerAccess, shapeDirect, shapePartner };
+module.exports = { partnerAccess, shapeDirect, shapePartner, seesLogins };

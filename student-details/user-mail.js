@@ -1,5 +1,5 @@
 // Each person's own mailbox (the owner, 14 Nov 2026): a team member who emails students sends from their own address, set up once
-// under the account menu, My email. Admin sends from their own mailbox if they set one, else from the office mailbox (mail.json, set
+// on the My email page (reached from Message templates and wherever an email is sent). Admin sends from their own mailbox if they set one, else from the office mailbox (mail.json, set
 // up with `node scripts/email.js setup`). Nobody else sends from the office mailbox.
 //
 // Kept in user-mail.json in the data folder (never in git, never served, never in the daily backups). The password is encrypted with
@@ -12,6 +12,9 @@ const crypto = require('crypto');
 const { writeFileAtomic } = require('../shared/server-utils');
 
 const SECURITIES = ['ssl', 'starttls'];
+// What a picture really is, from its first bytes (a renamed file is refused).
+const pictureType = (b) => (b && b.length > 8 && b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4e && b[3] === 0x47 ? 'image/png' : b && b.length > 3 && b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff ? 'image/jpeg' : '');
+const safeId = (v) => (/^[\w-]{1,64}$/.test(String(v || '')) ? String(v) : '');
 const str = (v, max) => String(v ?? '').trim().slice(0, max);
 
 function createUserMail(dir) {
@@ -45,7 +48,8 @@ function createUserMail(dir) {
     // What a page may know about a person's mailbox: never the password.
     info(userId) {
       const b = read().boxes[userId];
-      return b ? { set: true, from: b.from, user: b.user, host: b.host, port: b.port, security: b.security, phone: b.phone || '', checkedAt: b.checkedAt } : { set: false };
+      const signature = Boolean(this.picture(userId));
+      return b ? { set: true, from: b.from, user: b.user, host: b.host, port: b.port, security: b.security, phone: b.phone || '', checkedAt: b.checkedAt, signature } : { set: false, signature };
     },
     // The settings to send with, password included (only inside the server).
     config(userId) {
@@ -75,6 +79,34 @@ function createUserMail(dir) {
       const d = read();
       d.boxes[userId] = { ...box, pass: seal(box.pass), checkedAt: new Date().toISOString() };
       write(d);
+    },
+    // A person's own signature picture (PNG or JPG, at most 1 MB), put at the end of the emails they send, as the office signature
+    // picture is for Admin (the owner, 14 Nov 2026). Kept in user-signatures/ in the data folder.
+    savePicture(userId, bytes) {
+      const type = pictureType(bytes);
+      if (!type) return { error: 'Please choose a PNG or JPG picture of your signature.' };
+      if (bytes.length > 1024 * 1024) return { error: 'That picture is too large (the limit is 1 MB).' };
+      const id = safeId(userId);
+      if (!id) return { error: 'No such person.' };
+      fs.mkdirSync(path.join(dir, 'user-signatures'), { recursive: true, mode: 0o700 });
+      ['png', 'jpg'].forEach((e) => { try { fs.rmSync(path.join(dir, 'user-signatures', `${id}.${e}`), { force: true }); } catch (err) { /* none */ } });
+      writeFileAtomic(path.join(dir, 'user-signatures', `${id}.${type === 'image/png' ? 'png' : 'jpg'}`), bytes);
+      return { ok: true };
+    },
+    picture(userId) {
+      const id = safeId(userId);
+      if (!id) return null;
+      for (const [e, type] of [['png', 'image/png'], ['jpg', 'image/jpeg']]) {
+        try { return { data: fs.readFileSync(path.join(dir, 'user-signatures', `${id}.${e}`)), type }; } catch (err) { /* try the next */ }
+      }
+      return null;
+    },
+    removePicture(userId) {
+      const id = safeId(userId);
+      if (!id) return false;
+      let gone = false;
+      ['png', 'jpg'].forEach((e) => { const f = path.join(dir, 'user-signatures', `${id}.${e}`); if (fs.existsSync(f)) { fs.rmSync(f, { force: true }); gone = true; } });
+      return gone;
     },
     remove(userId) {
       const d = read();

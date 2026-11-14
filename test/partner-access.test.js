@@ -47,11 +47,15 @@ test('partners: the Manager sees the commission, the teams and branches do not, 
   assert.strictEqual((await admin('POST', `/api/b2b/${partner.id}`, { name: 'Example Partner', apply: 'https://portal.example.org', applyUser: 'u1', applyPassword: 'p1', commissions: [{ intake: 'Jan Intake 2027', link: 'https://example.org/commission' }], notes: 'Rate 10%' })).status, 200);
 
   const SECRET = /15%|Paid in March|Bonus 2%|secret-pass|nieclogin|Rate 10%|example\.org\/commission|"p1"|"u1"/;
+  const NO_LOGIN_SECRET = /15%|Paid in March|Bonus 2%|Rate 10%|example\.org\/commission/; // what even the Application Team never gets
   for (const [who, p] of [['asha', asha], ['bikram', bikram], ['chitwan', chitwan]]) {
     const list = await p('GET', '/api/direct');
     assert.strictEqual(list.status, 200, `${who} opens Partner Universities`);
     const one = await p('GET', `/api/direct/${uni.id}`);
-    assert.ok(!SECRET.test(JSON.stringify(list.json)) && !SECRET.test(JSON.stringify(one.json)), `${who} gets no commission, notes or login`);
+    // The portal login is for Admin and the Application Team only (the owner, 14 Nov 2026).
+    const seen = JSON.stringify(list.json) + JSON.stringify(one.json);
+    if (who === 'asha') assert.ok(!NO_LOGIN_SECRET.test(seen) && one.json.applyPassword === 'secret-pass' && one.json.applyUser === 'nieclogin', 'the Application Team gets the login, still no commission or notes');
+    else assert.ok(!SECRET.test(seen), `${who} gets no commission, notes or login`);
     assert.strictEqual(one.json.applyPortal, 'https://apply.example.org/', `${who} sees where to submit`);
     assert.strictEqual(one.json.contacts[0].name, 'Ann Example', `${who} sees the contacts`);
     assert.strictEqual((await p('POST', `/api/direct/${uni.id}`, { name: 'Changed' })).status, 403, `${who} cannot change it`);
@@ -61,7 +65,9 @@ test('partners: the Manager sees the commission, the teams and branches do not, 
   for (const [who, p] of [['asha', asha], ['bikram', bikram]]) {
     const b = await p('GET', '/api/b2b');
     assert.strictEqual(b.json.access, 'team');
-    assert.ok(!SECRET.test(JSON.stringify(b.json)) && !SECRET.test(JSON.stringify((await p('GET', `/api/b2b/${partner.id}`)).json)), `${who} gets no B2B commission or login`);
+    const seenB = JSON.stringify(b.json) + JSON.stringify((await p('GET', `/api/b2b/${partner.id}`)).json);
+    if (who === 'asha') assert.ok(!NO_LOGIN_SECRET.test(seenB) && /"applyPassword":"p1"/.test(seenB), 'the Application Team gets the B2B login, not the commission');
+    else assert.ok(!SECRET.test(seenB), `${who} gets no B2B commission or login`);
     assert.strictEqual((await p('GET', '/api/agents')).status, 200);
     assert.strictEqual((await p('POST', '/api/b2b', { name: 'X' })).status, 403);
   }

@@ -63,3 +63,5 @@ live-data/
 **/exchange-rates.json
 # When each person last read each task (the red dots).
 **/task-seen.json
+# Each person's own email signature picture.
+**/user-signatures/
