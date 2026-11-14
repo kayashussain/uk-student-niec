@@ -150,24 +150,39 @@
       body.append(g, msg, foot);
     }).then((done) => { if (done) render(); });
   }
+  // The tasks about this student, in the same look as Today: shown only when there is one (the "Assign a task" button is at the top).
+  function dueOf(t) {
+    if (t.done) return { group: 'done', text: t.doneBy ? `Done by ${t.doneBy}` : 'Done' };
+    if (!t.due) return { group: 'later', text: 'No date' };
+    const days = Math.round((Date.parse(t.due + 'T12:00:00Z') - Date.parse((data.today || new Date().toISOString().slice(0, 10)) + 'T12:00:00Z')) / 86400000);
+    if (days < 0) return { group: 'late', text: `Late, was due ${day(t.due)}` };
+    if (days === 0) return { group: 'today', text: 'Due today' };
+    return { group: 'soon', text: `Due ${day(t.due)}` };
+  }
   function tasksCard() {
-    const tasks = (data.card.tasks || []).slice().sort((a, b) => (a.done - b.done) || String(b.at).localeCompare(String(a.at)));
-    if (!tasks.length && !data.can.assign) return null;
+    const tasks = (data.card.tasks || []).slice().sort((a, b) => (a.done - b.done) || String(a.due || '9999').localeCompare(String(b.due || '9999')));
+    if (!tasks.length) return null;
     const c = el('section', 'p-card p-tasks');
-    const head = el('div', 'p-card-head'); head.append(el('h2', '', 'Tasks'));
-    if (data.can.assign) head.append(h('button', { class: 'btn btn-sm', type: 'button', onclick: assignTask }, 'Assign a task'));
+    const head = el('div', 'p-card-head');
+    const open = tasks.filter((t) => !t.done).length;
+    head.append(el('h2', '', 'Tasks'), el('span', 'td-chip', open ? `${open} open` : 'All done'));
     c.append(head);
-    if (!tasks.length) { c.append(el('p', 'p-muted', 'No task for this student yet.')); return c; }
     const label = (id) => ((data.taskTeams || []).find((t) => t.id === id) || { label: id }).label;
     tasks.forEach((t) => {
-      const r = el('div', 'p-task' + (t.done ? ' done' : ''));
+      const due = dueOf(t);
+      const r = el('div', `td-task is-${due.group}`);
       const mine = data.can.assign || (data.can.myTeams || []).includes(t.team);
-      const box = h('button', { class: 'p-task-check', type: 'button', 'aria-pressed': String(t.done), title: t.done ? 'Mark as not complete' : 'Mark as complete', disabled: !mine }, t.done ? '\u2713' : '');
-      box.addEventListener('click', async () => { await save(`tasks/${t.id}`, { done: !t.done }, t.done ? 'Marked as not complete' : 'Marked as complete'); render(); });
-      const mid = el('div', 'p-task-mid');
-      mid.append(el('div', 'p-task-text', t.text), el('div', 'p-task-meta', [label(t.team), t.due ? 'by ' + day(t.due) : '', `given by ${t.by}`, t.done ? `done by ${t.doneBy}, ${when(t.doneAt)}` : ''].filter(Boolean).join(' \u00b7 ')));
-      r.append(box, mid);
-      if (data.can.assign) r.append(h('button', { class: 'p-link', type: 'button', onclick: async () => { if (await window.NiecUI.confirm('Remove this task?', { danger: true })) { await save(`tasks/${t.id}/delete`, {}, 'Task removed'); render(); } } }, 'Remove'));
+      const box = h('button', { class: 'td-check', type: 'button', 'aria-pressed': String(t.done), title: t.done ? 'Mark as not done' : 'Mark as done', 'aria-label': t.done ? 'Mark as not done' : 'Mark as done', disabled: !mine });
+      box.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
+      box.addEventListener('click', async () => { await save(`tasks/${t.id}`, { done: !t.done }, t.done ? 'Marked as not done' : 'Done. Well done.'); render(); });
+      const mid = el('div', 'td-task-mid');
+      const who = el('div', 'td-task-who');
+      who.append(el('span', 'td-team', label(t.team)), el('span', 'td-from', `Given by ${t.by}`));
+      mid.append(el('div', 'td-task-text', t.text), who);
+      const side = el('div', 'td-task-side');
+      side.append(el('span', `td-due is-${due.group}`, due.text));
+      if (data.can.assign) side.append(h('button', { class: 'p-link', type: 'button', onclick: async () => { if (await window.NiecUI.confirm('Remove this task?', { danger: true })) { await save(`tasks/${t.id}/delete`, {}, 'Task removed'); render(); } } }, 'Remove'));
+      r.append(box, mid, side);
       c.append(r);
     });
     return c;

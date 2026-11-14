@@ -1,4 +1,8 @@
-// Today: the first screen. What needs a person's attention now, for the students this account sees, each a click away from the student's card.
+// Today: the first screen, kept quiet on purpose. Two things only:
+//   1. the tasks: a team sees the tasks given to it (late first, then today, then the coming days); Admin and the Manager see the
+//      tasks they gave and whether each is done;
+//   2. what needs attention: one short list, a line per kind of work with how many students wait, opened with a click.
+// The numbers, charts and buttons live on the Dashboard and on All Students, not here.
 (function () {
   const { el, h, api, initials, stagePill } = window.Portal;
   const view = document.getElementById('view');
@@ -6,122 +10,129 @@
     history.replaceState(null, '', location.pathname);
     setTimeout(() => { if (window.NiecUI) window.NiecUI.toast('That page is for Admin only, so you are back on Today.', { type: 'error' }); }, 300);
   }
-  const ICON = {
-    inquiries: '<path d="M4 5h16v11H8l-4 4V5z"/>',
-    apply: '<path d="M7 3h8l4 4v14H7z"/><path d="M15 3v4h4M10 13h6M10 17h6"/>',
-    mock: '<rect x="3" y="5" width="18" height="15" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>',
-    offers: '<path d="M12 3l2.5 5 5.5.8-4 3.9.9 5.5L12 15.6 7.1 18.200 8 12.700 4 8.800 9.500 8z"/>',
-    cas: '<path d="M4 12l5 5L20 6"/>',
-  };
-  const ICON_AS = { defer: 'inquiries', noUni: 'apply', noOffer: 'offers', mockFeedback: 'mock', preCas: 'mock' };
-  const icon = (key) => { const s = el('span', 't-ico'); s.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true">${ICON[ICON_AS[key] || key] || ''}</svg>`; return s; };
   const greeting = () => { const hr = new Date().getHours(); return hr < 12 ? 'Good morning' : hr < 18 ? 'Good afternoon' : 'Good evening'; };
+  const shortDay = (iso) => new Date(iso + 'T12:00:00').toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+  let todayIso = new Date().toISOString().slice(0, 10);
 
-  function tile(label, value) { const t = el('div', 't-tile'); t.append(el('b', '', String(value)), el('span', '', label)); return t; }
+  // When a task is due, in words, and how urgent that is: late, today, soon or later.
+  function dueOf(t) {
+    if (t.done) return { group: 'done', text: t.doneBy ? `Done by ${t.doneBy}` : 'Done' };
+    if (!t.due) return { group: 'later', text: 'No date' };
+    const days = Math.round((Date.parse(t.due + 'T12:00:00Z') - Date.parse(todayIso + 'T12:00:00Z')) / 86400000);
+    if (days < 0) return { group: 'late', text: days === -1 ? 'Late, was due yesterday' : `Late, was due ${-days} days ago` };
+    if (days === 0) return { group: 'today', text: 'Due today' };
+    if (days === 1) return { group: 'soon', text: 'Due tomorrow' };
+    return { group: days <= 7 ? 'soon' : 'later', text: `Due ${shortDay(t.due)}` };
+  }
+  const GROUPS = [['late', 'Late'], ['today', 'Due today'], ['soon', 'Coming up'], ['later', 'Later or no date']];
 
-  let readOnly = false;
-  function section(x) {
-    const c = el('section', 't-card');
-    const head = el('header', 't-head');
-    head.append(icon(x.key));
-    const title = el('div', 't-title');
-    title.append(el('h2', '', x.title), el('p', '', x.hint));
-    head.append(title, el('span', `t-count${x.count ? '' : ' zero'}`, String(x.count)));
-    c.append(head);
-    if (!x.count) {
-      const ok = el('div', 't-clear');
-      ok.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.500l4.500 4.500L19 7.500"/></svg>';
-      ok.append(el('span', '', 'All clear'));
-      c.append(ok);
-      return c;
-    }
-    const list = el('div', 't-list');
-    x.students.forEach((s) => {
-      const row = h('a', { class: 't-row', href: '/student?id=' + encodeURIComponent(s.id), title: 'Open the student card' });
-      row.append(el('span', 't-av', initials(s.name)));
-      const mid = el('span', 't-mid');
-      mid.append(el('b', '', s.name), el('small', '', `${s.detail} · ${s.intake}`));
-      row.append(mid, stagePill(s.stage));
-      list.append(row);
+  let showDone = false;
+  function taskRow(t, canAssign, refresh) {
+    const due = dueOf(t);
+    const r = el('div', `td-task is-${due.group}`);
+    const tick = h('button', { class: 'td-check', type: 'button', 'aria-pressed': String(t.done), title: t.done ? 'Mark as not done' : 'Mark as done', 'aria-label': t.done ? 'Mark as not done' : 'Mark as done' });
+    tick.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
+    tick.addEventListener('click', async () => {
+      tick.disabled = true;
+      try { await api(`/api/cards/${encodeURIComponent(t.studentId)}/tasks/${t.id}`, { done: !t.done }); window.NiecUI.toast(t.done ? 'Marked as not done' : 'Done. Well done.', { type: 'success' }); refresh(true); } catch (e) { tick.disabled = false; window.NiecUI.toast(e.message, { type: 'error' }); }
     });
-    c.append(list);
-    const foot = el('footer', 't-foot');
-    if (x.count > x.students.length) foot.append(el('span', '', `and ${x.count - x.students.length} more`));
-    if (x.stage && !readOnly) foot.append(h('a', { class: 'btn btn-sm', href: '/bulk?stage=' + encodeURIComponent(x.stage) }, 'Follow up these'));
-    if (foot.childNodes.length) c.append(foot);
-    return c;
+    const mid = el('div', 'td-task-mid');
+    mid.append(el('div', 'td-task-text', t.text));
+    const who = el('div', 'td-task-who');
+    who.append(h('a', { class: 'td-student', href: '/student?id=' + encodeURIComponent(t.studentId), title: 'Open the student card' }, t.student), stagePill(t.stage));
+    if (canAssign) who.append(el('span', 'td-team', t.teamLabel));
+    mid.append(who);
+    const meta = el('div', 'td-task-side');
+    meta.append(el('span', `td-due is-${due.group}`, due.text), el('span', 'td-from', canAssign ? `Given ${new Date(t.at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}` : `From ${t.by}`));
+    r.append(tick, mid, meta);
+    return r;
   }
 
-  // Tasks: a team sees the tasks given to it (open first, then the ones done); Admin and the Manager see every task they gave, and
-  // whether each is done. A tick marks a task complete (or not complete again); the student's name opens the card.
-  let showDone = false;
   function tasksPanel(t, refresh) {
-    const box = el('section', 't-tasks');
-    const head = el('div', 't-tasks-head');
+    const box = el('section', 'td-tasks');
     const open = t.tasks.filter((x) => !x.done);
-    const done = t.tasks.filter((x) => x.done);
-    head.append(el('h2', '', t.canAssign ? 'Assigned tasks' : "Today's tasks"), el('span', 't-tasks-count', t.canAssign ? `${open.length} open \u00b7 ${done.length} done` : `${open.length} to do`));
-    const toggle = h('button', { class: 'btn btn-sm', type: 'button' }, showDone ? 'Hide done' : `Show done (${done.length})`);
-    toggle.addEventListener('click', () => { showDone = !showDone; refresh(); });
-    if (done.length) head.append(toggle);
+    const done = t.tasks.filter((x) => x.done && Date.now() - Date.parse(x.doneAt || 0) < 7 * 86400000); // done in the last 7 days
+    const head = el('div', 'td-tasks-head');
+    const titles = el('div');
+    titles.append(el('h2', '', t.canAssign ? 'Tasks you have given' : 'Your tasks'), el('p', '', t.canAssign
+      ? 'Give a task from a student card (Assign a task). The team sees it here on its Today.'
+      : 'Given to your team. Tick a task when it is done.'));
+    head.append(titles);
+    const sum = el('div', 'td-sum');
+    const late = open.filter((x) => dueOf(x).group === 'late').length;
+    const today = open.filter((x) => dueOf(x).group === 'today').length;
+    if (late) sum.append(el('span', 'td-chip is-late', `${late} late`));
+    if (today) sum.append(el('span', 'td-chip is-today', `${today} due today`));
+    sum.append(el('span', 'td-chip', `${open.length} open`));
+    head.append(sum);
     box.append(head);
-    const shown = showDone ? t.tasks : open;
-    if (!shown.length) { box.append(el('p', 't-tasks-empty', t.canAssign ? 'No open task. Open a student card and press "Assign a task" to give one to a team.' : 'Nothing assigned to your team. Well done.')); return box; }
-    shown.forEach((x) => {
-      const r = el('div', 't-task' + (x.done ? ' done' : ''));
-      const tick = h('button', { class: 't-task-check', type: 'button', 'aria-pressed': String(x.done), title: x.done ? 'Mark as not complete' : 'Mark as complete' }, x.done ? '\u2713' : '');
-      tick.addEventListener('click', async () => { try { await api(`/api/cards/${encodeURIComponent(x.studentId)}/tasks/${x.id}`, { done: !x.done }); window.NiecUI.toast(x.done ? 'Marked as not complete' : 'Marked as complete', { type: 'success' }); refresh(true); } catch (e) { window.NiecUI.toast(e.message, { type: 'error' }); } });
-      const mid = el('div', 't-task-mid');
-      const who = h('a', { class: 't-task-student', href: '/student?id=' + encodeURIComponent(x.studentId) }, x.student);
-      const overdue = !x.done && x.due && x.due < new Date().toISOString().slice(0, 10);
-      const meta = [t.canAssign ? x.teamLabel : '', x.due ? (overdue ? 'overdue, was due ' : 'by ') + new Date(x.due + 'T12:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : '', `from ${x.by}`, x.done ? `done by ${x.doneBy}` : ''].filter(Boolean).join(' \u00b7 ');
-      const line = el('div', 't-task-top'); line.append(who, stagePill(x.stage));
-      mid.append(line, el('div', 't-task-text', x.text), el('div', 't-task-meta' + (overdue ? ' late' : ''), meta));
-      r.append(tick, mid);
-      box.append(r);
+    if (!open.length) {
+      const empty = el('div', 'td-empty');
+      empty.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
+      empty.append(el('div', '', t.canAssign ? 'Every task you gave is done.' : 'Nothing open for your team. You are all caught up.'));
+      box.append(empty);
+    }
+    GROUPS.forEach(([key, label]) => {
+      const list = open.filter((x) => dueOf(x).group === key);
+      if (!list.length) return;
+      const g = el('div', `td-group is-${key}`);
+      g.append(el('h3', '', `${label} · ${list.length}`));
+      list.forEach((x) => g.append(taskRow(x, t.canAssign, refresh)));
+      box.append(g);
+    });
+    if (done.length) {
+      const toggle = h('button', { class: 'td-done-toggle', type: 'button', 'aria-expanded': String(showDone) }, showDone ? 'Hide the tasks done this week' : `Done this week (${done.length})`);
+      toggle.addEventListener('click', () => { showDone = !showDone; refresh(); });
+      box.append(toggle);
+      if (showDone) { const g = el('div', 'td-group is-done'); done.forEach((x) => g.append(taskRow(x, t.canAssign, refresh))); box.append(g); }
+    }
+    return box;
+  }
+
+  // What needs attention: one line per kind of work that has students waiting; a click opens the first few names.
+  function attention(sections) {
+    const box = el('section', 'td-attn');
+    const waiting = sections.filter((x) => x.count > 0);
+    const head = el('div', 'td-attn-head');
+    head.append(el('h2', '', 'Needs attention'), el('p', '', waiting.length ? 'Students who are waiting for the next step. Open a line to see who.' : 'Nothing is waiting. Every student is where they should be.'));
+    box.append(head);
+    waiting.forEach((x) => {
+      const d = el('details', 'td-attn-row');
+      const s = el('summary');
+      const words = el('span', 'td-attn-words');
+      words.append(el('b', '', x.title), el('small', '', x.hint));
+      s.append(words, el('span', 'td-attn-count', String(x.count)));
+      d.append(s);
+      const list = el('div', 'td-attn-list');
+      x.students.forEach((st) => {
+        const a = h('a', { class: 'td-attn-student', href: '/student?id=' + encodeURIComponent(st.id), title: 'Open the student card' });
+        a.append(el('span', 'td-av', initials(st.name)));
+        const mid = el('span', 'td-attn-mid');
+        mid.append(el('b', '', st.name), el('small', '', `${st.detail} · ${st.intake}`));
+        a.append(mid, stagePill(st.stage));
+        list.append(a);
+      });
+      if (x.count > x.students.length) list.append(h('a', { class: 'td-attn-more', href: '/students' }, `and ${x.count - x.students.length} more on All Students`));
+      d.append(list);
+      box.append(d);
     });
     return box;
   }
 
   api('/api/today').then(async (d) => {
+    todayIso = d.today || todayIso;
     let tasks = { tasks: [], canAssign: false };
     try { tasks = await api('/api/tasks'); } catch (e) { /* the rest of Today still shows */ }
     document.title = 'Today · ISR';
-    readOnly = Boolean(d.readOnly);
-    const page = el('div');
-    const head = el('div', 't-hello');
+    const page = el('div', 'td-page');
+    const head = el('header', 'td-hello');
     const first = String(d.name || '').split(/\s+/)[0] || '';
-    head.append(el('h1', '', `${greeting()}${first ? ', ' + first : ''}`), el('p', '', new Date(d.today + 'T12:00:00').toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) + '. ' + d.tagline));
-    const kindLabel = el('span', 't-kind', d.title);
-    head.insertBefore(kindLabel, head.firstChild);
-    // The buttons of each kind of account: what that team starts its day with.
-    const actions = el('div', 't-actions');
-    const go = (href, text, primary) => actions.append(h('a', { class: `btn${primary ? ' btn-primary' : ''}`, href }, text));
-    if (d.kind === 'manager') { go('/dashboard', 'Open the Dashboard', true); go('/students', 'All Students'); }
-    else {
-      go('/students', 'Open All Students', true);
-      if (['admin', 'branch', 'team'].includes(d.kind)) go('/bulk-add', 'Add many students');
-      if (['admin', 'branch', 'team', 'followup'].includes(d.kind)) go('/bulk', 'Follow-up');
-      if (d.kind === 'admin') go('/dashboard', 'Dashboard');
-      if (['application', 'mock'].includes(d.kind)) go('/fact-file', 'Fact File');
-    }
-    head.append(actions);
-    const tiles = el('div', 't-tiles');
-    d.tiles.forEach((t) => tiles.append(tile(t.label, t.value)));
-    const grid = el('div', 't-grid');
-    // Cards with work come first; the ones with nothing to do are one quiet line each, so an empty card does not take a whole tile.
-    d.sections.filter((x) => x.count > 0).forEach((x) => grid.append(section(x)));
-    const clear = d.sections.filter((x) => x.count === 0);
-    if (clear.length) {
-      const quiet = el('section', 't-clear');
-      clear.forEach((x) => { const row = el('div', 't-clear-row'); row.append(el('span', 't-clear-tick', '\u2713'), el('b', '', x.title), el('span', 't-clear-hint', 'Nothing waiting')); quiet.append(row); });
-      grid.append(quiet);
-    }
+    head.append(el('span', 'td-kicker', d.title), el('h1', '', `${greeting()}${first ? ', ' + first : ''}`),
+      el('p', '', new Date(d.today + 'T12:00:00').toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })));
     const slot = el('div');
     const refresh = async (reload) => { if (reload) { try { tasks = await api('/api/tasks'); } catch (e) { /* keep */ } } slot.replaceChildren(tasksPanel(tasks, refresh)); };
     refresh();
-    const workHead = el('h2', 't-section-title', d.kind === 'admin' || d.kind === 'manager' ? 'Needs attention' : 'Your work lists');
-    page.append(head, tiles, slot, workHead, grid);
+    page.append(head, slot, attention(d.sections));
     view.replaceChildren(page);
   }).catch((e) => view.replaceChildren(el('div', 'p-card', e.message)));
 })();

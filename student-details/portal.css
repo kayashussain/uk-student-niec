@@ -270,34 +270,9 @@ body.p-embed .p-embed-bar { display: flex; }
 }
 .p-hero { align-items: flex-start; }
 
-/* ---------- Today (the first screen) ---------- */
-.t-hello { margin: 0 0 22px; }
-.t-hello h1 { margin: 0; font-size: 40px; letter-spacing: -.035em; }
-.t-hello p { margin: 6px 0 16px; color: var(--text-dim); font-size: 15.5px; }
-.t-actions { display: flex; flex-wrap: wrap; gap: 10px; }
-.t-tiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin: 0 0 22px; }
-.t-tile { padding: 20px 24px; border-radius: var(--r-lg); background: var(--panel); border: 1px solid color-mix(in srgb, var(--ink) 6%, transparent); box-shadow: var(--sh-2); }
-.t-tile b { display: block; font-size: 38px; font-weight: 600; letter-spacing: -.04em; line-height: 1.05; font-variant-numeric: tabular-nums; }
-.t-tile span { color: var(--text-dim); font-size: 13px; }
-.t-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; align-items: start; }
-.t-card { display: flex; flex-direction: column; border-radius: var(--r-lg); background: var(--panel); border: 1px solid color-mix(in srgb, var(--ink) 6%, transparent); box-shadow: var(--sh-2); overflow: hidden; transition: box-shadow .25s var(--ease), transform .25s var(--ease); }
-.t-card:hover { box-shadow: var(--sh-3); }
-.t-head { display: flex; align-items: center; gap: 14px; padding: 20px 22px 14px; }
-.t-ico { display: grid; place-items: center; flex: 0 0 42px; width: 42px; height: 42px; border-radius: 13px; background: var(--focus-dim); color: var(--gold); }
-.t-ico svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+/* ---------- A title with a line under it (Partner Universities, B2B Partners, All Students) ---------- */
+/* 🔴 CSS CHANGED (2026-11-14): the old Today styles removed (number tiles, buttons, work-list cards) | from: kept here though Today no longer uses them | to: gone; Today's look is in shared/theme.css (td-), nothing on screen changes */
 .t-title { flex: 1; min-width: 0; }
 .t-title h2 { margin: 0; font-size: 16px; font-weight: 650; letter-spacing: -.015em; }
 .t-title p { margin: 2px 0 0; color: var(--text-dim); font-size: 12.5px; }
-.t-count { min-width: 34px; padding: 4px 10px; border-radius: 999px; background: var(--gold); color: #fff; font-size: 13px; font-weight: 650; text-align: center; font-variant-numeric: tabular-nums; }
-.t-count.zero { background: var(--green-bg); color: var(--green-fg); }
-.t-list { display: flex; flex-direction: column; padding: 0 10px 6px; }
-.t-row { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 14px; color: inherit; text-decoration: none; transition: background-color .15s ease; }
-.t-row:hover { background: var(--row-hover); }
-.t-av { display: grid; place-items: center; flex: 0 0 36px; width: 36px; height: 36px; border-radius: 50%; background: var(--soft); color: var(--text-dim); font-size: 12px; font-weight: 650; }
-.t-mid { flex: 1; min-width: 0; display: flex; flex-direction: column; }
-.t-mid b { font-weight: 600; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.t-mid small { color: var(--text-dim); font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.t-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 22px 18px; color: var(--text-dim); font-size: 12.5px; }
-.t-clear { display: flex; align-items: center; gap: 10px; padding: 8px 22px 24px; color: var(--green-fg); font-weight: 600; }
-.t-clear svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
-@media (max-width: 900px) { .t-grid { grid-template-columns: 1fr; } .t-tiles { grid-template-columns: 1fr; } .t-hello h1 { font-size: 32px; } }
+

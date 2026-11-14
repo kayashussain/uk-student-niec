@@ -78,8 +78,6 @@
   --ease: cubic-bezier(.2, .7, .2, 1);
 }
 
-
-
 /* ---------- 2. Base ---------- */
 html, body, button, input, select, textarea, table, th, td, dialog, a, .ui-toast, .ui-dialog, .ui-dialog * { font-family: var(--font); }
 body { background: var(--bg); color: var(--text); letter-spacing: 0; -webkit-font-smoothing: antialiased; font-size: 15px; line-height: 1.5; }
@@ -445,11 +443,7 @@ h1 .p-chip, h1 .pill, h1 #adminOnly { font-size: 13px; }
 .p-month,
 .p-month b,
 .p-steps li,
-.t-tile span,
 .t-title p,
-.t-count,
-.t-mid small,
-.t-foot,
 .conflict-banner,
 html,
 body,
@@ -546,7 +540,7 @@ th { font-size: 15px; }
 @media (max-width: 600px) { .p-card:has(.p-table), .table-card { box-shadow: inset -14px 0 12px -12px rgba(0,0,0,.18); } }
 .niec-account-text { font-size: 15px; }
 /* 🔴 CSS CHANGED (2026-11-12): last small items | from: avatar initials 12px, Dashboard bar notes 12px, chart labels 11px | to: 14px, 14px and 13px */
-.niec-avatar, .t-av, .p-avatar { font-size: 14px !important; }
+.niec-avatar, .p-avatar { font-size: 14px !important; }
 .bar-value small, .bar-value { font-size: 14px !important; }
 .ov-chart text, .line-body text { font-size: 14px !important; }
 /* 🔴 CSS CHANGED (2026-11-12): the last items under 14px found by measuring every page | from: small buttons 13.5px, sheet column headings 13px, row numbers 12.5px, stat tile labels 13px, dropdown options 13px, bold names 13.5px, code boxes 13px, chips 13px, university initials 12px | to: 14px for all of these and 15px for the sheet column headings */
@@ -589,7 +583,7 @@ label span, .p-card label span { font-size: 14px; }
 .find-link:hover { background: var(--blue-bg, #e3ecfb); }
 /* 🔴 CSS CHANGED (2026-11-13): size of the logo in the side menu | from: 170px wide, so "ISR" was tiny | to: 212px wide so the name reads clearly */
 /* 🔴 CSS CHANGED (2026-11-13): team workspaces | from: every team saw the same Today and the same sheet headings | to: a small label above the greeting on Today saying which team the page is for, a team note beside the sheet title, and the sheet columns a team fills in have a soft blue heading */
-.t-kind { display: inline-block; margin: 0 0 8px; padding: 4px 12px; border-radius: 999px; background: color-mix(in srgb, var(--primary) 12%, transparent); color: var(--primary); font-size: 14px; font-weight: 650; letter-spacing: .02em; }
+
 .team-note { background: color-mix(in srgb, var(--primary) 10%, transparent); color: var(--primary); }
 #sheet thead th.col-yours { background: color-mix(in srgb, var(--primary) 14%, var(--panel)); box-shadow: inset 0 -3px 0 var(--primary); }
 /* 🔴 CSS CHANGED (2026-11-13): Admin pages in the side menu | from: Users, Activity, Message templates and Incentive were only inside the account menu | to: they are in the side menu under a small "Admin only" heading */
@@ -667,10 +661,7 @@ nav.toc { flex-wrap: wrap; overflow: visible; }
 }
 .p-table-wrap td, .p-table-wrap th { overflow-wrap: break-word; word-break: normal; }
 /* 🔴 CSS CHANGED (2026-11-13): design polish from the designer review | from: (1) empty Today cards took a whole tile each; (2) many small headings in capital letters (table headings, tile labels, form sections); (3) the plain browser "Choose File" button and date boxes that did not match the pills and selects; (4) a scroll shadow on tables that did not scroll; (5) page titles close to their intro line; (6) editor sections with no space between them; (7) the pop-up close X small; (8) Dashboard cards of different heights and a washed-out target ring; (9) the printed top of the Fact File shown on screen | to: (1) one quiet line per empty card, cards with work first; (2) sentence case, with capitals only for the Admin heading in the menu; (3) a pill file button and date boxes with the same height and rounding as the selects; (4) no shadow; (5) more space and a readable line length under every title; (6) a rule and 28px above each section; (7) a larger 40px close button; (8) equal card heights, graphs at the bottom and a clearer ring; (9) shown only when printing */
-.t-clear { grid-column: 1 / -1; display: grid; gap: 6px; padding: 14px 18px; border: 1px solid var(--border); border-radius: var(--r-md); background: var(--panel); }
-.t-clear-row { display: flex; align-items: center; gap: 12px; min-height: 40px; font-size: 15px; }
-.t-clear-tick { display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; background: var(--green-bg); color: var(--green-fg); font-weight: 800; }
-.t-clear-hint { margin-left: auto; color: var(--text-dim); }
+
 th, .p-table th, .stat-card .stat-label, .stat-group-title, .p-card h3, .p-dialog-body h3, .th-label { text-transform: none; letter-spacing: 0; }
 .stat-card .stat-label { min-height: 0; white-space: nowrap; font-weight: 600; }
 .stat-group-title { display: none; }
@@ -678,7 +669,7 @@ input[type="file"]::file-selector-button { margin-right: 12px; padding: 9px 18px
 input[type="file"]::file-selector-button:hover { background: color-mix(in srgb, var(--ink) 14%, transparent); }
 input[type="date"]:not(.date-input) { min-height: 44px; border-radius: var(--r-sm); border: 1px solid var(--border-strong); background: var(--edit-bg); padding: 8px 12px; font: inherit; }
 .p-table-wrap { box-shadow: none; }
-.page-head h1 + p, .p-head h1 + p, .t-hello h1 + p { margin-top: 10px; max-width: 72ch; }
+.page-head h1 + p, .p-head h1 + p { margin-top: 10px; max-width: 72ch; }
 #editor h3 { margin-top: 28px; padding-top: 18px; border-top: 1px solid var(--border); }
 .p-form .btn-sm.btn-danger { justify-self: start; width: auto; }
 .p-x { width: 40px; height: 40px; font-size: 26px; border-radius: 50%; }
@@ -942,20 +933,19 @@ body:has(#sheet) .topbar .came-from:focus { border-color: var(--lux-ink-2); box-
 
 /* 🔴 CSS CHANGED (2026-11-13): one brand look on every page (Today, Dashboard, Follow-up, Add many students, Fact File, B2B Partners, Agents, Users, Activity, Message templates, Incentive, and the pages already redone) | from: heavy black sans page titles, plain number tiles with black figures, grey rounded pill tabs, cards and tables that each looked a little different, plain grey initials circles | to: every page title in the same large navy serif as All Students and the student card, with a short dim intro under it; number tiles with navy serif figures and a thin bronze line under the first; tabs as clean underline tabs with a bronze line under the open one; cards with the same fine border, roomy padding, soft shadow and navy headings; table headings on a soft navy tint; initials circles in soft navy with a bronze ring; on Today the counts on the cards in navy; the Dashboard number cards with serif figures */
 :root { --brand-serif: "Palatino Linotype", Palatino, "Book Antiqua", "Iowan Old Style", Georgia, serif; }
-.p-head h1, .page-head h1, .t-hello h1, .ov-head h1 { font-family: var(--brand-serif); font-size: 36px; font-weight: 600; letter-spacing: 0; line-height: 1.15; color: var(--brand-navy); }
-.p-head h1 + p, .page-head h1 + p, .t-hello p, .p-head p, .page-head p { color: var(--text-dim); font-size: 16px; line-height: 1.55; max-width: 70ch; }
+.p-head h1, .page-head h1, .ov-head h1 { font-family: var(--brand-serif); font-size: 36px; font-weight: 600; letter-spacing: 0; line-height: 1.15; color: var(--brand-navy); }
+.p-head h1 + p, .page-head h1 + p, .p-head p, .page-head p { color: var(--text-dim); font-size: 16px; line-height: 1.55; max-width: 70ch; }
 /* number tiles */
-.p-kpi, .t-tile, .stat-tile { position: relative; padding: 18px 22px 20px; border: 1px solid var(--border); border-radius: 18px; background: var(--panel); box-shadow: 0 1px 2px rgba(20, 27, 41, .04), 0 14px 30px -28px rgba(29, 47, 82, .5); }
-.p-kpi b, .t-tile b { font-family: var(--brand-serif); font-size: 32px; font-weight: 600; letter-spacing: 0; color: var(--brand-navy); }
-.p-kpi span, .t-tile span { color: var(--text-dim); font-size: 14px; font-weight: 600; }
-.p-kpis > .p-kpi:first-child::after, .t-tiles > .t-tile:first-child::after { content: ""; position: absolute; left: 22px; right: 22px; bottom: 0; height: 3px; border-radius: 3px 3px 0 0; background: var(--brand-bronze); }
+.p-kpi, .stat-tile { position: relative; padding: 18px 22px 20px; border: 1px solid var(--border); border-radius: 18px; background: var(--panel); box-shadow: 0 1px 2px rgba(20, 27, 41, .04), 0 14px 30px -28px rgba(29, 47, 82, .5); }
+.p-kpi b { font-family: var(--brand-serif); font-size: 32px; font-weight: 600; letter-spacing: 0; color: var(--brand-navy); }
+.p-kpi span { color: var(--text-dim); font-size: 14px; font-weight: 600; }
+.p-kpis > .p-kpi:first-child::after { content: ""; position: absolute; left: 22px; right: 22px; bottom: 0; height: 3px; border-radius: 3px 3px 0 0; background: var(--brand-bronze); }
 .ov-kpi b, .ov-kpi .ov-num, .ov-big, .ov-kpi-value { font-family: var(--brand-serif); color: var(--brand-navy); letter-spacing: 0; }
 /* cards */
-.p-card, .page .card, .t-card { border: 1px solid var(--border); border-radius: 18px; background: var(--panel); box-shadow: 0 1px 2px rgba(20, 27, 41, .04), 0 16px 34px -30px rgba(29, 47, 82, .45); }
+.p-card, .page .card { border: 1px solid var(--border); border-radius: 18px; background: var(--panel); box-shadow: 0 1px 2px rgba(20, 27, 41, .04), 0 16px 34px -30px rgba(29, 47, 82, .45); }
 .p-card h2, .page .card h2, .t-title b, .t-title strong { color: var(--brand-navy); }
-.t-count { background: var(--brand-navy); color: var(--brand-ivory); }
-.t-ico { background: var(--gold-soft); color: var(--brand-navy); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--brand-bronze) 35%, transparent); }
-.t-av, .p-avatar:not(.p-hero .p-avatar), .uni-mono { background: var(--gold-soft); color: var(--brand-navy); box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--brand-bronze) 55%, transparent); }
+
+.p-avatar:not(.p-hero .p-avatar), .uni-mono { background: var(--gold-soft); color: var(--brand-navy); box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--brand-bronze) 55%, transparent); }
 /* tabs: underline, bronze under the open one */
 .p-tabs:not(body:has(.p-embed-bar) .p-tabs) { gap: 4px; padding: 0; border-radius: 0; background: transparent; border-bottom: 1px solid var(--border); width: 100%; }
 .p-tabs:not(body:has(.p-embed-bar) .p-tabs) button, .p-tabs:not(body:has(.p-embed-bar) .p-tabs) a { padding: 10px 16px 12px; border-radius: 0; font-size: 15px; font-weight: 550; color: var(--text-dim); }
@@ -1047,28 +1037,8 @@ body:has(#sheet) .topbar .came-from:focus { border-color: var(--lux-ink-2); box-
 .bp-undo { padding: 0; border: 0; background: none; font: inherit; color: var(--brand-navy); text-decoration: underline; cursor: pointer; }
 
 /* 🔴 CSS CHANGED (2026-11-13): tasks | from: nothing | to: on Today a soft panel "Today's tasks" (a team) or "Assigned tasks" (Admin, Manager) above the work lists, one row per task with a round tick (navy with a white tick when done), the student's name in navy with the stage tag, the task, and a small line (team, by when, from whom, done by; amber when overdue); done tasks greyed; "Show done"; on the student card a "Tasks" panel with the same rows and "Assign a task"; a small "Needs attention" / "Your work lists" heading above the work lists */
-.t-tasks { margin: 0 0 24px; padding: 22px 24px; border: 1px solid var(--border); border-radius: 18px; background: var(--panel); box-shadow: 0 1px 2px rgba(20, 27, 41, .04), 0 16px 34px -30px rgba(29, 47, 82, .45); }
-.t-tasks-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 10px; }
-.t-tasks-head h2 { margin: 0; font-size: 19px; font-weight: 700; color: var(--brand-navy); }
-.t-tasks-count { flex: 1; color: var(--text-dim); font-size: 14.5px; }
-.t-tasks-empty { margin: 6px 0 0; color: var(--text-dim); }
-.t-task, .p-task { display: flex; align-items: flex-start; gap: 14px; padding: 14px 4px; border-top: 1px solid var(--border); }
-.t-task:first-of-type { border-top: 0; }
-.t-task-check, .p-task-check { flex: 0 0 28px; width: 28px; height: 28px; margin-top: 2px; border: 1.5px solid color-mix(in srgb, var(--brand-navy) 45%, var(--border)); border-radius: 50%; background: var(--panel); color: #fff; font-size: 15px; font-weight: 800; line-height: 1; cursor: pointer; }
-.t-task-check:hover, .p-task-check:hover:not(:disabled) { border-color: var(--brand-navy); box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand-navy) 12%, transparent); }
-.t-task-check[aria-pressed="true"], .p-task-check[aria-pressed="true"] { border-color: var(--brand-navy); background: var(--brand-navy); }
-.p-task-check:disabled { cursor: default; opacity: .6; }
-.t-task-mid, .p-task-mid { flex: 1; min-width: 0; }
-.t-task-top { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-.t-task-student { color: var(--brand-navy); font-size: 16px; font-weight: 700; text-decoration: none; }
-.t-task-student:hover { text-decoration: underline; text-decoration-color: var(--brand-bronze); text-underline-offset: 4px; }
-.t-task-text, .p-task-text { margin-top: 4px; color: var(--ink); font-size: 15.5px; line-height: 1.5; }
-.t-task-meta, .p-task-meta { margin-top: 4px; color: var(--text-dim); font-size: 14px; }
-.t-task-meta.late { color: var(--amber-fg); font-weight: 600; }
-.t-task.done .t-task-text, .p-task.done .p-task-text { color: var(--text-dim); text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--text-dim) 50%, transparent); }
-.t-section-title { margin: 6px 0 12px; font-size: 17px; font-weight: 700; color: var(--brand-navy); }
+
 body:has(.p-embed-bar) .p-tasks-wide, body:has(.p-embed-bar) .p-tabs + div > .p-card.p-tasks { grid-column: 1 / -1 !important; grid-row: auto !important; }
-.p-tasks .p-card-head + .p-task { border-top: 0; }
 
 /* 🔴 CSS CHANGED (2026-11-14): Message templates rebuilt calm and premium | from: two plain columns (a list of template boxes with the email signature form under it, and one long editor with a grid of stage tick boxes and a "Words you can use" fold-out), and a long yellow notice | to: a short soft notice; two underline tabs (Templates, Email signature); a slim list on the left with a search, each template a quiet row (name in navy, its stages under it, an "Edited" or "Yours" tag) and the open one marked with a bronze line; the editor in calm panels (Name and stages with the stages as pills, Email with the subject, the message and the fill-in words as chips, WhatsApp) and a Save bar that stays at the bottom; the signature on its own tab in three panels */
 .tp-page { max-width: 1480px; }
@@ -1103,3 +1073,123 @@ body:has(.p-embed-bar) .p-tasks-wide, body:has(.p-embed-bar) .p-tabs + div > .p-
 .tp-chip:hover { border-style: solid; border-color: var(--brand-navy); }
 .tp-savebar { position: sticky; bottom: 0; z-index: 5; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 14px 18px; border: 1px solid var(--border); border-radius: 16px; background: color-mix(in srgb, var(--panel) 92%, transparent); backdrop-filter: blur(8px); box-shadow: 0 -10px 30px -24px rgba(29, 47, 82, .5); }
 .tp-savebar .grow { flex: 1 1 auto; }
+
+/* 🔴 CSS CHANGED (2026-11-14): the old Today and task styles removed from this file (t-tile, t-card, t-task, t-tasks, t-clear, t-kind, p-task ...) | from: kept though no page used them any more | to: gone; nothing on screen changes, the new look is just below */
+/* 🔴 CSS CHANGED (2026-11-14): Today rebuilt as a quiet page of tasks and one "Needs attention" list | from: number tiles, buttons (Open All Students, Add many students, Follow-up, Dashboard), a plain task box and big work-list cards | to: a short greeting, a highlighted "Your tasks" panel (bronze edge, tasks grouped Late, Due today, Coming up, Later, each a soft row with a round tick, the task in larger type, the student and stage under it, the due date as a tag: red when late, amber today), then one calm "Needs attention" list, a line per kind of work with its count, opened with a click */
+.td-page { max-width: 1040px; margin: 0 auto; }
+.td-hello { margin: 4px 0 26px; }
+.td-kicker { display: inline-block; margin-bottom: 8px; color: var(--brand-bronze); font-size: 12.5px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
+.td-hello h1 { margin: 0; font-family: var(--brand-serif); font-size: 40px; font-weight: 600; line-height: 1.12; color: var(--brand-navy); }
+.td-hello p { margin: 8px 0 0; color: var(--text-dim); font-size: 16px; }
+.td-tasks { position: relative; margin: 0 0 28px; padding: 26px 28px 22px; border: 1px solid var(--border); border-radius: 22px; background: linear-gradient(180deg, color-mix(in srgb, var(--brand-ivory) 70%, var(--panel)) 0, var(--panel) 120px); box-shadow: 0 1px 2px rgba(20, 27, 41, .04), 0 22px 44px -34px rgba(29, 47, 82, .55); overflow: hidden; }
+.td-tasks::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: linear-gradient(180deg, var(--brand-bronze), color-mix(in srgb, var(--brand-bronze) 35%, transparent)); }
+.td-tasks-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 6px; }
+.td-tasks-head h2, .td-attn-head h2 { margin: 0; font-family: var(--brand-serif); font-size: 26px; font-weight: 600; color: var(--brand-navy); }
+.td-tasks-head p, .td-attn-head p { margin: 4px 0 0; color: var(--text-dim); font-size: 14.5px; }
+.td-sum { display: flex; gap: 8px; flex-wrap: wrap; padding-top: 4px; }
+.td-chip { display: inline-flex; align-items: center; min-height: 30px; padding: 0 12px; border-radius: 999px; background: var(--soft); color: var(--brand-navy); font-size: 13.5px; font-weight: 700; }
+.td-chip.is-late { background: var(--red-bg); color: var(--red-fg); }
+.td-chip.is-today { background: var(--amber-bg); color: var(--amber-fg); }
+.td-group { margin-top: 18px; }
+.td-group h3 { margin: 0 0 8px; color: var(--text-dim); font-size: 12.5px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }
+.td-group.is-late h3 { color: var(--red-fg); }
+.td-task { display: grid; grid-template-columns: 34px minmax(0, 1fr) auto; align-items: start; gap: 14px; margin-top: 8px; padding: 16px 18px; border: 1px solid var(--border); border-radius: 16px; background: var(--edit-bg); transition: box-shadow .2s var(--ease), border-color .2s var(--ease); }
+.td-task:hover { border-color: var(--border-strong); box-shadow: 0 12px 26px -22px rgba(29, 47, 82, .6); }
+.td-task.is-late { border-left: 3px solid var(--red-fg); }
+.td-task.is-today { border-left: 3px solid #c08a1e; }
+.td-check { width: 30px; height: 30px; margin-top: 1px; padding: 0; border: 1.5px solid color-mix(in srgb, var(--brand-navy) 40%, var(--border)); border-radius: 50%; background: var(--panel); cursor: pointer; display: grid; place-items: center; }
+.td-check svg { width: 16px; height: 16px; fill: none; stroke: var(--brand-navy); stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; opacity: 0; transition: opacity .15s; }
+.td-check:hover svg { opacity: .35; }
+.td-check:hover { border-color: var(--brand-navy); box-shadow: 0 0 0 4px color-mix(in srgb, var(--brand-navy) 10%, transparent); }
+.td-check[aria-pressed="true"] { border-color: var(--brand-navy); background: var(--brand-navy); }
+.td-check[aria-pressed="true"] svg { opacity: 1; stroke: #fff; }
+.td-task-text { color: var(--ink); font-size: 16.5px; font-weight: 600; line-height: 1.45; }
+.td-task.is-done .td-task-text { color: var(--text-dim); font-weight: 500; text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--text-dim) 50%, transparent); }
+.td-task-who { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 8px; }
+.td-student { color: var(--brand-navy); font-size: 15px; font-weight: 700; text-decoration: none; }
+.td-student:hover { text-decoration: underline; text-decoration-color: var(--brand-bronze); text-underline-offset: 4px; }
+.td-team { padding: 2px 10px; border: 1px solid var(--border); border-radius: 999px; color: var(--text-dim); font-size: 13px; font-weight: 600; }
+.td-task-side { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; text-align: right; }
+.td-due { padding: 4px 11px; border-radius: 999px; background: var(--soft); color: var(--brand-navy); font-size: 13.5px; font-weight: 700; white-space: nowrap; }
+.td-due.is-late { background: var(--red-bg); color: var(--red-fg); }
+.td-due.is-today { background: var(--amber-bg); color: var(--amber-fg); }
+.td-due.is-done { background: var(--green-bg); color: var(--green-fg); }
+.td-from { color: var(--text-dim); font-size: 13px; white-space: nowrap; }
+.td-empty { display: flex; align-items: center; gap: 14px; margin-top: 16px; padding: 18px 20px; border: 1px dashed var(--border-strong); border-radius: 16px; color: var(--text-dim); font-size: 15.5px; }
+.td-empty svg { flex: 0 0 34px; width: 34px; height: 34px; padding: 7px; border-radius: 50%; background: var(--green-bg); fill: none; stroke: var(--green-fg); stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; }
+.td-done-toggle { margin-top: 16px; padding: 0; border: 0; background: none; color: var(--brand-navy); font: inherit; font-size: 14.5px; font-weight: 600; text-decoration: underline; text-decoration-color: var(--brand-bronze); text-underline-offset: 4px; cursor: pointer; }
+.td-attn { padding: 24px 28px 14px; border: 1px solid var(--border); border-radius: 22px; background: var(--panel); box-shadow: 0 1px 2px rgba(20, 27, 41, .04), 0 16px 34px -30px rgba(29, 47, 82, .45); }
+.td-attn-head { margin-bottom: 10px; }
+.td-attn-row { border-top: 1px solid var(--border); }
+.td-attn-row summary { display: flex; align-items: center; gap: 16px; padding: 16px 4px; cursor: pointer; list-style: none; }
+.td-attn-row summary::-webkit-details-marker { display: none; }
+.td-attn-row summary::after { content: ""; flex: 0 0 9px; width: 9px; height: 9px; margin: 0 4px 0 2px; border-right: 2px solid var(--text-dim); border-bottom: 2px solid var(--text-dim); transform: rotate(-45deg); transition: transform .2s var(--ease); }
+.td-attn-row[open] summary::after { transform: rotate(45deg); }
+.td-attn-row summary:hover b { text-decoration: underline; text-decoration-color: var(--brand-bronze); text-underline-offset: 4px; }
+.td-attn-words { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.td-attn-words b { color: var(--brand-navy); font-size: 16.5px; font-weight: 700; }
+.td-attn-words small { color: var(--text-dim); font-size: 14px; }
+.td-attn-count { min-width: 40px; padding: 4px 12px; border-radius: 999px; background: var(--brand-navy); color: var(--brand-ivory); font-size: 14.5px; font-weight: 700; text-align: center; font-variant-numeric: tabular-nums; }
+.td-attn-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 18px; padding: 0 4px 18px; }
+.td-attn-student, .md-person { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 12px; color: inherit; text-decoration: none; }
+.td-attn-student:hover, .md-person:hover { background: var(--row-hover); }
+.td-av { flex: 0 0 36px; width: 36px; height: 36px; display: grid; place-items: center; border: 1px solid color-mix(in srgb, var(--brand-bronze) 55%, transparent); border-radius: 50%; background: var(--brand-ivory); color: var(--brand-navy); font-size: 13px; font-weight: 700; }
+.td-attn-mid, .md-person-mid { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.td-attn-mid b, .md-person-mid b { overflow: hidden; color: var(--ink); font-size: 15px; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
+.td-attn-mid small, .md-person-mid small { color: var(--text-dim); font-size: 13.5px; }
+.td-attn-more { align-self: center; padding: 10px 12px; color: var(--brand-navy); font-size: 14.5px; font-weight: 600; text-decoration: underline; text-decoration-color: var(--brand-bronze); text-underline-offset: 4px; }
+@media (max-width: 760px) {
+  .td-hello h1 { font-size: 32px; }
+  .td-tasks, .td-attn { padding: 20px 18px; }
+  .td-task { grid-template-columns: 30px minmax(0, 1fr); }
+  .td-task-side { grid-column: 2; flex-direction: row; align-items: center; justify-content: flex-start; }
+  .td-attn-list { grid-template-columns: 1fr; }
+}
+
+/* 🔴 CSS CHANGED (2026-11-14): a Dashboard of its own for each team (My dashboard) | from: nothing (a team that opened Dashboard was sent back to Today) | to: four figure cards in navy serif, a slim task line (amber edge when a task is late), then four calm cards: This week against last week, Where your students are (navy bars), Coming up in the next 7 days, Good news of the last 30 days */
+.md-page { max-width: 1180px; margin: 0 auto; }
+.md-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; margin-bottom: 16px; }
+.md-kpi { display: flex; flex-direction: column; gap: 4px; padding: 20px 22px; border: 1px solid var(--border); border-radius: 18px; background: var(--panel); box-shadow: 0 1px 2px rgba(20, 27, 41, .04), 0 16px 34px -30px rgba(29, 47, 82, .45); }
+.md-kpi:first-child { box-shadow: inset 0 -3px 0 var(--brand-bronze), 0 1px 2px rgba(20, 27, 41, .04), 0 16px 34px -30px rgba(29, 47, 82, .45); }
+.md-kpi-label { color: var(--text-dim); font-size: 14px; font-weight: 700; }
+.md-kpi b { font-family: var(--brand-serif); font-size: 40px; font-weight: 600; line-height: 1.1; color: var(--brand-navy); font-variant-numeric: tabular-nums; }
+.md-kpi small { color: var(--text-dim); font-size: 13.5px; }
+.md-taskline { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-bottom: 22px; padding: 14px 20px; border: 1px solid var(--border); border-left: 4px solid var(--brand-bronze); border-radius: 14px; background: color-mix(in srgb, var(--brand-ivory) 60%, var(--panel)); color: var(--ink); text-decoration: none; }
+.md-taskline.has-late { border-left-color: var(--red-fg); }
+.md-taskline b { color: var(--brand-navy); font-size: 16px; }
+.md-taskline span { color: var(--text-dim); font-size: 14.5px; }
+.md-taskline .md-taskline-go { margin-left: auto; color: var(--brand-navy); font-weight: 700; text-decoration: underline; text-decoration-color: var(--brand-bronze); text-underline-offset: 4px; }
+.md-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+.md-card { padding: 22px 24px; border: 1px solid var(--border); border-radius: 20px; background: var(--panel); box-shadow: 0 1px 2px rgba(20, 27, 41, .04), 0 16px 34px -30px rgba(29, 47, 82, .45); }
+.md-card-head { margin-bottom: 14px; }
+.md-card-head h2 { margin: 0; font-family: var(--brand-serif); font-size: 22px; font-weight: 600; color: var(--brand-navy); }
+.md-card-head p { margin: 4px 0 0; color: var(--text-dim); font-size: 14px; }
+.md-quiet { margin: 6px 0 4px; color: var(--text-dim); font-size: 15px; }
+.md-week { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.md-week-item { display: flex; flex-direction: column; gap: 2px; padding: 14px 16px; border-radius: 14px; background: var(--edit-bg); border: 1px solid var(--border); }
+.md-week-item b { font-family: var(--brand-serif); font-size: 32px; font-weight: 600; color: var(--brand-navy); line-height: 1.1; }
+.md-week-label { color: var(--ink); font-size: 14.5px; font-weight: 700; }
+.md-trend { color: var(--text-dim); font-size: 13px; }
+.md-trend.up { color: var(--green-fg); font-weight: 600; }
+.md-bars { display: flex; flex-direction: column; gap: 4px; }
+.md-bar { display: grid; grid-template-columns: 150px minmax(0, 1fr) 44px; align-items: center; gap: 12px; padding: 8px 6px; border-radius: 10px; color: inherit; text-decoration: none; }
+
+.md-bar-label { color: var(--ink); font-size: 14.5px; font-weight: 600; }
+.md-bar-track { height: 10px; border-radius: 99px; background: var(--soft); overflow: hidden; }
+.md-bar-fill { display: block; height: 100%; border-radius: 99px; background: linear-gradient(90deg, var(--brand-navy), var(--brand-navy-2)); }
+.md-bar-n { color: var(--brand-navy); font-size: 15px; text-align: right; font-variant-numeric: tabular-nums; }
+.md-people { display: flex; flex-direction: column; gap: 2px; }
+.md-date { padding: 3px 10px; border-radius: 999px; background: var(--soft); color: var(--brand-navy); font-size: 13px; font-weight: 700; white-space: nowrap; }
+@media (max-width: 900px) { .md-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } .md-grid { grid-template-columns: 1fr; } .md-bar { grid-template-columns: 110px minmax(0, 1fr) 36px; } }
+
+/* 🔴 CSS CHANGED (2026-11-14): card headings, card heads and form fields on every portal page (student card, Follow-up, Add many students, compose, templates, partners) | from: small 16px sans card headings; a card's Edit button dropped under a long heading; form fields 14px text, 38px high, the dropdowns smaller than the text boxes | to: card headings in the navy serif at 21px like the page titles; the heading shrinks so its button stays beside it; fields and dropdowns 15px text, 44px high, labels 13.5px, a soft navy ring when typing */
+.p-card > h2, .p-card-head h2 { font-family: var(--brand-serif); font-size: 21px; font-weight: 600; letter-spacing: 0; color: var(--brand-navy); }
+.p-card-head h2 { flex: 1 1 0; min-width: 9rem; }
+body:has(.p-embed-bar) #view .p-card:not(.p-hero) h2 { font-family: var(--brand-serif); font-size: 21px; font-weight: 600; letter-spacing: 0; color: var(--brand-navy); }
+.p-card-head > .btn, .p-card-head > button, .p-card-head > .td-chip { flex: 0 0 auto; }
+.p-field input, .p-field select, .p-field textarea, .p-input { min-height: 44px; font-size: 15px; border-radius: 12px; background: var(--edit-bg); }
+.p-field input:focus, .p-field select:focus, .p-field textarea:focus, .p-input:focus { outline: none; border-color: var(--focus); box-shadow: 0 0 0 3px color-mix(in srgb, var(--focus) 18%, transparent); }
+.p-label { font-size: 13.5px; }
+.p-hint { font-size: 13px; }
+.td-check:disabled { cursor: default; opacity: .5; }
+.p-tasks .td-task { margin-top: 10px; }

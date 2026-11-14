@@ -212,6 +212,25 @@ function buildDemo({ today = '2026-11-11', seed = 20261111 } = {}) {
   // Agents send you their students; B2B partners are the ones you send applications to.
   const agents = PARTNERS.map((name, i) => ({ ...common, id: `ag0000000${i}0`.slice(0, 12), name, city: ['Pokhara', 'Butwal', 'Biratnagar'][i], agreementEnd: ['2026-12-31', '2027-06-30', ''][i], contacts: [{ name: `${pick(FIRST)} ${pick(LAST)} (demo)`, email: `agent${i}@example.com`, phone: `98000990${i}0` }] }));
   const b2b = [{ ...common, id: 'b2b000000009', name: 'Adventus', city: 'Online', agreementStart: '2025-06-01', agreementEnd: '2027-01-31', contacts: [{ name: 'Partner manager (demo)', email: 'manager@example.com', phone: '9800099999' }] }];
+  // A few made-up tasks Admin gave the teams about students of the current intake (some late, some for today, some done), so
+  // Today and each team's Dashboard show what a task list looks like. Only students that already have a card get one.
+  const TASK_PLAN = [
+    ['Application Stage', 'application', ['Submit the application on the university portal', 'Ask the student for the missing transcript', 'Chase the university for the offer letter'], [-2, 0, 2]],
+    ['Mock Stage', 'mock', ['Book the first mock interview', 'Write the feedback of yesterday\'s mock', 'Prepare the student for the Pre-CAS interview'], [-1, 0, 3]],
+    ['Inquiry', 'followup', ['Call back about the scholarship question', 'Send the fee list on WhatsApp', 'Invite the student to the office with the parents'], [0, 1, null]],
+  ];
+  const dayIso = (n) => iso(now + n * DAY);
+  const current = sheets[sheets.length - 1];
+  TASK_PLAN.forEach(([stage, team, texts, dues], k) => {
+    current.rows.filter((r) => r['APPLICATION STATUS'] === stage && cards[r._id]).slice(0, texts.length + 1).forEach((r, i) => {
+      const done = i === texts.length;
+      const at = new Date(now - (3 + i) * DAY + 10 * 3600000).toISOString();
+      cards[r._id].tasks = [{
+        id: `d${'abc'[k]}${String(i).padStart(10, '0')}`, team, text: done ? texts[0] : texts[i], due: done ? dayIso(-3) : (dues[i] === null ? '' : dayIso(dues[i])),
+        by: 'Owner Demo', at, done, doneBy: done ? COUNSELORS[0] : '', doneAt: done ? new Date(now - DAY).toISOString() : '',
+      }];
+    });
+  });
   return { workbook: { revision: 1, sheets, activeSheetId: sheets[sheets.length - 1].id }, cards, planning, b2b, agents, counselors: COUNSELORS };
 }
 

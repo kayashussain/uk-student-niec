@@ -391,6 +391,130 @@ function createPortalApi({
     };
   }
 
+  // ---- My dashboard: each team's own page of how its work is going (Admin and the Manager have the full Dashboard) ----
+  // The figures of the Application, Mock and Follow-up teams count the whole current intake (a student the team helped moves on to
+  // the next stage and leaves its sheet, and the team should still see that it went on); names are only ever those of the students
+  // the account sees on its sheet. A branch counts its own students.
+  // "This week" is the last 7 days, compared with the 7 days before, so a team sees its own rhythm without any ranking of people.
+  const MY_DASH = {
+    application: {
+      title: 'Application Team', lead: 'How the applications are moving.',
+      kpis: ['toSubmit', 'submitted', 'waitingOffer', 'offers'],
+      week: [['APPLICATION SUBMISSION DATE', 'Applications submitted'], ['OFFER RECEIVED DATE', 'Offers received']],
+      stages: ['Application Stage', 'Mock Stage', 'Payment Stage', 'CAS Stage', 'CAS Issued', 'Visa Lodge', 'Visa Issued'],
+    },
+    mock: {
+      title: 'Mock Team', lead: 'Mock interviews and students getting ready for the Pre-CAS interview.',
+      kpis: ['atMock', 'toSchedule', 'feedbackMissing', 'mocksWeek'],
+      week: [['MOCK', 'Mock interviews held'], ['PAYMENT DATE', 'Moved on to payment']],
+      stages: ['Mock Stage', 'Payment Stage', 'CAS Stage', 'CAS Issued', 'Visa Lodge', 'Visa Issued'],
+    },
+    followup: {
+      title: 'Follow-up Team', lead: 'Inquiries kept warm and deferred students brought back.',
+      kpis: ['inquiries', 'toFollow', 'contactedWeek', 'deferred'],
+      week: [['CONTACT', 'Students contacted'], ['INQUIRY', 'New inquiries']],
+      stages: ['Inquiry', 'Defer', 'Application Stage', 'Withdrawn'],
+    },
+    branch: {
+      title: 'Your branch', lead: 'Your branch students, from the first inquiry to the visa.',
+      kpis: ['active', 'submitted', 'offers', 'visas'],
+      week: [['INQUIRY', 'New inquiries'], ['APPLICATION SUBMISSION DATE', 'Applications submitted'], ['OFFER RECEIVED DATE', 'Offers received'], ['VISA RECEIVED DATE', 'Visas received']],
+      stages: Teams.ALL_STATUSES,
+    },
+    team: {
+      title: 'Your teams', lead: 'The work of all your teams together.',
+      kpis: ['active', 'submitted', 'offers', 'visas'],
+      week: [['APPLICATION SUBMISSION DATE', 'Applications submitted'], ['OFFER RECEIVED DATE', 'Offers received'], ['CONTACT', 'Students contacted']],
+      stages: Teams.ALL_STATUSES,
+    },
+  };
+  const MY_KPI = {
+    toSubmit: ['Applications to submit', 'At Application Stage, not submitted yet'], submitted: ['Applications submitted', 'In this intake'],
+    waitingOffer: ['Waiting for an offer', 'Submitted over 10 days ago'], offers: ['Offers received', 'In this intake'],
+    atMock: ['At Mock Stage', 'Students with you now'], toSchedule: ['Mocks to schedule', 'No mock date yet'], feedbackMissing: ['Feedback to write', 'The mock date has passed'],
+    mocksWeek: ['Mocks this week', 'Held in the last 7 days'], inquiries: ['Open inquiries', 'At Inquiry now'], toFollow: ['To follow up', 'No contact for 3 days'],
+    contactedWeek: ['Contacted this week', 'A note or a message in 7 days'], deferred: ['Deferred students', 'To bring back'],
+    active: ['Students in progress', 'Not left, no visa yet'], visas: ['Visas issued', 'In this intake'],
+  };
+  function myDashboard(user) {
+    const kind = Teams.kindOf(user);
+    const plan = MY_DASH[kind] || MY_DASH.team;
+    const today = cards.today();
+    const dayNo = (iso) => Math.floor(Date.parse(iso + 'T00:00:00Z') / 86400000);
+    const now = dayNo(today);
+    const all = cards.all();
+    const t = todayFor(user);
+    const counts = Object.fromEntries(t.sections.map((x) => [x.key, x.count]));
+    const students = visibleStudents(user);
+    const v = { ...t.totals, toSubmit: counts.apply || 0, waitingOffer: counts.noOffer || 0, toSchedule: counts.mock || 0, feedbackMissing: counts.mockFeedback || 0, toFollow: counts.inquiries || 0, submitted: 0, offers: 0, visas: 0, mocksWeek: 0, contactedWeek: 0 };
+    // Per day of the last 14: how many of each "done" thing happened.
+    const weekNow = {}; const weekBefore = {};
+    const bump = (key, iso) => {
+      if (!iso) return;
+      const ago = now - dayNo(iso);
+      if (ago >= 0 && ago < 7) weekNow[key] = (weekNow[key] || 0) + 1;
+      else if (ago >= 7 && ago < 14) weekBefore[key] = (weekBefore[key] || 0) + 1;
+    };
+    const stageCount = new Map(plan.stages.map((st) => [st, 0]));
+    const wins = []; const upcoming = [];
+    const seen = new Set(students.map((x) => x.row._id));
+    const intakeSheet = currentIntake();
+    const scope = ['application', 'mock', 'followup'].includes(kind) && intakeSheet
+      ? intakeSheet.rows.filter((r) => r && r._id && isStudent(r)).map((row) => ({ sheet: intakeSheet, row })) : students;
+    for (const { sheet, row } of scope) {
+      const mineToName = seen.has(row._id);
+      const stage = text(row[STATUS]);
+      const card = all[row._id] || { notes: [], messages: [], profile: {} };
+      if (stageCount.has(stage)) stageCount.set(stage, stageCount.get(stage) + 1);
+      if (isoDate(row['APPLICATION SUBMISSION DATE'])) v.submitted += 1;
+      if (isoDate(row['OFFER RECEIVED DATE'])) v.offers += 1;
+      if (stage === 'Visa Issued' || isoDate(row['VISA RECEIVED DATE'])) v.visas += 1;
+      ['APPLICATION SUBMISSION DATE', 'OFFER RECEIVED DATE', 'PAYMENT DATE', 'VISA RECEIVED DATE', 'CAS RECEIVED DATE'].forEach((c) => bump(c, isoDate(row[c])));
+      [1, 2, 3, 4].forEach((n) => {
+        const d = isoDate(row[`MOCK SCHEDULE ${n}`]);
+        if (!d) return;
+        bump('MOCK', d);
+        if (now - dayNo(d) >= 0 && now - dayNo(d) < 7) v.mocksWeek += 1;
+        const ahead = dayNo(d) - now;
+        if (mineToName && ahead >= 0 && ahead <= 7 && !text(row[`FEEDBACK ${n}`])) upcoming.push({ id: row._id, name: nameOf(row), date: d, what: `Mock interview ${n}`, stage });
+      });
+      const lt = isoDate(row['LANGUAGE TEST DATE']);
+      if (mineToName && lt && dayNo(lt) - now >= 0 && dayNo(lt) - now <= 7) upcoming.push({ id: row._id, name: nameOf(row), date: lt, what: 'English test', stage });
+      bump('INQUIRY', isoDate(card.profile && card.profile.inquiryDate));
+      const touched = [...(card.notes || []).map((n) => n.at), ...(card.messages || []).map((m) => m.at)].filter(Boolean).map((at) => localDate(new Date(at)));
+      const lastTouch = touched.sort().pop();
+      bump('CONTACT', lastTouch);
+      if (lastTouch && now - dayNo(lastTouch) < 7) v.contactedWeek += 1;
+      // The good news of the last 30 days, newest first.
+      [['VISA RECEIVED DATE', 'Visa received'], ['CAS RECEIVED DATE', 'CAS received'], ['OFFER RECEIVED DATE', 'Offer received'], ['PAYMENT DATE', 'Deposit paid']].some(([c, what]) => {
+        const d = isoDate(row[c]);
+        if (mineToName && d && now - dayNo(d) >= 0 && now - dayNo(d) < 30) { wins.push({ id: row._id, name: nameOf(row), date: d, what, intake: sheet.name }); return true; }
+        return false;
+      });
+    }
+    // The tasks of this person's teams.
+    const mine = teamsOf(user);
+    let open = 0; let late = 0; let doneWeek = 0;
+    for (const { row } of rowIndex().values()) {
+      const c = all[row._id];
+      (c && c.tasks ? c.tasks : []).forEach((x) => {
+        if (!mine.includes(x.team)) return;
+        if (!x.done) { open += 1; if (x.due && x.due < today) late += 1; } else if (x.doneAt && now - dayNo(localDate(new Date(x.doneAt))) < 7) doneWeek += 1;
+      });
+    }
+    const intake = intakeSheet;
+    return {
+      kind, title: plan.title, lead: plan.lead, name: user.name, today, intake: intake ? intake.name : '',
+      kpis: plan.kpis.map((k) => ({ key: k, label: MY_KPI[k][0], note: MY_KPI[k][1], value: v[k] || 0 })),
+      week: plan.week.map(([key, label]) => ({ key, label, now: weekNow[key] || 0, before: weekBefore[key] || 0 })),
+      stages: [...stageCount.entries()].map(([stage, count]) => ({ stage, count })),
+      stagesNote: scope === students ? 'Your students, by stage.' : 'Everyone in this intake, by stage (the numbers only).',
+      tasks: { open, late, doneWeek },
+      upcoming: upcoming.sort((a, b) => a.date.localeCompare(b.date)).slice(0, 8),
+      wins: wins.sort((a, b) => b.date.localeCompare(a.date)).slice(0, 8),
+    };
+  }
+
   // ---- events and marketing: what was run to find students, and what each brought ----
   // The tag on a student ("where exactly") names the event or the marketing; it matches an activity by its name (with or without the date).
   const eventOf = (detail) => {
@@ -1133,6 +1257,11 @@ function createPortalApi({
   async function handle(req, res, urlPath) {
     if (!urlPath.startsWith('/api/')) return false;
     const query = () => new URL(req.url, 'http://x').searchParams;
+    if (urlPath === '/api/my-dashboard' && req.method === 'GET') {
+      if (Teams.isAdmin(req.user) || (Teams.isManager(req.user) && Teams.isReadOnly(req.user))) { sendJSON(res, 403, { error: 'Admin and the Manager have the full Dashboard.' }); return true; }
+      sendJSON(res, 200, myDashboard(req.user));
+      return true;
+    }
     if (urlPath === '/api/today' && req.method === 'GET') { sendJSON(res, 200, { ...todayFor(req.user), readOnly: Teams.isReadOnly(req.user) }); return true; }
     if (urlPath === '/api/activities' && req.method === 'GET') {
       if (!managers(req, res, 'Events and marketing')) return true;

@@ -21,10 +21,10 @@ test('tasks: given by Admin, seen and ticked by that team only, listed for Admin
   const base = `http://127.0.0.1:${port}`;
   for (let i = 0; i < 60; i += 1) { try { if ((await fetch(base + '/login')).ok) break; } catch (e) { /* not up yet */ } await wait(250); }
   const person = () => { let cookie = ''; return async (method, url, body) => {
-    const res = await fetch(base + url, { method, body: body === undefined ? undefined : JSON.stringify(body), headers: { 'content-type': 'application/json', ...(cookie ? { cookie } : {}) } });
+    const res = await fetch(base + url, { method, body: body === undefined ? undefined : JSON.stringify(body), headers: { 'content-type': 'application/json', ...(cookie ? { cookie } : {}) }, redirect: 'manual' });
     const set = res.headers.get('set-cookie'); if (set) cookie = set.split(';')[0];
     const tx = await res.text(); let json = null; try { json = JSON.parse(tx); } catch (e) { /* not JSON */ }
-    return { status: res.status, json };
+    return { status: res.status, json, location: res.headers.get('location') };
   }; };
   const admin = person();
   const code = fs.readFileSync(path.join(dir, 'first-admin-code.txt'), 'utf8').trim();
@@ -55,4 +55,18 @@ test('tasks: given by Admin, seen and ticked by that team only, listed for Admin
   assert.strictEqual((await mock('POST', `/api/cards/${id}/tasks/${taskId}`, { done: false })).status, 200, 'marked not complete again');
   assert.strictEqual((await admin('POST', `/api/cards/${id}/tasks/${taskId}/delete`, {})).status, 200);
   assert.strictEqual((await admin('GET', `/api/cards/${id}`)).json.card.tasks.length, 0);
+
+  // Each team has a Dashboard of its own; Admin keeps the full one.
+  assert.strictEqual((await mock('GET', '/dashboard')).location, '/my-dashboard', 'a team that opens Dashboard gets its own');
+  assert.strictEqual((await mock('GET', '/my-dashboard')).status, 200);
+  assert.strictEqual((await admin('GET', '/my-dashboard')).location, '/dashboard', 'Admin keeps the full Dashboard');
+  assert.strictEqual((await admin('GET', '/api/my-dashboard')).status, 403);
+  await admin('POST', `/api/cards/${id}/tasks`, { team: 'mock', text: 'Late one', due: '2020-01-01' });
+  const dash = (await mock('GET', '/api/my-dashboard')).json;
+  assert.strictEqual(dash.kind, 'mock');
+  assert.strictEqual(dash.kpis.length, 4);
+  assert.deepStrictEqual([dash.tasks.open, dash.tasks.late], [1, 1], 'the team sees its open and late tasks');
+  const app2 = (await app('GET', '/api/my-dashboard')).json;
+  assert.strictEqual(app2.stages.find((x) => x.stage === 'Application Stage').count, 0);
+  assert.ok([...app2.wins, ...app2.upcoming].every((x) => x.name !== 'Sita Rai'), 'no student the team cannot see is named');
 });

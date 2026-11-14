@@ -117,7 +117,7 @@ Details data folder (never in git; back it up with the rest of the data folder).
 
 ## Dashboard
 
-Admin and the Manager have a **Dashboard** made for planning intakes: the student journey from inquiry to
+Each team (Application, Mock, Follow-up, each branch) has its own **Dashboard** of its work (see README, My dashboard). Admin and the Manager have a **Dashboard** made for planning intakes: the student journey from inquiry to
 visa with the share that goes on at each step, money (deposits received, still to collect, average fee),
 visa success, a forecast of visas, payments and deposits still to come, how many days each step takes,
 every intake side by side, month by month trends, who needs chasing, and breakdowns by source, university

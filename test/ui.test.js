@@ -648,7 +648,7 @@ test('screens: log in, edit, delete, search, team rules, Fact File', { timeout: 
     assert.ok((await manager.request.post('/api/login/new-password', { data: { password: 'Manager-Strong-2026' } })).ok());
     const landing = await open(manager, '/');
     await landing.waitForURL('**/today');
-    await landing.waitForSelector('.t-card');
+    await landing.waitForSelector('.td-tasks');
     await landing.close();
     const page = await open(manager, '/students');
     await page.waitForSelector('#body tr:not(.pad-row)');
