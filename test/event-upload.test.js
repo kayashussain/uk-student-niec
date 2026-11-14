@@ -62,7 +62,7 @@ test('uploading an event list: found and tagged, added at Inquiry, skipped, noth
   assert.strictEqual((await follow('POST', `/api/activities/${ids['ABC event']}/students`, { rows: list })).status, 403);
   // The review changes nothing.
   const pre = (await admin('POST', `/api/activities/${ids['ABC event']}/students`, { rows: list, preview: true })).json;
-  assert.deepStrictEqual(pre.counts, { new: 2, link: 1, already: 0, other: 1, check: 0, problem: 2, missing: 0 });
+  assert.deepStrictEqual(pre.counts, { new: 2, link: 1, update: 0, already: 0, other: 1, check: 0, problem: 2, missing: 0 });
   assert.strictEqual((await acts()).activities.find((a) => a.name === 'ABC event').leads, 0, 'the review saved nothing');
   // Carried out.
   const done = (await admin('POST', `/api/activities/${ids['ABC event']}/students`, { rows: list })).json;
@@ -90,6 +90,29 @@ test('uploading an event list: found and tagged, added at Inquiry, skipped, noth
   // A later list that dropped someone: they are named as missing, and nothing changes for them.
   const shorter = (await admin('POST', `/api/activities/${ids['ABC event']}/students`, { rows: longer.slice(1), preview: true })).json;
   assert.deepStrictEqual(shorter.missing.map((m) => m.name), ['Early Person'], 'the student not on this list is named');
+  // The same leads again, now with more in the list (the owner, 14 Nov 2026: an updated file with the inquiry day and time, an email,
+  // a comment column): never stopped because they are already there. What is new is added, nothing is replaced, and the same file a
+  // third time has nothing new.
+  const richer = [
+    { first: 'Early', last: 'Person', phone: '9800099999', inquiryDate: '2026-11-06', extra: 'Enquired 6 Nov 2026 at 9:21 pm. Comment: wants nursing' },
+    { first: 'New', last: 'Two', email: 'new.two@example.com', phone: '9811155566' },
+    { first: 'New', last: 'One', phone: '9811122233', email: 'new.one@example.com' },
+  ];
+  const rich = (await admin('POST', `/api/activities/${ids['ABC event']}/students`, { rows: richer, preview: true })).json;
+  assert.deepStrictEqual([rich.counts.update, rich.counts.already], [3, 0], 'every lead has something new');
+  assert.match(rich.rows.find((r) => r.first === 'Early').note, /Will add: inquiry day, inquiry time, more details in a note/);
+  const richDone = (await admin('POST', `/api/activities/${ids['ABC event']}/students`, { rows: richer })).json;
+  assert.strictEqual(richDone.updated, 3);
+  const earlyRich = (await admin('GET', `/api/cards/${early}`)).json;
+  assert.strictEqual(earlyRich.card.profile.inquiryDate, '2026-11-06', 'the earlier inquiry day replaces the day the student was added');
+  assert.ok((await admin('GET', '/api/data')).json.sheets.flatMap((x) => x.rows).some((r) => r.EMAIL === 'new.one@example.com'), 'a blank email is filled in');
+  assert.match(earlyRich.card.notes.at(-1).text, /Enquired 6 Nov 2026 at 9:21 pm\. Comment: wants nursing/);
+  const twoRow = (await admin('GET', '/api/data')).json.sheets.flatMap((x) => x.rows).find((r) => r.EMAIL === 'new.two@example.com');
+  assert.strictEqual(twoRow['CONTACT NUMBER'], '9811155566', 'a blank phone is filled in');
+  const third = (await admin('POST', `/api/activities/${ids['ABC event']}/students`, { rows: richer, preview: true })).json;
+  assert.deepStrictEqual([third.counts.update, third.counts.already], [0, 3], 'the same file again: nothing new');
+  const later = (await admin('POST', `/api/activities/${ids['ABC event']}/students`, { rows: [{ first: 'Early', last: 'Person', phone: '9800099999', inquiryDate: '2026-11-09' }], preview: true })).json;
+  assert.strictEqual(later.rows[0].action, 'already', 'a later inquiry day never replaces an earlier one');
   // Its students, with the latest note, and the Came from tags (the follow-up team sees the tags of the students it sees).
   const people = (await admin('GET', `/api/activities/${ids['ABC event']}/students`)).json.students;
   assert.strictEqual(people.length, 4);

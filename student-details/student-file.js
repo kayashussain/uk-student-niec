@@ -76,7 +76,10 @@
     if (h < 0) return '';
     return `${h % 12 || 12}:${String(m).padStart(2, '0')} ${h < 12 ? 'am' : 'pm'}`;
   };
-  const levelOf = (v) => (/master|post\s*grad|msc|\bma\b|mba/i.test(v) ? 'Postgraduate' : /bachelor|under\s*grad|bsc|\bba\b|degree/i.test(v) ? 'Undergraduate' : /foundation/i.test(v) ? 'Foundation' : /top.?up/i.test(v) ? 'Top-up (final year)' : '');
+  // The study levels of ISR (the owner, 14 Nov 2026); an MBA is Postgraduate. The narrower words are read first.
+  const levelOf = (v) => (/top.?up/i.test(v) ? 'Top-up (final year)' : /pre.?masters?/i.test(v) ? 'Pre-Masters' : /international year|\biy1\b/i.test(v) ? 'International Year 1'
+    : /foundation|pathway/i.test(v) ? 'Foundation' : /ph\.?d|doctor|by research|\bmres\b/i.test(v) ? 'Masters by Research or PhD'
+      : /master|post\s*grad|msc|\bma\b|mba|\bpg\b/i.test(v) ? 'Postgraduate' : /bachelor|under\s*grad|bsc|\bba\b|degree|\bug\b/i.test(v) ? 'Undergraduate' : '');
   function fromGrid(grid, max = 200) {
     const heads = (grid[0] || []).map((c) => String(c === null || c === undefined ? '' : (c.text || c.result || c)).trim());
     const head = heads.map((c) => c.toLowerCase());

@@ -916,11 +916,45 @@ function createPortalApi({
   //   new: added to the chosen intake at Inquiry, Student Source "Events", tagged with the event;
   //   link: already on the sheet (same phone or email, any intake) and in no event yet: tagged with this event, the earlier source is
   //         kept in the remarks and a note says so on the card (the team may have added the student before the campaign was entered);
-  //   already: already tagged with this event (uploading the same list twice changes nothing);
-  //   other: already tagged with another event: left as it is and listed, so Admin decides on the card (never moved quietly);
+  //   update: already in ISR, and the list knows more (an inquiry day or time, an email, comments ...): what is new is added (newsFor);
+  //   already: already tagged with this event and nothing new (uploading the same list twice changes nothing);
+  //   other: already tagged with another event, nothing new: left as it is and listed, so Admin decides on the card (never moved);
   //   problem: no name, or neither a phone nor an email (a student who cannot be matched later is not added).
   // { preview: true } only sorts the lines; without it the new and link lines are carried out.
   const digitsOf = (v) => text(v).replace(/\D/g, '');
+  // What a line of a list adds to a student already in ISR (the owner, 14 Nov 2026: the more we know, the better, and an updated list
+  // must never be stopped because the student is already there). Only what is new is taken, and nothing on the sheet is replaced:
+  //   a blank email or phone is filled in; a different one is kept in a note (an application may have gone out with the old one);
+  //   the first inquiry day is the earliest one known, so an earlier day from the list replaces a later one (a student added before
+  //   the list had its days got the day they were added);
+  //   a blank study level is filled in;
+  //   every other column of the list (the time of the inquiry, comments, the intake asked for ...) goes into a note, only the parts the
+  //   card's notes do not already say.
+  function newsFor(x, row, card) {
+    const p = (card && card.profile) || {};
+    const fill = {}; const profile = {}; const differs = []; const says = [];
+    if (x.email) { const now = text(row.EMAIL).toLowerCase(); if (!now && mailer.isAddress(x.email)) { fill.EMAIL = x.email; says.push('email'); } else if (now && now !== x.email) differs.push(`email ${x.email}`); }
+    if (x.phone) { const now = text(row['CONTACT NUMBER']); if (!now && phoneOk(x.phone)) { fill['CONTACT NUMBER'] = x.phone; says.push('phone'); } else if (now && phoneKey(now) !== phoneKey(x.phone)) differs.push(`phone ${x.phone}`); }
+    if (x.inquiryDate && x.inquiryDate <= cards.today() && (!p.inquiryDate || x.inquiryDate < p.inquiryDate)) { profile.inquiryDate = x.inquiryDate; says.push('inquiry day'); }
+    if (x.level && !p.studyLevel) { profile.studyLevel = x.level; says.push('study level'); }
+    if (x.livesIn && !p.livesIn && Fields.DISTRICTS.includes(x.livesIn)) profile.livesIn = x.livesIn;
+    const known = ((card && card.notes) || []).map((n) => String(n.text || '').toLowerCase()).join(' \n ');
+    const fresh = text(x.extra).split(/\.\s+/).map((part) => part.replace(/\.$/, '').trim()).filter((part) => part && !known.includes(part.toLowerCase()));
+    if (fresh.some((f) => /^enquired /i.test(f))) says.push('inquiry time');
+    if (fresh.some((f) => !/^enquired /i.test(f))) says.push('more details in a note');
+    if (differs.length) says.push('a different ' + differs.map((d) => d.split(' ')[0]).join(' and '));
+    return { fill, profile, differs, extra: fresh.join('. '), says };
+  }
+  // Puts what newsFor found on the student: the sheet, the card, and one note saying what came from which list.
+  function applyNews(req, x, news, ev, intro) {
+    const found = rowIndex().get(x.id);
+    if (!found) return { error: 'not found' };
+    if (Object.keys(news.fill).length) { const r = setColumns(req, found, news.fill); if (r.error) return r; }
+    if (Object.keys(news.profile).length) cards.setProfile(x.id, news.profile, by(req));
+    const words = [intro, news.differs.length ? `The list also gave ${news.differs.join(' and ')} (the ones on the sheet are kept).` : '', news.extra ? `${news.extra}.` : ''].filter(Boolean).join(' ');
+    if (words && (intro || news.differs.length || news.extra)) cards.addNote(x.id, { kind: 'note', text: words }, by(req));
+    return {};
+  }
   function eventImport(req, ev, body) {
     const plan = planning.all();
     const label = eventLabel(ev.name, ev.date);
@@ -976,11 +1010,13 @@ function createPortalApi({
       const card = all[found.row._id];
       const tagged = card && eventFor(plan.events, card.profile.sourceDetail);
       const at = { id: found.row._id, intake: found.sheet.name, stage: text(found.row[STATUS]), name: nameOf(found.row) };
-      if (tagged && tagged.id === ev.id) out.push({ ...line, ...at, action: 'already', note: `Already linked to this event (${at.intake}, ${at.stage || 'no stage'})` });
-      else if (tagged) out.push({ ...line, ...at, action: 'other', note: `Already linked to ${tagged.name}. Left as is; change it on the student card if needed.` });
+      const news = newsFor(line, found.row, card);
+      const adds = news.says.length ? ` Will add: ${news.says.join(', ')}.` : '';
+      if (tagged && tagged.id === ev.id) out.push({ ...line, ...at, news, action: adds ? 'update' : 'already', note: adds ? `Already linked to this event (${at.intake}, ${at.stage || 'no stage'}).${adds}` : `Already linked to this event (${at.intake}, ${at.stage || 'no stage'}), nothing new` });
+      else if (tagged) out.push({ ...line, ...at, news, action: adds ? 'update' : 'other', note: `Already linked to ${tagged.name}: left in that event (change it on the student card if needed).${adds}` });
       else {
         const before = [text(found.row['STUDENT SOURCE']), card && card.profile.sourceDetail].filter(Boolean).join(': ');
-        out.push({ ...line, ...at, before, action: 'link', note: `Already on the sheet (${at.intake}, ${at.stage || 'no stage'})${before ? `, source was "${before}"` : ''}: will be linked to this event` });
+        out.push({ ...line, ...at, before, news, action: 'link', note: `Already on the sheet (${at.intake}, ${at.stage || 'no stage'})${before ? `, source was "${before}"` : ''}: will be linked to this event.${adds}` });
       }
     }
     const count = (a) => out.filter((x) => x.action === a).length;
@@ -994,33 +1030,34 @@ function createPortalApi({
       if (e && e.id === ev.id && !onList.has(row._id)) missing.push({ id: row._id, name: nameOf(row), intake: sheet.name, stage: text(row[STATUS]) });
     }
     missing.sort((a, b) => a.name.localeCompare(b.name));
-    if (body.preview) return { status: 200, json: { preview: true, label, rows: out, missing, counts: { new: count('new'), link: count('link'), already: count('already'), other: count('other'), check: count('check'), problem: count('problem'), missing: missing.length } } };
+    const counts = () => ({ new: count('new'), link: count('link'), update: count('update'), already: count('already'), other: count('other'), check: count('check'), problem: count('problem'), missing: missing.length });
+    const shown = () => out.map(({ news, ...x }) => x);
+    if (body.preview) return { status: 200, json: { preview: true, label, rows: shown(), missing, counts: counts() } };
     // Carry out: add the new ones, tag the ones already on the sheet. A campaign on social media (a Facebook advert, for example) is a
     // Social Media source, so its students are found under Social Media too; any other event or campaign is an Events source.
     const source = channelOf(ev) === 'Social media' ? 'Social Media' : 'Events';
-    let added = 0; let linked = 0; const failed = [];
+    let added = 0; let linked = 0; let updated = 0; const failed = [];
     for (const x of out) {
       if (x.action === 'new') {
         const r = addStudent(req, { fields: { 'FIRST NAME': x.first, 'LAST NAME': x.last, EMAIL: x.email, 'CONTACT NUMBER': x.phone, 'STUDENT SOURCE': source }, profile: { sourceDetail: label, studyLevel: x.level, inquiryDate: x.inquiryDate, livesIn: x.livesIn }, stage: 'Inquiry', sheetId: x.sheetId || body.sheetId, note: `Enquiry from ${ev.name}, from its enquiry list.${x.extra ? ` ${x.extra}.` : ''}` });
         if (r.status === 200) { added += 1; x.id = r.json.id; } else failed.push(`${x.name}: ${r.json.error || 'could not be added'}`);
       } else if (x.action === 'link') {
         const found = rowIndex().get(x.id);
-        // What the list says that the sheet has not: a blank email or phone is filled in; a different one is never written over the
-        // sheet (the application may have gone out with it), it goes into the note instead.
-        const fillIn = { 'STUDENT SOURCE': source };
-        const other = [];
-        if (x.email) { const now = text(found.row.EMAIL).toLowerCase(); if (!now) fillIn.EMAIL = x.email; else if (now !== x.email) other.push(`email ${x.email}`); }
-        if (x.phone) { const now = text(found.row['CONTACT NUMBER']); if (!now && phoneOk(x.phone)) fillIn['CONTACT NUMBER'] = x.phone; else if (now && phoneKey(now) !== phoneKey(x.phone)) other.push(`phone ${x.phone}`); }
-        const src = setColumns(req, found, fillIn);
+        const src = setColumns(req, found, { 'STUDENT SOURCE': source });
         if (src.error) { failed.push(`${x.name}: ${src.error}`); continue; }
         const card = cards.get(x.id);
         cards.setProfile(x.id, { sourceDetail: label, sourceRemarks: [card.profile.sourceRemarks, x.before ? `Previous source: ${x.before}` : ''].filter(Boolean).join(' | ').slice(0, 160) }, by(req));
-        cards.addNote(x.id, { kind: 'note', text: `Linked to ${ev.name} from its enquiry list.${x.before ? ` Previous source: ${x.before}.` : ''}${other.length ? ` The list also gave ${other.join(' and ')} (the ones on the sheet are kept).` : ''}${x.extra ? ` ${x.extra}.` : ''}` }, by(req));
+        const r = applyNews(req, x, x.news, ev, `Linked to ${ev.name} from its enquiry list.${x.before ? ` Previous source: ${x.before}.` : ''}`);
+        if (r.error) { failed.push(`${x.name}: ${r.error}`); continue; }
         linked += 1;
+      } else if (x.action === 'update') {
+        const r = applyNews(req, x, x.news, ev, (x.news.extra || x.news.differs.length) ? `From the updated list of ${ev.name}:` : '');
+        if (r.error) { failed.push(`${x.name}: ${r.error}`); continue; }
+        updated += 1;
       }
     }
-    note(req, [`${ev.name}: uploaded its list (${added} added at Inquiry, ${linked} already on the sheet tagged with it, ${count('already')} already tagged, ${count('other')} in another event left as they were, ${count('problem')} lines skipped)`], 'Uploaded event students');
-    return { status: 200, json: { done: true, added, linked, failed, rows: out, missing, counts: { new: count('new'), link: count('link'), already: count('already'), other: count('other'), check: count('check'), problem: count('problem'), missing: missing.length } } };
+    note(req, [`${ev.name}: uploaded its list (${added} added at Inquiry, ${linked} already on the sheet tagged with it, ${updated} already there given the new details from the list, ${count('already')} already tagged with nothing new, ${count('other')} in another event left as they were, ${count('problem')} lines skipped)`], 'Uploaded event students');
+    return { status: 200, json: { done: true, added, linked, updated, failed, rows: shown(), missing, counts: counts() } };
   }
 
   // Every student of one event, for its page on Events and marketing: who, the phone, the stage, the intake and the latest note, so the
