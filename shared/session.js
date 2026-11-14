@@ -28,6 +28,7 @@
 
   async function logout() {
     leaving = true;
+    try { sessionStorage.removeItem('isrMe'); } catch (e) { /* nothing kept */ }
     try { await realFetch('/api/logout', { method: 'POST' }); } catch (e) { /* cookie is cleared below either way */ }
     location.href = '/login';
   }

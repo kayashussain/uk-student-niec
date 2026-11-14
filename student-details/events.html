@@ -95,6 +95,8 @@
   .ev-where { grid-column: 1 / -1; }
   .ev-choice-label { display: block; margin-bottom: 8px; color: var(--brand-navy, #1d2f52); font-size: 14px; font-weight: 600; }
 </style>
+<!-- The first picture of the page waits until the menu has been drawn (see the marker at the end), so moving between pages never flashes an empty menu. -->
+<link rel="expect" href="#isr-ready" blocking="render" />
 </head>
 <body class="p-body">
   <header class="niec-header" data-page="events"></header>
@@ -128,5 +130,6 @@
 <script src="student-file.js"></script>
 <script src="card-drawer.js"></script>
 <script src="events-page.js"></script>
+<span id="isr-ready" hidden></span>
 </body>
 </html>

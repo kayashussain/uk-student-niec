@@ -136,6 +136,7 @@
     return { before, after };
   }
 
+  let bound = false; // the menu's own buttons are wired once, however often the menu is drawn
   function render(me) {
     const own = LINKS[kindOf(me)] || [];
     const extra = sharedLinks(me);
@@ -150,17 +151,18 @@
       + ((MENU_LINKS[me.role] || []).length ? `<div class="niec-sep" role="presentation"><span>Admin only</span></div>` + (MENU_LINKS[me.role] || []).map(([id, href, label]) => `<a href="${href}" title="${label}"${id === page ? ' aria-current="page"' : ''}><span class="niec-ico" aria-hidden="true">${ICONS[id] || ''}</span><span class="niec-lbl">${label}</span></a>`).join('') : '')
       ;
     const burger = header.querySelector('.niec-burger');
-    burger.addEventListener('click', () => { const open = !header.classList.contains('menu-open'); header.classList.toggle('menu-open', open); burger.setAttribute('aria-expanded', String(open)); });
-    document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && header.classList.contains('menu-open')) { header.classList.remove('menu-open'); burger.setAttribute('aria-expanded', 'false'); burger.focus(); } });
     const toggle = header.querySelector('.niec-toggle');
+    const nav = header.querySelector('.niec-nav');
+    const firstTime = !bound;
+    bound = true;
+    if (firstTime) burger.addEventListener('click', () => { const open = !header.classList.contains('menu-open'); header.classList.toggle('menu-open', open); burger.setAttribute('aria-expanded', String(open)); });
+    if (firstTime) document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && header.classList.contains('menu-open')) { header.classList.remove('menu-open'); burger.setAttribute('aria-expanded', 'false'); burger.focus(); } });
     const setNav = (closed) => { document.documentElement.setAttribute('data-nav', closed ? 'closed' : 'open'); toggle.setAttribute('aria-expanded', String(!closed)); try { localStorage.setItem('niecNav', closed ? 'closed' : 'open'); } catch (e) { /* the menu simply opens as usual next time */ } };
     toggle.setAttribute('aria-expanded', String(document.documentElement.getAttribute('data-nav') !== 'closed'));
-    toggle.addEventListener('click', () => setNav(document.documentElement.getAttribute('data-nav') !== 'closed'));
+    if (firstTime) toggle.addEventListener('click', () => setNav(document.documentElement.getAttribute('data-nav') !== 'closed'));
     // On a phone the menu may not fit: its right edge fades until it is scrolled to the end, as a hint to swipe.
-    const nav = header.querySelector('.niec-nav');
     const edge = () => nav.classList.toggle('at-end', nav.scrollLeft + nav.clientWidth >= nav.scrollWidth - 2);
-    nav.addEventListener('scroll', edge, { passive: true });
-    window.addEventListener('resize', edge);
+    if (firstTime) { nav.addEventListener('scroll', edge, { passive: true }); window.addEventListener('resize', edge); }
     edge();
     // The current page is scrolled into view in a menu that doesn't fit.
     const here = nav.querySelector('[aria-current="page"]');
@@ -190,17 +192,36 @@
     account.querySelector('.niec-logout').addEventListener('click', () => window.NiecSession.logout());
   }
 
+  // The menu is drawn at once from what this browser tab remembers from the last page (who is logged in), so moving from page
+  // to page never shows an empty menu; the server's answer then confirms it and redraws only if something changed. The memory is
+  // per tab (sessionStorage), holds only the name, username and access, and is wiped at the login page and at Log out.
+  const MEMORY = 'isrMe';
+  let shown = '';
+  try {
+    const kept = sessionStorage.getItem(MEMORY);
+    if (kept) { render(JSON.parse(kept)); shown = kept; }
+  } catch (e) { /* drawn when the server answers */ }
   // A preview made of made-up students says so on every page, so it is never mistaken for the real data.
-  fetch('/api/demo', { cache: 'no-store' }).then((r) => (r.ok ? r.json() : null)).then((d) => {
-    if (!d || !d.demo) return;
+  const demoBar = () => {
+    if (document.querySelector('.niec-demo')) return;
     const bar = document.createElement('div');
     bar.className = 'niec-demo';
     bar.setAttribute('role', 'status');
     bar.textContent = 'DEMO: these students, intakes and numbers are made up. They are not your real data.';
     document.body.prepend(bar);
+  };
+  try { if (sessionStorage.getItem('isrDemo') === '1') demoBar(); } catch (e) { /* checked below */ }
+  fetch('/api/demo', { cache: 'no-store' }).then((r) => (r.ok ? r.json() : null)).then((d) => {
+    try { sessionStorage.setItem('isrDemo', d && d.demo ? '1' : '0'); } catch (e) { /* not kept */ }
+    if (d && d.demo) demoBar();
   }).catch(() => { /* no banner */ });
   fetch('/api/me', { cache: 'no-store' })
     .then((res) => (res.ok ? res.json() : null))
-    .then((me) => { if (me) render(me); })
+    .then((me) => {
+      if (!me) return;
+      const fresh = JSON.stringify({ name: me.name, username: me.username, role: me.role, roleLabel: me.roleLabel, departments: me.departments || [] });
+      try { sessionStorage.setItem(MEMORY, fresh); } catch (e) { /* not kept */ }
+      if (fresh !== shown) render(JSON.parse(fresh));
+    })
     .catch(() => { /* the session helper sends a logged-out page to the login page */ });
 })();

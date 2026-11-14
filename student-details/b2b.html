@@ -10,6 +10,8 @@
 <link rel="stylesheet" href="ui.css" />
 <link rel="stylesheet" href="portal.css" />
 <link rel="stylesheet" href="theme.css" />
+<!-- The first picture of the page waits until the menu has been drawn (see the marker at the end), so moving between pages never flashes an empty menu. -->
+<link rel="expect" href="#isr-ready" blocking="render" />
 </head>
 <body class="p-body" data-kind="b2b">
   <header class="niec-header" data-page="b2b"></header>
@@ -33,5 +35,6 @@
 <script src="header.js"></script>
 <script src="portal-ui.js"></script>
 <script src="b2b-page.js"></script>
+<span id="isr-ready" hidden></span>
 </body>
 </html>

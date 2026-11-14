@@ -91,8 +91,9 @@
   <p class="footnote">🔒 Staff only. Log in with your own username and password.</p>
 </main>
 <script>
-  // Only the consultancy's logo above the box; "ISR" if there is no logo.
+  // Only the consultancy's logo above the box; "ISR" if there is no logo. The menu remembered by this tab is forgotten here.
   (function () {
+    try { sessionStorage.removeItem('isrMe'); } catch (e) { /* nothing kept */ }
     const logo = document.getElementById('brandLogo');
     logo.addEventListener('error', () => { logo.hidden = true; document.getElementById('brandName').hidden = false; });
   })();

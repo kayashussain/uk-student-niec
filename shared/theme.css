@@ -1323,7 +1323,7 @@ body:has(#sheet) .stat-card.stat-rate { box-shadow: 0 1px 2px rgba(0, 0, 0, .04)
 body:has(#sheet) .stat-card.stat-rate .stat-value { color: #248a3d; }
 /* pop-ups: Mac-style sheets */
 dialog.p-dialog, dialog.ui-dialog { border: 0; border-radius: 22px; background: var(--panel, #fbfbfd); color: #1d1d1f; box-shadow: 0 30px 80px -20px rgba(0, 0, 0, .35), 0 0 0 .5px rgba(0, 0, 0, .08); }
-dialog.p-dialog[open], dialog.ui-dialog[open] { animation: isr-sheet-in .42s var(--spring) both; }
+dialog.p-dialog[open], dialog.ui-dialog[open] { animation: isr-sheet-in .36s cubic-bezier(.32, .72, 0, 1) both; }
 dialog.p-dialog.is-closing { animation: isr-sheet-out .16s ease-in both; }
 dialog.p-dialog::backdrop, dialog.ui-dialog::backdrop { background: rgba(0, 0, 0, .22); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); animation: isr-fade .3s ease both; }
 dialog.p-dialog.is-closing::backdrop { animation: isr-fade-out .16s ease-in both; }
@@ -1344,13 +1344,19 @@ dialog.p-dialog.is-closing::backdrop { animation: isr-fade-out .16s ease-in both
 .td-task:hover, .pu-card:hover, .bp-card:hover { transform: translateY(-1px); }
 .niec-nav a { transition: background-color .2s var(--ease-out), color .2s var(--ease-out); }
 details.td-attn-row[open] .td-attn-list { animation: isr-slide-down .35s var(--ease-out) both; }
-/* a soft cross-fade from one page to the next; the menu stays still */
+/* 🔴 CSS CHANGED (2026-11-14): moving between pages and opening pop-ups, made to feel like macOS | from: the whole window (menu included) faded out and back in, and the menu showed empty for a moment while it was drawn; the page area also replayed its own rise animation on top; pop-ups rose from below | to: the menu stays perfectly still (it is drawn before the first picture of the new page, from what the tab remembers); only the page area changes: the old page fades away in 0.15s and the new one glides in (a short fade with a 12px rise) on an iOS-style spring; the page's own rise is used only in browsers without page transitions; pop-ups zoom in from 94% like a macOS window, the background softening behind them */
 @view-transition { navigation: auto; }
 .niec-header { view-transition-name: isr-menu; }
-::view-transition-old(root) { animation: isr-fade-out .18s ease-in both; }
-::view-transition-new(root) { animation: isr-fade .28s var(--ease-out) both; }
+.niec-demo { view-transition-name: isr-demo; }
+::view-transition-group(isr-menu), ::view-transition-group(isr-demo) { animation: none; }
+::view-transition-old(isr-menu), ::view-transition-old(isr-demo) { display: none; }
+::view-transition-new(isr-menu), ::view-transition-new(isr-demo) { animation: none; }
+::view-transition-old(root) { animation: isr-fade-out .15s ease-in both; }
+::view-transition-new(root) { animation: isr-page-in .42s cubic-bezier(.32, .72, 0, 1) both; }
+@supports (view-transition-name: none) { .page, .wrap, .app-main, .p-page { animation: none; } }
+@keyframes isr-page-in { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
 @keyframes isr-slide-down { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
-@keyframes isr-sheet-in { from { opacity: 0; transform: translateY(14px) scale(.96); } to { opacity: 1; transform: none; } }
+@keyframes isr-sheet-in { from { opacity: 0; transform: scale(.94); } to { opacity: 1; transform: none; } }
 @keyframes isr-sheet-out { to { opacity: 0; transform: translateY(6px) scale(.98); } }
 @keyframes isr-fade { from { opacity: 0; } to { opacity: 1; } }
 @keyframes isr-fade-out { to { opacity: 0; } }

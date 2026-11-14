@@ -214,6 +214,8 @@
   .pay-fields #payRate { width: 160px; }
 </style>
 <link rel="stylesheet" href="theme.css" />
+<!-- The first picture of the page waits until the menu has been drawn (see the marker at the end), so moving between pages never flashes an empty menu. -->
+<link rel="expect" href="#isr-ready" blocking="render" />
 </head>
 <body>
 <header class="niec-header" data-page="incentive"></header>
@@ -1908,5 +1910,6 @@ renderHead();
 updateUndoRedoButtons();
 loadAll();
 </script>
+<span id="isr-ready" hidden></span>
 </body>
 </html>

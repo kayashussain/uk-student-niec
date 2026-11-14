@@ -11,6 +11,8 @@
 <link rel="stylesheet" href="dashboard.css" />
 <link rel="stylesheet" href="portal.css" />
 <link rel="stylesheet" href="theme.css" />
+<!-- The first picture of the page waits until the menu has been drawn (see the marker at the end), so moving between pages never flashes an empty menu. -->
+<link rel="expect" href="#isr-ready" blocking="render" />
 </head>
 <body>
   <header class="niec-header" data-page="dashboard"></header>
@@ -46,5 +48,6 @@
 <script src="card-drawer.js"></script>
 <script src="dashboard.js"></script>
 <script src="dashboard-insights.js"></script>
+<span id="isr-ready" hidden></span>
 </body>
 </html>

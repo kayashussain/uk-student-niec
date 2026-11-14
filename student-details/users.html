@@ -10,6 +10,8 @@
 <link rel="stylesheet" href="ui.css" />
 <link rel="stylesheet" href="admin.css" />
 <link rel="stylesheet" href="theme.css" />
+<!-- The first picture of the page waits until the menu has been drawn (see the marker at the end), so moving between pages never flashes an empty menu. -->
+<link rel="expect" href="#isr-ready" blocking="render" />
 </head>
 <body>
   <header class="niec-header" data-page="users"></header>
@@ -96,5 +98,6 @@
 <script src="header.js"></script>
 <script src="card-fields.js"></script>
 <script src="users.js"></script>
+<span id="isr-ready" hidden></span>
 </body>
 </html>

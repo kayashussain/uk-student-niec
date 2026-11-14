@@ -10,6 +10,8 @@
 <link rel="stylesheet" href="ui.css" />
 <link rel="stylesheet" href="portal.css" />
 <link rel="stylesheet" href="theme.css" />
+<!-- The first picture of the page waits until the menu has been drawn (see the marker at the end), so moving between pages never flashes an empty menu. -->
+<link rel="expect" href="#isr-ready" blocking="render" />
 </head>
 <body class="p-body">
   <header class="niec-header" data-page="bulkadd"></header>
@@ -24,5 +26,6 @@
 <script src="source-picker.js"></script>
 <script src="student-file.js"></script>
 <script src="bulk-add-page.js"></script>
+<span id="isr-ready" hidden></span>
 </body>
 </html>

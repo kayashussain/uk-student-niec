@@ -85,6 +85,8 @@
   #editor .pu-sub-head { margin: 22px 0 12px; padding: 0; border: 0; color: var(--brand-navy, #1d2f52); font-size: 15px; font-weight: 700; }
 </style>
 <link rel="stylesheet" href="theme.css" />
+<!-- The first picture of the page waits until the menu has been drawn (see the marker at the end), so moving between pages never flashes an empty menu. -->
+<link rel="expect" href="#isr-ready" blocking="render" />
 </head>
 <body>
   <header class="niec-header" data-page="direct"></header>
@@ -116,5 +118,6 @@
 <script src="header.js"></script>
 <script src="backup-bar.js"></script>
 <script src="direct-page.js"></script>
+<span id="isr-ready" hidden></span>
 </body>
 </html>
