@@ -56,3 +56,6 @@ live-data/
 **/source-options.json
 **/course-watch.json
 **/*.damaged-*.json
+# Each person's own mailbox for emailing students (the password encrypted) and its key: private, kept with the data only.
+**/user-mail.json
+**/mail-key

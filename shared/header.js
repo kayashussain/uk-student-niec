@@ -168,6 +168,7 @@
       <div class="niec-menu" role="menu" hidden>
         <div class="niec-menu-head"><b>${esc(me.name)}</b><span>${esc(me.username)} · ${esc(me.roleLabel)}</span></div>
         ${(MENU_LINKS[me.role] || []).map(([id, href, label]) => `<a role="menuitem" href="${href}"${id === page ? ' aria-current="page"' : ''}>${label}</a>`).join('')}
+        <a role="menuitem" href="/my-email"${page === 'myemail' ? ' aria-current="page"' : ''}>My email and WhatsApp</a>
         <button type="button" role="menuitem" class="niec-logout">Log out</button>
       </div>`;
     const btn = account.querySelector('.niec-account-btn');

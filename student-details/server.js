@@ -34,6 +34,7 @@ const CardFields = require('./card-fields');
 const { createB2b } = require('./b2b');
 const { createPortalApi } = require('./portal-api');
 const { partnerAccess, shapeDirect } = require('./partner-access');
+const { createUserMail } = require('./user-mail');
 const { buildInsights } = require('./insights-engine');
 const { createFinder } = require('./finder');
 
@@ -60,6 +61,8 @@ const serveStatic = createStaticServer(ROOT, {
   '/today.html': 'text/html; charset=utf-8',
   '/today-page.js': 'text/javascript; charset=utf-8',
   '/my-dashboard.html': 'text/html; charset=utf-8',
+  '/my-email.html': 'text/html; charset=utf-8',
+  '/my-email-page.js': 'text/javascript; charset=utf-8',
   '/my-dashboard-page.js': 'text/javascript; charset=utf-8',
   '/events-page.js': 'text/javascript; charset=utf-8',
   '/dashboard.js': 'text/javascript; charset=utf-8',
@@ -166,7 +169,7 @@ const advisor = createAdvisorMcp({
 // login. The Claude connector above does not go through any of this: it reads the same data folder with its own secret address.
 const incentiveLock = createIncentiveLock();
 const PAGE_PATHS = new Set(['/', '/students', '/dashboard', '/users', '/activity', '/partner-universities', '/fact-file', '/admin',
-  '/student', '/compose', '/bulk', '/bulk-add', '/today', '/my-dashboard', '/message-templates', '/b2b-partners', '/agents', '/events']);
+  '/student', '/compose', '/bulk', '/bulk-add', '/today', '/my-dashboard', '/my-email', '/message-templates', '/b2b-partners', '/agents', '/events']);
 const incentive = createIncentive({ dataDir: INCENTIVE_DIR, studentDataFile: DATA_FILE, getWorkbook: () => current, activity });
 
 async function handleIncentive(req, res, urlPath) {
@@ -822,10 +825,13 @@ function servedInsights(user, intake) {
 const courseFinder = createCourseFinder();
 let portalRef = null;
 const courseWatch = createCourseWatch({ dir: DATA_DIR, getIndex: () => (portalRef ? portalRef.courseIndex() : []), facts, finder: courseFinder, courseLinks });
+// Each person's own mailbox for emailing students (My email); the office mailbox stays Admin's (see user-mail.js).
+const userMail = createUserMail(DATA_DIR);
 const portal = createPortalApi({
   getWorkbook: () => current, writeWorkbook, recordChanges, teamSave,
   cards, messages, courseLinks, sourceOptions, courseLinker: courseFinder, courseWatch: () => courseWatch, facts, direct, b2b, agents, planning, accounts, activity,
   insights: servedInsights, finder: createFinder(), calculated: CALCULATED_COLUMNS,
+  userMail, officeMailSettings: () => require('../shared/mailer').loadConfig(DATA_DIR),
 });
 
 try {
@@ -958,7 +964,7 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'GET') {
       const page = {
         '/students': 'index.html', '/dashboard': 'dashboard.html', '/users': 'users.html', '/activity': 'activity.html', '/partner-universities': 'direct.html',
-        '/student': 'student.html', '/compose': 'compose.html', '/bulk': 'bulk.html', '/bulk-add': 'bulk-add.html', '/today': 'today.html', '/my-dashboard': 'my-dashboard.html', '/message-templates': 'templates.html', '/b2b-partners': 'b2b.html', '/agents': 'agents.html', '/events': 'events.html',
+        '/student': 'student.html', '/compose': 'compose.html', '/bulk': 'bulk.html', '/bulk-add': 'bulk-add.html', '/today': 'today.html', '/my-dashboard': 'my-dashboard.html', '/my-email': 'my-email.html', '/message-templates': 'templates.html', '/b2b-partners': 'b2b.html', '/agents': 'agents.html', '/events': 'events.html',
       }[urlPath];
       if (urlPath === '/') return send(res, 302, '', { Location: '/today' });
       if (urlPath === '/fact-file') { // the list, or one university's page (?u=...); every account may read
@@ -975,7 +981,7 @@ const server = http.createServer(async (req, res) => {
         // the Dashboard is for Admin and the Manager; the partner pages and Message templates as partner-access.js says; the rest is Admin's.
         const access = partnerAccess(req.user);
         const shared = { '/partner-universities': access.direct, '/b2b-partners': access.b2b, '/agents': access.agents, '/message-templates': access.templates }[urlPath];
-        const allowed = Boolean(shared) || ['/students', '/student', '/today', '/my-dashboard'].includes(urlPath) || (['/compose', '/bulk', '/bulk-add'].includes(urlPath) && !isReadOnly(req.user)) || (['/dashboard', '/events'].includes(urlPath) ? (isAdmin(req.user) || isManager(req.user)) : isAdmin(req.user));
+        const allowed = Boolean(shared) || ['/students', '/student', '/today', '/my-dashboard', '/my-email'].includes(urlPath) || (['/compose', '/bulk', '/bulk-add'].includes(urlPath) && !isReadOnly(req.user)) || (['/dashboard', '/events'].includes(urlPath) ? (isAdmin(req.user) || isManager(req.user)) : isAdmin(req.user));
         if (!allowed) return send(res, 302, '', { Location: home + (String(home).includes('?') ? '&' : '?') + 'notice=admin' });
         req.url = '/' + page;
         return serveStatic(req, res);

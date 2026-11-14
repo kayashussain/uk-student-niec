@@ -110,7 +110,9 @@
       sendAll.hidden = c !== 'email';
       out.replaceChildren();
       note.replaceChildren(c === 'email'
-        ? (mail.ready ? el('p', 'p-muted p-small', 'Each student gets their own email from the office mailbox, with your signature picture. Press Check first to see who is ready.') : el('div', 'p-notice warn', 'Emails cannot be sent from this computer: the office mailbox is not set up (normal on a test computer). On the real server, "Send emails now" sends them. Nothing is sent from here.'))
+        ? (mail.ready ? el('p', 'p-muted p-small', `Each student gets their own email from ${mail.from || 'your mailbox'}, signed by you. Press Check first to see who is ready.`)
+          : mail.own ? (() => { const n = el('div', 'p-notice warn', 'To send emails, set up your own email first: '); const a = el('a', '', 'My email and WhatsApp'); a.href = '/my-email'; n.append(a, '. Nothing is sent until then.'); return n; })()
+            : el('div', 'p-notice warn', 'Emails cannot be sent from this computer: the office mailbox is not set up (normal on a test computer). On the real server, "Send emails now" sends them. Nothing is sent from here.'))
         : el('p', 'p-muted p-small', 'WhatsApp cannot be sent by a program. Press Check, then press WhatsApp beside each student: their chat opens with the message ready and you press send in WhatsApp.'));
       check.textContent = c === 'email' ? 'Check the emails' : 'Prepare the WhatsApp chats';
     };

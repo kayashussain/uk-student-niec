@@ -135,7 +135,9 @@
     const note = $('mailNote');
     note.hidden = false;
     note.className = 'tp-note ' + (data.mail.ready ? 'ok' : 'warn');
-    note.textContent = data.mail.ready ? `Emails are sent from ${data.mail.from}.` : 'Email is not set up on this server yet: sending keeps a preview on the student card. WhatsApp messages open on your own phone or WhatsApp Web.';
+    note.textContent = data.mail.ready ? `Your emails are sent from ${data.mail.from}. WhatsApp messages open in your own WhatsApp.`
+      : data.mail.own ? 'To email students, set up your own email first: account menu, My email and WhatsApp. WhatsApp messages open in your own WhatsApp.'
+        : 'Email is not set up on this server yet: sending keeps a preview on the student card. WhatsApp messages open on your own phone or WhatsApp Web.';
     list();
     signature();
     const old = $('bringBack'); if (old) old.remove();

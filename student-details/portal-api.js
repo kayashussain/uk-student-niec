@@ -32,7 +32,7 @@ const NEW_STUDENT_COLUMNS = ['FIRST NAME', 'LAST NAME', 'EMAIL', 'CONTACT NUMBER
 
 function createPortalApi({
   getWorkbook, writeWorkbook, recordChanges, teamSave, cards, messages, courseLinks, sourceOptions, courseLinker = null, courseWatch = () => null, facts, direct, b2b, agents, planning, accounts, activity,
-  insights = null, finder = null, calculated = [],
+  insights = null, finder = null, calculated = [], userMail = null, officeMailSettings = () => ({}),
 }) {
   // ---- where to send a student's application: the portal link and email saved on Partner Universities ----
   // The student's university is matched to a partner by name, ignoring case, spaces and punctuation; a partner name with a
@@ -175,7 +175,26 @@ function createPortalApi({
   }
   const inlinePictures = () => (signaturePicture ? [{ cid: 'niec-signature', type: 'image/png', data: signaturePicture }] : []);
   const signatureSrc = (preview) => (signaturePicture ? (preview ? `data:image/png;base64,${signaturePicture.toString('base64')}` : 'cid:niec-signature') : '');
-  const mailConfig = () => accounts.emailConfig();
+  // The mailbox a person sends from: their own (set up under My email) or, for Admin only, the office mailbox. A team member who has
+  // not set up their own mailbox cannot email (the owner, 14 Nov 2026). `personal` marks a person's own mailbox.
+  function mailFor(user) {
+    const own = userMail && user ? userMail.config(user.id) : null;
+    const office = accounts.emailConfig();
+    if (own) return { ...own, siteUrl: (office && office.siteUrl) || officeMailSettings().siteUrl || '', personal: true };
+    return Teams.isAdmin(user) ? office : null;
+  }
+  // What a page is told about the sender's mailbox.
+  const mailInfo = (user) => { const cfg = mailFor(user); return { ready: Boolean(cfg), from: cfg ? cfg.from : '', own: !Teams.isAdmin(user), setUp: '/my-email' }; };
+  // A team member's email is signed with their own name, team and address (the office picture carries Admin's name, so it is left out).
+  function signatureFor(user, cfg) {
+    const sig = messages.signature();
+    if (Teams.isAdmin(user) || !cfg || !cfg.personal) return { sig, picture: true };
+    const team = teamsOf(user).map((d) => (Teams.DEPARTMENTS[d] ? Teams.DEPARTMENTS[d].label : '')).filter(Boolean).join(', ');
+    const box = userMail.info(user.id);
+    return { sig: { ...sig, name: user.name, title: team, email: cfg.from, ...(box.phone ? { phone: box.phone, whatsapp: box.phone } : {}) }, picture: false };
+  }
+  // Who gets a copy: the sender's own mailbox (their sent copy) and, for a team member, the office mailbox, unless Admin switched copies off.
+  const copiesFor = (cfg) => { const office = accounts.emailConfig(); return messages.signature().copyToOffice ? [...new Set([cfg.from, ...(cfg.personal && office ? [office.from] : [])])] : []; };
   function messageContext(req, found, card, optionIds) {
     const picked = Array.isArray(optionIds) && optionIds.length ? card.options.filter((o) => optionIds.includes(o.id)) : card.options;
     return {
@@ -204,9 +223,10 @@ function createPortalApi({
     const emailBody = typeof body.body === 'string' ? body.body : (template ? template.body : (own ? 'Dear {first_name},\n\n' : ''));
     const whatsappBody = typeof body.whatsapp === 'string' ? body.whatsapp : (template ? template.whatsapp : (own ? 'Hello {first_name}, ' : ''));
     const ctx = messageContext(req, found, card, body.optionIds);
-    const cfg = mailConfig();
-    const signature = messages.signature();
-    const email = Messages.renderEmail({ subject, body: emailBody, signature, siteUrl: cfg ? cfg.siteUrl : '', signatureSrc: signatureSrc(action === 'preview'), ...ctx });
+    const cfg = mailFor(req.user);
+    const signed = signatureFor(req.user, cfg);
+    const signature = signed.sig;
+    const email = Messages.renderEmail({ subject, body: emailBody, signature, siteUrl: cfg ? cfg.siteUrl : '', signatureSrc: signed.picture ? signatureSrc(action === 'preview') : '', ...ctx });
     const whatsapp = Messages.renderWhatsApp({ body: whatsappBody, ...ctx });
     const ownTo = text(found.row.EMAIL).toLowerCase();
     const to = text(body.to) || ownTo;
@@ -217,7 +237,7 @@ function createPortalApi({
       return sendJSON(res, 200, {
         subject: email.subject, text: email.text, html: email.html, missing: email.missing, to,
         whatsapp: { text: whatsapp.text, number, missing: whatsapp.missing },
-        mail: { ready: Boolean(cfg), from: cfg ? cfg.from : '' },
+        mail: mailInfo(req.user),
         options: ctx.options.length, source: { subject, body: emailBody, whatsapp: whatsappBody },
       });
     }
@@ -257,11 +277,11 @@ function createPortalApi({
       // Email is not set up on this server (always the case on a test computer): nothing leaves, and the card keeps the
       // message as a preview so the whole step can still be checked.
       const logged = cards.logMessage(found.row._id, { ...entry, status: 'preview' }, by(req));
-      return sendJSON(res, 200, { status: 'not-configured', message: logged.message, card: logged.card });
+      return sendJSON(res, 200, { status: 'not-configured', ownMailNeeded: !Teams.isAdmin(req.user), message: logged.message, card: logged.card });
     }
     try {
-      await mailer.sendMail({ ...cfg, fromName: signature.company || Messages.COMPANY }, {
-        to, subject: email.subject, text: email.text, html: email.html, auto: false, bcc: signature.copyToOffice ? [cfg.from] : [], attachments: files, inline: inlinePictures(),
+      await mailer.sendMail({ ...cfg, fromName: cfg.personal && !Teams.isAdmin(req.user) ? `${req.user.name}, ${signature.short || signature.company || Messages.COMPANY}` : (signature.company || Messages.COMPANY) }, {
+        to, subject: email.subject, text: email.text, html: email.html, auto: false, bcc: copiesFor(cfg), attachments: files, inline: signed.picture ? inlinePictures() : [],
       });
     } catch (e) {
       const logged = cards.logMessage(found.row._id, { ...entry, status: 'failed', error: e.message }, by(req));
@@ -568,7 +588,6 @@ function createPortalApi({
 
     if (req.method === 'GET') {
       if (!part) {
-        const cfg = mailConfig();
         sendJSON(res, 200, {
           student: { ...brief(found.sheet, found.row), color: found.row._color || '', remarks: text(found.row.REMARKS), columns: found.sheet.columns, row: Object.fromEntries(found.sheet.columns.map((c) => [c, found.row[c] ?? ''])) },
           card,
@@ -577,7 +596,7 @@ function createPortalApi({
           assignTeams: assignTeamsFor(req.user),
           me: { name: req.user.name },
           event: (() => { const e = eventOf(card.profile.sourceDetail); return e ? { name: e.name, kind: e.kind || 'Event', type: e.type, place: e.place, date: e.date, endDate: e.endDate } : null; })(),
-          mail: { ready: Boolean(cfg), from: cfg ? cfg.from : '' },
+          mail: mailInfo(req.user),
           apply: partnerRouteFor(found.row['UNIVERSITY PARTNER'], editable) || applyRouteFor(found.row['UNIVERSITY NAME'], editable),
           today: cards.today(),
         });
@@ -1146,8 +1165,7 @@ function createPortalApi({
   // ---- message templates ----
   async function handleTemplates(req, res, urlPath) {
     if (req.method === 'GET' && urlPath === '/api/templates') {
-      const cfg = mailConfig();
-      sendJSON(res, 200, { templates: messages.list(), hiddenCount: messages.hiddenCount(), fields: Messages.FIELDS, signature: messages.signature(), stages: Teams.ALL_STATUSES, canEdit: Teams.isAdmin(req.user), mail: { ready: Boolean(cfg), from: cfg ? cfg.from : '' } });
+      sendJSON(res, 200, { templates: messages.list(), hiddenCount: messages.hiddenCount(), fields: Messages.FIELDS, signature: messages.signature(), stages: Teams.ALL_STATUSES, canEdit: Teams.isAdmin(req.user), mail: mailInfo(req.user) });
       return true;
     }
     if (req.method !== 'POST') { send(res, 405, 'Method not allowed'); return true; }
@@ -1215,7 +1233,7 @@ function createPortalApi({
         if (list.length >= 1000) break;
       }
       list.sort((a, b) => a.name.localeCompare(b.name));
-      sendJSON(res, 200, { students: list, ...(() => { const l = cardLists(req.user); return { intakes: l.intakes, stages: l.stages }; })(), mail: { ready: Boolean(mailConfig()) } });
+      sendJSON(res, 200, { students: list, ...(() => { const l = cardLists(req.user); return { intakes: l.intakes, stages: l.stages }; })(), mail: mailInfo(req.user) });
       return true;
     }
     if (req.method !== 'POST' || !/^\/api\/bulk\/(preview|send-email)$/.test(urlPath)) { send(res, 404, 'Not found'); return true; }
@@ -1228,8 +1246,9 @@ function createPortalApi({
     const subject = typeof body.subject === 'string' ? body.subject : (template ? template.subject : '');
     const emailBody = typeof body.body === 'string' ? body.body : (template ? template.body : '');
     const whatsappBody = typeof body.whatsapp === 'string' ? body.whatsapp : (template ? template.whatsapp : '');
-    const cfg = mailConfig();
-    const signature = messages.signature();
+    const cfg = mailFor(req.user);
+    const signed = signatureFor(req.user, cfg);
+    const signature = signed.sig;
     const preview = urlPath.endsWith('preview');
     if (!preview && !text(subject) && !text(emailBody)) { sendJSON(res, 400, { error: 'Write a subject and a message first.' }); return true; }
     const items = [];
@@ -1239,7 +1258,7 @@ function createPortalApi({
       if (!canSee(req.user, found) || !canChange(req.user, found)) { (preview ? items : sendOut).push(preview ? { id, error: 'Not in your list.' } : { id, name: '', status: 'skipped', error: 'Not in your list.' }); continue; }
       const card = cards.get(id);
       const ctx = messageContext(req, found, card, null);
-      const email = Messages.renderEmail({ subject, body: emailBody, signature, siteUrl: cfg ? cfg.siteUrl : '', signatureSrc: signatureSrc(preview), ...ctx });
+      const email = Messages.renderEmail({ subject, body: emailBody, signature, siteUrl: cfg ? cfg.siteUrl : '', signatureSrc: signed.picture ? signatureSrc(preview) : '', ...ctx });
       const wa = Messages.renderWhatsApp({ body: whatsappBody, ...ctx });
       const to = text(found.row.EMAIL).toLowerCase();
       const number = Fields.whatsappNumber(found.row['CONTACT NUMBER']);
@@ -1252,7 +1271,7 @@ function createPortalApi({
       if (recent.length >= 300) { sendOut.push({ id, name: item.name, status: 'skipped', error: 'Too many emails in a short time.' }); continue; }
       const entry = { channel: 'email', template: template ? template.name : 'Own message', subject: email.subject, to, text: email.text, options: needsOptions ? 0 : ctx.options.length, attachments: [] };
       try {
-        await mailer.sendMail({ ...cfg, fromName: signature.company || Messages.COMPANY }, { to, subject: email.subject, text: email.text, html: email.html, auto: false, bcc: signature.copyToOffice ? [cfg.from] : [], inline: inlinePictures() });
+        await mailer.sendMail({ ...cfg, fromName: cfg.personal && !Teams.isAdmin(req.user) ? `${req.user.name}, ${signature.short || signature.company || Messages.COMPANY}` : (signature.company || Messages.COMPANY) }, { to, subject: email.subject, text: email.text, html: email.html, auto: false, bcc: copiesFor(cfg), inline: signed.picture ? inlinePictures() : [] });
         recent.push(Date.now()); bulkSends.set(req.user.id, recent);
         cards.logMessage(id, { ...entry, status: 'sent' }, by(req));
         sendOut.push({ id, name: item.name, status: 'sent' });
@@ -1261,7 +1280,7 @@ function createPortalApi({
         sendOut.push({ id, name: item.name, status: 'failed', error: e.message });
       }
     }
-    if (preview) { sendJSON(res, 200, { items, mail: { ready: Boolean(cfg) } }); return true; }
+    if (preview) { sendJSON(res, 200, { items, mail: mailInfo(req.user) }); return true; }
     note(req, [`Bulk email "${subject}": ${sendOut.filter((r) => r.status === 'sent').length} sent, ${sendOut.filter((r) => r.status !== 'sent').length} not sent`], 'Sent message');
     sendJSON(res, 200, { results: sendOut });
     return true;
@@ -1270,6 +1289,37 @@ function createPortalApi({
   async function handle(req, res, urlPath) {
     if (!urlPath.startsWith('/api/')) return false;
     const query = () => new URL(req.url, 'http://x').searchParams;
+    // My email: a person's own mailbox for emailing students (see user-mail.js). Saved only after a test email to that address went out.
+    if (urlPath === '/api/my-mail' && req.method === 'GET') {
+      const office = officeMailSettings();
+      sendJSON(res, 200, { ...(userMail ? userMail.info(req.user.id) : { set: false }), admin: Teams.isAdmin(req.user), officeReady: Boolean(accounts.emailConfig()), defaults: { host: office.host || '', port: office.port || 465, security: office.security || 'ssl' } });
+      return true;
+    }
+    if (urlPath === '/api/my-mail' && req.method === 'POST') {
+      if (!userMail) { sendJSON(res, 500, { error: 'Not available.' }); return true; }
+      const body = await bodyOf(req, res, 8 * 1024);
+      if (!body) return true;
+      const made = userMail.clean(body, officeMailSettings(), mailer.isAddress);
+      if (made.error) { sendJSON(res, 400, { error: made.error }); return true; }
+      if (tooManySends(req.user.id)) { sendJSON(res, 429, { error: 'Too many tries in a short time. Please wait a few minutes.' }); return true; }
+      try {
+        await mailer.sendMail({ ...made.box, fromName: req.user.name }, { to: made.box.from, subject: 'ISR: your email is set up', text: `Hello ${req.user.name},\n\nYour mailbox works with ISR. Emails you send to students from ISR now go from ${made.box.from}.\n`, auto: true });
+      } catch (e) {
+        activity.record(req, req.user, 'Test email failed', { app: 'My email', changes: [`Could not set up ${made.box.from}: ${mailer.friendlyError(e, made.box.host)}`] });
+        sendJSON(res, 400, { error: `It did not work, so nothing was saved: ${mailer.friendlyError(e, made.box.host)}` });
+        return true;
+      }
+      userMail.save(req.user.id, made.box);
+      activity.record(req, req.user, 'Changed settings', { app: 'My email', changes: [`Set up their own mailbox ${made.box.from} for emailing students`] });
+      sendJSON(res, 200, { ok: true, ...userMail.info(req.user.id) });
+      return true;
+    }
+    if (urlPath === '/api/my-mail/delete' && req.method === 'POST') {
+      const gone = userMail ? userMail.remove(req.user.id) : false;
+      if (gone) activity.record(req, req.user, 'Changed settings', { app: 'My email', changes: ['Removed their own mailbox'] });
+      sendJSON(res, 200, { ok: true, set: false });
+      return true;
+    }
     if (urlPath === '/api/my-dashboard' && req.method === 'GET') {
       if (Teams.isAdmin(req.user) || (Teams.isManager(req.user) && Teams.isReadOnly(req.user))) { sendJSON(res, 403, { error: 'Admin and the Manager have the full Dashboard.' }); return true; }
       sendJSON(res, 200, myDashboard(req.user));

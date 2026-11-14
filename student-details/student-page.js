@@ -441,7 +441,7 @@
     const wrap = el('div');
     const left = el('section', 'p-card');
     left.append(el('h2', '', 'Choose a message'));
-    left.append(el('p', '', `The message opens on a full page where you can read it large, change the words and attach files. Emails carry the signature and replies go to the office mailbox${data.mail.ready ? ` (${data.mail.from})` : ''}.`));
+    left.append(el('p', '', `The message opens on a full page where you can read it large, change the words and attach files. ${data.mail.ready ? `Emails go from ${data.mail.from}, with your signature, and replies come back there.` : data.mail.own ? 'To email, set up your own email first (account menu, My email and WhatsApp).' : 'Emails carry the signature.'}`));
     const stage = data.student.stage;
     const ordered = [...templates].sort((a, b) => (b.stages.includes(stage) - a.stages.includes(stage)) || a.name.localeCompare(b.name));
     const list = el('div', 'p-templates');
